@@ -225,7 +225,8 @@ export function ItemsExplorerClient({
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3 w-10"></th> {/* Icon column */}
+                  <th className="px-5 py-3 w-10"></th>
+
                   <th className="px-5 py-3 pl-2">ชื่อสิ่งของ / รหัสครุภัณฑ์</th>
                   <th className="px-5 py-3 hidden sm:table-cell">ประเภท</th>
                   <th className="px-5 py-3 hidden md:table-cell">หมวดหมู่</th>
