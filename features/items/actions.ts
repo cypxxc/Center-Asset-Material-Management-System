@@ -312,6 +312,131 @@ export async function bulkDeleteItems(ids: string[]) {
   return { ok: true, message: `ลบเรียบร้อย ${ids.length} รายการ` }
 }
 
+// ============================================================
+// Trash: Restore & Hard Delete
+// ============================================================
+
+export async function restoreItem(id: string) {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('items')
+    .update({
+      deleted_at: null,
+      deleted_by: null,
+      updated_by: auth.profile.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .not('deleted_at', 'is', null)
+
+  if (error) {
+    return { message: 'ไม่สามารถกู้คืนรายการได้ กรุณาลองใหม่อีกครั้ง' }
+  }
+
+  revalidatePath('/items')
+  return { ok: true, message: 'กู้คืนรายการเรียบร้อยแล้ว' }
+}
+
+export async function bulkRestoreItems(ids: string[]) {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+  if (!ids.length) {
+    return { message: 'กรุณาเลือกรายการที่ต้องการกู้คืน' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('items')
+    .update({
+      deleted_at: null,
+      deleted_by: null,
+      updated_by: auth.profile.id,
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+    .not('deleted_at', 'is', null)
+
+  if (error) {
+    return { message: 'ไม่สามารถกู้คืนรายการได้: ' + error.message }
+  }
+
+  revalidatePath('/items')
+  return { ok: true, message: `กู้คืนเรียบร้อย ${ids.length} รายการ` }
+}
+
+export async function hardDeleteItem(id: string) {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+  const supabase = await createClient()
+
+  // ดึง image_url ก่อนลบ เพื่อลบรูปออกจาก Storage ด้วย
+  const { data: item } = await supabase
+    .from('items')
+    .select('image_url')
+    .eq('id', id)
+    .not('deleted_at', 'is', null)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('items')
+    .delete()
+    .eq('id', id)
+    .not('deleted_at', 'is', null)
+
+  if (error) {
+    return { message: 'ไม่สามารถลบรายการถาวรได้ กรุณาลองใหม่อีกครั้ง' }
+  }
+
+  // ลบรูปออกจาก Storage (best effort)
+  if (item?.image_url) {
+    await deleteOldImage(item.image_url)
+  }
+
+  revalidatePath('/items')
+  return { ok: true, message: 'ลบรายการถาวรเรียบร้อยแล้ว' }
+}
+
+export async function bulkHardDeleteItems(ids: string[]) {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+  if (!ids.length) {
+    return { message: 'กรุณาเลือกรายการที่ต้องการลบถาวร' }
+  }
+
+  const supabase = await createClient()
+
+  // ดึง image_url ทั้งหมดก่อนลบ
+  const { data: items } = await supabase
+    .from('items')
+    .select('image_url')
+    .in('id', ids)
+    .not('deleted_at', 'is', null)
+
+  const { error } = await supabase
+    .from('items')
+    .delete()
+    .in('id', ids)
+    .not('deleted_at', 'is', null)
+
+  if (error) {
+    return { message: 'ไม่สามารถลบรายการถาวรได้: ' + error.message }
+  }
+
+  // ลบรูปออกจาก Storage (best effort)
+  if (items) {
+    await Promise.allSettled(items.map((item) => deleteOldImage(item.image_url)))
+  }
+
+  revalidatePath('/items')
+  return { ok: true, message: `ลบถาวรเรียบร้อย ${ids.length} รายการ` }
+}
+
 export async function importItemsBulk(csvContent: string) {
   const auth = await requireEditor()
   if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
