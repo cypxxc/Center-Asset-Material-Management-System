@@ -5,19 +5,16 @@ import {
   ClipboardList, 
   AlertTriangle, 
   Layers, 
-  ArrowRight, 
   CheckCircle, 
   Hammer, 
   PlusCircle, 
   FolderOpen,
-  MapPin,
-  FileText
+  MapPin
 } from 'lucide-react'
 import { getReportStats, getRecentAuditLogs } from '@/features/reports/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { canWrite } from '@/lib/permissions'
-import { ITEM_STATUS_LABELS } from '@/features/items/types'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -36,11 +33,12 @@ export default async function DashboardPage() {
     .eq('item_type', 'material')
     .lte('quantity', 5)
     .is('deleted_at', null)
+    .not('status', 'in', '("inactive","disposed")')
     .order('quantity', { ascending: true })
     .limit(5)
 
   const formattedLowStock = (lowStockItems ?? []).map(item => {
-    const locObj = item.location as any
+    const locObj = item.location as { name: string } | { name: string }[] | null
     const locationName = Array.isArray(locObj) 
       ? locObj[0]?.name 
       : locObj?.name
@@ -54,7 +52,6 @@ export default async function DashboardPage() {
 
   const activeCount = stats.statusCounts.active?.count || 0
   const totalAssets = stats.typeCounts.asset?.count || 0
-  const totalSupplies = stats.typeCounts.material?.qty || 0 + (stats.typeCounts.general?.qty || 0)
   const damagedCount = (stats.statusCounts.damaged?.count || 0) + (stats.statusCounts.waiting_repair?.count || 0)
 
   const totalQty = stats.totalQuantity || 1
@@ -63,9 +60,20 @@ export default async function DashboardPage() {
   const damagedQty = (stats.statusCounts.damaged?.qty || 0) + (stats.statusCounts.waiting_repair?.qty || 0)
   const otherQty = (stats.statusCounts.inactive?.qty || 0) + (stats.statusCounts.disposed?.qty || 0)
 
+  const activePct = (activeQty / totalQty) * 100
+  const sparePct = (spareQty / totalQty) * 100
+  const damagedPct = (damagedQty / totalQty) * 100
+  const otherPct = (otherQty / totalQty) * 100
+
+  const circ = 314.159
+  const dash1 = (activePct / 100) * circ
+  const dash2 = (sparePct / 100) * circ
+  const dash3 = (damagedPct / 100) * circ
+  const dash4 = (otherPct / 100) * circ
+
   return (
     <div className="h-full overflow-y-auto bg-slate-50/50 p-6 md:p-8 font-sans">
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="w-full space-y-6">
         
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
@@ -78,7 +86,7 @@ export default async function DashboardPage() {
                 Console Dashboard
               </span>
             </div>
-            <h2 className="text-2xl font-bold">สวัสดีคุณ {profile?.full_name || 'ผู้ใช้งาน'}, ยินดีต้อนรับสู่แผงควบคุมระบบทะเบียนครุภัณฑ์</h2>
+            <h2 className="text-2xl font-bold">สวัสดีคุณ {profile?.full_name || 'ผู้ใช้งาน'}, ยินดีต้อนรับสู่แผงควบคุมระบบ CAMMS</h2>
             <p className="text-xs text-blue-100 max-w-2xl leading-relaxed">
               ระบบตรวจสอบสถานะ คลังวัสดุ และแผนกซ่อมบำรุงในปัจจุบันของทรัพย์สินทั้งหมดของสำนักงาน 
               คุณสามารถตรวจสอบประเภทครุภัณฑ์ ปรับปรุงวัสดุ หรือพิมพ์รายงานสรุปผลได้ทันที
@@ -98,7 +106,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Metrics Bento Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Metric 1 */}
           <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="space-y-1">
@@ -157,66 +165,95 @@ export default async function DashboardPage() {
         </div>
 
         {/* Main Charts and Status Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid w-full grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Status Breakdown Bar chart */}
+          {/* Status Breakdown SVG Donut chart */}
           <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="font-bold text-slate-800 text-sm mb-1">สัดส่วนตามสภาพการใช้งาน (Status)</h3>
-              <p className="text-xs text-slate-400 mb-5">ปริมาณจำนวนพัสดุแบ่งแยกตามสถานะการครอบครองและการใช้งาน</p>
+              <p className="text-xs text-slate-400 mb-4">ปริมาณจำนวนพัสดุแบ่งแยกตามสถานะการครอบครองและการใช้งาน</p>
             </div>
             
-            <div className="space-y-4">
-              {/* Active Status */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> ใช้งานปกติ (Active)
-                  </span>
-                  <span>{activeQty} / {totalQty} ชิ้น</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${(activeQty / totalQty) * 100}%` }}></div>
-                </div>
+            {/* SVG Donut Chart */}
+            <div className="relative py-4 flex items-center justify-center">
+              <svg viewBox="0 0 120 120" className="w-36 h-36">
+                {/* Background Track */}
+                <circle cx="60" cy="60" r="50" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                {/* Active segment */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#10b981"
+                  strokeWidth="12"
+                  strokeDasharray={`${dash1} ${circ - dash1}`}
+                  strokeDashoffset={0}
+                  transform="rotate(-90 60 60)"
+                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
+                />
+                {/* Spare segment */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#3b82f6"
+                  strokeWidth="12"
+                  strokeDasharray={`${dash2} ${circ - dash2}`}
+                  strokeDashoffset={-dash1}
+                  transform="rotate(-90 60 60)"
+                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
+                />
+                {/* Damaged segment */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#f43f5e"
+                  strokeWidth="12"
+                  strokeDasharray={`${dash3} ${circ - dash3}`}
+                  strokeDashoffset={-(dash1 + dash2)}
+                  transform="rotate(-90 60 60)"
+                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
+                />
+                {/* Other segment */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#94a3b8"
+                  strokeWidth="12"
+                  strokeDasharray={`${dash4} ${circ - dash4}`}
+                  strokeDashoffset={-(dash1 + dash2 + dash3)}
+                  transform="rotate(-90 60 60)"
+                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
+                <span className="text-xl font-black text-slate-800">{stats.totalQuantity}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">ชิ้นงานรวม</span>
               </div>
+            </div>
 
-              {/* In Stock/Spare Status */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> สำรองในคลัง (Spare)
-                  </span>
-                  <span>{spareQty} / {totalQty} ชิ้น</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${(spareQty / totalQty) * 100}%` }}></div>
-                </div>
+            <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] font-bold text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="truncate">ใช้งานปกติ ({Math.round(activePct)}%)</span>
               </div>
-
-              {/* Damaged Status */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> ชำรุด/ส่งซ่อม (Damaged)
-                  </span>
-                  <span>{damagedQty} / {totalQty} ชิ้น</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${(damagedQty / totalQty) * 100}%` }}></div>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                <span className="truncate">สำรองในคลัง ({Math.round(sparePct)}%)</span>
               </div>
-
-              {/* Other/Inactive Status */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span> จำหน่ายออก/อื่นๆ (Other)
-                  </span>
-                  <span>{otherQty} / {totalQty} ชิ้น</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-slate-400 h-full rounded-full transition-all duration-500" style={{ width: `${(otherQty / totalQty) * 100}%` }}></div>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                <span className="truncate">ชำรุด/ส่งซ่อม ({Math.round(damagedPct)}%)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+                <span className="truncate">อื่นๆ/จำหน่าย ({Math.round(otherPct)}%)</span>
               </div>
             </div>
           </div>
@@ -228,27 +265,40 @@ export default async function DashboardPage() {
               <p className="text-xs text-slate-400 mb-4">จำแนกปริมาณพัสดุและครุภัณฑ์แยกตามหมวดหมู่หลักในปัจจุบัน</p>
             </div>
             
-            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-              {Object.entries(stats.categoryCounts).map(([cat, counts]) => {
-                const count = counts.count
-                const qty = counts.qty
-                const pct = Math.round((qty / totalQty) * 100) || 0
-                return (
-                  <div key={cat} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
-                      <span className="font-semibold text-slate-700">{cat}</span>
+            <div className="relative flex-1 flex flex-col justify-center min-h-[180px]">
+              {/* Background Chart Gridlines */}
+              <div className="absolute inset-0 flex justify-between pointer-events-none text-[8px] text-slate-300 font-mono">
+                <div className="border-l border-dashed border-slate-100 h-full pl-1">0%</div>
+                <div className="border-l border-dashed border-slate-100 h-full pl-1">25%</div>
+                <div className="border-l border-dashed border-slate-100 h-full pl-1">50%</div>
+                <div className="border-l border-dashed border-slate-100 h-full pl-1">75%</div>
+                <div className="border-l border-dashed border-slate-100 h-full pl-1">100%</div>
+              </div>
+
+              <div className="relative z-10 space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                {Object.entries(stats.categoryCounts).map(([cat, counts]) => {
+                  const count = counts.count
+                  const qty = counts.qty
+                  const pct = Math.round((qty / totalQty) * 100) || 0
+                  return (
+                    <div key={cat} className="group space-y-1">
+                      <div className="flex justify-between items-center text-xs text-slate-700 font-semibold">
+                        <span className="truncate max-w-[150px]">{cat}</span>
+                        <span className="text-slate-400 font-mono text-[10px]">{count} รายการ ({qty} ชิ้น | {pct}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-slate-100/70 rounded-full overflow-hidden shadow-inner relative">
+                        <div
+                          className="bg-indigo-600 h-full rounded-full transition-all duration-700 group-hover:bg-indigo-500 shadow-sm"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-slate-400 font-mono text-[11px]">{count} รายการ ({qty} ชิ้น)</span>
-                      <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-bold">{pct}%</span>
-                    </div>
-                  </div>
-                )
-              })}
-              {Object.keys(stats.categoryCounts).length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-6">ไม่มีข้อมูลหมวดหมู่ในปัจจุบัน</p>
-              )}
+                  )
+                })}
+                {Object.keys(stats.categoryCounts).length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-6">ไม่มีข้อมูลหมวดหมู่ในปัจจุบัน</p>
+                )}
+              </div>
             </div>
           </div>
 

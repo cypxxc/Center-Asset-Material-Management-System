@@ -44,27 +44,31 @@ export async function getReportStats() {
 
   for (const item of items ?? []) {
     const qty = item.quantity || 0
-    totalItems += 1
-    totalQuantity += qty
-
-    if (item.item_type && typeCounts[item.item_type]) {
-      typeCounts[item.item_type].count += 1
-      typeCounts[item.item_type].qty += qty
-    }
+    const isArchived = item.status === 'inactive' || item.status === 'disposed'
 
     if (item.status && statusCounts[item.status]) {
       statusCounts[item.status].count += 1
       statusCounts[item.status].qty += qty
     }
 
-    const catObj = item.category as { name: string } | { name: string }[] | null
-    const catName = Array.isArray(catObj) ? catObj[0]?.name : catObj?.name
-    const safeCatName = catName || 'ทั่วไป'
-    if (!categoryCounts[safeCatName]) {
-      categoryCounts[safeCatName] = { count: 0, qty: 0 }
+    if (!isArchived) {
+      totalItems += 1
+      totalQuantity += qty
+
+      if (item.item_type && typeCounts[item.item_type]) {
+        typeCounts[item.item_type].count += 1
+        typeCounts[item.item_type].qty += qty
+      }
+
+      const catObj = item.category as { name: string } | { name: string }[] | null
+      const catName = Array.isArray(catObj) ? catObj[0]?.name : catObj?.name
+      const safeCatName = catName || 'ทั่วไป'
+      if (!categoryCounts[safeCatName]) {
+        categoryCounts[safeCatName] = { count: 0, qty: 0 }
+      }
+      categoryCounts[safeCatName].count += 1
+      categoryCounts[safeCatName].qty += qty
     }
-    categoryCounts[safeCatName].count += 1
-    categoryCounts[safeCatName].qty += qty
   }
 
   return {
@@ -99,8 +103,14 @@ export async function getRecentAuditLogs() {
 
   return (data ?? []).map((log) => {
     const profile = Array.isArray(log.profiles) ? log.profiles[0] : log.profiles
-    const oldData = log.old_data as Record<string, any> | null
-    const newData = log.new_data as Record<string, any> | null
+    interface AuditLogPayload {
+      item_name?: string
+      responsible_person?: string
+      note?: string
+      asset_no?: string
+    }
+    const oldData = log.old_data as AuditLogPayload | null
+    const newData = log.new_data as AuditLogPayload | null
     const itemName = newData?.item_name || oldData?.item_name || 'พัสดุในระบบ'
     
     let actionLabel = log.action
@@ -171,8 +181,21 @@ export async function getReportItemsList(params: ItemListSearchParams): Promise<
     query = query.eq('item_type', params.type)
   }
 
-  if (params.status) {
+  if (params.status === 'archive') {
+    query = query.in('status', ['inactive', 'disposed'])
+  } else if (params.status) {
     query = query.eq('status', params.status)
+  } else {
+    // Hide inactive & disposed items from reports by default
+    query = query.not('status', 'in', '("inactive","disposed")')
+  }
+
+  if (params.category_id) {
+    query = query.eq('category_id', params.category_id)
+  }
+
+  if (params.location_id) {
+    query = query.eq('location_id', params.location_id)
   }
 
   const { data, error } = await query.order('updated_at', { ascending: false })
