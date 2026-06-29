@@ -11,10 +11,12 @@ interface ItemsPageProps {
 }
 
 export default async function ItemsPage({ searchParams }: ItemsPageProps) {
-  const [params, profile, references] = await Promise.all([
-    searchParams,
+  const params = await searchParams
+
+  const [profile, references, result] = await Promise.all([
     getCurrentProfile(),
-    getItemReferences()
+    getItemReferences(),
+    params.deleted === 'true' ? getDeletedItems(params) : getItems(params)
   ])
 
   const userCanWrite = canWrite(profile?.role)
@@ -25,27 +27,28 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   if (params.deleted === 'true') {
     if (!userCanManageTrash) redirect('/items')
 
-    const result = await getDeletedItems(params)
+    const trashResult = result as Awaited<ReturnType<typeof getDeletedItems>>
     return (
       <TrashExplorerClient
-        items={result.items}
-        total={result.total}
-        page={result.page}
-        totalPages={result.totalPages}
+        items={trashResult.items}
+        total={trashResult.total}
+        page={trashResult.page}
+        totalPages={trashResult.totalPages}
         params={{ q: params.q, type: params.type, page: params.page }}
       />
     )
   }
 
   // Normal view
-  const result = await getItems(params)
+  const normalResult = result as Awaited<ReturnType<typeof getItems>>
+
 
   return (
     <ItemsExplorerClient
-      items={result.items}
-      total={result.total}
-      page={result.page}
-      totalPages={result.totalPages}
+      items={normalResult.items}
+      total={normalResult.total}
+      page={normalResult.page}
+      totalPages={normalResult.totalPages}
       params={params}
       userCanWrite={userCanWrite}
       userCanDelete={userCanDelete}
