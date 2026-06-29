@@ -233,7 +233,7 @@ export async function softDeleteItem(id: string) {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from('items')
     .update({
       deleted_at: new Date().toISOString(),
@@ -243,9 +243,17 @@ export async function softDeleteItem(id: string) {
     })
     .eq('id', id)
     .is('deleted_at', null)
+    .select('id')
 
   if (error) {
-    return { message: 'ไม่สามารถลบรายการได้ กรุณาลองใหม่อีกครั้ง' }
+    console.error('[softDeleteItem] Supabase error:', error)
+    return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
+  }
+
+  // RLS block จะ return error=null แต่ data=[]
+  if (!data || data.length === 0) {
+    console.error('[softDeleteItem] 0 rows updated — possible RLS block or item not found. id:', id, 'role:', profile.role)
+    return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
 
   revalidatePath('/items')
@@ -293,7 +301,7 @@ export async function bulkDeleteItems(ids: string[]) {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from('items')
     .update({
       deleted_at: new Date().toISOString(),
@@ -303,9 +311,16 @@ export async function bulkDeleteItems(ids: string[]) {
     })
     .in('id', ids)
     .is('deleted_at', null)
+    .select('id')
 
   if (error) {
+    console.error('[bulkDeleteItems] Supabase error:', error)
     return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
+  }
+
+  if (!data || data.length === 0) {
+    console.error('[bulkDeleteItems] 0 rows updated — possible RLS block. ids:', ids, 'role:', profile.role)
+    return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
 
   revalidatePath('/items')
