@@ -19,6 +19,7 @@ import {
   Search,
   StickyNote,
   User,
+  Archive,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -121,6 +122,23 @@ export function ItemsExplorerClient({
     if (!value) return
     navigator.clipboard.writeText(value)
     triggerToast(`คัดลอก "${value}" แล้ว`)
+  }
+
+  const handleUpdateStatus = async (itemId: string, nextStatus: ItemStatus) => {
+    const prevItems = localItems
+    // Optimistic Update
+    setLocalItems(prev => prev.map(i => 
+      i.id === itemId ? { ...i, status: nextStatus } : i
+    ))
+    
+    const res = await bulkUpdateItems([itemId], { status: nextStatus })
+    if (res.ok) {
+      triggerToast(nextStatus === 'inactive' ? 'เก็บเข้าคลังเรียบร้อย' : 'นำออกจากคลังเรียบร้อย')
+      router.refresh()
+    } else {
+      setLocalItems(prevItems)
+      setBlockingError(res.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะ')
+    }
   }
 
   const exportToExcel = async () => {
@@ -447,6 +465,7 @@ export function ItemsExplorerClient({
           userCanWrite={userCanWrite}
           userCanDelete={userCanDelete}
           onCopy={copyReference}
+          onUpdateStatus={handleUpdateStatus}
         />
       </div>
 
@@ -772,11 +791,13 @@ function Inspector({
   userCanWrite,
   userCanDelete,
   onCopy,
+  onUpdateStatus,
 }: {
   item: ItemListRow | null
   userCanWrite: boolean
   userCanDelete: boolean
   onCopy: (value: string | null | undefined) => void
+  onUpdateStatus: (itemId: string, nextStatus: ItemStatus) => void
 }) {
   if (!item) {
     return (
@@ -870,17 +891,36 @@ function Inspector({
 
         <div className="mt-auto border-t border-slate-100 pt-4">
           {(userCanWrite || userCanDelete) && (
-            <div className="flex gap-2">
-              {userCanWrite && (
-                <Link href={`/items/${item.id}/edit`} className="flex-1">
-                  <Button variant="outline" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer">
-                    <Edit className="h-4 w-4" />
-                    แก้ไขข้อมูล
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex gap-2">
+                {userCanWrite && (
+                  <Link href={`/items/${item.id}/edit`} className="flex-1">
+                    <Button variant="outline" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer">
+                      <Edit className="h-4 w-4" />
+                      แก้ไขข้อมูล
+                    </Button>
+                  </Link>
+                )}
+                {userCanWrite && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const isArchived = item.status === 'inactive' || item.status === 'disposed'
+                      const nextStatus = isArchived ? 'active' : 'inactive'
+                      const actionText = isArchived ? 'นำออกจากคลัง' : 'เก็บเข้าคลัง'
+                      if (confirm(`ยืนยันการ${actionText}รายการนี้?`)) {
+                        onUpdateStatus(item.id, nextStatus)
+                      }
+                    }}
+                    className="flex-1 h-10 rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50"
+                  >
+                    <Archive className="h-4 w-4 text-slate-500" />
+                    {item.status === 'inactive' || item.status === 'disposed' ? 'นำออกจากคลัง' : 'เก็บเข้าคลัง'}
                   </Button>
-                </Link>
-              )}
+                )}
+              </div>
               {userCanDelete && (
-                <div className="flex-1">
+                <div className="w-full">
                   <DeleteItemButton id={item.id} />
                 </div>
               )}
