@@ -148,18 +148,31 @@ export async function createItem(
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('items').insert({
-    ...parsed.data,
-    created_by: auth.profile.id,
-    updated_by: auth.profile.id,
-  })
+  const { data: newItem, error } = await supabase
+    .from('items')
+    .insert({
+      ...parsed.data,
+      created_by: auth.profile.id,
+      updated_by: auth.profile.id,
+    })
+    .select('id')
+    .single()
 
-  if (error) {
+  if (error || !newItem) {
     if (uploadResult.imageUrl) {
       await deleteOldImage(uploadResult.imageUrl)
     }
-    return { message: friendlyDatabaseError(error.message) }
+    return { message: friendlyDatabaseError(error?.message || 'Database error') }
   }
+
+  // Log in audit logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'create',
+    target_table: 'items',
+    target_id: newItem.id,
+    new_data: parsed.data
+  })
 
   revalidatePath('/items')
   redirect('/items')
@@ -174,13 +187,13 @@ export async function updateItem(
   if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
 
   const supabase = await createClient()
-  const { data: currentItem } = await supabase
+  const { data: oldItem } = await supabase
     .from('items')
-    .select('image_url')
+    .select('*')
     .eq('id', id)
     .single()
 
-  const currentImageUrl = currentItem?.image_url || null
+  const currentImageUrl = oldItem?.image_url || null
 
   const uploadResult = await handleImageUpload(formData, currentImageUrl)
   if (uploadResult.error) {
@@ -216,6 +229,19 @@ export async function updateItem(
     return { message: friendlyDatabaseError(error.message) }
   }
 
+  // Log in audit logs
+  if (oldItem) {
+    const { created_at, updated_at, created_by, updated_by, deleted_at, deleted_by, ...cleanOld } = oldItem
+    await supabase.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'update',
+      target_table: 'items',
+      target_id: id,
+      old_data: cleanOld,
+      new_data: parsed.data
+    })
+  }
+
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
     await deleteOldImage(uploadResult.oldImageUrlToDelete)
   }
@@ -233,6 +259,14 @@ export async function softDeleteItem(id: string) {
   }
 
   const supabase = await createClient()
+
+  // Query item details for audit log
+  const { data: oldItem } = await supabase
+    .from('items')
+    .select('item_name, asset_no, serial_no')
+    .eq('id', id)
+    .single()
+
   const { error, data } = await supabase
     .from('items')
     .update({
@@ -255,6 +289,16 @@ export async function softDeleteItem(id: string) {
     console.error('[softDeleteItem] 0 rows updated — possible RLS block or item not found. id:', id, 'role:', profile.role)
     return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
+
+  // Log in audit logs
+  await supabase.from('audit_logs').insert({
+    user_id: profile.id,
+    action: 'delete',
+    target_table: 'items',
+    target_id: id,
+    old_data: oldItem || null,
+    new_data: { deleted_at: new Date().toISOString() }
+  })
 
   revalidatePath('/items')
   redirect('/items')
@@ -285,6 +329,16 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
   if (error) {
     return { message: 'ไม่สามารถอัปเดตรายการได้: ' + error.message }
   }
+
+  // Log in audit logs
+  const auditLogs = ids.map(id => ({
+    user_id: auth.profile.id,
+    action: 'update',
+    target_table: 'items',
+    target_id: id,
+    new_data: updates
+  }))
+  await supabase.from('audit_logs').insert(auditLogs)
 
   revalidatePath('/items')
   return { ok: true, message: `อัปเดตเรียบร้อย ${ids.length} รายการ` }
@@ -323,6 +377,16 @@ export async function bulkDeleteItems(ids: string[]) {
     return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
 
+  // Log in audit logs
+  const auditLogs = ids.map(id => ({
+    user_id: profile.id,
+    action: 'delete',
+    target_table: 'items',
+    target_id: id,
+    new_data: { deleted_at: new Date().toISOString() }
+  }))
+  await supabase.from('audit_logs').insert(auditLogs)
+
   revalidatePath('/items')
   return { ok: true, message: `ลบเรียบร้อย ${ids.length} รายการ` }
 }
@@ -351,6 +415,15 @@ export async function restoreItem(id: string) {
     return { message: 'ไม่สามารถกู้คืนรายการได้ กรุณาลองใหม่อีกครั้ง' }
   }
 
+  // Log in audit logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'restore',
+    target_table: 'items',
+    target_id: id,
+    new_data: { deleted_at: null }
+  })
+
   revalidatePath('/items')
   return { ok: true, message: 'กู้คืนรายการเรียบร้อยแล้ว' }
 }
@@ -378,6 +451,16 @@ export async function bulkRestoreItems(ids: string[]) {
   if (error) {
     return { message: 'ไม่สามารถกู้คืนรายการได้: ' + error.message }
   }
+
+  // Log in audit logs
+  const auditLogs = ids.map(id => ({
+    user_id: auth.profile.id,
+    action: 'restore',
+    target_table: 'items',
+    target_id: id,
+    new_data: { deleted_at: null }
+  }))
+  await supabase.from('audit_logs').insert(auditLogs)
 
   revalidatePath('/items')
   return { ok: true, message: `กู้คืนเรียบร้อย ${ids.length} รายการ` }
