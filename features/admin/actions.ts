@@ -2,7 +2,8 @@
 
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
+import { clearReferencesCache } from '@/features/items/queries'
 
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
@@ -80,7 +81,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     })
 
     if (['categories', 'locations', 'units'].includes(tableName)) {
-      revalidateTag('references-tag', 'max')
+      clearReferencesCache()
     }
 
     revalidatePath('/admin/db-panel')
@@ -108,7 +109,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     }
 
     if (['categories', 'locations', 'units'].includes(tableName)) {
-      revalidateTag('references-tag', 'max')
+      clearReferencesCache()
     }
 
     revalidatePath('/admin/db-panel')
@@ -146,7 +147,7 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   })
 
   if (['categories', 'locations', 'units'].includes(tableName)) {
-    revalidateTag('references-tag', 'max')
+    clearReferencesCache()
   }
 
   revalidatePath('/admin/db-panel')

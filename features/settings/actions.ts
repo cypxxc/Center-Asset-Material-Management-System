@@ -1,10 +1,11 @@
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { categorySchema, locationSchema, unitSchema } from './schema'
+import { clearReferencesCache } from '@/features/items/queries'
 
 type MetadataKind = 'category' | 'location' | 'unit'
 
@@ -59,7 +60,7 @@ function revalidateSettings() {
   revalidatePath('/settings')
   revalidatePath('/items/new')
   revalidatePath('/items')
-  revalidateTag('references-tag', 'max')
+  clearReferencesCache()
 }
 
 export async function createCategory(formData: FormData) {

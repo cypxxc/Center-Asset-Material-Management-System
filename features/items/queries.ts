@@ -2,7 +2,6 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { unstable_cache } from 'next/cache'
 import {
   ItemDetail,
   ItemListResult,
@@ -14,6 +13,19 @@ import {
 } from './types'
 
 const PAGE_SIZE = 10
+
+let cachedReferences: {
+  data: {
+    categories: ReferenceOption[]
+    locations: ReferenceOption[]
+    units: ReferenceOption[]
+  }
+  timestamp: number
+} | null = null
+
+export function clearReferencesCache() {
+  cachedReferences = null
+}
 
 function parsePage(value: string | undefined) {
   const page = Number(value ?? '1')
@@ -66,28 +78,48 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
   }
 }
 
-export const getItemReferences = unstable_cache(
-  async () => {
-    const supabase = await createClient()
+export async function getItemReferences() {
+  const now = Date.now()
+  // Cache for 1 hour (3600000 ms)
+  if (cachedReferences && (now - cachedReferences.timestamp < 3600000)) {
+    return cachedReferences.data
+  }
 
-    const [categories, locations, units] = await Promise.all([
-      supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('units').select('id, name').eq('is_active', true).order('name'),
-    ])
+  const supabase = await createClient()
 
+  const [categories, locations, units] = await Promise.all([
+    supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
+    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
+    supabase.from('units').select('id, name').eq('is_active', true).order('name'),
+  ])
+
+  // If there are network errors, don't cache, just return data
+  if (categories.error || locations.error || units.error) {
+    console.error('[getItemReferences] Error fetching reference data, skipping cache:', {
+      categories: categories.error,
+      locations: locations.error,
+      units: units.error,
+    })
     return {
       categories: (categories.data ?? []) as ReferenceOption[],
       locations: (locations.data ?? []) as ReferenceOption[],
       units: (units.data ?? []) as ReferenceOption[],
     }
-  },
-  ['item-references-cache'],
-  {
-    revalidate: 3600, // cache for 1 hour
-    tags: ['references-tag']
   }
-)
+
+  const data = {
+    categories: (categories.data ?? []) as ReferenceOption[],
+    locations: (locations.data ?? []) as ReferenceOption[],
+    units: (units.data ?? []) as ReferenceOption[],
+  }
+
+  cachedReferences = {
+    data,
+    timestamp: now,
+  }
+
+  return data
+}
 
 
 export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
