@@ -259,49 +259,9 @@ export function ItemsExplorerClient({
         <main className="flex min-w-0 flex-1 flex-col bg-white">
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-5 md:px-8">
-            {/* Row 1: Breadcrumb (Left) & View Mode Toggle (Right) */}
-            <div className="flex items-start justify-between gap-4">
+            {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
+            <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col min-w-0">
-                {/* Monospace Breadcrumb Path */}
-                <div className="flex items-center text-[10px] md:text-[11px] font-bold text-slate-400 font-mono tracking-wider uppercase mb-1.5 whitespace-nowrap overflow-x-auto">
-                  <Home className="w-3.5 h-3.5 mr-1.5 text-blue-600 flex-shrink-0" />
-                  <span>root</span>
-                  <ChevronRight className="mx-1 h-3 w-3 text-slate-300 flex-shrink-0" />
-                  <span className="text-slate-500">items</span>
-                  {params.type && (
-                    <>
-                      <ChevronRight className="mx-1 h-3 w-3 text-slate-300 flex-shrink-0" />
-                      <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
-                        {ITEM_TYPE_LABELS[params.type as ItemType]?.toLowerCase() ?? params.type}
-                      </span>
-                    </>
-                  )}
-                  {params.category_id && (
-                    <>
-                      <ChevronRight className="mx-1 h-3 w-3 text-slate-300 flex-shrink-0" />
-                      <span className="text-slate-600 font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                        category:{categories.find(c => c.id === params.category_id)?.name || params.category_id}
-                      </span>
-                    </>
-                  )}
-                  {params.status && (
-                    <>
-                      <ChevronRight className="mx-1 h-3 w-3 text-slate-300 flex-shrink-0" />
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                        {ITEM_STATUS_LABELS[params.status as ItemStatus]?.toLowerCase() ?? params.status}
-                      </span>
-                    </>
-                  )}
-                  {params.q && (
-                    <>
-                      <ChevronRight className="mx-1 h-3 w-3 text-slate-300 flex-shrink-0" />
-                      <span className="text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                        search:{params.q.toLowerCase()}
-                      </span>
-                    </>
-                  )}
-                </div>
-
                 {/* Dynamic Main Title */}
                 <h2 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
                   {params.type === 'material'
