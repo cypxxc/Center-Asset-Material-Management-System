@@ -315,10 +315,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
       <div className="px-2.5 pt-3 border-t border-slate-200 bg-slate-50/30 text-xs">
         {/* Archive Link */}
         <Link
-          href="/items?status=inactive"
+          href="/items?status=archive"
           className={cn(
             'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all',
-            pathname === '/items' && currentStatus === 'inactive'
+            pathname === '/items' && currentStatus === 'archive'
               ? 'bg-slate-100 text-slate-800 font-bold'
               : 'text-slate-500 hover:bg-slate-50'
           )}

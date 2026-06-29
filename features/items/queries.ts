@@ -166,8 +166,13 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     query = query.eq('item_type', params.type)
   }
 
-  if (isItemStatus(params.status)) {
+  if (params.status === 'archive') {
+    query = query.in('status', ['inactive', 'disposed'])
+  } else if (isItemStatus(params.status)) {
     query = query.eq('status', params.status)
+  } else {
+    // Hide inactive & disposed items from the main explorer by default
+    query = query.not('status', 'in', '("inactive","disposed")')
   }
 
   if (params.category_id) {
