@@ -95,17 +95,18 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   // Counts based on active (non-deleted) items
   const activeItems = items.filter((i) => i.deleted_at === null)
-  const totalAssetsCount = activeItems.filter((i) => i.item_type === 'asset').length
-  const totalSuppliesCount = activeItems.filter((i) => i.item_type === 'material').length
+  const nonArchivedItems = activeItems.filter((i) => i.status !== 'inactive' && i.status !== 'disposed')
+  const totalAssetsCount = nonArchivedItems.filter((i) => i.item_type === 'asset').length
+  const totalSuppliesCount = nonArchivedItems.filter((i) => i.item_type === 'material').length
   const archiveCount = activeItems.filter((i) => i.status === 'inactive' || i.status === 'disposed').length
   const trashCount = items.filter((i) => i.deleted_at !== null).length
 
   const getCategoryCount = (catId: string) => {
-    return activeItems.filter((i) => i.category_id === catId && i.item_type === 'asset').length
+    return nonArchivedItems.filter((i) => i.category_id === catId && i.item_type === 'asset').length
   }
 
   const getLocationCount = (locId: string) => {
-    return activeItems.filter((i) => i.location_id === locId).length
+    return nonArchivedItems.filter((i) => i.location_id === locId).length
   }
 
   const isAdmin = profile?.role === 'admin'
