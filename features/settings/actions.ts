@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
@@ -18,24 +18,25 @@ async function requireAdmin() {
   const profile = await getCurrentProfile()
 
   if (!profile || !profile.is_active) {
-    redirect('/settings?error=Please sign in before managing settings')
+    redirect('/settings?error=กรุณาเข้าสู่ระบบก่อนจัดการตั้งค่า')
   }
 
   if (profile.role !== 'admin') {
-    redirect('/settings?error=Only admins can manage settings')
+    redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
 }
 
-function redirectToSettings(type: 'message' | 'error', text: string): never {
-  redirect(`/settings?${type}=${encodeURIComponent(text)}`)
+function redirectToSettings(type: 'message' | 'error', text: string, tab?: string): never {
+  const tabQuery = tab ? `&tab=${tab}` : ''
+  redirect(`/settings?${type}=${encodeURIComponent(text)}${tabQuery}`)
 }
 
 function friendlyDatabaseError(message: string) {
   if (message.toLowerCase().includes('duplicate') || message.toLowerCase().includes('unique')) {
-    return 'A record with this name already exists'
+    return 'มีข้อมูลชื่อนี้อยู่ในระบบแล้ว'
   }
 
-  return 'Unable to save settings. Please review the data and try again'
+  return 'ไม่สามารถบันทึกการตั้งค่าได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง'
 }
 
 async function ensureCanDeactivate(kind: MetadataKind, id: string, nextActive: boolean) {
@@ -48,8 +49,8 @@ async function ensureCanDeactivate(kind: MetadataKind, id: string, nextActive: b
     .eq(itemReferenceColumn[kind], id)
     .is('deleted_at', null)
 
-  if (error) return 'Unable to verify item usage before changing status'
-  if ((count ?? 0) > 0) return 'This record is used by existing items and cannot be deactivated'
+  if (error) return 'ไม่สามารถตรวจสอบการใช้งานพัสดุก่อนเปลี่ยนสถานะได้'
+  if ((count ?? 0) > 0) return 'ข้อมูลนี้กำลังถูกใช้งานโดยพัสดุในระบบ และไม่สามารถปิดการใช้งานได้'
 
   return null
 }
@@ -58,6 +59,7 @@ function revalidateSettings() {
   revalidatePath('/settings')
   revalidatePath('/items/new')
   revalidatePath('/items')
+  revalidateTag('references-tag', 'max')
 }
 
 export async function createCategory(formData: FormData) {
@@ -68,14 +70,14 @@ export async function createCategory(formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Category name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อหมวดหมู่', 'categories')
 
   const supabase = await createClient()
   const { error } = await supabase.from('categories').insert(parsed.data)
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'categories')
 
   revalidateSettings()
-  redirectToSettings('message', 'Category created')
+  redirectToSettings('message', 'สร้างหมวดหมู่สำเร็จ', 'categories')
 }
 
 export async function updateCategory(id: string, formData: FormData) {
@@ -86,10 +88,10 @@ export async function updateCategory(id: string, formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Category name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อหมวดหมู่', 'categories')
 
   const usageError = await ensureCanDeactivate('category', id, parsed.data.is_active)
-  if (usageError) redirectToSettings('error', usageError)
+  if (usageError) redirectToSettings('error', usageError, 'categories')
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -97,10 +99,10 @@ export async function updateCategory(id: string, formData: FormData) {
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'categories')
 
   revalidateSettings()
-  redirectToSettings('message', 'Category updated')
+  redirectToSettings('message', 'อัปเดตหมวดหมู่สำเร็จ', 'categories')
 }
 
 export async function createLocation(formData: FormData) {
@@ -115,14 +117,14 @@ export async function createLocation(formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Location name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อสถานที่', 'locations')
 
   const supabase = await createClient()
   const { error } = await supabase.from('locations').insert(parsed.data)
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'locations')
 
   revalidateSettings()
-  redirectToSettings('message', 'Location created')
+  redirectToSettings('message', 'สร้างสถานที่สำเร็จ', 'locations')
 }
 
 export async function updateLocation(id: string, formData: FormData) {
@@ -137,10 +139,10 @@ export async function updateLocation(id: string, formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Location name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อสถานที่', 'locations')
 
   const usageError = await ensureCanDeactivate('location', id, parsed.data.is_active)
-  if (usageError) redirectToSettings('error', usageError)
+  if (usageError) redirectToSettings('error', usageError, 'locations')
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -148,10 +150,10 @@ export async function updateLocation(id: string, formData: FormData) {
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'locations')
 
   revalidateSettings()
-  redirectToSettings('message', 'Location updated')
+  redirectToSettings('message', 'อัปเดตสถานที่สำเร็จ', 'locations')
 }
 
 export async function createUnit(formData: FormData) {
@@ -161,14 +163,14 @@ export async function createUnit(formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Unit name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อหน่วยนับ', 'units')
 
   const supabase = await createClient()
   const { error } = await supabase.from('units').insert(parsed.data)
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'units')
 
   revalidateSettings()
-  redirectToSettings('message', 'Unit created')
+  redirectToSettings('message', 'สร้างหน่วยนับสำเร็จ', 'units')
 }
 
 export async function updateUnit(id: string, formData: FormData) {
@@ -178,10 +180,10 @@ export async function updateUnit(id: string, formData: FormData) {
     is_active: formData.get('is_active'),
   })
 
-  if (!parsed.success) redirectToSettings('error', 'Unit name is required')
+  if (!parsed.success) redirectToSettings('error', 'กรุณาระบุชื่อหน่วยนับ', 'units')
 
   const usageError = await ensureCanDeactivate('unit', id, parsed.data.is_active)
-  if (usageError) redirectToSettings('error', usageError)
+  if (usageError) redirectToSettings('error', usageError, 'units')
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -189,24 +191,24 @@ export async function updateUnit(id: string, formData: FormData) {
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  if (error) redirectToSettings('error', friendlyDatabaseError(error.message))
+  if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'units')
 
   revalidateSettings()
-  redirectToSettings('message', 'Unit updated')
+  redirectToSettings('message', 'อัปเดตหน่วยนับสำเร็จ', 'units')
 }
 
 export async function updateProfile(id: string, formData: FormData) {
   await requireAdmin()
   const currentProfile = await getCurrentProfile()
   if (currentProfile?.id === id) {
-    redirectToSettings('error', 'Cannot modify your own profile settings')
+    redirectToSettings('error', 'ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้', 'users')
   }
 
   const role = formData.get('role') as string
   const isActiveCheckbox = formData.get('is_active')
 
   if (role !== 'admin' && role !== 'staff' && role !== 'viewer') {
-    redirectToSettings('error', 'Invalid role selection')
+    redirectToSettings('error', 'สิทธิ์ที่เลือกไม่ถูกต้อง', 'users')
   }
 
   const is_active = isActiveCheckbox === 'on' || isActiveCheckbox === 'true'
@@ -221,8 +223,8 @@ export async function updateProfile(id: string, formData: FormData) {
     })
     .eq('id', id)
 
-  if (error) redirectToSettings('error', error.message)
+  if (error) redirectToSettings('error', error.message, 'users')
 
   revalidateSettings()
-  redirectToSettings('message', 'User profile updated')
+  redirectToSettings('message', 'อัปเดตโปรไฟล์ผู้ใช้งานสำเร็จ', 'users')
 }
