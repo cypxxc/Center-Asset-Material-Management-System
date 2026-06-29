@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { unstable_cache } from 'next/cache'
 import {
   ItemDetail,
   ItemListResult,
@@ -65,21 +66,29 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
   }
 }
 
-export async function getItemReferences() {
-  const supabase = await createClient()
+export const getItemReferences = unstable_cache(
+  async () => {
+    const supabase = await createClient()
 
-  const [categories, locations, units] = await Promise.all([
-    supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('units').select('id, name').eq('is_active', true).order('name'),
-  ])
+    const [categories, locations, units] = await Promise.all([
+      supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('units').select('id, name').eq('is_active', true).order('name'),
+    ])
 
-  return {
-    categories: (categories.data ?? []) as ReferenceOption[],
-    locations: (locations.data ?? []) as ReferenceOption[],
-    units: (units.data ?? []) as ReferenceOption[],
+    return {
+      categories: (categories.data ?? []) as ReferenceOption[],
+      locations: (locations.data ?? []) as ReferenceOption[],
+      units: (units.data ?? []) as ReferenceOption[],
+    }
+  },
+  ['item-references-cache'],
+  {
+    revalidate: 3600, // cache for 1 hour
+    tags: ['references-tag']
   }
-}
+)
+
 
 export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
   const supabase = await createClient()
