@@ -1,19 +1,17 @@
 'use client'
 
-import React, { useMemo, useState, useTransition } from 'react'
+import React, { useMemo, useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Check,
   CheckCircle,
-  ChevronRight,
   Copy,
   Download,
   Edit,
   ExternalLink,
   FileText,
   Folder,
-  Home,
   LayoutGrid,
   List,
   MapPin,
@@ -67,6 +65,12 @@ export function ItemsExplorerClient({
   categories,
 }: ItemsExplorerClientProps) {
   const router = useRouter()
+  const [localItems, setLocalItems] = useState(items)
+
+  useEffect(() => {
+    setLocalItems(items)
+  }, [items])
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(items[0]?.id || null)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -103,10 +107,10 @@ export function ItemsExplorerClient({
     })
   }
 
-  const effectiveSelectedItemId = items.some((item) => item.id === selectedItemId)
+  const effectiveSelectedItemId = localItems.some((item) => item.id === selectedItemId)
     ? selectedItemId
-    : items[0]?.id ?? null
-  const selectedItem = items.find((item) => item.id === effectiveSelectedItemId) ?? null
+    : localItems[0]?.id ?? null
+  const selectedItem = localItems.find((item) => item.id === effectiveSelectedItemId) ?? null
 
   const triggerToast = (message: string) => {
     setToastMessage(message)
@@ -188,9 +192,10 @@ export function ItemsExplorerClient({
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
       triggerToast('ดาวน์โหลดไฟล์เรียบร้อยแล้ว')
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      setBlockingError('เกิดข้อผิดพลาดขณะส่งออกข้อมูล: ' + (err.message || err))
+      const errMsg = err instanceof Error ? err.message : String(err)
+      setBlockingError('เกิดข้อผิดพลาดขณะส่งออกข้อมูล: ' + errMsg)
     } finally {
       setIsExporting(false)
     }
@@ -228,8 +233,8 @@ export function ItemsExplorerClient({
   }
 
   const folderValuation = useMemo(() => {
-    return items.reduce((sum, item) => sum + (getItemValue(item.item_name, item.category?.name) * item.quantity), 0)
-  }, [items])
+    return localItems.reduce((sum, item) => sum + (getItemValue(item.item_name, item.category?.name) * item.quantity), 0)
+  }, [localItems])
 
   const handleToggleSelectItem = (id: string) => {
     setSelectedItemIds((prev) =>
@@ -238,10 +243,10 @@ export function ItemsExplorerClient({
   }
 
   const handleToggleSelectAll = () => {
-    if (selectedItemIds.length === items.length) {
+    if (selectedItemIds.length === localItems.length) {
       setSelectedItemIds([])
     } else {
-      setSelectedItemIds(items.map((item) => item.id))
+      setSelectedItemIds(localItems.map((item) => item.id))
     }
   }
 
@@ -382,7 +387,7 @@ export function ItemsExplorerClient({
             <div className={cn("flex-1 min-h-0 flex flex-col transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
               {viewMode === 'list' ? (
                 <ItemsList
-                  items={items}
+                  items={localItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={(item) => {
@@ -394,7 +399,7 @@ export function ItemsExplorerClient({
                 />
               ) : (
                 <ItemsGrid
-                  items={items}
+                  items={localItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={(item) => {
@@ -457,13 +462,22 @@ export function ItemsExplorerClient({
           {userCanWrite && (
             <select
               onChange={async (e) => {
-                if (!e.target.value) return
-                const res = await bulkUpdateItems(selectedItemIds, { status: e.target.value })
+                const newStatus = e.target.value
+                if (!newStatus) return
+
+                const prevItems = localItems
+                // Optimistically update status
+                setLocalItems(prev => prev.map(item =>
+                  selectedItemIds.includes(item.id) ? { ...item, status: newStatus as ItemStatus } : item
+                ))
+
+                const res = await bulkUpdateItems(selectedItemIds, { status: newStatus })
                 if (res.ok) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
                 } else {
+                  setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะ')
                 }
                 e.target.value = ''
@@ -481,13 +495,24 @@ export function ItemsExplorerClient({
           {userCanWrite && (
             <select
               onChange={async (e) => {
-                if (!e.target.value) return
-                const res = await bulkUpdateItems(selectedItemIds, { location_id: e.target.value })
+                const newLocId = e.target.value
+                if (!newLocId) return
+
+                const targetLoc = locations.find(l => l.id === newLocId) || null
+                const prevItems = localItems
+
+                // Optimistically update location object
+                setLocalItems(prev => prev.map(item =>
+                  selectedItemIds.includes(item.id) ? { ...item, location: targetLoc } : item
+                ))
+
+                const res = await bulkUpdateItems(selectedItemIds, { location_id: newLocId })
                 if (res.ok) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
                 } else {
+                  setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการย้ายสถานที่')
                 }
                 e.target.value = ''
@@ -506,12 +531,18 @@ export function ItemsExplorerClient({
             <Button
               onClick={async () => {
                 if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
+
+                const prevItems = localItems
+                // Optimistically remove items from view
+                setLocalItems(prev => prev.filter(item => !selectedItemIds.includes(item.id)))
+
                 const res = await bulkDeleteItems(selectedItemIds)
                 if (res.ok) {
                   triggerToast(res.message || 'ลบเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
                 } else {
+                  setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
                 }
               }}
