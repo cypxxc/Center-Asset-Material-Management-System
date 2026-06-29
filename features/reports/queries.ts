@@ -116,11 +116,19 @@ export async function getRecentAuditLogs() {
     let actionLabel = log.action
     if (log.action === 'create') actionLabel = 'ขึ้นทะเบียนใหม่ (Created)'
     if (log.action === 'update') actionLabel = 'แก้ไขข้อมูล (Updated)'
-    if (log.action === 'delete') actionLabel = 'ลบพัสดุ (Deleted)'
+    if (log.action === 'delete') actionLabel = 'ลบพัสดุลงถังขยะ (Deleted)'
+    if (log.action === 'restore') actionLabel = 'กู้คืนพัสดุ (Restored)'
+    if (log.action === 'hard_delete') actionLabel = 'ลบพัสดุถาวร (Hard Deleted)'
 
-    const detailsText = newData?.responsible_person 
+    let detailsText = newData?.responsible_person 
       ? `เปลี่ยนผู้รับผิดชอบเป็น ${newData.responsible_person}` 
       : (newData?.note || oldData?.note || `ปรับปรุงข้อมูลครุภัณฑ์รหัส ${newData?.asset_no || oldData?.asset_no || '-'}`)
+
+    if (log.action === 'restore') {
+      detailsText = 'กู้คืนสิ่งของกลับสู่ระบบหลักสำเร็จ'
+    } else if (log.action === 'hard_delete') {
+      detailsText = `ลบข้อมูลสิ่งของออกจากระบบแบบถาวร (รหัสครุภัณฑ์ ${oldData?.asset_no || '-'})`
+    }
 
     return {
       id: log.id,

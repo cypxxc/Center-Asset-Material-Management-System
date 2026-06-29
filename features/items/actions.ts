@@ -472,10 +472,10 @@ export async function hardDeleteItem(id: string) {
 
   const supabase = await createClient()
 
-  // ดึง image_url ก่อนลบ เพื่อลบรูปออกจาก Storage ด้วย
+  // ดึงข้อมูลก่อนลบ เพื่อเก็บลงประวัติและลบรูปออกจาก Storage ด้วย
   const { data: item } = await supabase
     .from('items')
-    .select('image_url')
+    .select('image_url, item_name, asset_no, serial_no')
     .eq('id', id)
     .not('deleted_at', 'is', null)
     .maybeSingle()
@@ -489,6 +489,15 @@ export async function hardDeleteItem(id: string) {
   if (error) {
     return { message: 'ไม่สามารถลบรายการถาวรได้ กรุณาลองใหม่อีกครั้ง' }
   }
+
+  // Log in audit logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'hard_delete',
+    target_table: 'items',
+    target_id: id,
+    old_data: item || null
+  })
 
   // ลบรูปออกจาก Storage (best effort)
   if (item?.image_url) {
@@ -509,10 +518,10 @@ export async function bulkHardDeleteItems(ids: string[]) {
 
   const supabase = await createClient()
 
-  // ดึง image_url ทั้งหมดก่อนลบ
+  // ดึงข้อมูลทั้งหมดก่อนลบ
   const { data: items } = await supabase
     .from('items')
-    .select('image_url')
+    .select('image_url, item_name, asset_no, serial_no')
     .in('id', ids)
     .not('deleted_at', 'is', null)
 
@@ -524,6 +533,18 @@ export async function bulkHardDeleteItems(ids: string[]) {
 
   if (error) {
     return { message: 'ไม่สามารถลบรายการถาวรได้: ' + error.message }
+  }
+
+  // Log in audit logs
+  if (items && items.length > 0) {
+    const auditLogs = items.map((item, idx) => ({
+      user_id: auth.profile.id,
+      action: 'hard_delete',
+      target_table: 'items',
+      target_id: ids[idx],
+      old_data: item
+    }))
+    await supabase.from('audit_logs').insert(auditLogs)
   }
 
   // ลบรูปออกจาก Storage (best effort)
