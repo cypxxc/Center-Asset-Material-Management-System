@@ -20,6 +20,16 @@
 
 > Important: `SUPABASE_SERVICE_ROLE_KEY` must be stored securely in production and must never be committed to git.
 
+## GitHub Actions secrets
+
+In order for `npm run verify-env` to pass in CI, add the required Supabase values as repository secrets:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+These will be injected into the workflow via `.github/workflows/ci.yml`.
+
 ## Manual deployment/staging items
 
 1. Run pending database migrations from `db/migrations/` in the staging/production database.
