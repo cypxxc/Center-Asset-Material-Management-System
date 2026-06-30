@@ -22,6 +22,7 @@ import {
   Archive,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ZoomableImage } from '@/components/ui/zoomable-image'
 import {
   ITEM_STATUS_LABELS,
   ITEM_TYPE_LABELS,
@@ -817,8 +818,12 @@ function Inspector({
     <aside className="hidden h-full w-[320px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-sm lg:flex xl:w-[360px]">
       <div className="relative h-48 shrink-0 overflow-hidden border-b border-slate-100 bg-slate-100">
         {item.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.image_url} alt={item.item_name} className="h-full w-full object-cover" />
+          <ZoomableImage
+            src={item.image_url}
+            alt={item.item_name}
+            className="h-full w-full"
+            imgClassName="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-slate-300">
             <Package className="h-12 w-12 stroke-[1.25]" />

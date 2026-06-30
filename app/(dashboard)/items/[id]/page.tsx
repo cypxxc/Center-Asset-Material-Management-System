@@ -8,6 +8,8 @@ import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
 
+import { ZoomableImage } from '@/components/ui/zoomable-image'
+
 interface ItemDetailPageProps {
   params: Promise<{
     id: string
@@ -91,11 +93,10 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col gap-3">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">รูปภาพสิ่งของ</span>
               <div className="relative rounded-lg overflow-hidden border border-border aspect-square bg-muted/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <ZoomableImage
                   src={item.image_url}
                   alt={item.item_name}
-                  className="object-cover w-full h-full"
+                  className="w-full h-full"
                 />
               </div>
             </div>
