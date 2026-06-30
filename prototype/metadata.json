@@ -1,0 +1,6 @@
+{
+  "name": "Office Inventory",
+  "description": "ระบบทะเบียนสิ่งของและครุภัณฑ์สํานักงาน (Office Inventory System) สำหรับจัดการครุภัณฑ์และอุปกรณ์ต่างๆ",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

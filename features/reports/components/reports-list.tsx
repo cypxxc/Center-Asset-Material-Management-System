@@ -1,13 +1,12 @@
 'use client'
 
-import React, { useTransition } from 'react'
+import React, { useTransition, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Download, Printer, Search, FileText, AlertTriangle, CheckCircle, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { ReportItemRow } from '../queries'
 import ExcelJS from 'exceljs'
-import { cn } from '@/lib/utils'
 
 interface ReportsListProps {
   items: ReportItemRow[]
@@ -15,28 +14,39 @@ interface ReportsListProps {
     q?: string
     type?: string
     status?: string
+    category_id?: string
   }
+  categories: { id: string; name: string }[]
 }
 
-export function ReportsList({ items, searchParams }: ReportsListProps) {
+export function ReportsList({ items, searchParams, categories }: ReportsListProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
+  const [searchVal, setSearchVal] = useState(searchParams.q ?? '')
+  const [prevQ, setPrevQ] = useState(searchParams.q ?? '')
 
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const q = formData.get('q') as string
-    const type = formData.get('type') as string
-    const status = formData.get('status') as string
+  const currentQ = searchParams.q ?? ''
+  if (currentQ !== prevQ) {
+    setPrevQ(currentQ)
+    setSearchVal(currentQ)
+  }
 
-    const params = new URLSearchParams()
-    if (q) params.set('q', q)
-    if (type) params.set('type', type)
-    if (status) params.set('status', status)
-
+  const handleFilterChange = (updates: { q?: string; type?: string; status?: string; category_id?: string }) => {
+    const query = new URLSearchParams()
+    
+    const newQ = updates.q !== undefined ? updates.q : searchVal
+    const newType = updates.type !== undefined ? updates.type : (searchParams.type ?? '')
+    const newStatus = updates.status !== undefined ? updates.status : (searchParams.status ?? '')
+    const newCategory = updates.category_id !== undefined ? updates.category_id : (searchParams.category_id ?? '')
+    
+    if (newQ) query.set('q', newQ)
+    if (newType) query.set('type', newType)
+    if (newStatus) query.set('status', newStatus)
+    if (newCategory) query.set('category_id', newCategory)
+    
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`)
+      router.push(`${pathname}?${query.toString()}`)
     })
   }
 
@@ -222,34 +232,60 @@ export function ReportsList({ items, searchParams }: ReportsListProps) {
         </div>
 
         {/* Filter Bar */}
-        <form onSubmit={handleSearch} className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-center print:hidden">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleFilterChange({ q: searchVal })
+          }}
+          className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-center print:hidden"
+        >
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               name="q"
-              defaultValue={searchParams.q ?? ''}
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              onBlur={() => handleFilterChange({ q: searchVal })}
               placeholder="ค้นหาด้วยชื่อ, เลขครุภัณฑ์, Serial..."
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs focus:outline-none focus:border-primary focus:bg-white transition-all"
             />
           </div>
 
-          <select name="type" defaultValue={searchParams.type ?? ''} className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer">
-            <option value="">ทุกประเภท</option>
+          <select 
+            name="category_id" 
+            value={searchParams.category_id ?? ''} 
+            onChange={(e) => handleFilterChange({ category_id: e.target.value })}
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+          >
+            <option value="">กรองตามหมวดหมู่</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+
+          <select 
+            name="type" 
+            value={searchParams.type ?? ''} 
+            onChange={(e) => handleFilterChange({ type: e.target.value })}
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+          >
+            <option value="">กรองตามประเภท</option>
             {Object.entries(ITEM_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
 
-          <select name="status" defaultValue={searchParams.status ?? ''} className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer">
-            <option value="">ทุกสถานะ</option>
+          <select 
+            name="status" 
+            value={searchParams.status ?? ''} 
+            onChange={(e) => handleFilterChange({ status: e.target.value })}
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+          >
+            <option value="">กรองตามสถานะ</option>
             {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
-
-          <Button type="submit" variant="outline" className="h-9 px-4 text-xs font-bold cursor-pointer rounded-lg" disabled={isPending}>
-            {isPending ? 'กำลังกรอง...' : 'กรองข้อมูล'}
-          </Button>
         </form>
 
         {/* Overdue Audits / Maintenance Alert */}
@@ -292,60 +328,70 @@ export function ReportsList({ items, searchParams }: ReportsListProps) {
         </div>
 
         {/* Main Asset Ledger Table */}
-        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm print:shadow-none print:border-none">
-          <h3 className="font-bold text-slate-800 text-sm mb-4">รายงานราคาและทรัพย์สินรายตัว (Asset Ledger Valuation)</h3>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 print:text-black">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  <th className="py-2.5 px-3">ชื่อครุภัณฑ์ / หมายเลข</th>
-                  <th className="py-2.5 px-3">หมวดหมู่</th>
-                  <th className="py-2.5 px-3 text-center">จำนวน</th>
-                  <th className="py-2.5 px-3 text-right">ราคาต่อหน่วย</th>
-                  <th className="py-2.5 px-3 text-right">ราคารวมประเมิน</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {items.map((item) => {
-                  const unitPrice = getItemValue(item.item_name, item.category?.name)
-                  const totalPrice = unitPrice * item.quantity
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-slate-800 print:text-black">{item.item_name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          S/N: {item.serial_no || item.asset_no || '-'}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500">{item.category?.name || 'ทั่วไป'}</td>
-                      <td className="py-3 px-3 text-center font-bold">{item.quantity} {item.unit?.name ?? ''}</td>
-                      <td className="py-3 px-3 text-right font-mono">{unitPrice.toLocaleString('th-TH')} บาท</td>
-                      <td className="py-3 px-3 text-right font-black font-mono text-slate-800 print:text-black">
-                        {totalPrice.toLocaleString('th-TH')} บาท
+        <div className="relative bg-white p-5 rounded-xl border border-slate-100 shadow-sm print:shadow-none print:border-none flex flex-col">
+          {isPending && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-all duration-200">
+              <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white shadow-xl border border-slate-100 animate-in zoom-in-95 duration-200">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+                <span className="text-[10px] font-bold text-slate-500">กำลังดึงข้อมูล...</span>
+              </div>
+            </div>
+          )}
+          <div className={`flex-1 min-h-0 flex flex-col transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+            <h3 className="font-bold text-slate-800 text-sm mb-4">รายงานราคาและทรัพย์สินรายตัว (Asset Ledger Valuation)</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-700 print:text-black">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="py-2.5 px-3">ชื่อครุภัณฑ์ / หมายเลข</th>
+                    <th className="py-2.5 px-3">หมวดหมู่</th>
+                    <th className="py-2.5 px-3 text-center">จำนวน</th>
+                    <th className="py-2.5 px-3 text-right">ราคาต่อหน่วย</th>
+                    <th className="py-2.5 px-3 text-right">ราคารวมประเมิน</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.map((item) => {
+                    const unitPrice = getItemValue(item.item_name, item.category?.name)
+                    const totalPrice = unitPrice * item.quantity
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-800 print:text-black">{item.item_name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            S/N: {item.serial_no || item.asset_no || '-'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-slate-500">{item.category?.name || 'ทั่วไป'}</td>
+                        <td className="py-3 px-3 text-center font-bold">{item.quantity} {item.unit?.name ?? ''}</td>
+                        <td className="py-3 px-3 text-right font-mono">{unitPrice.toLocaleString('th-TH')} บาท</td>
+                        <td className="py-3 px-3 text-right font-black font-mono text-slate-800 print:text-black">
+                          {totalPrice.toLocaleString('th-TH')} บาท
+                        </td>
+                      </tr>
+                    )
+                  })}
+
+                  {items.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        ไม่พบข้อมูลรายงานสิ่งของตามข้อกำหนด
                       </td>
                     </tr>
-                  )
-                })}
-
-                {items.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-400">
-                      ไม่พบข้อมูลรายงานสิ่งของตามข้อกำหนด
-                    </td>
-                  </tr>
+                  )}
+                </tbody>
+                {items.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-900 bg-slate-50/50 font-black">
+                      <td colSpan={2} className="py-3 px-3 text-slate-800 text-right font-black text-sm">มูลค่าประเมินรวมทั้งสิ้น:</td>
+                      <td className="py-3 px-3 text-center font-black text-sm">{totalQuantity} ชิ้น</td>
+                      <td colSpan={2} className="py-3 px-3 text-right font-black text-blue-700 text-sm">{totalAssetsValue.toLocaleString('th-TH')} บาท</td>
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-              {items.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-slate-900 bg-slate-50/50 font-black">
-                    <td colSpan={2} className="py-3 px-3 text-slate-800 text-right font-black text-sm">มูลค่าประเมินรวมทั้งสิ้น:</td>
-                    <td className="py-3 px-3 text-center font-black text-sm">{totalQuantity} ชิ้น</td>
-                    <td colSpan={2} className="py-3 px-3 text-right font-black text-blue-700 text-sm">{totalAssetsValue.toLocaleString('th-TH')} บาท</td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
+              </table>
+            </div>
           </div>
         </div>
 

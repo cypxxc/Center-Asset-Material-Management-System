@@ -8,6 +8,11 @@ import { itemFormSchema } from './schema'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
 
+// Bust sidebar data cache (layout scope) whenever items change
+function revalidateSidebarCache() {
+  revalidatePath('/', 'layout')
+}
+
 export interface ItemActionState {
   ok?: boolean
   message?: string
@@ -175,6 +180,7 @@ export async function createItem(
   })
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   redirect('/items')
 }
 
@@ -247,6 +253,7 @@ export async function updateItem(
   }
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   revalidatePath(`/items/${id}`)
   redirect(`/items/${id}`)
 }
@@ -301,6 +308,7 @@ export async function softDeleteItem(id: string) {
   })
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   redirect('/items')
 }
 
@@ -341,6 +349,7 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
   await supabase.from('audit_logs').insert(auditLogs)
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: `อัปเดตเรียบร้อย ${ids.length} รายการ` }
 }
 
@@ -388,6 +397,7 @@ export async function bulkDeleteItems(ids: string[]) {
   await supabase.from('audit_logs').insert(auditLogs)
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: `ลบเรียบร้อย ${ids.length} รายการ` }
 }
 
@@ -425,6 +435,7 @@ export async function restoreItem(id: string) {
   })
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: 'กู้คืนรายการเรียบร้อยแล้ว' }
 }
 
@@ -463,6 +474,7 @@ export async function bulkRestoreItems(ids: string[]) {
   await supabase.from('audit_logs').insert(auditLogs)
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: `กู้คืนเรียบร้อย ${ids.length} รายการ` }
 }
 
@@ -505,6 +517,7 @@ export async function hardDeleteItem(id: string) {
   }
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: 'ลบรายการถาวรเรียบร้อยแล้ว' }
 }
 
@@ -553,6 +566,7 @@ export async function bulkHardDeleteItems(ids: string[]) {
   }
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: `ลบถาวรเรียบร้อย ${ids.length} รายการ` }
 }
 
@@ -678,6 +692,7 @@ export async function importItemsBulk(csvContent: string) {
   }
 
   revalidatePath('/items')
+  revalidateSidebarCache()
   return { ok: true, message: `นำเข้าพัสดุสำเร็จ ${itemsToInsert.length} รายการ` }
 }
 

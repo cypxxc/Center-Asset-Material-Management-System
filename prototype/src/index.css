@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Sarabun", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-primary: #2563eb;
+  --color-background: #f0f4f8;
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #e0e3e5;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* Custom Scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Row hover and select */
+.table-row-hover {
+  transition: all 0.2s ease;
+}
+.table-row-hover:hover {
+  background-color: #f8fafc;
+}
+.table-row-selected {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.pane-border-r {
+  border-right: 1px solid #e2e8f0;
+}
+.pane-border-b {
+  border-bottom: 1px solid #e2e8f0;
+}
+.pane-border-l {
+  border-left: 1px solid #e2e8f0;
+}
+.pane-border-t {
+  border-top: 1px solid #e2e8f0;
+}
+

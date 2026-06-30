@@ -7,20 +7,28 @@ import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
 export async function getReportStats() {
   const supabase = await createClient()
 
-  const [itemsResult, locationsResult] = await Promise.all([
+  const [itemsResult, locationsResult, categoriesResult] = await Promise.all([
     supabase
       .from('items')
-      .select('item_type, status, quantity, category:categories(name)')
+      .select('item_type, status, quantity, category_id')
       .is('deleted_at', null),
     supabase
       .from('locations')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('categories')
+      .select('id, name'),
   ])
 
   if (itemsResult.error) throw new Error(itemsResult.error.message)
 
   const items = itemsResult.data
   const locationCount = locationsResult.count || 0
+
+  // O(1) category name lookup — no JOIN needed
+  const categoryNameMap = new Map(
+    (categoriesResult.data ?? []).map((c) => [c.id, c.name])
+  )
 
   let totalItems = 0
   let totalQuantity = 0
@@ -60,9 +68,7 @@ export async function getReportStats() {
         typeCounts[item.item_type].qty += qty
       }
 
-      const catObj = item.category as { name: string } | { name: string }[] | null
-      const catName = Array.isArray(catObj) ? catObj[0]?.name : catObj?.name
-      const safeCatName = catName || 'ทั่วไป'
+      const safeCatName = categoryNameMap.get(item.category_id ?? '') || 'ทั่วไป'
       if (!categoryCounts[safeCatName]) {
         categoryCounts[safeCatName] = { count: 0, qty: 0 }
       }

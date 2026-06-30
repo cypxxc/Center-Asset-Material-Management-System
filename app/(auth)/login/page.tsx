@@ -12,12 +12,12 @@ function LoginForm() {
   const errorParam = searchParams.get('error')
   const [state, formAction, isPending] = useActionState(login, null)
 
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  const handleQuickFill = (roleEmail: string, rolePass: string) => {
-    setEmail(roleEmail)
+  const handleQuickFill = (roleId: string, rolePass: string) => {
+    setIdentifier(roleId)
     setPassword(rolePass)
   }
 
@@ -37,8 +37,8 @@ function LoginForm() {
             <Package className="h-6 w-6 animate-pulse" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Office Item Registry</h1>
-            <p className="text-xs text-slate-500">ระบบทะเบียนสิ่งของเครื่องใช้ในสำนักงาน (Registry-S)</p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">CAMMS</h1>
+            <p className="text-xs text-slate-500">Center Asset Material Management System</p>
           </div>
         </div>
 
@@ -65,20 +65,20 @@ function LoginForm() {
         {/* Login Form */}
         <form action={formAction} className="flex flex-col gap-4">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider" htmlFor="email">
-              อีเมลผู้ใช้งาน (Email)
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider" htmlFor="identifier">
+              รหัสผู้ใช้ (ID)
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
-                <Mail className="h-4 w-4 text-slate-400" />
+                <User className="h-4 w-4 text-slate-400" />
               </span>
               <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                name="id"
+                type="text"
+                placeholder="กรอก ID (UUID) หรือ อีเมล หรือ ชื่อ-นามสกุล"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950/10 focus:border-slate-950 focus:bg-white transition-all shadow-sm"
                 required
               />
@@ -125,48 +125,48 @@ function LoginForm() {
             <span>เข้าใช้ด่วนสำหรับทดสอบ</span>
           </div>
           
-          <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => handleQuickFill('admin@registry.s', 'admin1234')}
+              onClick={() => handleQuickFill('admin-uuid', 'admin1234')}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-center gap-0.5 cursor-pointer group",
-                email === 'admin@registry.s'
+                identifier === 'admin-uuid'
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                   : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 text-slate-700"
               )}
             >
-              <Shield className={cn("h-3.5 w-3.5", email === 'admin@registry.s' ? "text-blue-400" : "text-blue-600 group-hover:scale-105 transition-transform")} />
+              <Shield className={cn("h-3.5 w-3.5", identifier === 'admin-uuid' ? "text-blue-400" : "text-blue-600 group-hover:scale-105 transition-transform")} />
               <span className="text-[11px] font-semibold">Admin</span>
               <span className="text-[8px] opacity-75 font-mono">admin1234</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleQuickFill('staff@registry.s', 'staff1234')}
+              onClick={() => handleQuickFill('staff-uuid', 'staff1234')}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-center gap-0.5 cursor-pointer group",
-                email === 'staff@registry.s'
+                identifier === 'staff-uuid'
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                   : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 text-slate-700"
               )}
             >
-              <User className={cn("h-3.5 w-3.5", email === 'staff@registry.s' ? "text-emerald-400" : "text-emerald-600 group-hover:scale-105 transition-transform")} />
+              <User className={cn("h-3.5 w-3.5", identifier === 'staff-uuid' ? "text-emerald-400" : "text-emerald-600 group-hover:scale-105 transition-transform")} />
               <span className="text-[11px] font-semibold">Staff</span>
               <span className="text-[8px] opacity-75 font-mono">staff1234</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleQuickFill('viewer@registry.s', 'viewer1234')}
+              onClick={() => handleQuickFill('viewer-uuid', 'viewer1234')}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-center gap-0.5 cursor-pointer group",
-                email === 'viewer@registry.s'
+                identifier === 'viewer-uuid'
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                   : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 text-slate-700"
               )}
             >
-              <Eye className={cn("h-3.5 w-3.5", email === 'viewer@registry.s' ? "text-slate-200" : "text-slate-500 group-hover:scale-105 transition-transform")} />
+              <Eye className={cn("h-3.5 w-3.5", identifier === 'viewer-uuid' ? "text-slate-200" : "text-slate-500 group-hover:scale-105 transition-transform")} />
               <span className="text-[11px] font-semibold">Viewer</span>
               <span className="text-[8px] opacity-75 font-mono">viewer1234</span>
             </button>

@@ -18,25 +18,24 @@ import { canWrite } from '@/lib/permissions'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const [stats, logs, profile] = await Promise.all([
+  const [stats, logs, profile, lowStockResult] = await Promise.all([
     getReportStats(),
     getRecentAuditLogs(),
-    getCurrentProfile()
+    getCurrentProfile(),
+    supabase
+      .from('items')
+      .select('id, item_name, quantity, location:locations(name)')
+      .eq('item_type', 'material')
+      .lte('quantity', 5)
+      .is('deleted_at', null)
+      .not('status', 'in', '("inactive","disposed")')
+      .order('quantity', { ascending: true })
+      .limit(5),
   ])
 
   const userCanWrite = canWrite(profile?.role)
 
-  // Query low stock materials (supplies)
-  const { data: lowStockItems } = await supabase
-    .from('items')
-    .select('id, item_name, quantity, location:locations(name)')
-    .eq('item_type', 'material')
-    .lte('quantity', 5)
-    .is('deleted_at', null)
-    .not('status', 'in', '("inactive","disposed")')
-    .order('quantity', { ascending: true })
-    .limit(5)
-
+  const lowStockItems = lowStockResult.data
   const formattedLowStock = (lowStockItems ?? []).map(item => {
     const locObj = item.location as { name: string } | { name: string }[] | null
     const locationName = Array.isArray(locObj) 

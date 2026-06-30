@@ -15,7 +15,7 @@ interface HeaderProps {
   } | null
 }
 
-export function Header({ title = 'CAMMS', profile }: HeaderProps) {
+export function Header({ profile }: HeaderProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const initials = profile?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'R'
@@ -31,6 +31,8 @@ export function Header({ title = 'CAMMS', profile }: HeaderProps) {
       settings: 'ตั้งค่าระบบ',
       profile: 'โปรไฟล์',
       dashboard: 'แผงควบคุม',
+      admin: 'ผู้ดูแลระบบ',
+      'db-panel': 'จัดการฐานข้อมูล',
     }
 
     segments.forEach((segment, index) => {

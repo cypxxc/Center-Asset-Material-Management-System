@@ -34,16 +34,35 @@ function SubmitButton() {
 
 export function ItemForm({ action, categories, locations, units, item }: ItemFormProps) {
   const [state, formAction] = useActionState(action, null)
+  const [dismissedMsg, setDismissedMsg] = useState<string | null>(null)
+
+  const showErrorModal = !!state?.message && state.message !== dismissedMsg
 
   return (
     <form
       action={formAction}
-      encType="multipart/form-data"
       className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
     >
-      {state?.message && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {state.message}
+      {state?.message && showErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <span className="material-symbols-outlined text-[28px]">error</span>
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-slate-950">บันทึกข้อมูลไม่สำเร็จ</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{state.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDismissedMsg(state.message || null)}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center cursor-pointer"
+              >
+                ย้อนกลับไปแก้ไข
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

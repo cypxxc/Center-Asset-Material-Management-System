@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
 import {
@@ -236,20 +237,21 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   return data ? normalizeItemDetail(data as Parameters<typeof normalizeItemDetail>[0]) : null
 }
 
-export async function getSidebarData() {
+// React cache() deduplicates calls within the same request safely (cookies-compatible)
+export const getSidebarData = cache(async function getSidebarData() {
   const supabase = await createClient()
 
   const [categoriesRes, locationsRes, itemsRes] = await Promise.all([
     supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
     supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('items').select('id, item_type, category_id, location_id, status, deleted_at'),
+    // Select only fields needed for counts — no id, no JOINs
+    supabase.from('items').select('item_type, category_id, location_id, status, deleted_at'),
   ])
 
   return {
     categories: (categoriesRes.data ?? []) as { id: string; name: string }[],
     locations: (locationsRes.data ?? []) as { id: string; name: string }[],
     items: (itemsRes.data ?? []) as {
-      id: string
       item_type: string
       category_id: string | null
       location_id: string | null
@@ -257,7 +259,8 @@ export async function getSidebarData() {
       deleted_at: string | null
     }[],
   }
-}
+})
+
 
 export async function getItemAuditLogs(itemId: string) {
   const profile = await getCurrentProfile()

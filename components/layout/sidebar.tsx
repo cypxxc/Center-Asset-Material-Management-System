@@ -36,7 +36,6 @@ interface SidebarProps {
     categories: { id: string; name: string }[]
     locations: { id: string; name: string }[]
     items: {
-      id: string
       item_type: string
       category_id: string | null
       location_id: string | null
@@ -162,7 +161,26 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           <span>Overview Console</span>
         </Link>
 
-        {/* 2. Collapsible Assets (ครุภัณฑ์) Folder */}
+        {/* 2. Supplies Folder */}
+        <Link
+          href="/items?type=material"
+          className={cn(
+            'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all',
+            pathname === '/items' && currentType === 'material'
+              ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
+              : 'hover:bg-slate-50 hover:text-slate-800'
+          )}
+        >
+          <div className="flex items-center min-w-0">
+            <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
+            <span className="truncate">Supplies (วัสดุสิ้นเปลือง)</span>
+          </div>
+          <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+            {totalSuppliesCount}
+          </span>
+        </Link>
+
+        {/* 3. Collapsible Assets (ครุภัณฑ์) Folder */}
         <div className="space-y-0.5">
           <div
             className={cn(
@@ -222,25 +240,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             </div>
           )}
         </div>
-
-        {/* 3. Supplies Folder */}
-        <Link
-          href="/items?type=material"
-          className={cn(
-            'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all',
-            pathname === '/items' && currentType === 'material'
-              ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-              : 'hover:bg-slate-50 hover:text-slate-800'
-          )}
-        >
-          <div className="flex items-center min-w-0">
-            <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
-            <span className="truncate">Supplies (วัสดุสิ้นเปลือง)</span>
-          </div>
-          <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-            {totalSuppliesCount}
-          </span>
-        </Link>
 
         {/* 4. Collapsible Locations (สถานที่ตั้ง) Folder */}
         <div className="space-y-0.5">

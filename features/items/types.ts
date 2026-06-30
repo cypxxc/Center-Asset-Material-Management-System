@@ -46,6 +46,8 @@ export interface ItemListSearchParams {
   type?: string
   status?: string
   page?: string
+  category_id?: string
+  location_id?: string
 }
 
 export interface ItemListResult {

@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Office Item Registry",
-  description: "ระบบทะเบียนสิ่งของเครื่องใช้ในสำนักงาน",
+  title: "CAMMS",
+  description: "Center Asset Material Management System - ระบบทะเบียนครุภัณฑ์และวัสดุสำนักงาน",
 };
 
 export default function RootLayout({
