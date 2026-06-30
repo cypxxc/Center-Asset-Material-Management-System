@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useTransition, useState } from 'react'
+import { useTransition, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Download, Printer, Search, FileText, AlertTriangle, CheckCircle, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'

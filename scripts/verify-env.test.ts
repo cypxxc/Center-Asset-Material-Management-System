@@ -4,10 +4,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { getMissingEnvVars } from './verify-env.ts'
+import { getMissingEnvVars } from './verify-env'
 
 test('uses safe fallback values for CI when Supabase secrets are missing', () => {
-  const missing = getMissingEnvVars({ CI: 'true' })
+  const missing = getMissingEnvVars({ CI: 'true' } as unknown as NodeJS.ProcessEnv)
 
   assert.deepEqual(missing, [])
 })
@@ -18,7 +18,7 @@ test('still reports missing env vars for local runs', () => {
   process.chdir(tempDir)
 
   try {
-    const missing = getMissingEnvVars({ CI: 'false' })
+    const missing = getMissingEnvVars({ CI: 'false' } as unknown as NodeJS.ProcessEnv)
 
     assert.deepEqual(missing, [
       'NEXT_PUBLIC_SUPABASE_URL',

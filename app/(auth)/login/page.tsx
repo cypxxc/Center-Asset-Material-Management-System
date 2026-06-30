@@ -1,10 +1,10 @@
 'use client'
 
-import React, { Suspense, useActionState, useState } from 'react'
+import { Suspense, useActionState, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { login } from '@/features/auth/actions'
 import { Button } from '@/components/ui/button'
-import { Package, Lock, Mail, AlertCircle, Info, Shield, User, Eye, EyeOff } from 'lucide-react'
+import { Package, Lock, AlertCircle, Info, Shield, User, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 function LoginForm() {

@@ -13,6 +13,9 @@ import {
   ReferenceOption,
 } from './types'
 
+const isDev = process.env.NODE_ENV !== 'production'
+
+
 const PAGE_SIZE = 10
 
 let cachedReferences: {
@@ -96,11 +99,13 @@ export async function getItemReferences() {
 
   // If there are network errors, don't cache, just return data
   if (categories.error || locations.error || units.error) {
-    console.error('[getItemReferences] Error fetching reference data, skipping cache:', {
-      categories: categories.error,
-      locations: locations.error,
-      units: units.error,
-    })
+    if (isDev) {
+      console.error('[getItemReferences] Error fetching reference data, skipping cache:', {
+        categories: categories.error,
+        locations: locations.error,
+        units: units.error,
+      })
+    }
     return {
       categories: (categories.data ?? []) as ReferenceOption[],
       locations: (locations.data ?? []) as ReferenceOption[],
@@ -284,7 +289,7 @@ export async function getItemAuditLogs(itemId: string) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Failed to fetch item audit logs:', error)
+    if (isDev) console.error('Failed to fetch item audit logs:', error)
     return []
   }
 

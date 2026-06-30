@@ -9,7 +9,7 @@ export async function signOut() {
   redirect('/login')
 }
 
-export async function login(prevState: { error?: string } | null, formData: FormData) {
+export async function login(_prevState: { error?: string } | null, formData: FormData) {
   const identifier = ((formData.get('id') as string) || '').trim()
   const password = formData.get('password') as string
 
@@ -71,7 +71,7 @@ export type PersonalProfileActionState = {
   success?: string
 }
 
-export async function updatePersonalProfile(prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
+export async function updatePersonalProfile(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
   const supabase = await createClient()
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   if (userErr || !user) return { error: 'กรุณาเข้าสู่ระบบ' }
@@ -96,7 +96,7 @@ export async function updatePersonalProfile(prevState: PersonalProfileActionStat
   return { success: 'อัปเดตข้อมูลส่วนตัวเรียบร้อยแล้ว' }
 }
 
-export async function updatePersonalPassword(prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
+export async function updatePersonalPassword(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
   const supabase = await createClient()
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   if (userErr || !user) return { error: 'กรุณาเข้าสู่ระบบ' }

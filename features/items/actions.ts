@@ -13,6 +13,9 @@ function revalidateSidebarCache() {
   revalidatePath('/', 'layout')
 }
 
+const isDev = process.env.NODE_ENV !== 'production'
+
+
 export interface ItemActionState {
   ok?: boolean
   message?: string
@@ -75,7 +78,7 @@ async function deleteOldImage(url: string | null) {
       await supabase.storage.from('item-images').remove([filename])
     }
   } catch (error) {
-    console.error('Failed to delete old image from storage:', error)
+    if (isDev) console.error('Failed to delete old image from storage:', error)
   }
 }
 
@@ -236,8 +239,15 @@ export async function updateItem(
   }
 
   // Log in audit logs
-  if (oldItem) {
-    const { created_at, updated_at, created_by, updated_by, deleted_at, deleted_by, ...cleanOld } = oldItem
+    if (oldItem) {
+    const cleanOld: Record<string, unknown> = { ...oldItem }
+    const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
+    removeKey(cleanOld, 'created_at')
+    removeKey(cleanOld, 'updated_at')
+    removeKey(cleanOld, 'created_by')
+    removeKey(cleanOld, 'updated_by')
+    removeKey(cleanOld, 'deleted_at')
+    removeKey(cleanOld, 'deleted_by')
     await supabase.from('audit_logs').insert({
       user_id: auth.profile.id,
       action: 'update',
@@ -287,13 +297,13 @@ export async function softDeleteItem(id: string) {
     .select('id')
 
   if (error) {
-    console.error('[softDeleteItem] Supabase error:', error)
+    if (isDev) console.error('[softDeleteItem] Supabase error:', error)
     return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
   }
 
   // RLS block จะ return error=null แต่ data=[]
   if (!data || data.length === 0) {
-    console.error('[softDeleteItem] 0 rows updated — possible RLS block or item not found. id:', id, 'role:', profile.role)
+    if (isDev) console.error('[softDeleteItem] 0 rows updated — possible RLS block or item not found. id:', id, 'role:', profile.role)
     return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
 
@@ -377,12 +387,12 @@ export async function bulkDeleteItems(ids: string[]) {
     .select('id')
 
   if (error) {
-    console.error('[bulkDeleteItems] Supabase error:', error)
+    if (isDev) console.error('[bulkDeleteItems] Supabase error:', error)
     return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
   }
 
   if (!data || data.length === 0) {
-    console.error('[bulkDeleteItems] 0 rows updated — possible RLS block. ids:', ids, 'role:', profile.role)
+    if (isDev) console.error('[bulkDeleteItems] 0 rows updated — possible RLS block. ids:', ids, 'role:', profile.role)
     return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
   }
 

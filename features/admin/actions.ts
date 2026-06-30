@@ -17,9 +17,9 @@ async function getSupabaseClient() {
 export async function requireAdmin() {
   const profile = await getCurrentProfile()
   if (isDev) console.debug('requireAdmin: current profile=', profile)
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || profile.role !== 'admin' || !profile.is_active) {
     if (isDev) console.warn('requireAdmin: access denied for profile=', profile)
-    return { error: 'Access Denied: Admin role required' }
+    return { error: 'Access Denied: Admin role required and profile must be active' }
   }
   return { profile }
 }
@@ -311,7 +311,7 @@ export async function createAuthUser(payload: {
 
     // Step 2: Upsert profile linked to the new auth user UUID
     // Use upsert with onConflict 'id' to avoid duplicate primary key errors
-    const { data: profileData, error: profileError } = await adminClient
+    const { error: profileError } = await adminClient
       .from('profiles')
       .upsert([
         {

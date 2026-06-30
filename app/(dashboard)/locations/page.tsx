@@ -1,6 +1,5 @@
 import 'server-only'
 
-import React from 'react'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
