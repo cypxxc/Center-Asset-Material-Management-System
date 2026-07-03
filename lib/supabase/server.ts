@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import ws from 'ws'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -55,6 +56,14 @@ export async function createAdminClient() {
 export function createServiceRoleClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      db: {
+        schema: 'public',
+      },
+      realtime: {
+        transport: ws as any,
+      },
+    }
   )
 }
