@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { login } from '@/features/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Package, Lock, AlertCircle, User, Eye, EyeOff } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -41,7 +40,7 @@ function LoginForm() {
         {/* Error Handling */}
         {errorParam === 'inactive' && (
           <div className="flex items-start gap-2.5 rounded-xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-rose-700 animate-in fade-in slide-in-from-top-1">
-            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-600" />
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
             <div>
               <p className="font-semibold">บัญชีของคุณไม่พร้อมใช้งาน</p>
               <p className="opacity-90 mt-0.5">
@@ -53,7 +52,7 @@ function LoginForm() {
 
         {state?.error && (
           <div className="flex items-start gap-2.5 rounded-xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-rose-700 animate-in fade-in slide-in-from-top-1">
-            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-600" />
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
             <p className="leading-relaxed font-medium">{state.error}</p>
           </div>
         )}

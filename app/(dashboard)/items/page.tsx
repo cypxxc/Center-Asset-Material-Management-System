@@ -34,7 +34,13 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
         total={trashResult.total}
         page={trashResult.page}
         totalPages={trashResult.totalPages}
-        params={{ q: params.q, type: params.type, page: params.page }}
+        params={{
+          q: params.q,
+          type: params.type,
+          page: params.page,
+          sort_by: params.sort_by,
+          sort_dir: params.sort_dir,
+        }}
       />
     )
   }
@@ -54,6 +60,7 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
       userCanDelete={userCanDelete}
       locations={references.locations}
       categories={references.categories}
+      units={references.units}
     />
   )
 }

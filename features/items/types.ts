@@ -48,6 +48,8 @@ export interface ItemListSearchParams {
   page?: string
   category_id?: string
   location_id?: string
+  sort_by?: string
+  sort_dir?: string
 }
 
 export interface ItemListResult {

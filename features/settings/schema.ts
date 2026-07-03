@@ -1,18 +1,23 @@
 import { z } from 'zod'
+import { normalizeForStorage, getGraphemeLength } from '@/lib/unicode'
 
-const requiredName = z
-  .string()
-  .trim()
-  .min(1, 'Name is required')
-  .max(120, 'Name must be 120 characters or fewer')
+const requiredName = z.preprocess(
+  (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
+  z
+    .string()
+    .refine((val) => getGraphemeLength(val) >= 1, 'Name is required')
+    .refine((val) => getGraphemeLength(val) <= 120, 'Name must be 120 characters or fewer')
+)
 
-const optionalText = z
-  .string()
-  .trim()
-  .transform((value) => (value.length > 0 ? value : null))
-  .nullable()
-  .optional()
-  .transform((value) => value ?? null)
+const optionalText = z.preprocess(
+  (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
+  z
+    .string()
+    .max(1000, 'ความยาวต้องไม่เกิน 1,000 ตัวอักษร')
+    .optional()
+    .nullable()
+    .transform((value) => (value && value.length > 0 ? value : null))
+)
 
 const checkboxBoolean = z
   .unknown()

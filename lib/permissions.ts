@@ -16,12 +16,12 @@ export function canWrite(role?: string | null): boolean {
 }
 
 export function canDelete(role?: string | null): boolean {
-  // Only Admin is allowed to perform soft delete
-  return role === 'admin';
+  // Admin and Staff are allowed to perform delete
+  return role === 'admin' || role === 'staff';
 }
 
 export function canManageSettings(role?: string | null): boolean {
-  return role === 'admin';
+  return role === 'admin' || role === 'staff';
 }
 
 export function canManageTrash(role?: string | null): boolean {

@@ -1,8 +1,12 @@
 import 'server-only'
 
 import { cache } from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache-tags'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { normalizeForSearch } from '@/lib/unicode'
+import { logger } from '@/lib/logging'
 import {
   ItemDetail,
   ItemListResult,
@@ -13,22 +17,49 @@ import {
   ReferenceOption,
 } from './types'
 
-const isDev = process.env.NODE_ENV !== 'production'
 
 
 const PAGE_SIZE = 10
 
-let cachedReferences: {
-  data: {
-    categories: ReferenceOption[]
-    locations: ReferenceOption[]
-    units: ReferenceOption[]
-  }
-  timestamp: number
-} | null = null
+const getCachedItemReferences = unstable_cache(
+  async () => {
+    const supabase = createServiceRoleClient()
+
+    const [categories, locations, units] = await Promise.all([
+      supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('units').select('id, name').eq('is_active', true).order('name'),
+    ])
+
+    if (categories.error || locations.error || units.error) {
+      logger.error({
+        operation: 'getItemReferences',
+        feature: 'items',
+        details: {
+          categories: categories.error?.message,
+          locations: locations.error?.message,
+          units: units.error?.message,
+        }
+      })
+      return {
+        categories: (categories.data ?? []) as ReferenceOption[],
+        locations: (locations.data ?? []) as ReferenceOption[],
+        units: (units.data ?? []) as ReferenceOption[],
+      }
+    }
+
+    return {
+      categories: (categories.data ?? []) as ReferenceOption[],
+      locations: (locations.data ?? []) as ReferenceOption[],
+      units: (units.data ?? []) as ReferenceOption[],
+    }
+  },
+  [CACHE_TAGS.ITEM_REFERENCES],
+  { tags: [CACHE_TAGS.ITEM_REFERENCES], revalidate: 3600 }
+)
 
 export function clearReferencesCache() {
-  cachedReferences = null
+  // no-op, cache is managed via Next.js revalidateTag
 }
 
 function parsePage(value: string | undefined) {
@@ -83,48 +114,7 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
 }
 
 export async function getItemReferences() {
-  const now = Date.now()
-  // Cache for 1 hour (3600000 ms)
-  if (cachedReferences && (now - cachedReferences.timestamp < 3600000)) {
-    return cachedReferences.data
-  }
-
-  const supabase = await createClient()
-
-  const [categories, locations, units] = await Promise.all([
-    supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('units').select('id, name').eq('is_active', true).order('name'),
-  ])
-
-  // If there are network errors, don't cache, just return data
-  if (categories.error || locations.error || units.error) {
-    if (isDev) {
-      console.error('[getItemReferences] Error fetching reference data, skipping cache:', {
-        categories: categories.error,
-        locations: locations.error,
-        units: units.error,
-      })
-    }
-    return {
-      categories: (categories.data ?? []) as ReferenceOption[],
-      locations: (locations.data ?? []) as ReferenceOption[],
-      units: (units.data ?? []) as ReferenceOption[],
-    }
-  }
-
-  const data = {
-    categories: (categories.data ?? []) as ReferenceOption[],
-    locations: (locations.data ?? []) as ReferenceOption[],
-    units: (units.data ?? []) as ReferenceOption[],
-  }
-
-  cachedReferences = {
-    data,
-    timestamp: now,
-  }
-
-  return data
+  return getCachedItemReferences()
 }
 
 
@@ -133,7 +123,7 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
   const page = parsePage(params.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
-  const q = params.q?.trim()
+  const q = normalizeForSearch(params.q || '')
 
   let query = supabase
     .from('items')
@@ -189,7 +179,34 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     query = query.eq('location_id', params.location_id)
   }
 
-  const { data, count, error } = await query.order('updated_at', { ascending: false }).range(from, to)
+  let orderColumn = 'updated_at'
+  let ascending = false
+
+  if (params.sort_by) {
+    if (params.sort_by === 'item_name') {
+      orderColumn = 'item_name'
+    } else if (params.sort_by === 'item_type') {
+      orderColumn = 'item_type'
+    } else if (params.sort_by === 'quantity') {
+      orderColumn = 'quantity'
+    } else if (params.sort_by === 'status') {
+      orderColumn = 'status'
+    }
+  }
+
+  if (params.sort_dir === 'asc') {
+    ascending = true
+  } else if (params.sort_dir === 'desc') {
+    ascending = false
+  } else {
+    if (params.sort_by === 'item_name' || params.sort_by === 'item_type') {
+      ascending = true
+    } else {
+      ascending = false
+    }
+  }
+
+  const { data, count, error } = await query.order(orderColumn, { ascending }).range(from, to)
 
   if (error) {
     throw new Error(error.message)
@@ -242,27 +259,32 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   return data ? normalizeItemDetail(data as Parameters<typeof normalizeItemDetail>[0]) : null
 }
 
-// React cache() deduplicates calls within the same request safely (cookies-compatible)
 export const getSidebarData = cache(async function getSidebarData() {
   const supabase = await createClient()
+  const { data, error } = await supabase.rpc('get_sidebar_stats')
 
-  const [categoriesRes, locationsRes, itemsRes] = await Promise.all([
-    supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-    // Select only fields needed for counts — no id, no JOINs
-    supabase.from('items').select('item_type, category_id, location_id, status, deleted_at'),
-  ])
+  if (error || !data) {
+    return {
+      categories: [],
+      locations: [],
+      counts: {
+        total_assets: 0,
+        total_supplies: 0,
+        archive_count: 0,
+        trash_count: 0,
+      },
+    }
+  }
 
-  return {
-    categories: (categoriesRes.data ?? []) as { id: string; name: string }[],
-    locations: (locationsRes.data ?? []) as { id: string; name: string }[],
-    items: (itemsRes.data ?? []) as {
-      item_type: string
-      category_id: string | null
-      location_id: string | null
-      status: string
-      deleted_at: string | null
-    }[],
+  return data as {
+    categories: { id: string; name: string; count: number }[]
+    locations: { id: string; name: string; count: number }[]
+    counts: {
+      total_assets: number
+      total_supplies: number
+      archive_count: number
+      trash_count: number
+    }
   }
 })
 
@@ -289,7 +311,7 @@ export async function getItemAuditLogs(itemId: string) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    if (isDev) console.error('Failed to fetch item audit logs:', error)
+    logger.error({ operation: 'getItemAuditLogs', feature: 'items', details: { itemId } }, error)
     return []
   }
 
@@ -347,7 +369,7 @@ export async function getDeletedItems(params: ItemListSearchParams): Promise<Del
   const page = parsePage(params.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
-  const q = params.q?.trim()
+  const q = normalizeForSearch(params.q || '')
 
   let query = supabase
     .from('items')
@@ -381,7 +403,34 @@ export async function getDeletedItems(params: ItemListSearchParams): Promise<Del
     query = query.eq('item_type', params.type)
   }
 
-  const { data, count, error } = await query.order('deleted_at', { ascending: false }).range(from, to)
+  let orderColumn = 'deleted_at'
+  let ascending = false
+
+  if (params.sort_by) {
+    if (params.sort_by === 'item_name') {
+      orderColumn = 'item_name'
+    } else if (params.sort_by === 'item_type') {
+      orderColumn = 'item_type'
+    } else if (params.sort_by === 'quantity') {
+      orderColumn = 'quantity'
+    } else if (params.sort_by === 'status') {
+      orderColumn = 'status'
+    }
+  }
+
+  if (params.sort_dir === 'asc') {
+    ascending = true
+  } else if (params.sort_dir === 'desc') {
+    ascending = false
+  } else {
+    if (params.sort_by === 'item_name' || params.sort_by === 'item_type') {
+      ascending = true
+    } else {
+      ascending = false
+    }
+  }
+
+  const { data, count, error } = await query.order(orderColumn, { ascending }).range(from, to)
 
   if (error) {
     throw new Error(error.message)

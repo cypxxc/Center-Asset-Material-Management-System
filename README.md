@@ -1,4 +1,4 @@
-﻿# Center Asset & Material Management System
+# Center Asset & Material Management System
 
 A custom Next.js + Supabase admin application for internal asset and inventory management.
 
@@ -82,3 +82,15 @@ This repo includes:
 ## Contact
 
 If you need changes for deployment or additional admin workflows, update the relevant code in `features/admin/actions.ts` and `app/(dashboard)/admin/db-panel/db-panel-client.tsx`.
+
+## Unicode & Internationalization (i18n) Policy
+
+Registry-S has been fully hardened to support all Unicode scripts (Thai, Arabic, Chinese, Japanese, Korean, Emoji, etc.) across all layers of the application.
+
+1. **Normalization Policy**: All user-entered text is normalized to Unicode Normalization Form C (NFC) using [lib/unicode.ts](file:///d:/registry-s/lib/unicode.ts) before storage, validation, or comparison. This prevents duplicates due to character representation differences (e.g. NFC vs NFD).
+2. **Validation Policy**: All validation schemas (Zod) use Unicode-aware preprocessors to strip invisible characters (such as zero-width spaces `\u200B`) and reject empty unicode-only inputs. Visual length (grapheme clusters, e.g. for emojis) is validated instead of UTF-16 code units.
+3. **Search Policy**: All search queries are normalized to NFC and lowercased before querying the database, ensuring case-insensitive and representation-agnostic matches.
+4. **Import/Export Policy**: CSV and JSON imports automatically strip the UTF-8 Byte Order Mark (BOM `\uFEFF`) to prevent file parsing crashes (common in Excel exports). Column headers are normalized for search-matching, and cell values are normalized for storage.
+5. **Filename Policy**: Uploaded files have their filenames sanitized, replacing unsafe path symbols while fully preserving Unicode characters (Thai, Arabic, Emojis) in extensions and names.
+6. **Collation & Sorting Policy**: Database text columns utilize a custom ICU-based Thai collation (`th-TH-x-icu`) to guarantee that categories, locations, and units sort in lexicographical Thai dictionary order.
+

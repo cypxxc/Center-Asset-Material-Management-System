@@ -159,3 +159,14 @@
   background-color: #eff6ff;
   border-color: #bfdbfe;
 }
+
+/* Enable Unicode-aware bidirectional text handling for inputs and text fields */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input:not([type]),
+textarea {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+

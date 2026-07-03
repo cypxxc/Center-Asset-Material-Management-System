@@ -12,6 +12,9 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { Tag, Building2, Box, Users, Upload } from 'lucide-react'
 import Link from 'next/link'
 
+import { PageContainer } from '@/components/ui/page-container'
+import { PageHeader } from '@/components/ui/page-header'
+
 interface SettingsPageProps {
   searchParams: Promise<{
     message?: string
@@ -39,28 +42,24 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     { id: 'categories', label: 'หมวดหมู่พัสดุ', icon: <Tag className="h-4 w-4" /> },
     { id: 'locations', label: 'สถานที่จัดตั้ง', icon: <Building2 className="h-4 w-4" /> },
     { id: 'units', label: 'หน่วยนับ', icon: <Box className="h-4 w-4" /> },
+    { id: 'import', label: 'นำเข้าพัสดุ CSV/Excel', icon: <Upload className="h-4 w-4" /> },
     ...(isAdmin ? [
-      { id: 'users', label: 'ผู้ใช้งานระบบ', icon: <Users className="h-4 w-4" /> },
-      { id: 'import', label: 'นำเข้าพัสดุ CSV', icon: <Upload className="h-4 w-4" /> }
+      { id: 'users', label: 'ผู้ใช้งานระบบ', icon: <Users className="h-4 w-4" /> }
     ] : []),
   ]
 
   return (
-    <div className="h-full overflow-y-auto bg-[#f0f4f8] p-6 md:p-8">
+    <PageContainer>
+      <PageHeader
+        title="ตั้งค่าระบบและมิติตัวเลือกพัสดุ"
+        subtitle="จัดการข้อมูลพื้นฐานที่ใช้ในการขึ้นทะเบียน ทรัพย์สินที่ใช้งานจริงอยู่จะได้รับการคุ้มครองสิทธิ์ไม่ให้ถูกลบโดยไม่ตั้งใจ"
+      />
 
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800">ตั้งค่าระบบและมิติตัวเลือกพัสดุ</h2>
-          <p className="text-xs text-slate-500 mt-1">
-            จัดการข้อมูลพื้นฐานที่ใช้ในการขึ้นทะเบียน ทรัพย์สินที่ใช้งานจริงอยู่จะได้รับการคุ้มครองสิทธิ์ไม่ให้ถูกลบโดยไม่ตั้งใจ
-          </p>
+      {params.message && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 animate-in fade-in duration-200">
+          {params.message}
         </div>
-
-        {params.message && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 animate-in fade-in duration-200">
-            {params.message}
-          </div>
-        )}
+      )}
 
         {params.error && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -119,12 +118,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           {activeTab === 'users' && isAdmin && (
             <ProfileSection profiles={profiles} />
           )}
-          {activeTab === 'import' && isAdmin && (
+          {activeTab === 'import' && (
             <ImportSection />
           )}
         </div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }
 

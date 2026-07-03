@@ -16,10 +16,14 @@ import {
   AlertTriangle,
   FileText,
   Settings,
-  Database
+  Database,
+  Menu,
+  LogOut,
+  Trash2
 } from 'lucide-react'
 import { ITEM_TYPE_LABELS, ITEM_STATUS_LABELS, ItemType, ItemStatus } from '@/features/items/types'
 import { cn } from '@/lib/utils'
+import { signOut } from '@/features/auth/actions'
 
 interface HeaderProps {
   title?: string
@@ -33,6 +37,7 @@ export function Header({ profile }: HeaderProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [showGuide, setShowGuide] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const initials = profile?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'R'
 
   const renderBreadcrumbs = () => {
@@ -155,6 +160,16 @@ export function Header({ profile }: HeaderProps) {
   return (
     <header className="relative z-20 flex h-[52px] w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pr-4">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="เปิดเมนูนำทาง"
+          className="flex md:hidden mr-1 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer shrink-0"
+          title="เมนูนำทาง"
+          type="button"
+        >
+          <Menu className="h-5 w-5 text-slate-700" />
+        </button>
+
         <Link
           href="/dashboard"
           className="flex h-8 items-center gap-1.5 rounded-lg border border-transparent bg-slate-50 px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-200 hover:bg-slate-100 shrink-0"
@@ -169,14 +184,16 @@ export function Header({ profile }: HeaderProps) {
       <div className="flex items-center gap-2 shrink-0">
         <Link
           href="/profile"
+          aria-label="การตั้งค่าบัญชีส่วนตัว"
           className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:inline-flex"
-          title="การตั้งค่าบัญชีส่วนบุคคล"
+          title="การตั้งค่าบัญชีส่วนตัว"
         >
           <UserCog className="h-4 w-4" />
         </Link>
 
         <button
           onClick={() => setShowGuide(true)}
+          aria-label="เปิดคู่มือการใช้งาน"
           className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
           title="คู่มือการใช้งาน"
           type="button"
@@ -186,8 +203,9 @@ export function Header({ profile }: HeaderProps) {
 
         <Link
           href="/profile"
+          aria-label="ส่วนตัว — การตั้งค่าบัญชี"
           className="ml-1 flex h-7 w-7 items-center justify-center rounded-full border border-white bg-gradient-to-br from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-sm hover:scale-105 active:scale-95 transition-transform"
-          title="การตั้งค่าบัญชีส่วนบุคคล"
+          title="การตั้งค่าบัญชีส่วนตัว"
         >
           {initials}
         </Link>
@@ -205,6 +223,7 @@ export function Header({ profile }: HeaderProps) {
               </h2>
               <button
                 onClick={() => setShowGuide(false)}
+                aria-label="ปิดคู่มือการใช้งาน"
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 transition-colors cursor-pointer"
                 type="button"
               >
@@ -380,6 +399,140 @@ export function Header({ profile }: HeaderProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mobile Navigation Drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-[280px] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
+            {/* Header */}
+            <div className="flex h-[52px] items-center justify-between border-b border-slate-200 px-4">
+              <span className="font-extrabold text-sm text-slate-800">เมนูนำทาง</span>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Links */}
+            <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 text-slate-700 text-sm font-semibold">
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  pathname === '/dashboard' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                )}
+              >
+                <Home className="h-4 w-4 text-blue-600" />
+                <span>แผงควบคุม (Dashboard)</span>
+              </Link>
+
+              <Link
+                href="/items"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  pathname === '/items' && !searchParams.get('type') && !searchParams.get('deleted') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                )}
+              >
+                <Package className="h-4 w-4 text-slate-500" />
+                <span>พัสดุทั้งหมด (All Items)</span>
+              </Link>
+
+              <Link
+                href="/items?type=asset"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  pathname === '/items' && searchParams.get('type') === 'asset' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                )}
+              >
+                <Package className="h-4 w-4 text-slate-500" />
+                <span>ทะเบียนครุภัณฑ์ (Assets)</span>
+              </Link>
+
+              <Link
+                href="/items?type=material"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  pathname === '/items' && searchParams.get('type') === 'material' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                )}
+              >
+                <Package className="h-4 w-4 text-slate-500" />
+                <span>วัสดุสิ้นเปลือง (Supplies)</span>
+              </Link>
+
+              {profile?.role && ['admin', 'staff'].includes(profile.role) && (
+                <Link
+                  href="/items?deleted=true"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                    searchParams.get('deleted') === 'true' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                  )}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                  <span>ถังขยะ (Trash)</span>
+                </Link>
+              )}
+
+              <Link
+                href="/settings"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  pathname === '/settings' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                )}
+              >
+                <Settings className="h-4 w-4 text-slate-500" />
+                <span>ตั้งค่าระบบ (Settings)</span>
+              </Link>
+
+              {profile?.role === 'admin' && (
+                <Link
+                  href="/admin/db-panel"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                    pathname.startsWith('/admin') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                  )}
+                >
+                  <Database className="h-4 w-4 text-slate-500" />
+                  <span>จัดการฐานข้อมูล (DB Panel)</span>
+                </Link>
+              )}
+            </nav>
+
+            {/* Footer containing profile & signout */}
+            <div className="border-t border-slate-200 p-4 bg-slate-50">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                  {initials}
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate text-xs font-bold text-slate-800">{profile?.full_name}</div>
+                  <div className="truncate text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{profile?.role}</div>
+                </div>
+              </div>
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>ออกจากระบบ</span>
+                </button>
+              </form>
+            </div>
+          </div>
+          {/* Backdrop click close */}
+          <div className="flex-1" onClick={() => setMobileOpen(false)} />
         </div>
       )}
     </header>

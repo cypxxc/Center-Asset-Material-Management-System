@@ -1,11 +1,22 @@
 'use client'
 
-import { useActionState, useState, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
-import { Save, Image as ImageIcon, Trash2, Upload } from 'lucide-react'
+import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ItemActionState } from '../actions'
+import {
+  FormField,
+  FormLabel,
+  FormError,
+  FormSection,
+  FormGrid,
+  FormActions,
+  FormInput,
+  FormSelect,
+  FormTextarea
+} from '@/components/ui/form'
 import { ItemDetail, ReferenceOption } from '../types'
 
 interface ItemFormProps {
@@ -14,11 +25,13 @@ interface ItemFormProps {
   locations: ReferenceOption[]
   units: ReferenceOption[]
   item?: ItemDetail
+  /** Called after a successful inline create (modal mode). Not called when redirect happens. */
+  onSuccess?: () => void
 }
 
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null
-  return <p className="text-xs font-medium text-red-600">{errors[0]}</p>
+  return <FormError>{errors[0]}</FormError>
 }
 
 function SubmitButton() {
@@ -26,24 +39,47 @@ function SubmitButton() {
 
   return (
     <Button type="submit" disabled={pending} className="h-10 px-4 font-semibold flex items-center gap-1.5">
-      <Save className="h-4.5 w-4.5" />
+      <Save className="h-4 w-4" />
       <span>{pending ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
     </Button>
   )
 }
 
-export function ItemForm({ action, categories, locations, units, item }: ItemFormProps) {
+export function ItemForm({ action, categories, locations, units, item, onSuccess }: ItemFormProps) {
   const [state, formAction] = useActionState(action, null)
-  const [dismissedMsg, setDismissedMsg] = useState<string | null>(null)
+  // Track which error message version the user has dismissed.
+  // Using a ref + state avoids a useEffect→setState cascade.
+  const dismissedRef = useRef<typeof state>(null)
+  const [dismissed, setDismissed] = useState<typeof state>(null)
+  const showError = !!state?.message && dismissed !== state
 
-  const showErrorModal = !!state?.message && state.message !== dismissedMsg
+  // Use a ref for onSuccess callback to avoid infinite loop when parent re-renders
+  const onSuccessRef = useRef(onSuccess)
+  useEffect(() => {
+    onSuccessRef.current = onSuccess
+  }, [onSuccess])
+
+  useEffect(() => {
+    if (state?.success) {
+      onSuccessRef.current?.()
+    }
+  }, [state])
+
+  const [activeTab, setActiveTab] = useState<'asset' | 'material'>(
+    item?.item_type === 'asset' || !item?.item_type ? 'asset' : 'material'
+  )
+  const [subType, setSubType] = useState<'material' | 'general'>(
+    item?.item_type === 'general' ? 'general' : 'material'
+  )
+
+  const itemType = activeTab === 'asset' ? 'asset' : subType
 
   return (
     <form
       action={formAction}
       className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
     >
-      {state?.message && showErrorModal && (
+      {showError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-4">
@@ -56,7 +92,7 @@ export function ItemForm({ action, categories, locations, units, item }: ItemFor
               </div>
               <button
                 type="button"
-                onClick={() => setDismissedMsg(state.message || null)}
+                onClick={() => { dismissedRef.current = state; setDismissed(state) }}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center cursor-pointer"
               >
                 ย้อนกลับไปแก้ไข
@@ -66,130 +102,173 @@ export function ItemForm({ action, categories, locations, units, item }: ItemFor
         </div>
       )}
 
-      <section className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
-          1. ข้อมูลทั่วไป
-        </h3>
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-slate-100 mb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('asset')}
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+            activeTab === 'asset'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Package className="h-4 w-4" />
+          <span>ครุภัณฑ์</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('material')}
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+            activeTab === 'material'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <ClipboardList className="h-4 w-4" />
+          <span>วัสดุและอุปกรณ์</span>
+        </button>
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="item_name">ชื่อสิ่งของ *</label>
-            <input
+      <input type="hidden" name="item_type" value={itemType} />
+
+      <FormSection title="1. ข้อมูลทั่วไป">
+        <FormGrid>
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
+            <FormInput
               id="item_name"
               name="item_name"
               defaultValue={item?.item_name}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
+              dir="auto"
               required
+              aria-invalid={!!state?.fieldErrors?.item_name}
             />
             <FieldError errors={state?.fieldErrors?.item_name} />
-          </div>
+          </FormField>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="item_type">ประเภท *</label>
-            <select
-              id="item_type"
-              name="item_type"
-              defaultValue={item?.item_type ?? 'asset'}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
-            >
-              <option value="asset">ครุภัณฑ์</option>
-              <option value="material">วัสดุ</option>
-              <option value="general">อุปกรณ์ทั่วไป</option>
-            </select>
-          </div>
+          {activeTab === 'material' && (
+            <FormField>
+              <FormLabel required>ประเภทย่อย</FormLabel>
+              <div className="flex rounded-lg bg-slate-100 p-0.5 max-w-[280px] mt-1">
+                <button
+                  type="button"
+                  onClick={() => setSubType('material')}
+                  className={`flex-1 text-center py-1.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                    subType === 'material'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  วัสดุสิ้นเปลือง
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSubType('general')}
+                  className={`flex-1 text-center py-1.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                    subType === 'general'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  อุปกรณ์ทั่วไป
+                </button>
+              </div>
+            </FormField>
+          )}
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="category_id">หมวดหมู่</label>
-            <select
+          <FormField>
+            <FormLabel htmlFor="category_id">หมวดหมู่</FormLabel>
+            <FormSelect
               id="category_id"
               name="category_id"
               defaultValue={item?.category?.id ?? ''}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
+              aria-invalid={!!state?.fieldErrors?.category_id}
             >
               <option value="">ไม่ระบุ</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
-            </select>
+            </FormSelect>
             <FieldError errors={state?.fieldErrors?.category_id} />
-          </div>
+          </FormField>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="quantity">จำนวน *</label>
-            <input
+          <FormField>
+            <FormLabel htmlFor="quantity" required>จำนวน</FormLabel>
+            <FormInput
               id="quantity"
               name="quantity"
               type="number"
               min="1"
               defaultValue={item?.quantity ?? 1}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
               required
+              aria-invalid={!!state?.fieldErrors?.quantity}
             />
             <FieldError errors={state?.fieldErrors?.quantity} />
-          </div>
+          </FormField>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="unit_id">หน่วยนับ</label>
-            <select
+          <FormField>
+            <FormLabel htmlFor="unit_id">หน่วยนับ</FormLabel>
+            <FormSelect
               id="unit_id"
               name="unit_id"
               defaultValue={item?.unit?.id ?? ''}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
+              aria-invalid={!!state?.fieldErrors?.unit_id}
             >
               <option value="">ไม่ระบุ</option>
               {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>{unit.name}</option>
               ))}
-            </select>
+            </FormSelect>
             <FieldError errors={state?.fieldErrors?.unit_id} />
-          </div>
-        </div>
-      </section>
+          </FormField>
+        </FormGrid>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
-          2. ข้อมูลครุภัณฑ์ / ซีเรียล
-        </h3>
+      {activeTab === 'asset' ? (
+        <FormSection title="2. ข้อมูลครุภัณฑ์ / ซีเรียล">
+          <FormGrid>
+            <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
+            <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
+            <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
+            <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
+          </FormGrid>
+        </FormSection>
+      ) : (
+        <>
+          <input type="hidden" name="asset_no" value="" />
+          <input type="hidden" name="serial_no" value="" />
+          <input type="hidden" name="brand" value="" />
+          <input type="hidden" name="model" value="" />
+        </>
+      )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
-          <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
-          <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
-          <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
-          3. สถานที่ ผู้รับผิดชอบ และสถานะ
-        </h3>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="location_id">สถานที่</label>
-            <select
+      <FormSection title="3. สถานที่ ผู้รับผิดชอบ และสถานะ">
+        <FormGrid>
+          <FormField>
+            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
+            <FormSelect
               id="location_id"
               name="location_id"
               defaultValue={item?.location?.id ?? ''}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
+              aria-invalid={!!state?.fieldErrors?.location_id}
             >
               <option value="">ไม่ระบุ</option>
               {locations.map((location) => (
                 <option key={location.id} value={location.id}>{location.name}</option>
               ))}
-            </select>
+            </FormSelect>
             <FieldError errors={state?.fieldErrors?.location_id} />
-          </div>
+          </FormField>
 
           <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor="status">สถานะ *</label>
-            <select
+          <FormField>
+            <FormLabel htmlFor="status" required>สถานะ</FormLabel>
+            <FormSelect
               id="status"
               name="status"
               defaultValue={item?.status ?? 'active'}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
             >
               <option value="active">ใช้งานอยู่</option>
               <option value="spare">สำรอง</option>
@@ -197,30 +276,30 @@ export function ItemForm({ action, categories, locations, units, item }: ItemFor
               <option value="waiting_repair">รอซ่อม</option>
               <option value="inactive">ไม่ใช้งาน</option>
               <option value="disposed">จำหน่ายแล้ว</option>
-            </select>
-          </div>
+            </FormSelect>
+          </FormField>
 
           <ImageUploadInput defaultValue={item?.image_url} />
-        </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted-foreground" htmlFor="note">หมายเหตุ</label>
-          <textarea
-            id="note"
-            name="note"
-            defaultValue={item?.note ?? ''}
-            rows={4}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
-          />
-        </div>
-      </section>
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="note">หมายเหตุ</FormLabel>
+            <FormTextarea
+              id="note"
+              name="note"
+              defaultValue={item?.note ?? ''}
+              rows={4}
+              dir="auto"
+            />
+          </FormField>
+        </FormGrid>
+      </FormSection>
 
-      <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+      <FormActions>
         <Link href={item ? `/items/${item.id}` : '/items'}>
           <Button type="button" variant="outline" className="h-10 px-4">ยกเลิก</Button>
         </Link>
         <SubmitButton />
-      </div>
+      </FormActions>
     </form>
   )
 }
@@ -230,23 +309,26 @@ function TextInput({
   label,
   defaultValue,
   errors,
+  required,
 }: {
   name: string
   label: string
   defaultValue?: string | null
   errors?: string[]
+  required?: boolean
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-semibold text-muted-foreground" htmlFor={name}>{label}</label>
-      <input
+    <FormField>
+      <FormLabel htmlFor={name} required={required}>{label}</FormLabel>
+      <FormInput
         id={name}
         name={name}
         defaultValue={defaultValue ?? ''}
-        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-ring"
+        dir="auto"
+        aria-invalid={!!errors}
       />
       <FieldError errors={errors} />
-    </div>
+    </FormField>
   )
 }
 
@@ -284,7 +366,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
 
   return (
     <div className="space-y-2 sm:col-span-2">
-      <label className="text-xs font-semibold text-muted-foreground block">รูปภาพสิ่งของ</label>
+      <FormLabel>รูปภาพสิ่งของ</FormLabel>
       
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border p-6 bg-muted/10">
         {preview ? (

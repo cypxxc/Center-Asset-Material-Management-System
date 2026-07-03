@@ -30,13 +30,15 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
 
   return (
     <>
-      <div 
+      <button 
+        type="button"
         onClick={() => setIsZoomed(true)}
         className={cn(
-          "relative group overflow-hidden cursor-zoom-in active:scale-[0.98] transition-transform", 
+          "relative group overflow-hidden cursor-zoom-in active:scale-[0.98] transition-transform block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg", 
           className
         )}
         title="คลิกเพื่อขยายรูปภาพ"
+        aria-label={`ขยายรูปภาพ: ${alt}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -49,7 +51,7 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
             <ZoomIn className="h-4 w-4" />
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Fullscreen Overlay */}
       {isZoomed && (

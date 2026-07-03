@@ -1,8 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Box, Building2, Save, Tag, Users, Upload, FileText, CheckCircle2, AlertCircle } from 'lucide-react'
+import React, { useState, useTransition } from 'react'
+import { useFormStatus } from 'react-dom'
+import { Box, Building2, Save, Tag, Users, Upload, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react'
+import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { importItemsBulk } from '@/features/items/actions'
 import {
   createCategory,
@@ -12,6 +16,9 @@ import {
   updateLocation,
   updateUnit,
   updateProfile,
+  deleteCategory,
+  deleteLocation,
+  deleteUnit,
 } from '../actions'
 import { CategoryRow, LocationRow, UnitRow, ProfileRow } from '../types'
 
@@ -47,9 +54,35 @@ function TextInput({
         name={name}
         defaultValue={defaultValue ?? ''}
         required={required}
+        dir="auto"
         className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs focus:outline-none focus:border-primary focus:bg-white transition-all"
       />
     </label>
+  )
+}
+
+function SubmitButton({ 
+  children, 
+  variant, 
+  className,
+  size
+}: { 
+  children: React.ReactNode
+  variant?: "link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null
+  className?: string
+  size?: "default" | "sm" | "lg" | "icon" | null
+}) {
+  const { pending } = useFormStatus()
+  return (
+    <Button
+      type="submit"
+      variant={variant || "default"}
+      size={size || "default"}
+      className={className}
+      disabled={pending}
+    >
+      {children}
+    </Button>
   )
 }
 
@@ -80,19 +113,32 @@ function SectionShell({
 }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-start gap-3 border-b border-slate-100 p-5 bg-slate-50/30">
+      <div className="flex items-start gap-3 border-b border-slate-100 p-6 bg-slate-50/30">
         <div className="rounded-lg border border-primary/10 bg-blue-50 p-2 text-blue-600">{icon}</div>
         <div>
-          <h3 className="text-base font-extrabold text-slate-800">{title}</h3>
+          <h3 className="text-base font-bold text-slate-800">{title}</h3>
           <p className="text-xs text-slate-500 mt-0.5">{description}</p>
         </div>
       </div>
-      <div className="space-y-4 p-5">{children}</div>
+      <div className="space-y-4 p-6">{children}</div>
     </section>
   )
 }
 
 export function CategorySection({ categories }: { categories: CategoryRow[] }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const activeDeleteCategory = categories.find((c) => c.id === confirmDeleteId)
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDeleteId) return
+    startTransition(async () => {
+      await deleteCategory(confirmDeleteId)
+      setConfirmDeleteId(null)
+    })
+  }
+
   return (
     <SectionShell
       title="หมวดหมู่ครุภัณฑ์ (Categories)"
@@ -105,7 +151,7 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
         <div className="pb-2">
           <ActiveCheckbox defaultChecked />
         </div>
-        <Button type="submit" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มหมวดหมู่</Button>
+        <SubmitButton className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มหมวดหมู่</SubmitButton>
       </form>
 
       <div className="space-y-3">
@@ -121,18 +167,54 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
               <ActiveCheckbox defaultChecked={category.is_active} />
               <StatusBadge active={category.is_active} />
             </div>
-            <Button type="submit" variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
-              <Save className="h-3.5 w-3.5 mr-1" />
-              บันทึก
-            </Button>
+            <div className="flex gap-2">
+              <SubmitButton variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
+                <Save className="h-3.5 w-3.5 mr-1" />
+                บันทึก
+              </SubmitButton>
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                onClick={() => setConfirmDeleteId(category.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </form>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="ยืนยันการลบหมวดหมู่"
+        description={`คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่ "${activeDeleteCategory?.name}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบข้อมูล"
+        cancelText="ยกเลิก"
+        variant="destructive"
+        isPending={isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </SectionShell>
   )
 }
 
 export function LocationSection({ locations }: { locations: LocationRow[] }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const activeDeleteLocation = locations.find((l) => l.id === confirmDeleteId)
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDeleteId) return
+    startTransition(async () => {
+      await deleteLocation(confirmDeleteId)
+      setConfirmDeleteId(null)
+    })
+  }
+
   return (
     <SectionShell
       title="สถานที่จัดตั้งและอาคาร (Locations)"
@@ -148,7 +230,7 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
         <div className="pb-2">
           <ActiveCheckbox defaultChecked />
         </div>
-        <Button type="submit" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มสถานที่</Button>
+        <SubmitButton className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มสถานที่</SubmitButton>
       </form>
 
       <div className="space-y-3">
@@ -167,18 +249,54 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
               <ActiveCheckbox defaultChecked={location.is_active} />
               <StatusBadge active={location.is_active} />
             </div>
-            <Button type="submit" variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
-              <Save className="h-3.5 w-3.5 mr-1" />
-              บันทึก
-            </Button>
+            <div className="flex gap-2">
+              <SubmitButton variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
+                <Save className="h-3.5 w-3.5 mr-1" />
+                บันทึก
+              </SubmitButton>
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                onClick={() => setConfirmDeleteId(location.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </form>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="ยืนยันการลบสถานที่"
+        description={`คุณแน่ใจหรือไม่ว่าต้องการลบสถานที่ "${activeDeleteLocation?.name}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบข้อมูล"
+        cancelText="ยกเลิก"
+        variant="destructive"
+        isPending={isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </SectionShell>
   )
 }
 
 export function UnitSection({ units }: { units: UnitRow[] }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const activeDeleteUnit = units.find((u) => u.id === confirmDeleteId)
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDeleteId) return
+    startTransition(async () => {
+      await deleteUnit(confirmDeleteId)
+      setConfirmDeleteId(null)
+    })
+  }
+
   return (
     <SectionShell
       title="หน่วยนับสิ่งของ (Units)"
@@ -190,7 +308,7 @@ export function UnitSection({ units }: { units: UnitRow[] }) {
         <div className="pb-2">
           <ActiveCheckbox defaultChecked />
         </div>
-        <Button type="submit" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มหน่วยนับ</Button>
+        <SubmitButton className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">เพิ่มหน่วยนับ</SubmitButton>
       </form>
 
       <div className="space-y-3">
@@ -205,13 +323,36 @@ export function UnitSection({ units }: { units: UnitRow[] }) {
               <ActiveCheckbox defaultChecked={unit.is_active} />
               <StatusBadge active={unit.is_active} />
             </div>
-            <Button type="submit" variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
-              <Save className="h-3.5 w-3.5 mr-1" />
-              บันทึก
-            </Button>
+            <div className="flex gap-2">
+              <SubmitButton variant="outline" className="h-9 font-bold text-xs cursor-pointer rounded-lg px-4">
+                <Save className="h-3.5 w-3.5 mr-1" />
+                บันทึก
+              </SubmitButton>
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                onClick={() => setConfirmDeleteId(unit.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </form>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="ยืนยันการลบหน่วยนับ"
+        description={`คุณแน่ใจหรือไม่ว่าต้องการลบหน่วยนับ "${activeDeleteUnit?.name}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบข้อมูล"
+        cancelText="ยกเลิก"
+        variant="destructive"
+        isPending={isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </SectionShell>
   )
 }
@@ -234,7 +375,9 @@ export function ProfileSection({ profiles }: { profiles: ProfileRow[] }) {
             >
               <div>
                 <div className="font-bold text-slate-800">{profile.full_name}</div>
-                <div className="text-xs text-slate-400 font-mono mt-0.5">{profile.email}</div>
+                <div className={isInternalEmail(profile.email) ? 'text-xs text-slate-500 mt-0.5' : 'text-xs text-slate-400 font-mono mt-0.5 break-all'}>
+                  {formatDisplayEmail(profile.email)}
+                </div>
               </div>
 
               <div>
@@ -263,18 +406,19 @@ export function ProfileSection({ profiles }: { profiles: ProfileRow[] }) {
               </div>
 
               <div className="text-right">
-                <Button type="submit" size="sm" className="h-9 px-4 font-bold text-xs cursor-pointer rounded-lg">
+                <SubmitButton size="sm" className="h-9 px-4 font-bold text-xs cursor-pointer rounded-lg">
                   <Save className="h-3.5 w-3.5 mr-1" />
                   บันทึกสิทธิ์
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           )
         })}
         {profiles.length === 0 && (
-          <div className="text-center text-xs text-slate-400 py-6">
-            ไม่พบข้อมูลผู้ปฏิบัติงานในระบบขณะนี้
-          </div>
+          <EmptyState
+            title="ไม่พบข้อมูลผู้ปฏิบัติงานในระบบขณะนี้"
+            className="border-0 shadow-none bg-transparent py-6 min-h-0"
+          />
         )}
       </div>
     </SectionShell>
@@ -285,6 +429,81 @@ export function ImportSection() {
   const [isUploading, setIsUploading] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
+  const downloadTemplate = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('เทมเพลตนำเข้าพัสดุครุภัณฑ์')
+
+      worksheet.columns = [
+        { header: 'item_name', key: 'item_name', width: 30 },
+        { header: 'item_type', key: 'item_type', width: 15 },
+        { header: 'quantity', key: 'quantity', width: 10 },
+        { header: 'brand', key: 'brand', width: 15 },
+        { header: 'model', key: 'model', width: 15 },
+        { header: 'asset_no', key: 'asset_no', width: 20 },
+        { header: 'serial_no', key: 'serial_no', width: 20 },
+        { header: 'status', key: 'status', width: 15 },
+        { header: 'category_name', key: 'category_name', width: 20 },
+        { header: 'location_name', key: 'location_name', width: 20 },
+        { header: 'unit_name', key: 'unit_name', width: 15 },
+        { header: 'note', key: 'note', width: 25 },
+      ]
+
+      // Add a styled header row
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2563EB' }, // Blue 600
+      }
+
+      // Add example rows
+      worksheet.addRow({
+        item_name: 'เครื่องคอมพิวเตอร์ MacBook Air (ตัวอย่าง)',
+        item_type: 'asset',
+        quantity: 1,
+        brand: 'Apple',
+        model: 'M2',
+        asset_no: 'CAMMS-AS-9872',
+        serial_no: 'C02H20YQ088G',
+        status: 'active',
+        category_name: 'ครุภัณฑ์คอมพิวเตอร์',
+        location_name: 'ห้องทำงาน 301',
+        unit_name: 'เครื่อง',
+        note: 'ของฝ่ายไอที',
+      })
+
+      worksheet.addRow({
+        item_name: 'กระดาษ A4 80 แกรม (ตัวอย่าง)',
+        item_type: 'material',
+        quantity: 5,
+        brand: 'Double A',
+        model: '-',
+        asset_no: '',
+        serial_no: '',
+        status: 'active',
+        category_name: 'วัสดุสำนักงาน',
+        location_name: 'ห้องเก็บของชั้น 1',
+        unit_name: 'รีม',
+        note: 'สำรองสำหรับฝ่ายบุคคล',
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `camms_import_template.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch {
+      alert('ไม่สามารถดาวน์โหลดเทมเพลตได้')
+    }
+  }
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -293,28 +512,91 @@ export function ImportSection() {
     setResult(null)
 
     try {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        const csvText = event.target?.result as string
-        if (!csvText) {
+      const isXlsx = file.name.endsWith('.xlsx')
+
+      if (isXlsx) {
+        const ExcelJS = (await import('exceljs')).default
+        const workbook = new ExcelJS.Workbook()
+        const arrayBuffer = await file.arrayBuffer()
+        await workbook.xlsx.load(arrayBuffer)
+
+        const worksheet = workbook.worksheets[0]
+        if (!worksheet) {
           setIsUploading(false)
-          setResult({ type: 'error', message: 'ไม่สามารถอ่านข้อมูลในไฟล์ได้' })
+          setResult({ type: 'error', message: 'ไม่พบตารางข้อมูลในไฟล์ Excel' })
           return
         }
 
-        const res = await importItemsBulk(csvText)
+        // Get headers from row 1
+        const headerRow = worksheet.getRow(1)
+        const headers: string[] = []
+        headerRow.eachCell((cell) => {
+          headers.push(String(cell.value || '').trim())
+        })
+
+        // Build CSV string from the sheet data
+        const csvLines: string[] = []
+        // Push headers
+        csvLines.push(headers.join(','))
+
+        worksheet.eachRow((row, rowNumber) => {
+          // Skip header row
+          if (rowNumber === 1) return
+
+          // Skip example rows
+          const itemNameVal = String(row.getCell(1).value || '')
+          if (itemNameVal.includes('(ตัวอย่าง)')) return
+
+          const lineValues: string[] = []
+          for (let i = 1; i <= headers.length; i++) {
+            const cell = row.getCell(i)
+            let val = ''
+            if (cell.value && typeof cell.value === 'object') {
+              // @ts-expect-error - ExcelJS CellValue can be cell formula object
+              val = String(cell.value.result || cell.value.text || '')
+            } else {
+              val = cell.value !== null && cell.value !== undefined ? String(cell.value) : ''
+            }
+            // Escape double quotes and wrap in quotes to prevent CSV parsing issues
+            const escaped = val.replace(/"/g, '""')
+            lineValues.push(`"${escaped}"`)
+          }
+          csvLines.push(lineValues.join(','))
+        })
+
+        const csvContent = csvLines.join('\n')
+        const res = await importItemsBulk(csvContent)
         setIsUploading(false)
-        if (res.ok) {
+        if (res.success) {
           setResult({ type: 'success', message: res.message || 'นำเข้าข้อมูลพัสดุครุภัณฑ์สำเร็จเรียบร้อยแล้ว' })
         } else {
           setResult({ type: 'error', message: res.message || 'เกิดข้อผิดพลาดในการนำเข้าข้อมูล' })
         }
+      } else {
+        // Handle normal CSV import
+        const reader = new FileReader()
+        reader.onload = async (event) => {
+          const csvText = event.target?.result as string
+          if (!csvText) {
+            setIsUploading(false)
+            setResult({ type: 'error', message: 'ไม่สามารถอ่านข้อมูลในไฟล์ได้' })
+            return
+          }
+
+          const res = await importItemsBulk(csvText)
+          setIsUploading(false)
+          if (res.success) {
+            setResult({ type: 'success', message: res.message || 'นำเข้าข้อมูลพัสดุครุภัณฑ์สำเร็จเรียบร้อยแล้ว' })
+          } else {
+            setResult({ type: 'error', message: res.message || 'เกิดข้อผิดพลาดในการนำเข้าข้อมูล' })
+          }
+        }
+        reader.onerror = () => {
+          setIsUploading(false)
+          setResult({ type: 'error', message: 'การอ่านไฟล์ล้มเหลว' })
+        }
+        reader.readAsText(file, 'UTF-8')
       }
-      reader.onerror = () => {
-        setIsUploading(false)
-        setResult({ type: 'error', message: 'การอ่านไฟล์ล้มเหลว' })
-      }
-      reader.readAsText(file, 'UTF-8')
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการนำเข้า'
       setIsUploading(false)
@@ -326,7 +608,7 @@ export function ImportSection() {
 
   return (
     <SectionShell
-      title="นำเข้าพัสดุและครุภัณฑ์ด้วยไฟล์ CSV (Import Items)"
+      title="นำเข้าพัสดุและครุภัณฑ์ด้วยไฟล์ Excel หรือ CSV (Import Items)"
       description="อัปโหลดข้อมูลพัสดุครุภัณฑ์จำนวนมากพร้อมกันโดยอัตโนมัติ โดยระบุชื่อพัสดุ ประเภท แบรนด์ และสถานที่ติดตั้ง"
       icon={<Upload className="h-5 w-5" />}
     >
@@ -344,19 +626,29 @@ export function ImportSection() {
                 <span className="material-symbols-outlined text-[28px]">upload_file</span>
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-800">เลือกไฟล์ CSV เพื่อนำเข้าข้อมูล</h4>
+                <h4 className="text-sm font-bold text-slate-800">เลือกไฟล์ Excel (.xlsx) หรือ CSV เพื่อนำเข้าข้อมูล</h4>
                 <p className="text-xs text-slate-400">ขนาดไฟล์ไม่เกิน 10MB และควรจัดรูปแบบคอลัมน์ให้ตรงตามรูปแบบเทมเพลต</p>
               </div>
-              <label className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                <Upload className="h-3.5 w-3.5" />
-                <span>เลือกไฟล์ CSV</span>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={downloadTemplate}
+                  className="h-9 px-4 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">download</span>
+                  <span>ดาวน์โหลดเทมเพลต (Excel)</span>
+                </button>
+                <label className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>เลือกไฟล์เพื่ออัปโหลด</span>
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
             </>
           )}
         </div>
@@ -381,9 +673,9 @@ export function ImportSection() {
         )}
 
         {/* CSV Format Guide */}
-        <div className="rounded-2xl border border-slate-100 p-5 bg-white space-y-3 shadow-sm">
+        <div className="rounded-xl border border-slate-100 p-6 bg-white space-y-3 shadow-sm">
           <div className="flex items-center gap-2 text-slate-700">
-            <FileText className="h-4.5 w-4.5 text-blue-600" />
+            <FileText className="h-4 w-4 text-blue-600" />
             <h4 className="text-xs font-bold">โครงสร้างไฟล์ CSV ที่ระบบแนะนำ (CSV Column Schema)</h4>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">

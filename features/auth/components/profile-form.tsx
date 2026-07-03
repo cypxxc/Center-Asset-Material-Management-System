@@ -2,6 +2,11 @@
 
 import { useActionState } from 'react'
 import { KeyRound, Save, User } from 'lucide-react'
+import {
+  formatDisplayEmail,
+  getInternalAccountHint,
+  isInternalEmail,
+} from '@/lib/auth/display-email'
 import { updatePersonalProfile, updatePersonalPassword } from '../actions'
 
 interface ProfileFormProps {
@@ -24,16 +29,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     viewer: 'ผู้เข้าชม (Viewer)',
   }
 
+  const displayEmail = formatDisplayEmail(profile.email)
+  const internalAccount = isInternalEmail(profile.email)
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {/* Page Header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-800">ตั้งค่าบัญชีส่วนบุคคล</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          จัดการข้อมูลชื่อ-นามสกุล บัญชีผู้ใช้งาน และเปลี่ยนรหัสผ่านเพื่อความปลอดภัยในการใช้งานระบบ
-        </p>
-      </div>
-
       <div className="grid gap-6 md:grid-cols-3">
         {/* Profile Summary Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col items-center text-center space-y-4">
@@ -42,7 +42,12 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-800">{profile.full_name}</h3>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{profile.email}</p>
+            <p className={internalAccount ? 'text-xs text-slate-500 mt-0.5' : 'text-xs text-slate-400 font-mono mt-0.5 break-all'}>
+              {displayEmail}
+            </p>
+            {internalAccount && (
+              <p className="text-[10px] text-slate-400 mt-1 leading-snug">{getInternalAccountHint()}</p>
+            )}
           </div>
           <div className="w-full border-t border-slate-100 pt-4 space-y-2.5 text-left text-xs text-slate-500">
             <div className="flex justify-between">
@@ -61,7 +66,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           {/* General Settings */}
           <form action={profileAction} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <User className="h-4.5 w-4.5 text-blue-600" />
+              <User className="h-5 w-5 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-800">ข้อมูลส่วนตัวทั่วไป</h3>
             </div>
 
@@ -79,14 +84,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500" htmlFor="email">อีเมล (ไม่สามารถเปลี่ยนได้)</label>
+                <label className="text-xs font-bold text-slate-500" htmlFor="email">
+                  {internalAccount ? 'บัญชีเข้าสู่ระบบ' : 'อีเมล (ไม่สามารถเปลี่ยนได้)'}
+                </label>
                 <input
                   id="email"
-                  type="email"
-                  defaultValue={profile.email}
+                  type="text"
+                  defaultValue={displayEmail}
                   disabled
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-400 cursor-not-allowed focus:outline-none"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-500 cursor-not-allowed focus:outline-none"
                 />
+                {internalAccount && (
+                  <p className="text-[10px] text-slate-400">{getInternalAccountHint()}</p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -97,6 +107,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   type="text"
                   defaultValue={profile.full_name}
                   required
+                  dir="auto"
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
                 />
               </div>
@@ -117,7 +128,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           {/* Change Password Form */}
           <form action={passwordAction} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <KeyRound className="h-4.5 w-4.5 text-blue-600" />
+              <KeyRound className="h-5 w-5 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-800">เปลี่ยนรหัสผ่านใหม่</h3>
             </div>
 

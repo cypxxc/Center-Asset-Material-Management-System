@@ -161,10 +161,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
     try {
       const res = await updateSidebarOrder(newOrder)
       if (res.error) {
-        console.error('Failed to save sidebar order:', res.error)
+        // Order save failed — UI reverts on next navigation refresh
       }
-    } catch (err) {
-      console.error('Error saving sidebar order:', err)
+    } catch {
+      // Non-blocking: sidebar order persists locally until next successful save
     }
   }
 

@@ -14,7 +14,7 @@ const ciFallbackValues: Record<(typeof requiredEnv)[number], string> = {
   SUPABASE_SERVICE_ROLE_KEY: 'example-service-role-key',
 }
 
-function loadEnvFromFile(filePath: string, env: NodeJS.ProcessEnv) {
+function loadEnvFromFile(filePath: string, env: Record<string, string | undefined>) {
   if (!fs.existsSync(filePath)) {
     return
   }
@@ -41,7 +41,7 @@ function loadEnvFromFile(filePath: string, env: NodeJS.ProcessEnv) {
   }
 }
 
-export function getMissingEnvVars(env: NodeJS.ProcessEnv = process.env) {
+export function getMissingEnvVars(env: Record<string, string | undefined> = process.env as Record<string, string | undefined>) {
   const mergedEnv = { ...env }
 
   const envFiles = [
@@ -64,7 +64,7 @@ export function getMissingEnvVars(env: NodeJS.ProcessEnv = process.env) {
   return requiredEnv.filter((key) => !mergedEnv[key] || !mergedEnv[key]?.trim())
 }
 
-export function verifyEnv(env: NodeJS.ProcessEnv = process.env) {
+export function verifyEnv(env: Record<string, string | undefined> = process.env as Record<string, string | undefined>) {
   const missing = getMissingEnvVars(env)
 
   if (missing.length > 0) {
@@ -73,7 +73,70 @@ export function verifyEnv(env: NodeJS.ProcessEnv = process.env) {
     process.exit(1)
   }
 
-  console.log('Environment check passed. All required environment variables are set.')
+  // Load config variables again
+  const mergedEnv = { ...env }
+  const envFiles = [
+    path.resolve(process.cwd(), '.env.local'),
+    path.resolve(process.cwd(), '.env'),
+  ]
+  for (const envFile of envFiles) {
+    loadEnvFromFile(envFile, mergedEnv)
+  }
+
+  if (mergedEnv.CI === 'true') {
+    for (const key of requiredEnv) {
+      if (!mergedEnv[key] || !mergedEnv[key]?.trim()) {
+        mergedEnv[key] = ciFallbackValues[key]
+      }
+    }
+  }
+
+  const isProd = mergedEnv.NODE_ENV === 'production'
+  const isCI = mergedEnv.CI === 'true'
+
+  const supabaseUrl = mergedEnv.NEXT_PUBLIC_SUPABASE_URL || ''
+  const anonKey = mergedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const serviceKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || ''
+
+  // 1. URL formatting checks
+  try {
+    const url = new URL(supabaseUrl)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      console.error(`Invalid URL scheme for NEXT_PUBLIC_SUPABASE_URL: ${url.protocol}`)
+      process.exit(1)
+    }
+  } catch {
+    console.error(`Invalid URL format for NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}"`)
+    process.exit(1)
+  }
+
+  // 2. Minimum length checking for keys
+  if (anonKey.length < 15) {
+    console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is too short to be a valid token')
+    process.exit(1)
+  }
+  if (serviceKey.length < 15) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY is too short to be a valid token')
+    process.exit(1)
+  }
+
+  // 3. Prohibit placeholders exclusively in actual production deploys (Node production && not CI builds)
+  if (isProd && !isCI) {
+    if (supabaseUrl.includes('example.supabase.co')) {
+      console.error(`Forbidden placeholder URL in production: "${supabaseUrl}"`)
+      process.exit(1)
+    }
+    if (anonKey.includes('example-anon-key')) {
+      console.error('Forbidden placeholder Anon Key in production')
+      process.exit(1)
+    }
+    if (serviceKey.includes('example-service-role-key')) {
+      console.error('Forbidden placeholder Service Key in production')
+      process.exit(1)
+    }
+  }
+
+  console.log('Environment check passed. All required environment variables are set and validated.')
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

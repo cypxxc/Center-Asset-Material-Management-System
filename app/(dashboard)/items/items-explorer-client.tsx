@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useMemo, useState, useTransition, useEffect } from 'react'
+import React, { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Check,
-  CheckCircle,
   Copy,
   Download,
   Edit,
@@ -16,12 +15,15 @@ import {
   List,
   MapPin,
   Package,
-  Search,
   StickyNote,
   User,
   Archive,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import {
   ITEM_STATUS_LABELS,
@@ -29,10 +31,23 @@ import {
   ItemListRow,
   ItemStatus,
   ItemType,
+  ItemListSearchParams,
 } from '@/features/items/types'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
+import { NewItemSheet } from '@/features/items/components/new-item-sheet'
+import { SearchInput } from '@/components/ui/search-input'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useToast } from '@/components/ui/toast'
+import {
+  DataTable,
+  DataTableHeader,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableCell
+} from '@/components/ui/data-table'
 import { bulkUpdateItems, bulkDeleteItems, getItemsForExport } from '@/features/items/actions'
-import { cn } from '@/lib/utils'
+import { cn, getItemValue } from '@/lib/utils'
 import ExcelJS from 'exceljs'
 
 interface ItemsExplorerClientProps {
@@ -40,11 +55,12 @@ interface ItemsExplorerClientProps {
   total: number
   page: number
   totalPages: number
-  params: { q?: string; type?: string; status?: string; page?: string; category_id?: string; location_id?: string }
+  params: ItemListSearchParams & { new?: string }
   userCanWrite: boolean
   userCanDelete: boolean
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
+  units: { id: string; name: string }[]
 }
 
 type ViewMode = 'list' | 'grid'
@@ -65,23 +81,54 @@ export function ItemsExplorerClient({
   userCanDelete,
   locations,
   categories,
+  units,
 }: ItemsExplorerClientProps) {
   const router = useRouter()
-  const [localItems, setLocalItems] = useState(items)
+  const [localItems, setLocalItems] = useState<ItemListRow[]>(items)
+  const [prevItems, setPrevItems] = useState<ItemListRow[]>(items)
 
-  useEffect(() => {
+  // Keep localItems in sync when server re-fetches (router.refresh)
+  if (items !== prevItems) {
+    setPrevItems(items)
     setLocalItems(items)
-  }, [items])
+  }
 
+  const searchParams = useSearchParams()
+  const newParam = searchParams.get('new')
+
+  const { toast } = useToast()
   const [selectedItemId, setSelectedItemId] = useState<string | null>(items[0]?.id || null)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [blockingError, setBlockingError] = useState<string | null>(null)
   const [searchVal, setSearchVal] = useState(params.q ?? '')
   const [prevQ, setPrevQ] = useState(params.q ?? '')
   const [isPending, startTransition] = useTransition()
   const [isExporting, setIsExporting] = useState(false)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [lastNewParam, setLastNewParam] = useState<string | null>(null)
+
+  // Reactively open sheet when URL query param changes during render
+  if (newParam !== lastNewParam) {
+    setLastNewParam(newParam)
+    if (newParam === 'true') {
+      setIsSheetOpen(true)
+    }
+  }
+
+  // URL clean up side-effect (runs after render commit)
+  React.useEffect(() => {
+    if (newParam === 'true') {
+      const current = new URLSearchParams(window.location.search)
+      if (current.has('new')) {
+        current.delete('new')
+        const newSearch = current.toString()
+        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '')
+        window.history.replaceState(null, '', newUrl)
+      }
+    }
+  }, [newParam])
+
 
   const currentQ = params.q ?? ''
   if (currentQ !== prevQ) {
@@ -89,7 +136,16 @@ export function ItemsExplorerClient({
     setSearchVal(currentQ)
   }
 
-  const handleFilterChange = (updates: { q?: string; type?: string; status?: string; category_id?: string; location_id?: string }) => {
+  const handleFilterChange = (updates: {
+    q?: string
+    type?: string
+    status?: string
+    category_id?: string
+    location_id?: string
+    page?: string
+    sort_by?: string
+    sort_dir?: string
+  }) => {
     const query = new URLSearchParams()
     
     const newQ = updates.q !== undefined ? updates.q : searchVal
@@ -97,16 +153,42 @@ export function ItemsExplorerClient({
     const newStatus = updates.status !== undefined ? updates.status : (params.status ?? '')
     const newCategory = updates.category_id !== undefined ? updates.category_id : (params.category_id ?? '')
     const newLocation = updates.location_id !== undefined ? updates.location_id : (params.location_id ?? '')
+    const newSortBy = updates.sort_by !== undefined ? updates.sort_by : (params.sort_by ?? '')
+    const newSortDir = updates.sort_dir !== undefined ? updates.sort_dir : (params.sort_dir ?? '')
     
     if (newQ) query.set('q', newQ)
     if (newType) query.set('type', newType)
     if (newStatus) query.set('status', newStatus)
     if (newCategory) query.set('category_id', newCategory)
     if (newLocation) query.set('location_id', newLocation)
+    if (newSortBy) query.set('sort_by', newSortBy)
+    if (newSortDir) query.set('sort_dir', newSortDir)
+    
+    if (updates.page) {
+      query.set('page', updates.page)
+    } else if (updates.sort_by || updates.sort_dir) {
+      if (params.page) query.set('page', params.page)
+    } else {
+      query.set('page', '1')
+    }
     
     startTransition(() => {
       router.push(`/items?${query.toString()}`)
     })
+  }
+
+  const toggleSort = (field: string) => {
+    const currentField = params.sort_by || 'updated_at'
+    const currentDir = params.sort_dir || 'desc'
+    
+    let nextDir: 'asc' | 'desc' = 'asc'
+    if (currentField === field) {
+      nextDir = currentDir === 'asc' ? 'desc' : 'asc'
+    } else {
+      nextDir = field === 'item_name' || field === 'item_type' ? 'asc' : 'desc'
+    }
+    
+    handleFilterChange({ sort_by: field, sort_dir: nextDir })
   }
 
   const effectiveSelectedItemId = localItems.some((item) => item.id === selectedItemId)
@@ -114,9 +196,8 @@ export function ItemsExplorerClient({
     : localItems[0]?.id ?? null
   const selectedItem = localItems.find((item) => item.id === effectiveSelectedItemId) ?? null
 
-  const triggerToast = (message: string) => {
-    setToastMessage(message)
-    window.setTimeout(() => setToastMessage(null), 2000)
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    toast(message, type)
   }
 
   const copyReference = (value: string | null | undefined) => {
@@ -133,7 +214,7 @@ export function ItemsExplorerClient({
     ))
     
     const res = await bulkUpdateItems([itemId], { status: nextStatus })
-    if (res.ok) {
+    if (res.success) {
       triggerToast(nextStatus === 'inactive' ? 'เก็บเข้าคลังเรียบร้อย' : 'นำออกจากคลังเรียบร้อย')
       router.refresh()
     } else {
@@ -212,7 +293,6 @@ export function ItemsExplorerClient({
       window.URL.revokeObjectURL(url)
       triggerToast('ดาวน์โหลดไฟล์เรียบร้อยแล้ว')
     } catch (err) {
-      console.error(err)
       const errMsg = err instanceof Error ? err.message : String(err)
       setBlockingError('เกิดข้อผิดพลาดขณะส่งออกข้อมูล: ' + errMsg)
     } finally {
@@ -237,19 +317,7 @@ export function ItemsExplorerClient({
 
   const buildPageHref = (pageNumber: number) => buildHref({ page: String(pageNumber) })
 
-  const getItemValue = (name: string, categoryName?: string): number => {
-    const title = name.toLowerCase()
-    const cat = (categoryName || '').toLowerCase()
-    if (title.includes('dell') || title.includes('latitude') || title.includes('macbook')) return 35000
-    if (title.includes('chair') || title.includes('ergonomic')) return 5500
-    if (title.includes('projector') || title.includes('epson')) return 18900
-    if (title.includes('printer') || title.includes('laserjet')) return 8900
-    if (title.includes('ipad') || title.includes('tablet')) return 16900
-    if (cat.includes('it') || cat.includes('tech') || cat.includes('คอม')) return 12000
-    if (cat.includes('เฟอร์') || cat.includes('โต๊ะ') || cat.includes('เก้าอี้')) return 3000
-    if (cat.includes('av')) return 9000
-    return 1500
-  }
+
 
   const folderValuation = useMemo(() => {
     return localItems.reduce((sum, item) => sum + (getItemValue(item.item_name, item.category?.name) * item.quantity), 0)
@@ -270,13 +338,7 @@ export function ItemsExplorerClient({
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-[#f1f5f9] text-slate-900 font-sans">
-      {toastMessage && (
-        <div className="fixed left-1/2 top-16 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 text-xs font-semibold text-white shadow-xl">
-          <CheckCircle className="h-4 w-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+    <div className="relative flex h-full flex-col overflow-hidden bg-secondary text-slate-900 font-sans">
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Main Content Area */}
@@ -337,17 +399,16 @@ export function ItemsExplorerClient({
                   className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto flex-1 min-w-0"
                 >
                   {/* Search Box */}
-                  <div className="relative w-full sm:w-80 flex-shrink-0">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      name="q"
-                      value={searchVal}
-                      onChange={(e) => setSearchVal(e.target.value)}
-                      onBlur={() => handleFilterChange({ q: searchVal })}
-                      placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
-                      className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-800 transition-all placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 shadow-sm"
-                    />
-                  </div>
+                  <SearchInput
+                    value={searchVal}
+                    onChange={(val) => {
+                      setSearchVal(val)
+                      handleFilterChange({ q: val.trim() })
+                    }}
+                    onClear={() => handleFilterChange({ q: '' })}
+                    placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
+                    className="w-full sm:w-80"
+                  />
 
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Category Filter */}
@@ -355,7 +416,7 @@ export function ItemsExplorerClient({
                       name="category_id"
                       value={params.category_id ?? ''}
                       onChange={(e) => handleFilterChange({ category_id: e.target.value })}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none cursor-pointer shadow-sm"
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
                     >
                       <option value="">กรองตามหมวดหมู่</option>
                       {categories.map((cat) => (
@@ -368,7 +429,7 @@ export function ItemsExplorerClient({
                       name="status"
                       value={params.status ?? ''}
                       onChange={(e) => handleFilterChange({ status: e.target.value })}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none cursor-pointer shadow-sm"
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
                     >
                       <option value="">กรองตามสถานะ</option>
                       {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
@@ -388,7 +449,7 @@ export function ItemsExplorerClient({
                   className="h-9 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   <Download className="h-4 w-4" />
-                  <span>Export Excel</span>
+                  <span>ดาวน์โหลด Excel</span>
                 </Button>
               </div>
             </div>
@@ -415,6 +476,8 @@ export function ItemsExplorerClient({
                   }}
                   onToggleSelectItem={handleToggleSelectItem}
                   onToggleSelectAll={handleToggleSelectAll}
+                  params={params}
+                  onToggleSort={toggleSort}
                 />
               ) : (
                 <ItemsGrid
@@ -492,7 +555,7 @@ export function ItemsExplorerClient({
                 ))
 
                 const res = await bulkUpdateItems(selectedItemIds, { status: newStatus })
-                if (res.ok) {
+                if (res.success) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
@@ -502,7 +565,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
             >
               <option value="">เปลี่ยนสถานะ...</option>
               {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
@@ -527,7 +590,7 @@ export function ItemsExplorerClient({
                 ))
 
                 const res = await bulkUpdateItems(selectedItemIds, { location_id: newLocId })
-                if (res.ok) {
+                if (res.success) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
@@ -537,7 +600,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer max-w-[150px]"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer max-w-[150px]"
             >
               <option value="">ย้ายสถานที่...</option>
               {locations.map((loc) => (
@@ -557,7 +620,7 @@ export function ItemsExplorerClient({
                 setLocalItems(prev => prev.filter(item => !selectedItemIds.includes(item.id)))
 
                 const res = await bulkDeleteItems(selectedItemIds)
-                if (res.ok) {
+                if (res.success) {
                   triggerToast(res.message || 'ลบเรียบร้อย')
                   setSelectedItemIds([])
                   router.refresh()
@@ -608,6 +671,20 @@ export function ItemsExplorerClient({
           </div>
         </div>
       )}
+
+      {/* New Item Sheet */}
+      <NewItemSheet
+        open={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        onSuccess={() => {
+          setIsSheetOpen(false)
+          triggerToast('เพิ่มสิ่งของเรียบร้อยแล้ว')
+          router.refresh()
+        }}
+        categories={categories}
+        locations={locations}
+        units={units}
+      />
     </div>
   )
 }
@@ -619,6 +696,8 @@ interface ItemsListProps {
   onSelect: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
   onToggleSelectAll: () => void
+  params: ItemListSearchParams
+  onToggleSort: (field: string) => void
 }
 
 function ItemsList({
@@ -628,76 +707,108 @@ function ItemsList({
   onSelect,
   onToggleSelectItem,
   onToggleSelectAll,
+  params,
+  onToggleSort,
 }: ItemsListProps) {
+  const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
+    const currentField = params.sort_by || 'updated_at'
+    const currentDir = params.sort_dir || 'desc'
+    const isSorted = currentField === field
+
+    const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : ''
+
+    return (
+      <button
+        type="button"
+        onClick={() => onToggleSort(field)}
+        className={cn(
+          "flex items-center gap-1 hover:text-slate-700 transition-colors font-bold uppercase cursor-pointer select-none",
+          alignClass
+        )}
+      >
+        <span>{label}</span>
+        {isSorted ? (
+          currentDir === 'asc' ? (
+            <ArrowUp className="w-3 h-3 text-blue-600 shrink-0" />
+          ) : (
+            <ArrowDown className="w-3 h-3 text-blue-600 shrink-0" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 shrink-0" />
+        )}
+      </button>
+    )
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-auto bg-slate-50/20">
-      <table className="w-full border-collapse text-left text-xs">
-        <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      <DataTable>
+        <DataTableHeader>
           <tr>
-            <th className="w-8 px-3 py-2 text-center">
+            <DataTableHead isCheckbox>
               <input
                 type="checkbox"
                 checked={items.length > 0 && selectedItemIds.length === items.length}
                 onChange={onToggleSelectAll}
                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
               />
-            </th>
-            <th className="w-12 px-2 py-2" />
-            <th className="min-w-[220px] px-2 py-2">Name</th>
-            <th className="hidden px-4 py-2 sm:table-cell">Type</th>
-            <th className="hidden px-4 py-2 md:table-cell">Category</th>
-            <th className="px-4 py-2 text-center">Qty</th>
-            <th className="px-4 py-2">Location</th>
-            <th className="hidden px-4 py-2 xl:table-cell">Custodian</th>
-            <th className="px-4 py-2">Status</th>
+            </DataTableHead>
+            <DataTableHead className="w-12 px-2" />
+            <DataTableHead className="min-w-[220px] px-2">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
+            <DataTableHead className="hidden sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
+            <DataTableHead className="hidden md:table-cell">หมวดหมู่</DataTableHead>
+            <DataTableHead>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead>สถานที่</DataTableHead>
+            <DataTableHead className="hidden xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
+            <DataTableHead>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
+        </DataTableHeader>
+        <DataTableBody>
           {items.map((item) => {
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
             return (
-              <tr
+              <DataTableRow
                 key={item.id}
                 onClick={() => onSelect(item)}
                 className={cn(
-                  'cursor-pointer transition-all duration-150',
+                  'cursor-pointer',
                   isSelected
                     ? 'border-l-2 border-l-blue-600 bg-blue-50/80 text-slate-900'
                     : 'text-slate-600 hover:bg-slate-50'
                 )}
               >
-                <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                <DataTableCell isCheckbox onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => onToggleSelectItem(item.id)}
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
                   />
-                </td>
-                <td className="px-2 py-3">
+                </DataTableCell>
+                <DataTableCell className="px-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-100">
                     {typeIcons[item.item_type]}
                   </div>
-                </td>
-                <td className="px-2 py-3">
+                </DataTableCell>
+                <DataTableCell className="px-2">
                   <div className="font-extrabold text-slate-800">{item.item_name}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-slate-400">
                     {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
                   </div>
-                </td>
-                <td className="hidden px-4 py-3 font-semibold sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</td>
-                <td className="hidden px-4 py-3 md:table-cell">{item.category?.name ?? '-'}</td>
-                <td className="px-4 py-3 text-center font-extrabold text-slate-800">{item.quantity} {item.unit?.name ?? ''}</td>
-                <td className="px-4 py-3 font-semibold text-slate-600">{item.location?.name ?? '-'}</td>
-                <td className="hidden px-4 py-3 font-semibold xl:table-cell">{item.responsible_person ?? '-'}</td>
-                <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-              </tr>
+                </DataTableCell>
+                <DataTableCell className="hidden font-semibold sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
+                <DataTableCell className="hidden md:table-cell">{item.category?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="text-center font-extrabold text-slate-800">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+                <DataTableCell className="font-semibold text-slate-600">{item.location?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="hidden font-semibold xl:table-cell">{item.responsible_person ?? '-'}</DataTableCell>
+                <DataTableCell><StatusBadge status={item.status} /></DataTableCell>
+              </DataTableRow>
             )
           })}
           {!items.length && <EmptyRows />}
-        </tbody>
-      </table>
+        </DataTableBody>
+      </DataTable>
     </div>
   )
 }
@@ -767,8 +878,13 @@ function ItemsGrid({
           })}
         </div>
       ) : (
-        <div className="flex h-full items-center justify-center text-center text-sm text-slate-400">
-          ไม่พบข้อมูลสิ่งของในทะเบียน
+        <div className="flex h-full items-center justify-center p-8">
+          <EmptyState
+            title="ไม่พบข้อมูลสิ่งของในทะเบียน"
+            description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
+            icon={<Package className="h-10 w-10 text-slate-300 opacity-60" />}
+            className="border-0 shadow-none bg-transparent"
+          />
         </div>
       )}
     </div>
@@ -778,10 +894,13 @@ function ItemsGrid({
 function EmptyRows() {
   return (
     <tr>
-      <td colSpan={9} className="px-5 py-16 text-center text-slate-400">
-        <Package className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-        <p className="text-sm font-bold text-slate-500">ไม่พบข้อมูลสิ่งของ</p>
-        <p className="mt-1 text-xs">ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่</p>
+      <td colSpan={9} className="px-5 py-12">
+        <EmptyState
+          title="ไม่พบข้อมูลสิ่งของ"
+          description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
+          icon={<Package className="h-10 w-10 text-slate-300 opacity-60" />}
+          className="border-0 shadow-none bg-transparent"
+        />
       </td>
     </tr>
   )
@@ -844,7 +963,7 @@ function Inspector({
         <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-base font-extrabold leading-tight text-slate-800">{item.item_name}</h3>
-            {getStatusBadge(item.status)}
+            <StatusBadge status={item.status} />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="rounded border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
@@ -981,28 +1100,4 @@ function PaginationLink({
   )
 }
 
-function getStatusBadge(status: ItemStatus) {
-  return (
-    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold', getStatusBadgeClass(status))}>
-      <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current" />
-      {ITEM_STATUS_LABELS[status]}
-    </span>
-  )
-}
-
-function getStatusBadgeClass(status: ItemStatus) {
-  switch (status) {
-    case 'active':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    case 'spare':
-      return 'border-blue-200 bg-blue-50 text-blue-700'
-    case 'damaged':
-      return 'border-rose-200 bg-rose-50 text-rose-700'
-    case 'waiting_repair':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
-    case 'disposed':
-      return 'border-red-200 bg-red-50 text-red-700'
-    default:
-      return 'border-slate-200 bg-slate-50 text-slate-700'
-  }
-}
+// Status badges are handled by the shared StatusBadge component

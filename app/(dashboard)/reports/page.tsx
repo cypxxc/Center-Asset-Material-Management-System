@@ -1,4 +1,4 @@
-import { getReportItemsList } from '@/features/reports/queries'
+import { getReportItemsList, getReportStats } from '@/features/reports/queries'
 import { ReportsList } from '@/features/reports/components/reports-list'
 import { ItemListSearchParams } from '@/features/items/types'
 import { getItemReferences } from '@/features/items/queries'
@@ -8,12 +8,27 @@ interface ReportsPageProps {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const [params, references] = await Promise.all([
+  const [params, references, stats] = await Promise.all([
     searchParams,
-    getItemReferences()
+    getItemReferences(),
+    getReportStats()
   ])
-  const items = await getReportItemsList(params)
+  const reportData = await getReportItemsList(params)
 
-  return <ReportsList items={items} searchParams={params} categories={references.categories} />
+  return (
+    <ReportsList
+      items={reportData.items}
+      totalCount={reportData.totalCount}
+      totalQuantity={reportData.totalQuantity}
+      totalValue={reportData.totalValue}
+      totalPages={reportData.totalPages}
+      currentPage={reportData.page}
+      auditedCount={reportData.auditedCount}
+      overdueAuditItems={reportData.overdueAuditItems}
+      searchParams={params}
+      categories={references.categories}
+      stats={stats}
+    />
+  )
 }
 

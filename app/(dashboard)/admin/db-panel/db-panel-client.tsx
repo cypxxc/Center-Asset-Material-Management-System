@@ -31,6 +31,7 @@ import {
     resetAuthPassword,
 } from '@/features/admin/actions'
 import { cn } from '@/lib/utils'
+import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
 
 interface ColumnSchema {
   name: string
@@ -43,7 +44,7 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
   profiles: [
     { name: 'id', label: 'UUID (auto จาก Auth)', type: 'readonly' },
     { name: 'full_name', label: 'ชื่อ-นามสกุล', type: 'text' },
-    { name: 'email', label: 'อีเมล', type: 'text' },
+    { name: 'email', label: 'บัญชี / อีเมล', type: 'readonly' },
     { name: 'role', label: 'บทบาท', type: 'select', options: [
       { value: 'admin', label: 'Admin' },
       { value: 'staff', label: 'Staff' },
@@ -502,7 +503,7 @@ export default function DBPanelClient() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base font-extrabold text-white flex items-center gap-1.5">
-                    <Database className="h-4.5 w-4.5 text-blue-500" />
+                    <Database className="h-5 w-5 text-blue-500" />
                     <span className="font-mono text-slate-200">
                       {activeTab === 'audit' ? 'audit_logs' : selectedTable}
                     </span>
@@ -582,6 +583,10 @@ export default function DBPanelClient() {
                             valStr = JSON.stringify(rawVal)
                           } else {
                             valStr = String(rawVal)
+                          }
+
+                          if (selectedTable === 'profiles' && col.name === 'email' && typeof rawVal === 'string') {
+                            valStr = formatDisplayEmail(rawVal)
                           }
 
                           return (
@@ -666,7 +671,7 @@ export default function DBPanelClient() {
               <div className="flex items-center justify-between shrink-0">
                 <div className="space-y-0.5">
                   <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                    <Terminal className="h-4.5 w-4.5 text-blue-500" />
+                    <Terminal className="h-5 w-5 text-blue-500" />
                     <span>SQL Query Command Console</span>
                   </h2>
                   <p className="text-[11px] text-slate-500">
@@ -694,7 +699,8 @@ export default function DBPanelClient() {
                   value={sqlQuery}
                   onChange={(e) => setSqlQuery(e.target.value)}
                   placeholder="SELECT * FROM items LIMIT 10;"
-                  className="flex-1 p-4 bg-slate-950 text-slate-200 font-mono text-xs border-0 outline-none resize-none focus:ring-0 placeholder:text-slate-700"
+                  aria-label="ช่องป้อนคำสั่ง SQL"
+                  className="flex-1 p-4 bg-slate-950 text-slate-200 font-mono text-xs border-0 outline-none resize-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-700"
                 />
               </div>
 
@@ -793,7 +799,7 @@ export default function DBPanelClient() {
               
               <div className="space-y-0.5">
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <FileCode className="h-4.5 w-4.5 text-blue-500" />
+                  <FileCode className="h-5 w-5 text-blue-500" />
                   <span>Backup & Restore Center</span>
                 </h2>
                 <p className="text-[11px] text-slate-500">
@@ -931,13 +937,16 @@ export default function DBPanelClient() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-400 font-mono">อีเมล <span className="text-[9px] text-slate-600">(email)</span></label>
+                    <label className="block text-[11px] font-bold text-slate-400 font-mono">
+                      อีเมล <span className="text-[9px] text-slate-600">(ไม่บังคับ — ว่างไว้สร้างบัญชีภายใน)</span>
+                    </label>
                     <input
                       type="email"
                       name={"email_" + formNonce}
                       autoComplete="off"
                       value={typeof formData.email === 'string' ? formData.email : ''}
                       onChange={(e) => handleFormChange('email', e.target.value)}
+                      placeholder="เว้นว่างได้ — ผู้ใช้เข้าสู่ระบบด้วยชื่อ-นามสกุล"
                       className="h-8 w-full border border-slate-800 bg-slate-950 text-slate-300 rounded-lg px-3 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                     />
                   </div>
@@ -1021,8 +1030,19 @@ export default function DBPanelClient() {
                         </label>
 
                           {isReadonly ? (
-                          <div className="h-8 border border-slate-800/60 bg-slate-950/40 text-slate-500 rounded-lg px-3 flex items-center font-mono">
-                            {editingRow ? String(currentValue) : '(สร้างขึ้นอัตโนมัติ)'}
+                          <div className={cn(
+                            "h-8 border border-slate-800/60 bg-slate-950/40 text-slate-500 rounded-lg px-3 flex items-center",
+                            col.name === 'email' && typeof currentValue === 'string' && isInternalEmail(String(currentValue))
+                              ? 'text-xs font-sans'
+                              : 'font-mono',
+                          )}>
+                            {editingRow
+                              ? col.name === 'email' && typeof currentValue === 'string'
+                                ? formatDisplayEmail(String(currentValue))
+                                : String(currentValue)
+                              : col.name === 'email'
+                                ? '(ไม่บังคับ — ว่างไว้เพื่อสร้างบัญชีภายใน)'
+                                : '(สร้างขึ้นอัตโนมัติ)'}
                           </div>
                         ) : col.type === 'auth-uuid' ? (
                           editingRow ? (

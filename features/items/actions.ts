@@ -7,20 +7,26 @@ import { createClient } from '@/lib/supabase/server'
 import { itemFormSchema } from './schema'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
+import { clearReferencesCache } from './queries'
+import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
+import { logger } from '@/lib/logging'
+import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { startTimer } from '@/lib/performance'
+import { writeAuditLog } from '@/lib/audit'
+import { handleActionError } from '@/lib/error-handler'
+import { metrics } from '@/lib/metrics'
+import { retryStorage } from '@/lib/retry'
+import { getRequestContext, withTraceContext } from '@/lib/tracing'
 
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
   revalidatePath('/', 'layout')
 }
 
-const isDev = process.env.NODE_ENV !== 'production'
 
 
-export interface ItemActionState {
-  ok?: boolean
-  message?: string
-  fieldErrors?: Record<string, string[] | undefined>
-}
+export type ItemActionState = ActionResponse
 
 async function requireEditor() {
   const profile = await getCurrentProfile()
@@ -31,6 +37,20 @@ async function requireEditor() {
 
   if (profile.role !== 'admin' && profile.role !== 'staff') {
     return { error: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', profile: null }
+  }
+
+  return { error: null, profile }
+}
+
+async function requireDeletePermission() {
+  const profile = await getCurrentProfile()
+
+  if (!profile || !profile.is_active) {
+    return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
+  }
+
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    return { error: 'เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
   }
 
   return { error: null, profile }
@@ -75,10 +95,13 @@ async function deleteOldImage(url: string | null) {
     if (markerIndex !== -1) {
       const filename = url.substring(markerIndex + bucketMarker.length)
       const supabase = await createClient()
-      await supabase.storage.from('item-images').remove([filename])
+      await retryStorage(async () => {
+        const { error } = await supabase.storage.from('item-images').remove([filename])
+        if (error) throw error
+      })
     }
   } catch (error) {
-    if (isDev) console.error('Failed to delete old image from storage:', error)
+    logger.error({ operation: 'deleteImage', feature: 'items', details: 'Failed to delete old image from storage' }, error)
   }
 }
 
@@ -104,19 +127,18 @@ async function handleImageUpload(
 
     try {
       const fileBuffer = await file.arrayBuffer()
-      const fileExt = file.name.split('.').pop() || 'jpg'
+      const safeFilename = normalizeFilename(file.name)
+      const fileExt = safeFilename.split('.').pop() || 'jpg'
       const fileName = `${crypto.randomUUID()}.${fileExt}`
       const supabase = await createClient()
 
-      const { error: uploadError } = await supabase.storage
-        .from('item-images')
-        .upload(fileName, Buffer.from(fileBuffer), {
+      await retryStorage(async () => {
+        const result = await supabase.storage.from('item-images').upload(fileName, Buffer.from(fileBuffer), {
           contentType: file.type,
         })
-
-      if (uploadError) {
-        return { imageUrl: null, error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' }
-      }
+        if (result.error) throw result.error
+        return result
+      })
 
       const { data: { publicUrl } } = supabase.storage
         .from('item-images')
@@ -135,8 +157,15 @@ export async function createItem(
   _prevState: ItemActionState | null,
   formData: FormData
 ): Promise<ItemActionState> {
+  const timer = startTimer()
   const auth = await requireEditor()
   if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+  // Rate limiting check
+  const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
+  if (!rateLimitCheck.success) {
+    return { message: rateLimitCheck.error! }
+  }
 
   const uploadResult = await handleImageUpload(formData)
   if (uploadResult.error) {
@@ -156,31 +185,54 @@ export async function createItem(
   }
 
   const supabase = await createClient()
-  const { data: newItem, error } = await supabase
-    .from('items')
-    .insert({
-      ...parsed.data,
-      created_by: auth.profile.id,
-      updated_by: auth.profile.id,
-    })
-    .select('id')
-    .single()
+  let newItem
+  try {
+    const { data, error } = await supabase
+      .from('items')
+      .insert({
+        ...parsed.data,
+        created_by: auth.profile.id,
+        updated_by: auth.profile.id,
+      })
+      .select('id')
+      .single()
 
-  if (error || !newItem) {
+    if (error || !data) {
+      if (uploadResult.imageUrl) {
+        await deleteOldImage(uploadResult.imageUrl)
+      }
+      return { message: friendlyDatabaseError(error?.message || 'Database error') }
+    }
+    newItem = data
+
+    // Centralized Audit Log
+    await writeAuditLog({
+      operation: 'create',
+      feature: 'items',
+      userId: auth.profile.id,
+      targetType: 'items',
+      targetId: newItem.id,
+      newValues: parsed.data,
+    })
+
+    const durationMs = timer.stop()
+    const ctx = await getRequestContext(auth.profile.id)
+    metrics.itemCreated()
+    logger.info(withTraceContext(ctx, {
+      operation: 'createItem',
+      feature: 'items',
+      action: 'createItem',
+      userId: auth.profile.id,
+      latency: durationMs,
+      status: 'success',
+    }))
+  } catch (err) {
     if (uploadResult.imageUrl) {
       await deleteOldImage(uploadResult.imageUrl)
     }
-    return { message: friendlyDatabaseError(error?.message || 'Database error') }
+    const errRes = await handleActionError(err, 'createItem', 'items', auth.profile.id)
+    return { message: errRes.message! }
   }
-
-  // Log in audit logs
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'create',
-    target_table: 'items',
-    target_id: newItem.id,
-    new_data: parsed.data
-  })
 
   revalidatePath('/items')
   revalidateSidebarCache()
@@ -192,15 +244,28 @@ export async function updateItem(
   _prevState: ItemActionState | null,
   formData: FormData
 ): Promise<ItemActionState> {
+  const timer = startTimer()
   const auth = await requireEditor()
   if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
 
+  // Rate Limiter
+  const rateLimitCheck = await checkRateLimit('updateItem', 30, 60000)
+  if (!rateLimitCheck.success) {
+    return { message: rateLimitCheck.error! }
+  }
+
   const supabase = await createClient()
-  const { data: oldItem } = await supabase
-    .from('items')
-    .select('*')
-    .eq('id', id)
-    .single()
+  let oldItem = null
+  try {
+    const { data } = await supabase
+      .from('items')
+      .select('*')
+      .eq('id', id)
+      .single()
+    oldItem = data
+  } catch {
+    return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
+  }
 
   const currentImageUrl = oldItem?.image_url || null
 
@@ -221,41 +286,60 @@ export async function updateItem(
     }
   }
 
-  const { error } = await supabase
-    .from('items')
-    .update({
-      ...parsed.data,
-      updated_by: auth.profile.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .is('deleted_at', null)
+  try {
+    const { error } = await supabase
+      .from('items')
+      .update({
+        ...parsed.data,
+        updated_by: auth.profile.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .is('deleted_at', null)
 
-  if (error) {
+    if (error) {
+      if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
+        await deleteOldImage(uploadResult.imageUrl)
+      }
+      return { message: friendlyDatabaseError(error.message) }
+    }
+
+    // Centralized Audit Log
+    if (oldItem) {
+      const cleanOld: Record<string, unknown> = { ...oldItem }
+      const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
+      removeKey(cleanOld, 'created_at')
+      removeKey(cleanOld, 'updated_at')
+      removeKey(cleanOld, 'created_by')
+      removeKey(cleanOld, 'updated_by')
+      removeKey(cleanOld, 'deleted_at')
+      removeKey(cleanOld, 'deleted_by')
+      
+      await writeAuditLog({
+        operation: 'update',
+        feature: 'items',
+        userId: auth.profile.id,
+        targetType: 'items',
+        targetId: id,
+        oldValues: cleanOld,
+        newValues: parsed.data,
+      })
+    }
+
+    const durationMs = timer.stop()
+    logger.info({
+      operation: 'updateItem',
+      feature: 'items',
+      userId: auth.profile.id,
+      latency: durationMs,
+      status: 'success',
+    })
+  } catch (err) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
       await deleteOldImage(uploadResult.imageUrl)
     }
-    return { message: friendlyDatabaseError(error.message) }
-  }
-
-  // Log in audit logs
-    if (oldItem) {
-    const cleanOld: Record<string, unknown> = { ...oldItem }
-    const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
-    removeKey(cleanOld, 'created_at')
-    removeKey(cleanOld, 'updated_at')
-    removeKey(cleanOld, 'created_by')
-    removeKey(cleanOld, 'updated_by')
-    removeKey(cleanOld, 'deleted_at')
-    removeKey(cleanOld, 'deleted_by')
-    await supabase.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'update',
-      target_table: 'items',
-      target_id: id,
-      old_data: cleanOld,
-      new_data: parsed.data
-    })
+    const errRes = await handleActionError(err, 'updateItem', 'items', auth.profile.id)
+    return { message: errRes.message! }
   }
 
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
@@ -269,65 +353,93 @@ export async function updateItem(
 }
 
 export async function softDeleteItem(id: string) {
+  const timer = startTimer()
   const profile = await getCurrentProfile()
 
-  if (!profile || profile.role !== 'admin') {
-    return { message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้' }
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+    return { message: 'เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่ลบรายการได้' }
+  }
+
+  // Rate Limiter
+  const rateLimitCheck = await checkRateLimit('softDeleteItem', 30, 60000)
+  if (!rateLimitCheck.success) {
+    return { message: rateLimitCheck.error! }
   }
 
   const supabase = await createClient()
+  try {
+    // Query item details for audit log
+    const { data: oldItem } = await supabase
+      .from('items')
+      .select('item_name, asset_no, serial_no')
+      .eq('id', id)
+      .single()
 
-  // Query item details for audit log
-  const { data: oldItem } = await supabase
-    .from('items')
-    .select('item_name, asset_no, serial_no')
-    .eq('id', id)
-    .single()
+    const { error, data } = await supabase
+      .from('items')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profile.id,
+        updated_by: profile.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select('id')
 
-  const { error, data } = await supabase
-    .from('items')
-    .update({
-      deleted_at: new Date().toISOString(),
-      deleted_by: profile.id,
-      updated_by: profile.id,
-      updated_at: new Date().toISOString(),
+    if (error) {
+      logger.error({ operation: 'softDeleteItem', feature: 'items', userId: profile.id, details: { id } }, error)
+      return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
+    }
+
+    // RLS block จะ return error=null แต่ data=[]
+    if (!data || data.length === 0) {
+      logger.warn({ operation: 'softDeleteItem', feature: 'items', userId: profile.id, details: { note: '0 rows updated - possible RLS block or item not found', id } })
+      return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
+    }
+
+    const timestamp = new Date().toISOString()
+    // Centralized Audit Log
+    await writeAuditLog({
+      operation: 'delete',
+      feature: 'items',
+      userId: profile.id,
+      targetType: 'items',
+      targetId: id,
+      oldValues: oldItem || null,
+      newValues: { deleted_at: timestamp },
     })
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id')
 
-  if (error) {
-    if (isDev) console.error('[softDeleteItem] Supabase error:', error)
-    return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
+    const durationMs = timer.stop()
+    const ctx = await getRequestContext(profile.id)
+    metrics.itemDeleted()
+    logger.info(withTraceContext(ctx, {
+      operation: 'softDeleteItem',
+      feature: 'items',
+      action: 'softDeleteItem',
+      userId: profile.id,
+      latency: durationMs,
+      status: 'success',
+    }))
+  } catch (err) {
+    const errRes = await handleActionError(err, 'softDeleteItem', 'items', profile.id)
+    return { message: errRes.message! }
   }
-
-  // RLS block จะ return error=null แต่ data=[]
-  if (!data || data.length === 0) {
-    if (isDev) console.error('[softDeleteItem] 0 rows updated — possible RLS block or item not found. id:', id, 'role:', profile.role)
-    return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
-  }
-
-  // Log in audit logs
-  await supabase.from('audit_logs').insert({
-    user_id: profile.id,
-    action: 'delete',
-    target_table: 'items',
-    target_id: id,
-    old_data: oldItem || null,
-    new_data: { deleted_at: new Date().toISOString() }
-  })
 
   revalidatePath('/items')
   revalidateSidebarCache()
   redirect('/items')
 }
 
-export async function bulkUpdateItems(ids: string[], updates: { location_id?: string; status?: string }) {
+export async function bulkUpdateItems(ids: string[], updates: { location_id?: string; status?: string }): Promise<ActionResponse> {
   const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'bulkUpdateItems', feature: 'items', details: 'Unauthorized bulk update attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
   if (!ids.length) {
-    return { message: 'กรุณาเลือกรายการที่ต้องการแก้ไข' }
+    return errorResponse('กรุณาเลือกรายการที่ต้องการแก้ไข')
   }
 
   const supabase = await createClient()
@@ -345,12 +457,13 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
     .is('deleted_at', null)
 
   if (error) {
-    return { message: 'ไม่สามารถอัปเดตรายการได้: ' + error.message }
+    logger.error({ operation: 'bulkUpdateItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
+    return errorResponse('ไม่สามารถอัปเดตรายการได้: ' + error.message)
   }
 
   // Log in audit logs
   const auditLogs = ids.map(id => ({
-    user_id: auth.profile.id,
+    user_id: auth.profile!.id,
     action: 'update',
     target_table: 'items',
     target_id: id,
@@ -358,19 +471,22 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
   }))
   await supabase.from('audit_logs').insert(auditLogs)
 
+  logger.info({ operation: 'bulkUpdateItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: `อัปเดตเรียบร้อย ${ids.length} รายการ` }
+  return successResponse(`อัปเดตเรียบร้อย ${ids.length} รายการ`)
 }
 
-export async function bulkDeleteItems(ids: string[]) {
+export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   const profile = await getCurrentProfile()
-  if (!profile || profile.role !== 'admin') {
-    return { message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้' }
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
+    return errorResponse('เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่ลบรายการได้')
   }
 
   if (!ids.length) {
-    return { message: 'กรุณาเลือกรายการที่ต้องการลบ' }
+    return errorResponse('กรุณาเลือกรายการที่ต้องการลบ')
   }
 
   const supabase = await createClient()
@@ -387,18 +503,18 @@ export async function bulkDeleteItems(ids: string[]) {
     .select('id')
 
   if (error) {
-    if (isDev) console.error('[bulkDeleteItems] Supabase error:', error)
-    return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
+    logger.error({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { ids } }, error)
+    return errorResponse('ไม่สามารถลบรายการได้: ' + error.message)
   }
 
   if (!data || data.length === 0) {
-    if (isDev) console.error('[bulkDeleteItems] 0 rows updated — possible RLS block. ids:', ids, 'role:', profile.role)
-    return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
+    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: '0 rows updated - RLS block or already deleted' })
+    return errorResponse('ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)')
   }
 
   // Log in audit logs
   const auditLogs = ids.map(id => ({
-    user_id: profile.id,
+    user_id: profile!.id,
     action: 'delete',
     target_table: 'items',
     target_id: id,
@@ -406,18 +522,23 @@ export async function bulkDeleteItems(ids: string[]) {
   }))
   await supabase.from('audit_logs').insert(auditLogs)
 
+  logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { count: ids.length } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: `ลบเรียบร้อย ${ids.length} รายการ` }
+  return successResponse(`ลบเรียบร้อย ${ids.length} รายการ`)
 }
 
 // ============================================================
 // Trash: Restore & Hard Delete
 // ============================================================
 
-export async function restoreItem(id: string) {
+export async function restoreItem(id: string): Promise<ActionResponse> {
   const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'restoreItem', feature: 'items', details: 'Unauthorized restore attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -432,7 +553,8 @@ export async function restoreItem(id: string) {
     .not('deleted_at', 'is', null)
 
   if (error) {
-    return { message: 'ไม่สามารถกู้คืนรายการได้ กรุณาลองใหม่อีกครั้ง' }
+    logger.error({ operation: 'restoreItem', feature: 'items', userId: auth.profile.id, details: { id } }, error)
+    return errorResponse('ไม่สามารถกู้คืนรายการได้ กรุณาลองใหม่อีกครั้ง')
   }
 
   // Log in audit logs
@@ -444,17 +566,22 @@ export async function restoreItem(id: string) {
     new_data: { deleted_at: null }
   })
 
+  logger.info({ operation: 'restoreItem', feature: 'items', userId: auth.profile.id, details: { id } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: 'กู้คืนรายการเรียบร้อยแล้ว' }
+  return successResponse('กู้คืนรายการเรียบร้อยแล้ว')
 }
 
-export async function bulkRestoreItems(ids: string[]) {
+export async function bulkRestoreItems(ids: string[]): Promise<ActionResponse> {
   const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'bulkRestoreItems', feature: 'items', details: 'Unauthorized bulk restore attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
   if (!ids.length) {
-    return { message: 'กรุณาเลือกรายการที่ต้องการกู้คืน' }
+    return errorResponse('กรุณาเลือกรายการที่ต้องการกู้คืน')
   }
 
   const supabase = await createClient()
@@ -470,12 +597,13 @@ export async function bulkRestoreItems(ids: string[]) {
     .not('deleted_at', 'is', null)
 
   if (error) {
-    return { message: 'ไม่สามารถกู้คืนรายการได้: ' + error.message }
+    logger.error({ operation: 'bulkRestoreItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
+    return errorResponse('ไม่สามารถกู้คืนรายการได้: ' + error.message)
   }
 
   // Log in audit logs
   const auditLogs = ids.map(id => ({
-    user_id: auth.profile.id,
+    user_id: auth.profile!.id,
     action: 'restore',
     target_table: 'items',
     target_id: id,
@@ -483,14 +611,19 @@ export async function bulkRestoreItems(ids: string[]) {
   }))
   await supabase.from('audit_logs').insert(auditLogs)
 
+  logger.info({ operation: 'bulkRestoreItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: `กู้คืนเรียบร้อย ${ids.length} รายการ` }
+  return successResponse(`กู้คืนเรียบร้อย ${ids.length} รายการ`)
 }
 
-export async function hardDeleteItem(id: string) {
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+export async function hardDeleteItem(id: string): Promise<ActionResponse> {
+  const auth = await requireDeletePermission()
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'hardDeleteItem', feature: 'items', details: 'Unauthorized hard delete attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
   const supabase = await createClient()
 
@@ -509,7 +642,8 @@ export async function hardDeleteItem(id: string) {
     .not('deleted_at', 'is', null)
 
   if (error) {
-    return { message: 'ไม่สามารถลบรายการถาวรได้ กรุณาลองใหม่อีกครั้ง' }
+    logger.error({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } }, error)
+    return errorResponse('ไม่สามารถลบรายการถาวรได้ กรุณาลองใหม่อีกครั้ง')
   }
 
   // Log in audit logs
@@ -526,17 +660,22 @@ export async function hardDeleteItem(id: string) {
     await deleteOldImage(item.image_url)
   }
 
+  logger.info({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: 'ลบรายการถาวรเรียบร้อยแล้ว' }
+  return successResponse('ลบรายการถาวรเรียบร้อยแล้ว')
 }
 
-export async function bulkHardDeleteItems(ids: string[]) {
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse> {
+  const auth = await requireDeletePermission()
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'bulkHardDeleteItems', feature: 'items', details: 'Unauthorized bulk hard delete attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
   if (!ids.length) {
-    return { message: 'กรุณาเลือกรายการที่ต้องการลบถาวร' }
+    return errorResponse('กรุณาเลือกรายการที่ต้องการลบถาวร')
   }
 
   const supabase = await createClient()
@@ -555,13 +694,14 @@ export async function bulkHardDeleteItems(ids: string[]) {
     .not('deleted_at', 'is', null)
 
   if (error) {
-    return { message: 'ไม่สามารถลบรายการถาวรได้: ' + error.message }
+    logger.error({ operation: 'bulkHardDeleteItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
+    return errorResponse('ไม่สามารถลบรายการถาวรได้: ' + error.message)
   }
 
   // Log in audit logs
   if (items && items.length > 0) {
     const auditLogs = items.map((item, idx) => ({
-      user_id: auth.profile.id,
+      user_id: auth.profile!.id,
       action: 'hard_delete',
       target_table: 'items',
       target_id: ids[idx],
@@ -575,137 +715,246 @@ export async function bulkHardDeleteItems(ids: string[]) {
     await Promise.allSettled(items.map((item) => deleteOldImage(item.image_url)))
   }
 
+  logger.info({ operation: 'bulkHardDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
+
   revalidatePath('/items')
   revalidateSidebarCache()
-  return { ok: true, message: `ลบถาวรเรียบร้อย ${ids.length} รายการ` }
+  return successResponse(`ลบถาวรเรียบร้อย ${ids.length} รายการ`)
 }
 
-export async function importItemsBulk(csvContent: string) {
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+  }
+  result.push(current.trim())
+
+  return result.map((val) => {
+    if (val.startsWith('"') && val.endsWith('"')) {
+      return val.substring(1, val.length - 1).trim()
+    }
+    return val
+  })
+}
+
+export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> {
+  const timer = startTimer()
   const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'importItemsBulk', feature: 'items', details: 'Unauthorized bulk import attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
 
-  const lines = csvContent.split(/\r?\n/).filter((line) => line.trim())
+  // 1. Rate Limiting
+  const rateLimitCheck = await checkRateLimit('importItemsBulk', 10, 60000)
+  if (!rateLimitCheck.success) {
+    return errorResponse(rateLimitCheck.error!)
+  }
+
+  // 2. Input size limits check (5MB)
+  if (csvContent.length > 5 * 1024 * 1024) {
+    return errorResponse('ขนาดไฟล์ข้อมูลนำเข้าใหญ่เกินกำหนด (สูงสุด 5MB)')
+  }
+
+  // Strip UTF-8 BOM if present
+  const cleanContent = stripBom(csvContent)
+  const lines = cleanContent.split(/\r?\n/).filter((line) => line.trim())
   if (lines.length <= 1) {
-    return { message: 'ไม่พบข้อมูลในไฟล์ CSV' }
+    return errorResponse('ไม่พบข้อมูลในไฟล์ CSV')
   }
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-  const rows = lines.slice(1)
+  // 3. Rows count check (1,000 data rows max)
+  if (lines.length > 1001) {
+    return errorResponse('จำนวนแถวข้อมูลเกินขีดจำกัด (สูงสุด 1,000 แถวต่อการนำเข้าหนึ่งครั้ง)')
+  }
 
-  const supabase = await createClient()
+  try {
+    const headers = parseCSVLine(lines[0]).map((h) => normalizeForSearch(h))
+    const rows = lines.slice(1)
 
-  // Pre-fetch references
-  const [categoriesRes, locationsRes, unitsRes] = await Promise.all([
-    supabase.from('categories').select('id, name'),
-    supabase.from('locations').select('id, name'),
-    supabase.from('units').select('id, name'),
-  ])
+    const itemsToInsert = []
+    let lineNum = 1
 
-  const categoryMap = new Map(categoriesRes.data?.map((c) => [c.name.toLowerCase(), c.id]) ?? [])
-  const locationMap = new Map(locationsRes.data?.map((l) => [l.name.toLowerCase(), l.id]) ?? [])
-  const unitMap = new Map(unitsRes.data?.map((u) => [u.name.toLowerCase(), u.id]) ?? [])
+    for (const row of rows) {
+      lineNum++
+      const cols = parseCSVLine(row)
+      if (cols.length < headers.length) continue
 
-  const itemsToInsert = []
-  let lineNum = 1
-
-  for (const row of rows) {
-    lineNum++
-    const cols = row.split(',').map((c) => c.trim())
-    if (cols.length < headers.length) continue
-
-    const getVal = (name: string) => {
-      const idx = headers.indexOf(name)
-      return idx !== -1 ? cols[idx] : ''
-    }
-
-    const itemName = getVal('item_name')
-    if (!itemName) {
-      return { message: `บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง` }
-    }
-
-    const itemType = getVal('item_type').toLowerCase() || 'asset'
-    if (itemType !== 'asset' && itemType !== 'material' && itemType !== 'general') {
-      return { message: `บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset, material หรือ general` }
-    }
-
-    const categoryName = getVal('category_name')
-    let categoryId = categoryMap.get(categoryName.toLowerCase()) || null
-    if (categoryName && !categoryId) {
-      const { data: newCat, error: catErr } = await supabase
-        .from('categories')
-        .insert({ name: categoryName, is_active: true })
-        .select('id')
-        .single()
-      if (!catErr && newCat) {
-        categoryId = newCat.id
-        categoryMap.set(categoryName.toLowerCase(), categoryId)
+      const getVal = (name: string) => {
+        const idx = headers.indexOf(name)
+        return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
       }
-    }
 
-    const locationName = getVal('location_name')
-    let locationId = locationMap.get(locationName.toLowerCase()) || null
-    if (locationName && !locationId) {
-      const { data: newLoc, error: locErr } = await supabase
-        .from('locations')
-        .insert({ name: locationName, is_active: true })
-        .select('id')
-        .single()
-      if (!locErr && newLoc) {
-        locationId = newLoc.id
-        locationMap.set(locationName.toLowerCase(), locationId)
+      // Neutralize CSV injection formula characters
+      const itemName = preventCSVInjection(getVal('item_name'))
+      if (!itemName) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง`)
       }
-    }
 
-    const unitName = getVal('unit_name')
-    let unitId = unitMap.get(unitName.toLowerCase()) || null
-    if (unitName && !unitId) {
-      const { data: newUnit, error: unitErr } = await supabase
-        .from('units')
-        .insert({ name: unitName, is_active: true })
-        .select('id')
-        .single()
-      if (!unitErr && newUnit) {
-        unitId = newUnit.id
-        unitMap.set(unitName.toLowerCase(), unitId)
+      const itemType = getVal('item_type').toLowerCase() || 'asset'
+      if (itemType !== 'asset' && itemType !== 'material' && itemType !== 'general') {
+        return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset, material หรือ general`)
       }
+
+      const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
+      const status = getVal('status').toLowerCase() || 'active'
+
+      itemsToInsert.push({
+        item_name: itemName,
+        item_type: itemType,
+        category_name: preventCSVInjection(getVal('category_name')),
+        location_name: preventCSVInjection(getVal('location_name')),
+        unit_name: preventCSVInjection(getVal('unit_name')),
+        quantity,
+        status,
+        asset_no: preventCSVInjection(getVal('asset_no')) || null,
+        serial_no: preventCSVInjection(getVal('serial_no')) || null,
+        brand: preventCSVInjection(getVal('brand')) || null,
+        model: preventCSVInjection(getVal('model')) || null,
+        responsible_person: preventCSVInjection(getVal('responsible_person')) || null,
+        note: preventCSVInjection(getVal('note')) || null,
+      })
     }
 
-    const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
-    const status = getVal('status').toLowerCase() || 'active'
+    if (itemsToInsert.length === 0) {
+      return errorResponse('ไม่พบแถวข้อมูลที่สามารถนำเข้าได้')
+    }
 
-    itemsToInsert.push({
-      item_name: itemName,
-      item_type: itemType,
-      category_id: categoryId,
-      quantity,
-      unit_id: unitId,
-      asset_no: getVal('asset_no') || null,
-      serial_no: getVal('serial_no') || null,
-      brand: getVal('brand') || null,
-      model: getVal('model') || null,
-      location_id: locationId,
-      responsible_person: getVal('responsible_person') || null,
-      status,
-      note: getVal('note') || null,
-      created_by: auth.profile.id,
-      updated_by: auth.profile.id,
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('import_items_bulk_tx', {
+      items_json: itemsToInsert,
+      creator_id: auth.profile.id,
     })
-  }
 
-  if (itemsToInsert.length === 0) {
-    return { message: 'ไม่พบแถวข้อมูลที่สามารถนำเข้าได้' }
-  }
+    if (error) {
+      logger.error({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id }, error)
+      return errorResponse('เกิดข้อผิดพลาดในการประมวลผลฐานข้อมูล: ' + error.message)
+    }
 
-  const { error } = await supabase.from('items').insert(itemsToInsert)
-  if (error) {
-    return { message: 'เกิดข้อผิดพลาดขณะบันทึกข้อมูลสิ่งของ: ' + error.message }
-  }
+    const res = data as { ok: boolean; count?: number; error?: string }
+    if (!res.ok) {
+      logger.warn({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id, details: res.error })
+      return errorResponse('เกิดข้อผิดพลาดขณะนำเข้าข้อมูล: ' + (res.error || 'ข้อผิดพลาดภายใน'))
+    }
 
-  revalidatePath('/items')
-  revalidateSidebarCache()
-  return { ok: true, message: `นำเข้าพัสดุสำเร็จ ${itemsToInsert.length} รายการ` }
+    // Centralized Audit Log
+    await writeAuditLog({
+      operation: 'import',
+      feature: 'items',
+      userId: auth.profile.id,
+      targetType: 'items',
+      newValues: { count: res.count },
+    })
+
+    const durationMs = timer.stop()
+    const ctx = await getRequestContext(auth.profile.id)
+    metrics.csvImport(res.count ?? 0)
+    logger.info(withTraceContext(ctx, {
+      operation: 'importItemsBulk',
+      feature: 'items',
+      action: 'importItemsBulk',
+      userId: auth.profile.id,
+      latency: durationMs,
+      status: 'success',
+      details: { count: res.count },
+    }))
+
+    revalidatePath('/items')
+    revalidateSidebarCache()
+    clearReferencesCache()
+    return successResponse(`นำเข้าพัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
+  } catch (err) {
+    return handleActionError<{ count: number }>(err, 'importItemsBulk', 'items', auth.profile.id)
+  }
 }
+
 
 export async function getItemsForExport(params: ItemListSearchParams) {
-  return getReportItemsList(params)
+  const result = await getReportItemsList(params, true)
+  return result.items
+}
+
+/**
+ * Modal-friendly variant of createItem.
+ * Identical logic but returns { ok: true } instead of redirecting,
+ * so the NewItemSheet can close and refresh the list client-side.
+ */
+export async function createItemInline(
+  _prevState: ActionResponse | null,
+  formData: FormData
+): Promise<ActionResponse> {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) {
+    logger.warn({ operation: 'createItemInline', feature: 'items', details: 'Unauthorized inline create attempt' })
+    return errorResponse(auth.error ?? 'Unauthorized')
+  }
+
+  const uploadResult = await handleImageUpload(formData)
+  if (uploadResult.error) {
+    return errorResponse(uploadResult.error)
+  }
+  formData.set('image_url', uploadResult.imageUrl || '')
+
+  const parsed = parseFormData(formData)
+  if (!parsed.success) {
+    if (uploadResult.imageUrl) {
+      await deleteOldImage(uploadResult.imageUrl)
+    }
+    return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', parsed.error.flatten().fieldErrors)
+  }
+
+  const supabase = await createClient()
+  let newItem
+  try {
+    const { data, error } = await supabase
+      .from('items')
+      .insert({
+        ...parsed.data,
+        created_by: auth.profile.id,
+        updated_by: auth.profile.id,
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      if (uploadResult.imageUrl) {
+        await deleteOldImage(uploadResult.imageUrl)
+      }
+      return errorResponse(friendlyDatabaseError(error?.message || 'Database error'))
+    }
+    newItem = data
+
+    await supabase.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'create',
+      target_table: 'items',
+      target_id: newItem.id,
+      new_data: parsed.data,
+    })
+  } catch (err) {
+    if (uploadResult.imageUrl) {
+      await deleteOldImage(uploadResult.imageUrl)
+    }
+    logger.error({ operation: 'createItemInline', feature: 'items', userId: auth.profile.id }, err)
+    return errorResponse('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายหรือเข้าถึงฐานข้อมูล')
+  }
+
+  logger.info({ operation: 'createItemInline', feature: 'items', userId: auth.profile.id, details: { id: newItem.id } })
+
+  revalidatePath('/items')
+  revalidateSidebarCache()
+  // Return successResponse — caller handles close + refresh
+  return successResponse('สร้างพัสดุสำเร็จ')
 }

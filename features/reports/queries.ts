@@ -2,88 +2,50 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
+import { normalizeForSearch } from '@/lib/unicode'
+import { getItemValue } from '@/lib/utils'
 
 
 export async function getReportStats() {
   const supabase = await createClient()
+  const { data, error } = await supabase.rpc('get_report_stats')
 
-  const [itemsResult, locationsResult, categoriesResult] = await Promise.all([
-    supabase
-      .from('items')
-      .select('item_type, status, quantity, category_id')
-      .is('deleted_at', null),
-    supabase
-      .from('locations')
-      .select('*', { count: 'exact', head: true }),
-    supabase
-      .from('categories')
-      .select('id, name'),
-  ])
-
-  if (itemsResult.error) throw new Error(itemsResult.error.message)
-
-  const items = itemsResult.data
-  const locationCount = locationsResult.count || 0
-
-  // O(1) category name lookup — no JOIN needed
-  const categoryNameMap = new Map(
-    (categoriesResult.data ?? []).map((c) => [c.id, c.name])
-  )
-
-  let totalItems = 0
-  let totalQuantity = 0
-
-  const typeCounts: Record<string, { count: number; qty: number }> = {
-    asset: { count: 0, qty: 0 },
-    material: { count: 0, qty: 0 },
-    general: { count: 0, qty: 0 },
+  if (error || !data) {
+    if (error) throw new Error(error.message)
+    return {
+      totalItems: 0,
+      totalQuantity: 0,
+      typeCounts: {
+        asset: { count: 0, qty: 0 },
+        material: { count: 0, qty: 0 },
+        general: { count: 0, qty: 0 },
+      },
+      statusCounts: {},
+      categoryCounts: {},
+      locationCount: 0,
+    }
   }
 
-  const statusCounts: Record<string, { count: number; qty: number }> = {
-    active: { count: 0, qty: 0 },
-    spare: { count: 0, qty: 0 },
-    damaged: { count: 0, qty: 0 },
-    waiting_repair: { count: 0, qty: 0 },
-    inactive: { count: 0, qty: 0 },
-    disposed: { count: 0, qty: 0 },
-  }
-
-  const categoryCounts: Record<string, { count: number; qty: number }> = {}
-
-  for (const item of items ?? []) {
-    const qty = item.quantity || 0
-    const isArchived = item.status === 'inactive' || item.status === 'disposed'
-
-    if (item.status && statusCounts[item.status]) {
-      statusCounts[item.status].count += 1
-      statusCounts[item.status].qty += qty
-    }
-
-    if (!isArchived) {
-      totalItems += 1
-      totalQuantity += qty
-
-      if (item.item_type && typeCounts[item.item_type]) {
-        typeCounts[item.item_type].count += 1
-        typeCounts[item.item_type].qty += qty
-      }
-
-      const safeCatName = categoryNameMap.get(item.category_id ?? '') || 'ทั่วไป'
-      if (!categoryCounts[safeCatName]) {
-        categoryCounts[safeCatName] = { count: 0, qty: 0 }
-      }
-      categoryCounts[safeCatName].count += 1
-      categoryCounts[safeCatName].qty += qty
-    }
+  const res = data as {
+    total_items: number
+    total_quantity: number
+    type_counts: Record<string, { count: number; qty: number }>
+    status_counts: Record<string, { count: number; qty: number }>
+    category_counts: Record<string, { count: number; qty: number }>
+    location_count: number
   }
 
   return {
-    totalItems,
-    totalQuantity,
-    typeCounts,
-    statusCounts,
-    categoryCounts,
-    locationCount,
+    totalItems: res.total_items,
+    totalQuantity: res.total_quantity,
+    typeCounts: {
+      asset: res.type_counts.asset ?? { count: 0, qty: 0 },
+      material: res.type_counts.material ?? { count: 0, qty: 0 },
+      general: res.type_counts.general ?? { count: 0, qty: 0 },
+    },
+    statusCounts: res.status_counts,
+    categoryCounts: res.category_counts,
+    locationCount: res.location_count,
   }
 }
 
@@ -158,9 +120,23 @@ export interface ReportItemRow extends ItemListRow {
   model: string | null
 }
 
-export async function getReportItemsList(params: ItemListSearchParams): Promise<ReportItemRow[]> {
+export interface ReportListResult {
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+  totalPages: number
+  page: number
+  auditedCount: number
+  overdueAuditItems: ReportItemRow[]
+}
+
+export async function getReportItemsList(
+  params: ItemListSearchParams,
+  noPagination = false
+): Promise<ReportListResult> {
   const supabase = await createClient()
-  const q = params.q?.trim()
+  const q = normalizeForSearch(params.q || '')
 
   let query = supabase
     .from('items')
@@ -217,7 +193,7 @@ export async function getReportItemsList(params: ItemListSearchParams): Promise<
   if (error) throw new Error(error.message)
   
   const rawRows = data ?? []
-  return rawRows.map((row) => {
+  const allItems = rawRows.map((row) => {
     const r = row as {
       id: string
       item_name: string
@@ -241,4 +217,97 @@ export async function getReportItemsList(params: ItemListSearchParams): Promise<
       location: firstRelation(r.location as Record<string, unknown> | Record<string, unknown>[] | null),
     }
   }) as unknown as ReportItemRow[]
+
+  // Sort allItems in JS before pagination and aggregation slices
+  const sortBy = params.sort_by || 'updated_at'
+  const sortDir = params.sort_dir === 'asc' ? 'asc' : 'desc'
+
+  allItems.sort((a, b) => {
+    let valA: string | number = ''
+    let valB: string | number = ''
+
+    if (sortBy === 'item_name') {
+      valA = a.item_name || ''
+      valB = b.item_name || ''
+    } else if (sortBy === 'category') {
+      valA = a.category?.name || ''
+      valB = b.category?.name || ''
+    } else if (sortBy === 'quantity') {
+      valA = a.quantity || 0
+      valB = b.quantity || 0
+    } else if (sortBy === 'unit_price') {
+      valA = getItemValue(a.item_name, a.category?.name)
+      valB = getItemValue(b.item_name, b.category?.name)
+    } else if (sortBy === 'total_price') {
+      valA = getItemValue(a.item_name, a.category?.name) * a.quantity
+      valB = getItemValue(b.item_name, b.category?.name) * b.quantity
+    } else {
+      // Default: updated_at
+      valA = new Date(a.updated_at).getTime()
+      valB = new Date(b.updated_at).getTime()
+    }
+
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return sortDir === 'asc' 
+        ? valA.localeCompare(valB, 'th-TH') 
+        : valB.localeCompare(valA, 'th-TH')
+    } else {
+      return sortDir === 'asc'
+        ? (valA > valB ? 1 : valA < valB ? -1 : 0)
+        : (valA < valB ? 1 : valA > valB ? -1 : 0)
+    }
+  })
+
+  // Aggregations over the FULL matching list (un-paginated)
+  const totalCount = allItems.length
+  const totalQuantity = allItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  const totalValue = allItems.reduce((sum, item) => sum + (getItemValue(item.item_name, item.category?.name) * item.quantity), 0)
+
+  // Audited count: items updated within past month (simulated as audited)
+  const auditedCount = allItems.filter(item => {
+    const updated = new Date(item.updated_at)
+    const now = new Date()
+    const diff = Math.abs(now.getTime() - updated.getTime())
+    const diffDays = Math.ceil(diff / (1000 * 60 * 60 * 24))
+    return diffDays <= 30
+  }).length
+
+  // Overdue audits: items marked damaged or waiting repair
+  const overdueAuditItems = allItems.filter(item => {
+    return item.status === 'damaged' || item.status === 'waiting_repair'
+  })
+
+  if (noPagination) {
+    return {
+      items: allItems,
+      totalCount,
+      totalQuantity,
+      totalValue,
+      totalPages: 1,
+      page: 1,
+      auditedCount,
+      overdueAuditItems
+    }
+  }
+
+  // Pagination parameters
+  const page = Math.max(1, parseInt(params.page || '1') || 1)
+  const pageSize = 15 // Show 15 rows per page on reports ledger
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  // Slice for current page
+  const slicedItems = allItems.slice((page - 1) * pageSize, page * pageSize)
+
+  return {
+    items: slicedItems,
+    totalCount,
+    totalQuantity,
+    totalValue,
+    totalPages,
+    page,
+    auditedCount,
+    overdueAuditItems
+  }
 }
+
+

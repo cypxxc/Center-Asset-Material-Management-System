@@ -13,6 +13,7 @@ import {
 import { getReportStats, getRecentAuditLogs } from '@/features/reports/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
+import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
 
 export default async function DashboardPage() {
@@ -70,8 +71,7 @@ export default async function DashboardPage() {
   const dash4 = (otherPct / 100) * circ
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50/50 p-6 md:p-8 font-sans">
-      <div className="w-full space-y-6">
+    <PageContainer maxWidth="full">
         
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
@@ -106,10 +106,10 @@ export default async function DashboardPage() {
         {/* Metrics Bento Grid */}
         <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Metric 1 */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">ครุภัณฑ์ทั้งหมด (Assets)</p>
-              <h3 className="text-2xl font-black text-slate-800">{totalAssets} รายการ</h3>
+              <h3 className="text-2xl font-bold text-slate-800">{totalAssets} รายการ</h3>
               <p className="text-[10px] text-green-500 font-semibold flex items-center gap-0.5 mt-1">
                 <CheckCircle className="w-3 h-3" /> ใช้งานอยู่ปกติ {activeCount} รายการ
               </p>
@@ -120,10 +120,10 @@ export default async function DashboardPage() {
           </div>
 
           {/* Metric 2 */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">วัสดุและอุปกรณ์รวม</p>
-              <h3 className="text-2xl font-black text-slate-800">{stats.totalQuantity} ชิ้น</h3>
+              <h3 className="text-2xl font-bold text-slate-800">{stats.totalQuantity} ชิ้น</h3>
               <p className="text-[10px] text-slate-500 font-semibold flex items-center gap-0.5 mt-1">
                 <FolderOpen className="w-3 h-3 text-slate-400" /> จากสิ่งของทั้งหมด {stats.totalItems} รายการ
               </p>
@@ -134,10 +134,10 @@ export default async function DashboardPage() {
           </div>
 
           {/* Metric 3 */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">ชำรุด/รอซ่อมบำรุง</p>
-              <h3 className="text-2xl font-black text-rose-600">{damagedCount} รายการ</h3>
+              <h3 className="text-2xl font-bold text-rose-600">{damagedCount} รายการ</h3>
               <p className="text-[10px] text-rose-500 font-semibold flex items-center gap-0.5 mt-1">
                 <Hammer className="w-3 h-3" /> รอการดำเนินการแก้ไขส่งซ่อม
               </p>
@@ -148,10 +148,10 @@ export default async function DashboardPage() {
           </div>
 
           {/* Metric 4 */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">สถานที่ตั้งเก็บรักษา</p>
-              <h3 className="text-2xl font-black text-slate-800">{stats.locationCount} โซน</h3>
+              <h3 className="text-2xl font-bold text-slate-800">{stats.locationCount} โซน</h3>
               <p className="text-[10px] text-slate-500 font-semibold flex items-center gap-0.5 mt-1">
                 <MapPin className="w-3 h-3 text-slate-400" /> มีห้องเก็บและอาคารที่รองรับ
               </p>
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
         <div className="grid w-full grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Status Breakdown SVG Donut chart */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="font-bold text-slate-800 text-sm mb-1">สัดส่วนตามสภาพการใช้งาน (Status)</h3>
               <p className="text-xs text-slate-400 mb-4">ปริมาณจำนวนพัสดุแบ่งแยกตามสถานะการครอบครองและการใช้งาน</p>
@@ -257,7 +257,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Category breakdown progress list */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="font-bold text-slate-800 text-sm mb-1">สถิติตามประเภทสิ่งของ (Category)</h3>
               <p className="text-xs text-slate-400 mb-4">จำแนกปริมาณพัสดุและครุภัณฑ์แยกตามหมวดหมู่หลักในปัจจุบัน</p>
@@ -301,7 +301,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Low stock alerts panel */}
-          <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="font-bold text-slate-800 text-sm mb-1">พัสดุและวัสดุใกล้หมดคลัง (Low Stock)</h3>
               <p className="text-xs text-slate-400 mb-4">รายการวัสดุและอุปกรณ์สิ้นเปลืองที่เหลือจำนวนต่ำกว่าเกณฑ์ควบคุม (≤ 5 ชิ้น)</p>
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
                 <div key={item.id} className="flex items-center justify-between p-2 bg-amber-50/50 hover:bg-amber-50 border border-amber-100/50 rounded-xl transition-all">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
-                      <Package className="w-4.5 h-4.5" />
+                      <Package className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800 truncate max-w-[150px]">{item.item_name}</p>
@@ -338,7 +338,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Recent Activity Log */}
-        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
             <div>
               <h3 className="font-bold text-slate-800 text-sm">ประวัติการซ่อมบำรุงและขึ้นทะเบียนทรัพย์สิน (Activity Log)</h3>
@@ -368,7 +368,7 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono mt-1 whitespace-nowrap pl-4">
+                <span className="text-[10px] text-slate-400 font-mono mt-1 whitespace-nowrap pl-4" suppressHydrationWarning>
                   {new Date(log.timestamp).toLocaleDateString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
@@ -383,7 +383,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageContainer>
   )
 }

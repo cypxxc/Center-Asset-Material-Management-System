@@ -42,3 +42,40 @@ test('itemFormSchema rejects missing item name and invalid quantity', () => {
     assert.ok(fields.quantity?.length)
   }
 })
+
+test('itemFormSchema rejects item name with zero-width spaces only and normalizes input', () => {
+  const result = itemFormSchema.safeParse({
+    item_name: '\u200B\u200B\u200B', // zero-width spaces only
+    item_type: 'asset',
+    quantity: '1',
+    status: 'active',
+  })
+  assert.equal(result.success, false)
+
+  const nfdResult = itemFormSchema.safeParse({
+    item_name: '  \uFEFFcafe\u0301  ', // NFD café with BOM and padding spaces
+    item_type: 'asset',
+    quantity: '1',
+    status: 'active',
+  })
+  assert.equal(nfdResult.success, true)
+  if (nfdResult.success) {
+    assert.equal(nfdResult.data.item_name, 'caf\u00E9') // Should be NFC café normalized and trimmed
+  }
+})
+
+test('itemFormSchema rejects brand/model exceeding limit', () => {
+  const result = itemFormSchema.safeParse({
+    item_name: 'Dell Laptop',
+    item_type: 'asset',
+    quantity: '1',
+    status: 'active',
+    brand: 'A'.repeat(151), // limit is 150
+  })
+  assert.equal(result.success, false)
+  if (!result.success) {
+    const fields = result.error.flatten().fieldErrors
+    assert.ok(fields.brand?.length)
+  }
+})
+

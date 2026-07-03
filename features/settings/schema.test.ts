@@ -46,3 +46,28 @@ test('unitSchema rejects a missing unit name', () => {
     assert.ok(result.error.flatten().fieldErrors.name?.length)
   }
 })
+
+test('categorySchema rejects zero-width space names and accepts complex emojis within limit', () => {
+  const zwspResult = categorySchema.safeParse({
+    name: '\u200B',
+    is_active: 'true',
+  })
+  assert.equal(zwspResult.success, false)
+
+  // 12 family emojis (grapheme length: 12, UTF-16 length: 132)
+  // Should succeed since getGraphemeLength(12) <= 120
+  const emojiResult = categorySchema.safeParse({
+    name: '👨‍👩‍👧‍👦'.repeat(12),
+    is_active: 'true',
+  })
+  assert.equal(emojiResult.success, true)
+  
+  // 121 family emojis (grapheme length: 121, UTF-16 length: 1331)
+  // Should fail since getGraphemeLength(121) > 120
+  const emojiFailResult = categorySchema.safeParse({
+    name: '👨‍👩‍👧‍👦'.repeat(121),
+    is_active: 'true',
+  })
+  assert.equal(emojiFailResult.success, false)
+})
+

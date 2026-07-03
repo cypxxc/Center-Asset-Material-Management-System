@@ -4,8 +4,12 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { clearReferencesCache } from '@/features/items/queries'
+import { normalizeForStorage, stripBom } from '@/lib/unicode'
+import { logger } from '@/lib/logging'
+import { beginActionTrace } from '@/lib/tracing'
+import { handleActionError } from '@/lib/error-handler'
+import { retrySupabase } from '@/lib/retry'
 
-const isDev = process.env.NODE_ENV !== 'production'
 
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
@@ -16,9 +20,8 @@ async function getSupabaseClient() {
 
 export async function requireAdmin() {
   const profile = await getCurrentProfile()
-  if (isDev) console.debug('requireAdmin: current profile=', profile)
   if (!profile || profile.role !== 'admin' || !profile.is_active) {
-    if (isDev) console.warn('requireAdmin: access denied for profile=', profile)
+    logger.warn({ operation: 'requireAdmin', feature: 'admin', details: 'Access denied: admin required or inactive profile' })
     return { error: 'Access Denied: Admin role required and profile must be active' }
   }
   return { profile }
@@ -57,6 +60,10 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
   delete cleanPayload.created_at
   delete cleanPayload.updated_at
   delete cleanPayload.deleted_at
+
+  if (tableName === 'profiles') {
+    delete cleanPayload.email
+  }
 
   // Normalize empty strings to null for nullable database columns
   for (const key in cleanPayload) {
@@ -162,7 +169,7 @@ export async function runAdminSql(sqlQuery: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
-  const supabase = await getSupabaseClient()
+  const supabase = await createClient()
   const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
 
   if (error) {
@@ -204,7 +211,8 @@ export async function importDatabaseData(backupJsonStr: string) {
 
   const supabase = await getSupabaseClient()
   try {
-    const backup = JSON.parse(backupJsonStr)
+    const cleanStr = stripBom(backupJsonStr)
+    const backup = JSON.parse(cleanStr)
     const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
 
     for (const table of tables) {
@@ -247,26 +255,35 @@ export async function createAuthUser(payload: {
   is_active: boolean
 }) {
   const auth = await requireAdmin()
-  if (auth.error) return { error: auth.error }
+  const trace = await beginActionTrace({
+    feature: 'admin',
+    action: 'createAuthUser',
+    userId: auth.profile?.id,
+  })
+  if (auth.error) {
+    trace.complete('failure', { reason: 'unauthorized' })
+    return { error: auth.error }
+  }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    trace.complete('failure', { reason: 'missing_service_key' })
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อสร้างผู้ใช้ใหม่' }
   }
 
   const adminClient = await createAdminClient()
 
   // Basic server-side validation
-  let email = (payload.email || '').trim()
+  let email = normalizeForStorage(payload.email || '')
   const password = payload.password || ''
-  const full_name = (payload.full_name || '').trim()
+  const full_name = normalizeForStorage(payload.full_name || '')
   const role = payload.role
   const is_active = payload.is_active !== false
 
   const emailRegex = /^\S+@\S+\.\S+$/
-  // If email not provided, generate an internal placeholder email
+  // If email not provided, generate a short internal placeholder (Supabase Auth requires an email)
   if (!email) {
-    const random = Math.random().toString(36).slice(2, 10)
-    email = `internal+${Date.now()}.${random}@registry.internal`
+    const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+    email = `internal+${shortId}@registry.internal`
   } else if (!emailRegex.test(email)) {
     return { error: 'อีเมลไม่ถูกต้อง' }
   }
@@ -296,18 +313,29 @@ export async function createAuthUser(payload: {
     }
 
     // Step 1: Create auth user via Supabase Auth Admin API
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    // We pass role and status directly in user_metadata so that the trigger private.handle_new_user()
+    // creates the profiles record atomically with the correct settings.
+    const authResult = await retrySupabase(async () => {
+      const result = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          role,
+          is_active,
+        },
+      })
+      if (result.error) throw result.error
+      return result
     })
 
-    if (authError || !authData?.user) {
-      if (isDev) console.error('createAuthUser: auth.admin.createUser error', authError)
-      return { error: authError?.message ?? 'สร้างผู้ใช้ใน Auth ล้มเหลว' }
+    if (!authResult.data?.user) {
+      trace.complete('failure', { reason: 'auth_create_failed' })
+      return { error: 'สร้างผู้ใช้ใน Auth ล้มเหลว' }
     }
 
-    const userId = authData.user.id
+    const userId = authResult.data.user.id
 
     // Step 2: Upsert profile linked to the new auth user UUID
     // Use upsert with onConflict 'id' to avoid duplicate primary key errors
@@ -324,7 +352,7 @@ export async function createAuthUser(payload: {
       ], { onConflict: 'id' })
 
     if (profileError) {
-      if (isDev) console.error('createAuthUser: upsert profile error', profileError)
+      logger.error({ operation: 'createAuthUser', feature: 'admin', details: 'upsert profile error' }, profileError)
       // Rollback: delete the auth user we just created
       try {
         await adminClient.auth.admin.deleteUser(userId)
@@ -344,10 +372,12 @@ export async function createAuthUser(payload: {
     })
 
     revalidatePath('/admin/db-panel')
+    trace.complete('success', { userId })
     return { success: true, userId }
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err)
-    return { error: 'เกิดข้อผิดพลาดขณะสร้างผู้ใช้: ' + errMsg }
+    trace.complete('failure')
+    const result = await handleActionError(err, 'createAuthUser', 'admin', auth.profile?.id)
+    return { error: result.error ?? result.message }
   }
 }
 
@@ -408,7 +438,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     })
 
     if (error) {
-      if (isDev) console.error('resetAuthPassword: updateUserById error', error)
+      logger.error({ operation: 'resetAuthPassword', feature: 'admin', details: 'updateUserById error' }, error)
       return { error: error.message }
     }
 
@@ -424,7 +454,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     return { success: true, data }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
-    if (isDev) console.error('resetAuthPassword: unexpected error', err)
+    logger.error({ operation: 'resetAuthPassword', feature: 'admin', details: 'unexpected error' }, err)
     return { error: 'เกิดข้อผิดพลาดขณะรีเซ็ตรหัสผ่าน: ' + errMsg }
   }
 }

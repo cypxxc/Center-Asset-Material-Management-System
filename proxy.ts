@@ -1,8 +1,14 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { applySecurityHeaders } from '@/lib/security-headers'
+import { ensureTraceHeaders } from '@/lib/tracing/headers'
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request)
+  ensureTraceHeaders(request.headers)
+
+  const response = await updateSession(request)
+
+  return applySecurityHeaders(request, response)
 }
 
 export const config = {
