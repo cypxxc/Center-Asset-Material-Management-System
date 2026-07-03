@@ -185,7 +185,7 @@ export async function createItem(
   }
 
   const supabase = await createClient()
-  let newItem
+  let newItem: { id: string } | null = null
   try {
     const { data, error } = await supabase
       .from('items')
@@ -207,14 +207,16 @@ export async function createItem(
 
     // Centralized Audit Log - non-blocking
     setImmediate(async () => {
-      await writeAuditLog({
-        operation: 'create',
-        feature: 'items',
-        userId: auth.profile.id,
-        targetType: 'items',
-        targetId: newItem.id,
-        newValues: parsed.data,
-      })
+      if (newItem) {
+        await writeAuditLog({
+          operation: 'create',
+          feature: 'items',
+          userId: auth.profile.id,
+          targetType: 'items',
+          targetId: newItem.id,
+          newValues: parsed.data,
+        })
+      }
     })
 
     const durationMs = timer.stop()
