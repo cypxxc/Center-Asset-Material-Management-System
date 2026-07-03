@@ -50,8 +50,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
   }
 
   const supabase = await createClient()
-  const adminClient = await createAdminClient()
-
+  
   const isEmail = identifier.includes('@')
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
   const isUUID = uuidRegex.test(identifier)
@@ -61,37 +60,42 @@ export async function login(_prevState: { error?: string } | null, formData: For
   try {
     if (isEmail) {
       email = identifier
-    } else if (isUUID) {
-      const userResult = await retrySupabase(async () => {
-        const result = await adminClient.auth.admin.getUserById(identifier)
-        if (result.error) throw result.error
-        return result
-      })
-      if (!userResult.data?.user) {
-        metrics.loginFailure()
-        trace.complete('failure', { reason: 'user_not_found' })
-        return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
-      }
-      email = userResult.data.user.email ?? null
-      if (!email) {
-        metrics.loginFailure()
-        trace.complete('failure', { reason: 'no_email' })
-        return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
-      }
     } else {
-      const profileResult = await retrySupabase(async () => {
-        const result = await adminClient.from('profiles').select('email').ilike('full_name', identifier).limit(1)
-        if (result.error) throw result.error
-        return result
-      })
+      // Only create admin client when needed (non-email login)
+      const adminClient = await createAdminClient()
+      
+      if (isUUID) {
+        const userResult = await retrySupabase(async () => {
+          const result = await adminClient.auth.admin.getUserById(identifier)
+          if (result.error) throw result.error
+          return result
+        })
+        if (!userResult.data?.user) {
+          metrics.loginFailure()
+          trace.complete('failure', { reason: 'user_not_found' })
+          return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
+        }
+        email = userResult.data.user.email ?? null
+        if (!email) {
+          metrics.loginFailure()
+          trace.complete('failure', { reason: 'no_email' })
+          return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
+        }
+      } else {
+        const profileResult = await retrySupabase(async () => {
+          const result = await adminClient.from('profiles').select('email').ilike('full_name', identifier).limit(1)
+          if (result.error) throw result.error
+          return result
+        })
 
-      const profiles = profileResult.data
-      if (!profiles?.length) {
-        metrics.loginFailure()
-        trace.complete('failure', { reason: 'profile_not_found' })
-        return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
+        const profiles = profileResult.data
+        if (!profiles?.length) {
+          metrics.loginFailure()
+          trace.complete('failure', { reason: 'profile_not_found' })
+          return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
+        }
+        email = profiles[0].email as string
       }
-      email = profiles[0].email as string
     }
   } catch (err) {
     trace.complete('failure', { reason: 'exception' })
