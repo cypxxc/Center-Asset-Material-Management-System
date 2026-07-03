@@ -805,6 +805,10 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
   try {
     const headers = parseCSVLine(lines[0]).map((h) => normalizeForSearch(h))
+    if (!headers.includes('item_name')) {
+      return errorResponse('ไม่พบหัวคอลัมน์ "item_name" (ชื่อสิ่งของ) กรุณาตรวจสอบไฟล์ของคุณว่ามีหัวตารางที่ถูกต้อง')
+    }
+
     const rows = lines.slice(1)
 
     const itemsToInsert = []
@@ -813,7 +817,9 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
     for (const row of rows) {
       lineNum++
       const cols = parseCSVLine(row)
-      if (cols.length < headers.length) continue
+      if (cols.length < headers.length) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนคอลัมน์ไม่ครบถ้วน (พบ ${cols.length} คอลัมน์, ต้องการอย่างน้อย ${headers.length} คอลัมน์)`)
+      }
 
       const getVal = (name: string) => {
         const idx = headers.indexOf(name)
