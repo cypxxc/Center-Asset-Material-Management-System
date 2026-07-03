@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "next build && tsx scripts/check-bundle-budget.ts",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import tsx --test \"features/**/*.test.ts\" \"features/**/*.test.tsx\" \"tests/unit/**/*.test.ts\" \"tests/component/**/*.test.tsx\" \"tests/integration/**/*.test.ts\" \"lib/**/*.test.ts\" \"scripts/**/*.test.ts\"",
-    "test:coverage": "node --import tsx --experimental-test-coverage --test \"features/**/*.test.ts\" \"features/**/*.test.tsx\" \"tests/unit/**/*.test.ts\" \"tests/component/**/*.test.tsx\" \"tests/integration/**/*.test.ts\" \"lib/**/*.test.ts\" \"scripts/**/*.test.ts\"",
+    "test": "tsx scripts/run-tests.ts",
+    "test:coverage": "tsx scripts/run-tests.ts --coverage",
     "verify-env": "tsx scripts/verify-env.ts",
     "mcp": "tsx scripts/mcp-server.ts"
   },
@@ -43,6 +43,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "glob": "^13.0.6",
     "jsdom": "^29.1.1",
     "server-only": "^0.0.1",
     "tailwindcss": "^4",
