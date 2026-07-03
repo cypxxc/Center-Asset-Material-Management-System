@@ -205,14 +205,16 @@ export async function createItem(
     }
     newItem = data
 
-    // Centralized Audit Log
-    await writeAuditLog({
-      operation: 'create',
-      feature: 'items',
-      userId: auth.profile.id,
-      targetType: 'items',
-      targetId: newItem.id,
-      newValues: parsed.data,
+    // Centralized Audit Log - non-blocking
+    setImmediate(async () => {
+      await writeAuditLog({
+        operation: 'create',
+        feature: 'items',
+        userId: auth.profile.id,
+        targetType: 'items',
+        targetId: newItem.id,
+        newValues: parsed.data,
+      })
     })
 
     const durationMs = timer.stop()
@@ -304,25 +306,27 @@ export async function updateItem(
       return { message: friendlyDatabaseError(error.message) }
     }
 
-    // Centralized Audit Log
+    // Centralized Audit Log - non-blocking
     if (oldItem) {
-      const cleanOld: Record<string, unknown> = { ...oldItem }
-      const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
-      removeKey(cleanOld, 'created_at')
-      removeKey(cleanOld, 'updated_at')
-      removeKey(cleanOld, 'created_by')
-      removeKey(cleanOld, 'updated_by')
-      removeKey(cleanOld, 'deleted_at')
-      removeKey(cleanOld, 'deleted_by')
-      
-      await writeAuditLog({
-        operation: 'update',
-        feature: 'items',
-        userId: auth.profile.id,
-        targetType: 'items',
-        targetId: id,
-        oldValues: cleanOld,
-        newValues: parsed.data,
+      setImmediate(async () => {
+        const cleanOld: Record<string, unknown> = { ...oldItem }
+        const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
+        removeKey(cleanOld, 'created_at')
+        removeKey(cleanOld, 'updated_at')
+        removeKey(cleanOld, 'created_by')
+        removeKey(cleanOld, 'updated_by')
+        removeKey(cleanOld, 'deleted_at')
+        removeKey(cleanOld, 'deleted_by')
+        
+        await writeAuditLog({
+          operation: 'update',
+          feature: 'items',
+          userId: auth.profile.id,
+          targetType: 'items',
+          targetId: id,
+          oldValues: cleanOld,
+          newValues: parsed.data,
+        })
       })
     }
 
@@ -343,7 +347,8 @@ export async function updateItem(
   }
 
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
-    await deleteOldImage(uploadResult.oldImageUrlToDelete)
+    // Non-blocking image deletion
+    setImmediate(() => deleteOldImage(uploadResult.oldImageUrlToDelete!))
   }
 
   revalidatePath('/items')
@@ -368,13 +373,6 @@ export async function softDeleteItem(id: string) {
 
   const supabase = await createClient()
   try {
-    // Query item details for audit log
-    const { data: oldItem } = await supabase
-      .from('items')
-      .select('item_name, asset_no, serial_no')
-      .eq('id', id)
-      .single()
-
     const { error, data } = await supabase
       .from('items')
       .update({
@@ -399,15 +397,27 @@ export async function softDeleteItem(id: string) {
     }
 
     const timestamp = new Date().toISOString()
-    // Centralized Audit Log
-    await writeAuditLog({
-      operation: 'delete',
-      feature: 'items',
-      userId: profile.id,
-      targetType: 'items',
-      targetId: id,
-      oldValues: oldItem || null,
-      newValues: { deleted_at: timestamp },
+    // Centralized Audit Log - non-blocking, query item details asynchronously
+    setImmediate(async () => {
+      try {
+        const { data: oldItem } = await supabase
+          .from('items')
+          .select('item_name, asset_no, serial_no')
+          .eq('id', id)
+          .single()
+        
+        await writeAuditLog({
+          operation: 'delete',
+          feature: 'items',
+          userId: profile.id,
+          targetType: 'items',
+          targetId: id,
+          oldValues: oldItem || null,
+          newValues: { deleted_at: timestamp },
+        })
+      } catch (err) {
+        logger.error({ operation: 'softDeleteItemAudit', feature: 'items', userId: profile.id, details: { id } }, err)
+      }
     })
 
     const durationMs = timer.stop()

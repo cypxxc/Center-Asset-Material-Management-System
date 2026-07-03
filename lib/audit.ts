@@ -67,36 +67,39 @@ export async function writeAuditLog(payload: AuditLogPayload) {
     }),
   )
 
-  // 2. Persist to Supabase database (audit_logs table)
-  try {
-    const supabase = await createClient()
-    
-    // Inject metadata into jsonb columns without schema migrations
-    const old_data = payload.oldValues 
-      ? { values: payload.oldValues, ip, requestId, correlationId, traceId, timestamp }
-      : null
+  // 2. Persist to Supabase database (audit_logs table) - non-blocking
+  // Fire and forget to avoid slowing down user operations
+  setImmediate(async () => {
+    try {
+      const supabase = await createClient()
+      
+      // Inject metadata into jsonb columns without schema migrations
+      const old_data = payload.oldValues 
+        ? { values: payload.oldValues, ip, requestId, correlationId, traceId, timestamp }
+        : null
 
-    const new_data = payload.newValues
-      ? { values: payload.newValues, ip, requestId, correlationId, traceId, timestamp }
-      : { ip, requestId, correlationId, traceId, timestamp }
+      const new_data = payload.newValues
+        ? { values: payload.newValues, ip, requestId, correlationId, traceId, timestamp }
+        : { ip, requestId, correlationId, traceId, timestamp }
 
-    await supabase.from('audit_logs').insert({
-      user_id: payload.userId,
-      action: payload.operation,
-      target_table: payload.targetType,
-      target_id: payload.targetId || null,
-      old_data,
-      new_data,
-    })
-  } catch (error) {
-    logger.error(
-      {
-        operation: 'writeAuditLogDb',
-        feature: 'audit',
-        userId: payload.userId || undefined,
-        requestId,
-      },
-      error
-    )
-  }
+      await supabase.from('audit_logs').insert({
+        user_id: payload.userId,
+        action: payload.operation,
+        target_table: payload.targetType,
+        target_id: payload.targetId || null,
+        old_data,
+        new_data,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          operation: 'writeAuditLogDb',
+          feature: 'audit',
+          userId: payload.userId || undefined,
+          requestId,
+        },
+        error
+      )
+    }
+  })
 }
