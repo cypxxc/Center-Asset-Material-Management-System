@@ -48,7 +48,6 @@ import {
 } from '@/components/ui/data-table'
 import { bulkUpdateItems, bulkDeleteItems, getItemsForExport } from '@/features/items/actions'
 import { cn, getItemValue } from '@/lib/utils'
-import ExcelJS from 'exceljs'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -228,6 +227,7 @@ export function ItemsExplorerClient({
     setIsExporting(true)
     triggerToast('กำลังจัดเตรียมไฟล์ Export...')
     try {
+      const { default: ExcelJS } = await import('exceljs')
       const allItems = await getItemsForExport(params)
       if (!allItems || allItems.length === 0) {
         setBlockingError('ไม่พบข้อมูลที่จะส่งออก')

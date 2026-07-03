@@ -118,6 +118,41 @@ export async function getItemReferences() {
   return getCachedItemReferences()
 }
 
+const getCachedSidebarData = unstable_cache(
+  async () => {
+    const supabase = createServiceRoleClient()
+    const {
+      result: { data, error },
+    } = await measureQuery('items.getSidebarData', () => supabase.rpc('get_sidebar_stats'))
+
+    if (error || !data) {
+      return {
+        categories: [],
+        locations: [],
+        counts: {
+          total_assets: 0,
+          total_supplies: 0,
+          archive_count: 0,
+          trash_count: 0,
+        },
+      }
+    }
+
+    return data as {
+      categories: { id: string; name: string; count: number }[]
+      locations: { id: string; name: string; count: number }[]
+      counts: {
+        total_assets: number
+        total_supplies: number
+        archive_count: number
+        trash_count: number
+      }
+    }
+  },
+  [CACHE_TAGS.SIDEBAR_DATA],
+  { tags: [CACHE_TAGS.SIDEBAR_DATA], revalidate: 300 }
+)
+
 
 export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
   const supabase = await createClient()
@@ -269,34 +304,7 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
 }
 
 export const getSidebarData = cache(async function getSidebarData() {
-  const supabase = await createClient()
-  const {
-    result: { data, error },
-  } = await measureQuery('items.getSidebarData', () => supabase.rpc('get_sidebar_stats'))
-
-  if (error || !data) {
-    return {
-      categories: [],
-      locations: [],
-      counts: {
-        total_assets: 0,
-        total_supplies: 0,
-        archive_count: 0,
-        trash_count: 0,
-      },
-    }
-  }
-
-  return data as {
-    categories: { id: string; name: string; count: number }[]
-    locations: { id: string; name: string; count: number }[]
-    counts: {
-      total_assets: number
-      total_supplies: number
-      archive_count: number
-      trash_count: number
-    }
-  }
+  return getCachedSidebarData()
 })
 
 export interface ItemAuditLog {

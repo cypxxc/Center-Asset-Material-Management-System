@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
@@ -18,9 +18,11 @@ import { handleActionError } from '@/lib/error-handler'
 import { metrics } from '@/lib/metrics'
 import { retryStorage } from '@/lib/retry'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
+  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
   revalidatePath('/', 'layout')
 }
 
@@ -272,7 +274,7 @@ export async function updateItem(
       return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
     }
     oldItem = oldItemResult.data
-  } catch (err) {
+  } catch {
     return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
   }
 

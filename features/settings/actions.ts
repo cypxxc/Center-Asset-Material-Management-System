@@ -80,6 +80,7 @@ function revalidateSettings() {
   revalidatePath('/items')
   revalidatePath('/', 'layout')
   revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max')
+  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
   clearReferencesCache()
 }
 
@@ -716,4 +717,3 @@ export async function deleteUnit(id: string) {
   revalidateSettings()
   redirectToSettings('message', 'ลบหน่วยนับสำเร็จ', 'units')
 }
-
