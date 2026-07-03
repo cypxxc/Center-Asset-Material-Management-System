@@ -249,26 +249,37 @@ export async function updateItem(
   formData: FormData
 ): Promise<ItemActionState> {
   const timer = startTimer()
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+  const supabase = await createClient()
+
+  let auth
+  let oldItem = null
+
+  try {
+    // Run authentication check and database old item fetch in parallel to minimize network latency
+    const [authResult, oldItemResult] = await Promise.all([
+      requireEditor(),
+      supabase
+        .from('items')
+        .select('*')
+        .eq('id', id)
+        .single()
+    ])
+
+    auth = authResult
+    if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+
+    if (oldItemResult.error || !oldItemResult.data) {
+      return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
+    }
+    oldItem = oldItemResult.data
+  } catch (err) {
+    return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
+  }
 
   // Rate Limiter
   const rateLimitCheck = await checkRateLimit('updateItem', 30, 60000)
   if (!rateLimitCheck.success) {
     return { message: rateLimitCheck.error! }
-  }
-
-  const supabase = await createClient()
-  let oldItem = null
-  try {
-    const { data } = await supabase
-      .from('items')
-      .select('*')
-      .eq('id', id)
-      .single()
-    oldItem = data
-  } catch {
-    return { message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย หรือไม่พบพัสดุดังกล่าว' }
   }
 
   const currentImageUrl = oldItem?.image_url || null
@@ -948,12 +959,13 @@ export async function createItemInline(
     }
     newItem = data
 
-    await supabase.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'create',
-      target_table: 'items',
-      target_id: newItem.id,
-      new_data: parsed.data,
+    await writeAuditLog({
+      operation: 'create',
+      feature: 'items',
+      userId: auth.profile.id,
+      targetType: 'items',
+      targetId: newItem.id,
+      newValues: parsed.data,
     })
   } catch (err) {
     if (uploadResult.imageUrl) {

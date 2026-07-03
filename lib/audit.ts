@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logging'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 
@@ -71,7 +71,15 @@ export async function writeAuditLog(payload: AuditLogPayload) {
   // Fire and forget to avoid slowing down user operations
   setImmediate(async () => {
     try {
-      const supabase = await createClient()
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+      // Skip database persistence gracefully if Supabase env vars are not set (e.g. in unit tests)
+      if (!supabaseUrl || !supabaseServiceKey) {
+        return
+      }
+
+      const supabase = createServiceRoleClient()
       
       // Inject metadata into jsonb columns without schema migrations
       const old_data = payload.oldValues 
