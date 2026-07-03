@@ -58,6 +58,12 @@ class SupabaseMockRegistry {
 export const mockSupabaseRegistry = new SupabaseMockRegistry();
 
 export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | 'service' = 'anon') {
+  const resolveResponse = () => {
+    const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
+    const count = Array.isArray(data) ? data.length : data ? 1 : 0;
+    return { data, error, count };
+  };
+
   const chain: any = {
     select: (columns?: string) => chain,
     insert: (values: any) => chain,
@@ -72,16 +78,16 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
     not: (column: string, operator: string, value: any) => chain,
     or: (filters: string) => chain,
     single: () => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
-      return Promise.resolve({ data: Array.isArray(data) ? data[0] : data, error });
+      const { data, error, count } = resolveResponse();
+      return Promise.resolve({ data: Array.isArray(data) ? data[0] : data, error, count });
     },
     maybeSingle: () => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
-      return Promise.resolve({ data: Array.isArray(data) ? data[0] || null : data, error });
+      const { data, error, count } = resolveResponse();
+      return Promise.resolve({ data: Array.isArray(data) ? data[0] || null : data, error, count });
     },
     then: (onfulfilled: any) => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
-      return Promise.resolve({ data, error }).then(onfulfilled);
+      const { data, error, count } = resolveResponse();
+      return Promise.resolve({ data, error, count }).then(onfulfilled);
     }
   };
   return chain;

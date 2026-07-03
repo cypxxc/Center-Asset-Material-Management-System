@@ -2,7 +2,11 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { createCategory, updateCategory } from '../../features/settings/actions';
+import { createCategory, deleteLocation, updateCategory } from '../../features/settings/actions';
+
+function isRedirectError(err: unknown): err is Error & { digest: string } {
+  return err instanceof Error && typeof (err as { digest?: unknown }).digest === 'string';
+}
 
 test('createCategory redirects with error when user has viewer role (not admin or staff)', async () => {
   mockSupabaseRegistry.clear();
@@ -18,8 +22,8 @@ test('createCategory redirects with error when user has viewer role (not admin o
   try {
     await createCategory(formData);
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
       assert.ok(decodeURIComponent(err.digest).includes('คุณไม่มีสิทธิ์จัดการข้อมูลตั้งค่าระบบ'));
     } else {
       throw err;
@@ -43,8 +47,8 @@ test('createCategory creates category and redirects with success message for adm
   try {
     await createCategory(formData);
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
       assert.ok(decodeURIComponent(err.digest).includes('สร้างหมวดหมู่สำเร็จ'));
     } else {
       throw err;
@@ -69,9 +73,34 @@ test('updateCategory updates category name and redirects with success message', 
   try {
     await updateCategory('cat-uuid', formData);
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
       assert.ok(decodeURIComponent(err.digest).includes('อัปเดตหมวดหมู่สำเร็จ'));
+    } else {
+      throw err;
+    }
+  }
+});
+
+test('deleteLocation blocks deletion when any item still references the location', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-admin', email: 'admin@example.com' },
+    { id: 'user-admin', email: 'admin@example.com', role: 'admin', is_active: true }
+  );
+
+  mockSupabaseRegistry.setTableResponse('items', [
+    { id: 'item-uuid', location_id: 'location-uuid', deleted_at: '2026-07-03T00:00:00.000Z' },
+  ]);
+
+  try {
+    await deleteLocation('location-uuid');
+    assert.fail('Should have redirected');
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
+      const decodedDigest = decodeURIComponent(err.digest);
+      assert.ok(decodedDigest.includes('ไม่สามารถลบข้อมูลนี้ได้เนื่องจากกำลังถูกใช้งานโดยพัสดุในระบบ'));
+      assert.ok(decodedDigest.includes('tab=locations'));
     } else {
       throw err;
     }

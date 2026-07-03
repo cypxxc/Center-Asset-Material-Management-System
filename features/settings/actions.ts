@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { categorySchema, locationSchema, unitSchema } from './schema'
 import { clearReferencesCache } from '@/features/items/queries'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -20,6 +20,9 @@ const itemReferenceColumn: Record<MetadataKind, 'category_id' | 'location_id' | 
   location: 'location_id',
   unit: 'unit_id',
 }
+
+const metadataInUseMessage =
+  'ไม่สามารถลบข้อมูลนี้ได้เนื่องจากกำลังถูกใช้งานโดยพัสดุในระบบ (รวมถึงพัสดุที่อยู่ในถังขยะ)'
 
 async function requireAdmin() {
   const profile = await getCurrentProfile()
@@ -50,7 +53,19 @@ function redirectToSettings(type: 'message' | 'error', text: string, tab?: strin
   redirect(`/settings?${type}=${encodeURIComponent(text)}${tabQuery}`)
 }
 
-function friendlyDatabaseError(message: string) {
+function friendlyDatabaseError(message: string, code?: string) {
+  const normalizedMessage = message.toLowerCase()
+
+  if (
+    code === '23503' ||
+    normalizedMessage.includes('foreign key constraint') ||
+    normalizedMessage.includes('items_category_id_fkey') ||
+    normalizedMessage.includes('items_location_id_fkey') ||
+    normalizedMessage.includes('items_unit_id_fkey')
+  ) {
+    return metadataInUseMessage
+  }
+
   if (message.toLowerCase().includes('duplicate') || message.toLowerCase().includes('unique')) {
     return 'มีข้อมูลชื่อนี้อยู่ในระบบแล้ว'
   }
@@ -61,7 +76,7 @@ function friendlyDatabaseError(message: string) {
 async function ensureCanDeactivate(kind: MetadataKind, id: string, nextActive: boolean) {
   if (nextActive) return null
 
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   const { count, error } = await supabase
     .from('items')
     .select('id', { count: 'exact', head: true })
@@ -109,7 +124,7 @@ export async function createCategory(formData: FormData) {
       .select('id')
       .single()
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'categories')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -175,7 +190,7 @@ export async function updateCategory(id: string, formData: FormData) {
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'categories')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -238,7 +253,7 @@ export async function createLocation(formData: FormData) {
       .select('id')
       .single()
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'locations')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -308,7 +323,7 @@ export async function updateLocation(id: string, formData: FormData) {
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'locations')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -366,7 +381,7 @@ export async function createUnit(formData: FormData) {
       .select('id')
       .single()
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'units')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -431,7 +446,7 @@ export async function updateUnit(id: string, formData: FormData) {
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'units')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -532,14 +547,14 @@ export async function updateProfile(id: string, formData: FormData) {
 }
 
 async function ensureCanDelete(kind: MetadataKind, id: string) {
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   const { count, error } = await supabase
     .from('items')
     .select('id', { count: 'exact', head: true })
     .eq(itemReferenceColumn[kind], id)
 
   if (error) return 'ไม่สามารถตรวจสอบการใช้งานพัสดุก่อนทำการลบได้'
-  if ((count ?? 0) > 0) return 'ไม่สามารถลบข้อมูลนี้ได้เนื่องจากกำลังถูกใช้งานโดยพัสดุในระบบ (รวมถึงพัสดุที่อยู่ในถังขยะ)'
+  if ((count ?? 0) > 0) return metadataInUseMessage
 
   return null
 }
@@ -569,7 +584,7 @@ export async function deleteCategory(id: string) {
       .delete()
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'categories')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -627,7 +642,7 @@ export async function deleteLocation(id: string) {
       .delete()
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'locations')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
@@ -685,7 +700,7 @@ export async function deleteUnit(id: string) {
       .delete()
       .eq('id', id)
 
-    if (error) redirectToSettings('error', friendlyDatabaseError(error.message), 'units')
+    if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
     const profile = await getCurrentProfile()
     await writeAuditLog({
