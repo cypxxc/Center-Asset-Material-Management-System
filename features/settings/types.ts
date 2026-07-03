@@ -37,6 +37,7 @@ export interface ProfileRow {
   email: string
   role: 'admin' | 'staff' | 'viewer'
   is_active: boolean
+  sidebar_order?: string[] | null
   created_at: string
   updated_at: string
 }
