@@ -110,12 +110,29 @@ export async function login(_prevState: { error?: string } | null, formData: For
   }
 
   try {
-    await retrySupabase(async () => {
+    const signInResult = await retrySupabase(async () => {
       const result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error) throw result.error
       return result
     })
-  } catch {
+
+    const userId = signInResult.data.user?.id
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_active')
+        .eq('id', userId)
+        .single()
+
+      if (!profile?.is_active) {
+        await supabase.auth.signOut()
+        metrics.loginFailure()
+        trace.complete('failure', { reason: 'inactive_profile' })
+        redirect('/login?error=inactive')
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
     metrics.loginFailure()
     trace.complete('failure', { reason: 'invalid_credentials' })
     return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการเชื่อมต่อ' }

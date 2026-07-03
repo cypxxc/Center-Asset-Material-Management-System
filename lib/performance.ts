@@ -1,4 +1,5 @@
 import { config } from '@/lib/config'
+import { logger } from '@/lib/logging'
 import { metrics } from '@/lib/metrics'
 
 export interface Timer {
@@ -16,7 +17,7 @@ export function startTimer(): Timer {
 }
 
 export async function measureExecution<T>(
-  fn: () => Promise<T>,
+  fn: () => PromiseLike<T>,
   options?: { metricName?: string; labels?: Record<string, string> },
 ): Promise<{ result: T; durationMs: number }> {
   const timer = startTimer()
@@ -27,6 +28,13 @@ export async function measureExecution<T>(
     metrics.timer(options.metricName, durationMs, options.labels)
     if (durationMs >= config.observability.slowQueryThresholdMs) {
       metrics.counter(`${options.metricName}.slow`, 1, options.labels)
+      logger.warn({
+        operation: options.metricName,
+        feature: 'performance',
+        latency: durationMs,
+        status: 'slow',
+        details: options.labels,
+      })
     }
   }
 
@@ -43,7 +51,7 @@ export function measureExecutionSync<T>(fn: () => T): { result: T; durationMs: n
 /** Measure a Supabase/query call and record query.latency metric. */
 export async function measureQuery<T>(
   operation: string,
-  fn: () => Promise<T>,
+  fn: () => PromiseLike<T>,
 ): Promise<{ result: T; durationMs: number }> {
   return measureExecution(fn, { metricName: 'query.latency', labels: { operation } })
 }

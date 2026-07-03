@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { config } from '@/lib/config'
 import { getMissingEnvVars } from '@/scripts/verify-env'
 
@@ -68,13 +68,13 @@ export async function checkReadiness(): Promise<ReadinessResult> {
   }
 
   const database = await timedCheck(async () => {
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
     const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
     if (error) throw error
   })
 
   const storage = await timedCheck(async () => {
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
     const { error } = await supabase.storage.from(config.supabase.storageBucket).list('', { limit: 1 })
     if (error) throw error
   })

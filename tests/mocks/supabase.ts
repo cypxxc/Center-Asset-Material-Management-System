@@ -7,11 +7,16 @@ export interface MockResponse {
 
 class SupabaseMockRegistry {
   private responses: Map<string, MockResponse> = new Map();
+  private anonTableErrors: Map<string, any> = new Map();
   private authUser: any = null;
   private authProfile: any = null;
 
   setTableResponse(table: string, data: any, error: any = null) {
     this.responses.set(`table:${table}`, { data, error });
+  }
+
+  setAnonTableError(table: string, error: any) {
+    this.anonTableErrors.set(table, error);
   }
 
   setRpcResponse(rpcName: string, data: any, error: any = null) {
@@ -31,7 +36,10 @@ class SupabaseMockRegistry {
     return { user: this.authUser, profile: this.authProfile };
   }
 
-  getTableResponse(table: string): MockResponse {
+  getTableResponse(table: string, clientKind: 'anon' | 'service' = 'anon'): MockResponse {
+    if (clientKind === 'anon' && this.anonTableErrors.has(table)) {
+      return { data: null, error: this.anonTableErrors.get(table) };
+    }
     return this.responses.get(`table:${table}`) || { data: [], error: null };
   }
 
@@ -41,6 +49,7 @@ class SupabaseMockRegistry {
 
   clear() {
     this.responses.clear();
+    this.anonTableErrors.clear();
     this.authUser = null;
     this.authProfile = null;
   }
@@ -48,7 +57,7 @@ class SupabaseMockRegistry {
 
 export const mockSupabaseRegistry = new SupabaseMockRegistry();
 
-export function createMockQueryBuilder(tableName: string) {
+export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | 'service' = 'anon') {
   const chain: any = {
     select: (columns?: string) => chain,
     insert: (values: any) => chain,
@@ -63,23 +72,24 @@ export function createMockQueryBuilder(tableName: string) {
     not: (column: string, operator: string, value: any) => chain,
     or: (filters: string) => chain,
     single: () => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName);
+      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
       return Promise.resolve({ data: Array.isArray(data) ? data[0] : data, error });
     },
     maybeSingle: () => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName);
+      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
       return Promise.resolve({ data: Array.isArray(data) ? data[0] || null : data, error });
     },
     then: (onfulfilled: any) => {
-      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName);
+      const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
       return Promise.resolve({ data, error }).then(onfulfilled);
     }
   };
   return chain;
 }
 
-export const mockSupabaseClient = {
-  from: (table: string) => createMockQueryBuilder(table),
+export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon') {
+  return {
+  from: (table: string) => createMockQueryBuilder(table, clientKind),
   rpc: (name: string, args?: any) => {
     const { data, error } = mockSupabaseRegistry.getRpcResponse(name);
     return Promise.resolve({ data, error });
@@ -114,7 +124,10 @@ export const mockSupabaseClient = {
       remove: async (paths: string[]) => ({ data: [], error: null }),
     })
   }
-};
+  };
+}
+
+export const mockSupabaseClient = createMockSupabaseClient();
 
 // Intercept `@/lib/supabase/server` globally using require.cache
 const supabaseServerPath = require.resolve('../../lib/supabase/server');
@@ -124,8 +137,8 @@ require.cache[supabaseServerPath] = {
   filename: supabaseServerPath,
   loaded: true,
   exports: {
-    createClient: async () => mockSupabaseClient,
-    createAdminClient: async () => mockSupabaseClient,
-    createServiceRoleClient: () => mockSupabaseClient,
+    createClient: async () => createMockSupabaseClient('anon'),
+    createAdminClient: async () => createMockSupabaseClient('service'),
+    createServiceRoleClient: () => createMockSupabaseClient('service'),
   }
 } as any;

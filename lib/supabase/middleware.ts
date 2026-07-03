@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { measureQuery } from '@/lib/performance'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -42,11 +43,14 @@ export async function updateSession(request: NextRequest) {
 
   // This will refresh the session if expired. MUST be called for SSR auth.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    result: {
+      data: { user },
+    },
+  } = await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
 
   // Auth pages logic
   const isLoginPage = pathname === '/login'
+  const isInactiveNotice = isLoginPage && request.nextUrl.searchParams.get('error') === 'inactive'
 
   if (!user) {
     // If not logged in and trying to access protected page
@@ -55,34 +59,10 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
-  } else {
-    // If logged in, check profile status
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_active, role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile || !profile.is_active) {
-      // Sign out and redirect to login with error
-      await supabase.auth.signOut()
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('error', 'inactive')
-      
-      const response = NextResponse.redirect(url)
-      // Clear cookies
-      response.cookies.delete('sb-access-token')
-      response.cookies.delete('sb-refresh-token')
-      return response
-    }
-
-    // If logged in and trying to go to login page, redirect to dashboard
-    if (isLoginPage) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
+  } else if (isLoginPage && !isInactiveNotice) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

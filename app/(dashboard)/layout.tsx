@@ -17,6 +17,10 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect('/login')
   }
 
+  if (!profile.is_active) {
+    redirect('/login?error=inactive')
+  }
+
   const sidebarData = await getSidebarData()
 
   return (

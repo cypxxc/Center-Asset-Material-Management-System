@@ -7,6 +7,7 @@ import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { normalizeForSearch } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
+import { measureQuery } from '@/lib/performance'
 import {
   ItemDetail,
   ItemListResult,
@@ -206,7 +207,11 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     }
   }
 
-  const { data, count, error } = await query.order(orderColumn, { ascending }).range(from, to)
+  const {
+    result: { data, count, error },
+  } = await measureQuery('items.getItems', () =>
+    query.order(orderColumn, { ascending }).range(from, to)
+  )
 
   if (error) {
     throw new Error(error.message)
@@ -225,10 +230,13 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
 
 export async function getItemById(id: string): Promise<ItemDetail | null> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('items')
-    .select(
-      `
+  const {
+    result: { data, error },
+  } = await measureQuery('items.getItemById', () =>
+    supabase
+      .from('items')
+      .select(
+        `
         id,
         item_name,
         item_type,
@@ -247,10 +255,11 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
         unit:units(id, name),
         location:locations(id, name)
       `
-    )
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle()
+      )
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle()
+  )
 
   if (error) {
     throw new Error(error.message)
@@ -261,7 +270,9 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
 
 export const getSidebarData = cache(async function getSidebarData() {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_sidebar_stats')
+  const {
+    result: { data, error },
+  } = await measureQuery('items.getSidebarData', () => supabase.rpc('get_sidebar_stats'))
 
   if (error || !data) {
     return {
@@ -288,8 +299,16 @@ export const getSidebarData = cache(async function getSidebarData() {
   }
 })
 
+export interface ItemAuditLog {
+  id: string
+  action: string
+  created_at: string
+  user_name: string
+  old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null
+}
 
-export async function getItemAuditLogs(itemId: string) {
+export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> {
   const profile = await getCurrentProfile()
   if (!profile || profile.role !== 'admin') {
     return []

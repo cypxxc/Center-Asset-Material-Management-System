@@ -4,11 +4,36 @@ import { createClient } from '@/lib/supabase/server'
 import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
 import { normalizeForSearch } from '@/lib/unicode'
 import { getItemValue } from '@/lib/utils'
+import { measureQuery } from '@/lib/performance'
 
+export interface ReportCountBucket {
+  count: number
+  qty: number
+}
 
-export async function getReportStats() {
+export interface ReportStats {
+  totalItems: number
+  totalQuantity: number
+  typeCounts: Record<string, ReportCountBucket>
+  statusCounts: Record<string, ReportCountBucket>
+  categoryCounts: Record<string, ReportCountBucket>
+  locationCount: number
+}
+
+export interface RecentAuditLog {
+  id: string
+  user: string
+  action: string
+  itemName: string
+  details: string
+  timestamp: string
+}
+
+export async function getReportStats(): Promise<ReportStats> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_report_stats')
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportStats', () => supabase.rpc('get_report_stats'))
 
   if (error || !data) {
     if (error) throw new Error(error.message)
@@ -49,11 +74,14 @@ export async function getReportStats() {
   }
 }
 
-export async function getRecentAuditLogs() {
+export async function getRecentAuditLogs(): Promise<RecentAuditLog[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select(`
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getRecentAuditLogs', () =>
+    supabase
+      .from('audit_logs')
+      .select(`
       id,
       action,
       created_at,
@@ -61,8 +89,9 @@ export async function getRecentAuditLogs() {
       old_data,
       new_data
     `)
-    .order('created_at', { ascending: false })
-    .limit(8)
+      .order('created_at', { ascending: false })
+      .limit(8)
+  )
 
   if (error) {
     // Return empty array for non-admins (due to RLS read constraint)
@@ -188,7 +217,11 @@ export async function getReportItemsList(
     query = query.eq('location_id', params.location_id)
   }
 
-  const { data, error } = await query.order('updated_at', { ascending: false })
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportItemsList', () =>
+    query.order('updated_at', { ascending: false })
+  )
 
   if (error) throw new Error(error.message)
   

@@ -47,6 +47,19 @@ test('/api/health/readiness returns structured checks', async () => {
   assert.ok('environment' in body.checks)
 })
 
+test('/api/health/readiness uses service role for database check so RLS does not mark DB down', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', [{ id: 'x' }])
+  mockSupabaseRegistry.setAnonTableError('profiles', { message: 'RLS denied' })
+
+  const response = await readiness()
+  const body = await response.json()
+
+  assert.equal(response.status, 200)
+  assert.equal(body.ready, true)
+  assert.equal(body.checks.database.status, 'up')
+})
+
 test('/api/health/liveness returns alive', async () => {
   const response = await liveness()
   const body = await response.json()

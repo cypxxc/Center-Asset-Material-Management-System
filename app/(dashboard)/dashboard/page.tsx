@@ -11,10 +11,18 @@ import {
   MapPin
 } from 'lucide-react'
 import { getReportStats, getRecentAuditLogs } from '@/features/reports/queries'
+import type { RecentAuditLog, ReportCountBucket } from '@/features/reports/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
+
+type LowStockItem = {
+  id: string
+  item_name: string
+  quantity: number
+  location: { name: string } | { name: string }[] | null
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -35,9 +43,10 @@ export default async function DashboardPage() {
 
   const userCanWrite = canWrite(profile?.role)
 
-  const lowStockItems = lowStockResult.data
+  const lowStockItems = (lowStockResult.data ?? []) as LowStockItem[]
+  const auditLogs = logs as RecentAuditLog[]
   const formattedLowStock = (lowStockItems ?? []).map(item => {
-    const locObj = item.location as { name: string } | { name: string }[] | null
+    const locObj = item.location
     const locationName = Array.isArray(locObj) 
       ? locObj[0]?.name 
       : locObj?.name
@@ -69,6 +78,7 @@ export default async function DashboardPage() {
   const dash2 = (sparePct / 100) * circ
   const dash3 = (damagedPct / 100) * circ
   const dash4 = (otherPct / 100) * circ
+  const categoryEntries = Object.entries(stats.categoryCounts) as [string, ReportCountBucket][]
 
   return (
     <PageContainer maxWidth="full">
@@ -274,7 +284,7 @@ export default async function DashboardPage() {
               </div>
 
               <div className="relative z-10 space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                {Object.entries(stats.categoryCounts).map(([cat, counts]) => {
+                {categoryEntries.map(([cat, counts]) => {
                   const count = counts.count
                   const qty = counts.qty
                   const pct = Math.round((qty / totalQty) * 100) || 0
@@ -348,7 +358,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {logs.map((log) => (
+            {auditLogs.map((log) => (
               <div key={log.id} className="flex items-start justify-between p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100/60 transition-all text-xs">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold font-sans mt-0.5 border border-slate-200">
@@ -374,7 +384,7 @@ export default async function DashboardPage() {
               </div>
             ))}
 
-            {logs.length === 0 && (
+            {auditLogs.length === 0 && (
               <div className="py-12 text-center text-xs text-slate-400">
                 <p>ไม่พบประวัติกิจกรรมการขึ้นทะเบียนหรือปรับปรุงข้อมูลล่าสุด</p>
                 <p className="text-[10px] opacity-75 mt-0.5">(แสดงเฉพาะบทบาทผู้ดูแลระบบ หรือเมื่อมีการปรับปรุงพัสดุในฐานข้อมูล)</p>
