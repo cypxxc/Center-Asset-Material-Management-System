@@ -25,18 +25,18 @@ test('permissions helper determine correct write rights', () => {
 
 test('permissions helper determine correct delete rights', () => {
   assert.equal(canDelete('admin'), true);
-  assert.equal(canDelete('staff'), true);
+  assert.equal(canDelete('staff'), false);
   assert.equal(canDelete('viewer'), false);
 });
 
 test('permissions helper determine correct settings management rights', () => {
   assert.equal(canManageSettings('admin'), true);
-  assert.equal(canManageSettings('staff'), true);
+  assert.equal(canManageSettings('staff'), false);
   assert.equal(canManageSettings('viewer'), false);
 });
 
 test('permissions helper determine correct trash management rights', () => {
   assert.equal(canManageTrash('admin'), true);
-  assert.equal(canManageTrash('staff'), true);
+  assert.equal(canManageTrash('staff'), false);
   assert.equal(canManageTrash('viewer'), false);
 });

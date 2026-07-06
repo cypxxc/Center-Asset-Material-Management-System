@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { X, Plus, Info } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { createItemInline } from '../actions'
@@ -25,6 +25,7 @@ export function NewItemSheet({
 }: NewItemSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const prevOpenRef = useRef(false)
+  const [formVersion, setFormVersion] = useState(0)
 
   // Handle open/close transitions
   useEffect(() => {
@@ -33,6 +34,7 @@ export function NewItemSheet({
 
     if (open && !prevOpenRef.current) {
       dialog.showModal()
+      setFormVersion((version) => version + 1)
       // Small delay so the browser paints the dialog before animation kicks in
       requestAnimationFrame(() => {
         dialog.setAttribute('data-open', 'true')
@@ -58,12 +60,23 @@ export function NewItemSheet({
       if (input.tagName === 'INPUT' && (input.type === 'text' || input.type === 'number')) {
         if (input.value !== input.defaultValue) return true
       }
+      if (input.tagName === 'TEXTAREA') {
+        const textarea = input as HTMLTextAreaElement
+        if (textarea.value !== textarea.defaultValue) return true
+      }
       if (input.tagName === 'SELECT') {
-        if (input.value !== '') return true
+        const select = input as HTMLSelectElement
+        const selectedOption = select.options[select.selectedIndex]
+        if (!selectedOption?.defaultSelected) return true
       }
     }
     return false
   }, [])
+
+  const handleSuccess = useCallback(() => {
+    setFormVersion((version) => version + 1)
+    onSuccess()
+  }, [onSuccess])
 
   const handleCloseAttempt = useCallback(() => {
     if (isFormDirty()) {
@@ -146,11 +159,12 @@ export function NewItemSheet({
         {/* Scrollable form body */}
         <div className="new-item-sheet-body">
           <ItemForm
+            key={formVersion}
             action={createItemInline}
             categories={categories}
             locations={locations}
             units={units}
-            onSuccess={onSuccess}
+            onSuccess={handleSuccess}
           />
         </div>
       </div>

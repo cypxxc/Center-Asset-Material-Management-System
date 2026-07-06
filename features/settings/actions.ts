@@ -43,8 +43,8 @@ async function requireSettingsManager() {
     redirect('/settings?error=กรุณาเข้าสู่ระบบก่อนจัดการตั้งค่า')
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
-    redirect('/settings?error=คุณไม่มีสิทธิ์จัดการข้อมูลตั้งค่าระบบ')
+  if (profile.role !== 'admin') {
+    redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
 }
 

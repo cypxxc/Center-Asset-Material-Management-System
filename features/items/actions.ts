@@ -51,8 +51,8 @@ async function requireDeletePermission() {
     return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
-    return { error: 'เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
+  if (profile.role !== 'admin') {
+    return { error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
   }
 
   return { error: null, profile }
@@ -167,6 +167,15 @@ export async function createItem(
   const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
   if (!rateLimitCheck.success) {
     return { message: rateLimitCheck.error! }
+  }
+
+  formData.set('image_url', '')
+  const initialParsed = parseFormData(formData)
+  if (!initialParsed.success) {
+    return {
+      message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
+      fieldErrors: initialParsed.error.flatten().fieldErrors,
+    }
   }
 
   const uploadResult = await handleImageUpload(formData)
@@ -286,6 +295,15 @@ export async function updateItem(
 
   const currentImageUrl = oldItem?.image_url || null
 
+  formData.set('image_url', currentImageUrl || '')
+  const initialParsed = parseFormData(formData)
+  if (!initialParsed.success) {
+    return {
+      message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
+      fieldErrors: initialParsed.error.flatten().fieldErrors,
+    }
+  }
+
   const uploadResult = await handleImageUpload(formData, currentImageUrl)
   if (uploadResult.error) {
     return { message: uploadResult.error }
@@ -376,8 +394,8 @@ export async function softDeleteItem(id: string) {
   const timer = startTimer()
   const profile = await getCurrentProfile()
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
-    return { message: 'เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่ลบรายการได้' }
+  if (!profile || profile.role !== 'admin') {
+    return { message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้' }
   }
 
   // Rate Limiter
@@ -505,9 +523,9 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   const profile = await getCurrentProfile()
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  if (!profile || profile.role !== 'admin') {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
-    return errorResponse('เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่ลบรายการได้')
+    return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
   }
 
   if (!ids.length) {
@@ -559,7 +577,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
 // ============================================================
 
 export async function restoreItem(id: string): Promise<ActionResponse> {
-  const auth = await requireEditor()
+  const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'restoreItem', feature: 'items', details: 'Unauthorized restore attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
@@ -599,7 +617,7 @@ export async function restoreItem(id: string): Promise<ActionResponse> {
 }
 
 export async function bulkRestoreItems(ids: string[]): Promise<ActionResponse> {
-  const auth = await requireEditor()
+  const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkRestoreItems', feature: 'items', details: 'Unauthorized bulk restore attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
@@ -930,6 +948,12 @@ export async function createItemInline(
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'createItemInline', feature: 'items', details: 'Unauthorized inline create attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
+  }
+
+  formData.set('image_url', '')
+  const initialParsed = parseFormData(formData)
+  if (!initialParsed.success) {
+    return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', initialParsed.error.flatten().fieldErrors)
   }
 
   const uploadResult = await handleImageUpload(formData)

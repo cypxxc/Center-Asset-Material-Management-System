@@ -335,30 +335,50 @@ function TextInput({
 function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
   const [preview, setPreview] = useState<string | null>(defaultValue || null)
   const [removed, setRemoved] = useState<boolean>(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
+    }
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        alert('กรุณาเลือกไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น')
+        setUploadError('กรุณาเลือกไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น')
         e.target.value = ''
         return
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB')
+        setUploadError('ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB')
         e.target.value = ''
         return
       }
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
       const localUrl = URL.createObjectURL(file)
+      objectUrlRef.current = localUrl
       setPreview(localUrl)
       setRemoved(false)
+      setUploadError(null)
     }
   }
 
   const handleRemove = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
     setPreview(null)
     setRemoved(true)
+    setUploadError(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -432,6 +452,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
           name="remove_image"
           value={removed ? 'true' : 'false'}
         />
+        <FieldError errors={uploadError ? [uploadError] : undefined} />
       </div>
     </div>
   )

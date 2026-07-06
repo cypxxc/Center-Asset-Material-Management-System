@@ -11,32 +11,20 @@ test('softDeleteItem rejects viewer role with error message', async () => {
     { id: 'user-viewer', email: 'viewer@example.com', role: 'viewer', is_active: true }
   );
 
-  const res: any = await softDeleteItem('item-id');
+  const res = await softDeleteItem('item-id');
   assert.equal(res.success, undefined);
-  assert.equal(res.message, 'เฉพาะผู้ดูแลระบบและเจ้าหน้าที่เท่านั้นที่ลบรายการได้');
+  assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้');
 });
 
-test('softDeleteItem redirects to /items upon successful soft deletion for staff', async () => {
+test('softDeleteItem rejects staff role with admin-only error message', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(
     { id: 'user-staff', email: 'staff@example.com' },
     { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
   );
 
-  // Set mock responses
-  mockSupabaseRegistry.setTableResponse('items', [{ id: 'item-uuid', item_name: 'Laptop', asset_no: '', serial_no: '' }]);
-  mockSupabaseRegistry.setTableResponse('audit_logs', [{ id: 'audit-log-id' }]);
-
-  try {
-    await softDeleteItem('item-uuid');
-    assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
-      assert.ok(err.digest.includes('/items'));
-    } else {
-      throw err;
-    }
-  }
+  const res = await softDeleteItem('item-uuid');
+  assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้');
 });
 
 test('softDeleteItem redirects to /items upon successful soft deletion for admin', async () => {
@@ -53,9 +41,9 @@ test('softDeleteItem redirects to /items upon successful soft deletion for admin
   try {
     await softDeleteItem('item-uuid');
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
-      assert.ok(err.digest.includes('/items'));
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+      assert.ok('digest' in err && String(err.digest).includes('/items'));
     } else {
       throw err;
     }

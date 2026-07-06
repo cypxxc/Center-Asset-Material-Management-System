@@ -41,6 +41,26 @@ test('createItem rejects invalid inputs with validation messages', async () => {
   assert.ok(res.fieldErrors?.item_name);
 });
 
+test('createItem validates form data before uploading item image', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  const formData = new FormData();
+  formData.set('item_name', '');
+  formData.set('item_type', 'asset');
+  formData.set('quantity', '1');
+  formData.set('status', 'active');
+  formData.set('image_file', new File(['image-bytes'], 'item.jpg', { type: 'image/jpeg' }));
+
+  const res = await createItem(null, formData);
+
+  assert.equal(res.message, 'กรุณาตรวจสอบข้อมูลในฟอร์ม');
+  assert.deepEqual(mockSupabaseRegistry.getStorageLog(), []);
+});
+
 test('createItem redirects to /items upon successful creation', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(
@@ -73,9 +93,9 @@ test('createItem redirects to /items upon successful creation', async () => {
   try {
     await createItem(null, formData);
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
-      assert.ok(err.digest.includes('/items'));
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+      assert.ok('digest' in err && String(err.digest).includes('/items'));
     } else {
       throw err;
     }

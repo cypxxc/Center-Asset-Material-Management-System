@@ -15,6 +15,12 @@ export interface MockRpcLogEntry {
   args?: Record<string, unknown>;
 }
 
+export interface MockStorageLogEntry {
+  bucket: string;
+  operation: string;
+  path?: string;
+}
+
 interface MockUser {
   id: string;
   email?: string;
@@ -56,6 +62,7 @@ class SupabaseMockRegistry {
   private storageDelay = 0;
   private queryLog: MockQueryLogEntry[] = [];
   private rpcLog: MockRpcLogEntry[] = [];
+  private storageLog: MockStorageLogEntry[] = [];
   private authUser: MockUser | null = null;
   private authProfile: MockProfile | null = null;
 
@@ -87,12 +94,20 @@ class SupabaseMockRegistry {
     this.rpcLog.push(entry);
   }
 
+  recordStorage(entry: MockStorageLogEntry) {
+    this.storageLog.push(entry);
+  }
+
   getQueryLog() {
     return [...this.queryLog];
   }
 
   getRpcLog() {
     return [...this.rpcLog];
+  }
+
+  getStorageLog() {
+    return [...this.storageLog];
   }
 
   setAnonTableError(table: string, error: unknown) {
@@ -134,6 +149,7 @@ class SupabaseMockRegistry {
     this.storageDelay = 0;
     this.queryLog = [];
     this.rpcLog = [];
+    this.storageLog = [];
     this.authUser = null;
     this.authProfile = null;
   }
@@ -232,16 +248,23 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
   },
   storage: {
     from: (bucket: string) => ({
-      upload: async (path: string) => ({ data: { path: `mocked/${path}` }, error: null }),
+      upload: async (path: string) => {
+        mockSupabaseRegistry.recordStorage({ bucket, operation: 'upload', path });
+        return { data: { path: `mocked/${path}` }, error: null };
+      },
       getPublicUrl: (path: string) => ({ data: { publicUrl: `https://example.com/storage/v1/object/public/${bucket}/${path}` } }),
       list: async () => {
+        mockSupabaseRegistry.recordStorage({ bucket, operation: 'list' });
         const delayMs = mockSupabaseRegistry.getStorageDelay();
         if (delayMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
         return { data: [], error: null };
       },
-      remove: async () => ({ data: [], error: null }),
+      remove: async (paths?: string[]) => {
+        mockSupabaseRegistry.recordStorage({ bucket, operation: 'remove', path: paths?.join(',') });
+        return { data: [], error: null };
+      },
     })
   }
   };

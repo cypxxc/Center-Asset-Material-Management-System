@@ -9,7 +9,7 @@ function isRedirectError(err: unknown): err is Error & { digest: string } {
   return err instanceof Error && typeof (err as { digest?: unknown }).digest === 'string';
 }
 
-test('createCategory redirects with error when user has viewer role (not admin or staff)', async () => {
+test('createCategory redirects with error when user has viewer role', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(
     { id: 'user-viewer', email: 'viewer@example.com' },
@@ -25,7 +25,7 @@ test('createCategory redirects with error when user has viewer role (not admin o
     assert.fail('Should have redirected');
   } catch (err: unknown) {
     if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
-      assert.ok(decodeURIComponent(err.digest).includes('คุณไม่มีสิทธิ์จัดการข้อมูลตั้งค่าระบบ'));
+      assert.ok(decodeURIComponent(err.digest).includes('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้'));
     } else {
       throw err;
     }
