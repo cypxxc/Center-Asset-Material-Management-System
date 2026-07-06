@@ -57,6 +57,31 @@ test('createCategory creates category and redirects with success message for adm
   }
 });
 
+test('createCategory creates category and redirects with success message for staff', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  mockSupabaseRegistry.setTableResponse('categories', [{ id: 'cat-uuid', name: 'IT Gadgets' }]);
+
+  const formData = new FormData();
+  formData.set('name', 'IT Gadgets');
+  formData.set('description', '');
+
+  try {
+    await createCategory(formData);
+    assert.fail('Should have redirected');
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
+      assert.ok(decodeURIComponent(err.digest).includes('สร้างหมวดหมู่สำเร็จ'));
+    } else {
+      throw err;
+    }
+  }
+});
+
 test('updateCategory updates category name and redirects with success message', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(

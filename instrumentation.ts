@@ -11,7 +11,6 @@ function bootLog(runtime: string): void {
     environment: config.env.nodeEnv,
     details: { runtime, version: config.app.version },
   })
-  // eslint-disable-next-line no-console -- intentional structured boot line to stdout
   console.info(`[CAMMS-BOOT] ${line}`)
 }
 
@@ -28,7 +27,6 @@ export async function register() {
         feature: 'instrumentation',
         details: { reason: reason instanceof Error ? reason.message : String(reason) },
       })
-      // eslint-disable-next-line no-console -- intentional structured error line to stderr
       console.error(`[CAMMS-ERROR] ${line}`)
     })
   }

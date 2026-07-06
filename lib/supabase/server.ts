@@ -62,7 +62,7 @@ export function createServiceRoleClient() {
         schema: 'public',
       },
       realtime: {
-        transport: ws as any,
+        transport: ws as unknown as typeof WebSocket,
       },
     }
   )

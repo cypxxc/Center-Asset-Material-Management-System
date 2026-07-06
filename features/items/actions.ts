@@ -51,7 +51,7 @@ async function requireDeletePermission() {
     return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
   }
 
-  if (profile.role !== 'admin') {
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
     return { error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
   }
 
@@ -394,7 +394,7 @@ export async function softDeleteItem(id: string) {
   const timer = startTimer()
   const profile = await getCurrentProfile()
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
     return { message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้' }
   }
 
@@ -523,7 +523,7 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   const profile = await getCurrentProfile()
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
     return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
   }

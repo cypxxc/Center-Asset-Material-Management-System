@@ -16,16 +16,19 @@ test('restoreItem rejects viewer role', async () => {
   assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้');
 });
 
-test('restoreItem rejects staff role', async () => {
+test('restoreItem succeeds for staff member', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(
     { id: 'user-staff', email: 'staff@example.com' },
     { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
   );
 
+  mockSupabaseRegistry.setTableResponse('items', [{ id: 'item-uuid' }]);
+  mockSupabaseRegistry.setTableResponse('audit_logs', [{ id: 'audit-log-id' }]);
+
   const res = await restoreItem('item-uuid');
-  assert.equal(res.ok, false);
-  assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้');
+  assert.equal(res.success, true);
+  assert.ok(res.message?.includes('กู้คืนรายการเรียบร้อย'));
 });
 
 test('restoreItem succeeds for admin member', async () => {

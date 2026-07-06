@@ -24,15 +24,15 @@ test('handleActionError re-throws NEXT_REDIRECT error', async () => {
     async () => {
       await handleActionError(redirectErr, 'testOp', 'testFeature')
     },
-    (err: any) => err.message === 'NEXT_REDIRECT'
+    (err: unknown) => err instanceof Error && err.message === 'NEXT_REDIRECT'
   )
   
-  const digestErr = new Error('Some redirect')
-  ;(digestErr as any).digest = 'NEXT_REDIRECT;action=123'
+  const digestErr = new Error('Some redirect') as Error & { digest: string }
+  digestErr.digest = 'NEXT_REDIRECT;action=123'
   await assert.rejects(
     async () => {
       await handleActionError(digestErr, 'testOp', 'testFeature')
     },
-    (err: any) => err.digest === 'NEXT_REDIRECT;action=123'
+    (err: unknown) => (err as { digest?: string }).digest === 'NEXT_REDIRECT;action=123'
   )
 })

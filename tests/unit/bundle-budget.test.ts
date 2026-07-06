@@ -9,7 +9,8 @@ test('check-bundle-budget script executes successfully and outputs budget info',
   try {
     const stdout = execSync(`npx tsx "${scriptPath}"`, { encoding: 'utf8' })
     assert.ok(stdout.includes('[CAMMS-BUDGET]') || stdout.includes('[CAMMS-WARN]'))
-  } catch (err: any) {
-    assert.fail(`Bundle budget check failed with error: ${err.message}`)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    assert.fail(`Bundle budget check failed with error: ${message}`)
   }
 })

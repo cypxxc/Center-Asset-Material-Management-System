@@ -6,6 +6,8 @@ import { ItemForm } from './item-form'
 import { createItemInline } from '../actions'
 import { ReferenceOption } from '../types'
 
+const NEW_ITEM_DRAFT_KEY = 'registry-s:new-item-draft'
+
 interface NewItemSheetProps {
   open: boolean
   onClose: () => void
@@ -13,6 +15,44 @@ interface NewItemSheetProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
+}
+
+function getDraftControls(root: ParentNode) {
+  return Array.from(root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+    'input[name], select[name], textarea[name]'
+  )).filter((control) => {
+    if (control instanceof HTMLInputElement) {
+      return !['file', 'submit', 'button'].includes(control.type)
+    }
+    return true
+  })
+}
+
+function readDraft(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function restoreDraft(root: ParentNode) {
+  const draft = readDraft()
+  for (const control of getDraftControls(root)) {
+    const value = draft[control.name]
+    if (value !== undefined) control.value = value
+  }
+}
+
+function saveDraft(root: ParentNode) {
+  const draft: Record<string, string> = {}
+  for (const control of getDraftControls(root)) {
+    draft[control.name] = control.value
+  }
+  window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
 }
 
 export function NewItemSheet({
@@ -24,32 +64,40 @@ export function NewItemSheet({
   units,
 }: NewItemSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const prevOpenRef = useRef(false)
   const [formVersion, setFormVersion] = useState(0)
 
-  // Handle open/close transitions
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
 
-    if (open && !prevOpenRef.current) {
+    if (open) {
+      if (dialog.open) return
       dialog.showModal()
       setFormVersion((version) => version + 1)
-      // Small delay so the browser paints the dialog before animation kicks in
-      requestAnimationFrame(() => {
-        dialog.setAttribute('data-open', 'true')
-      })
-    } else if (!open && prevOpenRef.current) {
-      dialog.removeAttribute('data-open')
-      // Wait for slide-out animation to finish before actually closing
-      const onTransitionEnd = () => {
-        dialog.close()
-        dialog.removeEventListener('transitionend', onTransitionEnd)
-      }
-      dialog.addEventListener('transitionend', onTransitionEnd)
+    } else if (dialog.open) {
+      dialog.close()
     }
-    prevOpenRef.current = open
   }, [open])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!open || !dialog) return
+    restoreDraft(dialog)
+  }, [open, formVersion])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!open || !dialog) return
+
+    const handleDraftChange = () => saveDraft(dialog)
+    dialog.addEventListener('input', handleDraftChange)
+    dialog.addEventListener('change', handleDraftChange)
+
+    return () => {
+      dialog.removeEventListener('input', handleDraftChange)
+      dialog.removeEventListener('change', handleDraftChange)
+    }
+  }, [open, formVersion])
 
   const isFormDirty = useCallback(() => {
     const dialog = dialogRef.current
@@ -74,6 +122,7 @@ export function NewItemSheet({
   }, [])
 
   const handleSuccess = useCallback(() => {
+    window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
     setFormVersion((version) => version + 1)
     onSuccess()
   }, [onSuccess])
@@ -178,43 +227,35 @@ export function NewItemSheet({
           max-width: 100%;
           max-height: 100%;
           margin: 0;
-          padding: 0;
+          padding: 16px;
           border: none;
           outline: none;
           background: transparent;
           overflow: hidden;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .new-item-sheet-dialog[open] {
+          display: flex;
         }
 
         .new-item-sheet-dialog::backdrop {
-          background: rgba(15, 23, 42, 0);
-          backdrop-filter: blur(0px);
-          transition: background 0.3s ease, backdrop-filter 0.3s ease;
-        }
-
-        .new-item-sheet-dialog[data-open]::backdrop {
           background: rgba(15, 23, 42, 0.45);
           backdrop-filter: blur(2px);
         }
 
         .new-item-sheet-panel {
-          position: absolute;
-          top: 0;
-          right: 0;
-          height: 100%;
           width: 100%;
-          max-width: 560px;
+          max-width: 760px;
+          max-height: min(92vh, 860px);
           background: #fff;
           display: flex;
           flex-direction: column;
-          box-shadow: -4px 0 32px rgba(0,0,0,0.12);
-          transform: translateX(100%);
-          transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
-          will-change: transform;
-          border-left: 1px solid #e2e8f0;
-        }
-
-        .new-item-sheet-dialog[data-open] .new-item-sheet-panel {
-          transform: translateX(0);
+          box-shadow: 0 24px 80px rgba(15,23,42,0.22);
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          overflow: hidden;
         }
 
         .new-item-sheet-header {

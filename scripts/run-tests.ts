@@ -51,7 +51,7 @@ async function main() {
 
   try {
     execSync(command, { cwd: root, stdio: 'inherit' });
-  } catch (error) {
+  } catch {
     process.exit(1);
   }
 }

@@ -16,15 +16,26 @@ test('softDeleteItem rejects viewer role with error message', async () => {
   assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้');
 });
 
-test('softDeleteItem rejects staff role with admin-only error message', async () => {
+test('softDeleteItem redirects to /items upon successful soft deletion for staff', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(
     { id: 'user-staff', email: 'staff@example.com' },
     { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
   );
 
-  const res = await softDeleteItem('item-uuid');
-  assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้');
+  mockSupabaseRegistry.setTableResponse('items', [{ id: 'item-uuid', item_name: 'Laptop', asset_no: '', serial_no: '' }]);
+  mockSupabaseRegistry.setTableResponse('audit_logs', [{ id: 'audit-log-id' }]);
+
+  try {
+    await softDeleteItem('item-uuid');
+    assert.fail('Should have redirected');
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+      assert.ok('digest' in err && String(err.digest).includes('/items'));
+    } else {
+      throw err;
+    }
+  }
 });
 
 test('softDeleteItem redirects to /items upon successful soft deletion for admin', async () => {
@@ -34,7 +45,6 @@ test('softDeleteItem redirects to /items upon successful soft deletion for admin
     { id: 'user-admin', email: 'admin@example.com', role: 'admin', is_active: true }
   );
 
-  // Set mock responses
   mockSupabaseRegistry.setTableResponse('items', [{ id: 'item-uuid', item_name: 'Laptop', asset_no: '', serial_no: '' }]);
   mockSupabaseRegistry.setTableResponse('audit_logs', [{ id: 'audit-log-id' }]);
 

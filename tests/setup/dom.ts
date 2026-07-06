@@ -8,8 +8,10 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
 });
 
 // Directly assign to global for window and document
-(global as any).window = dom.window;
-(global as any).document = dom.window.document;
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+});
 
 // Use defineProperty with enumerable: true for navigator to avoid read-only collisions
 Object.defineProperty(global, 'navigator', {
@@ -40,7 +42,7 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
   disconnect() {}
   takeRecords() { return []; }
-} as any;
+} as unknown as typeof IntersectionObserver;
 
 // Mock matchMedia
 global.window.matchMedia = global.window.matchMedia || function() {
@@ -69,14 +71,7 @@ if (!global.window.HTMLElement.prototype.blur) {
 }
 
 // Mock Selection APIs
-global.document.getSelection = () => {
-  return {
-    removeAllRanges: () => {},
-    addRange: () => {},
-    getRangeAt: () => null,
-    rangeCount: 0,
-  } as any;
-};
+global.document.getSelection = () => dom.window.getSelection();
 
 // 2. Intercept and mock `server-only`
 try {
@@ -86,7 +81,7 @@ try {
     filename: serverOnlyPath,
     loaded: true,
     exports: {},
-  } as any;
+  } as unknown as NodeJS.Module;
 } catch {
   // Ignored
 }
@@ -99,11 +94,11 @@ try {
     filename: nextCachePath,
     loaded: true,
     exports: {
-      unstable_cache: (fn: any) => fn,
+      unstable_cache: <T>(fn: T) => fn,
       revalidateTag: () => {},
       revalidatePath: () => {},
     },
-  } as any;
+  } as unknown as NodeJS.Module;
 } catch {
   // Ignored
 }
@@ -112,7 +107,7 @@ try {
 try {
   const nextNavPath = require.resolve('next/navigation');
   const mockRedirect = (url: string) => {
-    const error = new Error('NEXT_REDIRECT') as any;
+    const error = new Error('NEXT_REDIRECT') as Error & { digest: string };
     error.digest = `NEXT_REDIRECT;replace;${url};307;`;
     throw error;
   };
@@ -135,7 +130,7 @@ try {
       usePathname: () => '/',
       useSearchParams: () => new URLSearchParams(),
     },
-  } as any;
+  } as unknown as NodeJS.Module;
 } catch {
   // Ignored
 }

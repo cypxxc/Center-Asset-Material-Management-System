@@ -48,9 +48,10 @@ test('updateItem redirects to item details page upon success', async () => {
   try {
     await updateItem('item-uuid', null, formData);
     assert.fail('Should have redirected');
-  } catch (err: any) {
-    if (err.message === 'NEXT_REDIRECT') {
-      assert.ok(err.digest.includes('/items/item-uuid'));
+  } catch (err: unknown) {
+    const redirectError = err as Error & { digest?: string };
+    if (redirectError.message === 'NEXT_REDIRECT') {
+      assert.ok(redirectError.digest?.includes('/items/item-uuid'));
     } else {
       throw err;
     }

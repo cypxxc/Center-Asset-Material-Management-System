@@ -1,16 +1,17 @@
 import React from 'react';
-import { render as rtlRender } from '@testing-library/react';
+import { render as rtlRender, type RenderOptions as TestingLibraryRenderOptions } from '@testing-library/react';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { mockSupabaseRegistry } from '../mocks/supabase';
 
 export interface RenderOptions {
   route?: string;
   pathname?: string;
   query?: Record<string, string>;
-  router?: any;
+  router?: Partial<AppRouterInstance>;
 }
 
-export function mockRouter(overrides: any = {}) {
+export function mockRouter(overrides: Partial<AppRouterInstance> = {}): AppRouterInstance {
   return {
     push: () => {},
     replace: () => {},
@@ -39,7 +40,7 @@ export function renderWithProviders(ui: React.ReactElement, options: RenderOptio
   };
 
   return {
-    ...rtlRender(ui, { wrapper, ...options as any }),
+    ...rtlRender(ui, { wrapper, ...options } as TestingLibraryRenderOptions),
     router: routerVal,
   };
 }

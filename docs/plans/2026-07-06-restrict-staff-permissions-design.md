@@ -1,33 +1,43 @@
-# Restrict Staff Permissions Design
+# Staff Operational Admin Permissions Design
 
-**Goal:** Restrict delete, trash management, and settings management capabilities to the `admin` role, preventing `staff` from performing these operations.
+**Goal:** Allow `staff` to perform the same operational asset-management work as `admin`, while keeping true administrative controls restricted to `admin`.
+
+## Permission Boundary
+
+`staff` is allowed to:
+- Create, update, soft-delete, restore, and hard-delete items.
+- Manage trash.
+- Manage settings metadata: categories, locations, and units.
+- Use operational bulk actions and item import/export flows that already allow editor-level users.
+
+`staff` is not allowed to:
+- Access the admin DB panel.
+- Run admin SQL or database maintenance actions in `features/admin/actions.ts`.
+- Edit user roles or active status through `updateProfile`.
+- Use service-role or Supabase Auth administration operations directly.
 
 ## Architecture & Layers
 
-We enforce permission restrictions across all three layers (Defense-in-depth):
+We enforce this boundary across three layers:
 
-1. **UI Layer:** Update helpers in `lib/permissions.ts` to return `false` for `staff` role.
-2. **Application Layer:** Update Server Actions in `features/items/actions.ts` and `features/settings/actions.ts` to enforce `admin` role.
-3. **Database Layer:** Deploy a database migration to update RLS policies for `categories`, `locations`, `units`, and `items` so that only `admin` has insert/update/delete rights on metadata and delete/restore rights on items.
+1. **UI Layer:** `lib/permissions.ts` returns `true` for `staff` on operational helpers such as delete, settings metadata management, and trash management.
+2. **Application Layer:** Server Actions allow `admin` and `staff` for operational item/settings metadata changes. Admin-only actions keep using `requireAdmin()`.
+3. **Database Layer:** RLS policies for metadata management and item hard-delete allow `admin` and `staff`. Profile management and admin DB surfaces remain admin-only.
 
 ## Detailed Changes
 
-### 1. UI Permissions Helper (`lib/permissions.ts`)
-Update `canDelete`, `canManageSettings`, and `canManageTrash` to only return `true` when the role is `'admin'`.
+### UI Permissions Helper (`lib/permissions.ts`)
 
-### 2. Server Actions (`features/items/actions.ts`, `features/settings/actions.ts`)
-* In `features/items/actions.ts`:
-  * `requireDeletePermission` -> enforce `role === 'admin'`.
-  * `softDeleteItem` -> check `profile.role === 'admin'`.
-  * `bulkDeleteItems` -> check `profile.role === 'admin'`.
-  * `restoreItem` -> change check from `requireEditor` to `requireDeletePermission`.
-  * `bulkRestoreItems` -> change check from `requireEditor` to `requireDeletePermission`.
-* In `features/settings/actions.ts`:
-  * `requireSettingsManager` -> enforce `role === 'admin'`.
+`canDelete`, `canManageSettings`, and `canManageTrash` return `true` for both `admin` and `staff`.
 
-### 3. Database RLS (`db/migrations/00022_restrict_staff_permissions.sql`)
-Revert metadata change permissions from `00018` for `staff`:
-* Drop `categories_staff_manage`, `locations_staff_manage`, `units_staff_manage`.
-* Drop `items_hard_delete`.
-* Create `categories_admin_manage`, `locations_admin_manage`, `units_admin_manage` policies checking for `'admin'` role only.
-* Create `items_hard_delete` policy checking for `'admin'` role only.
+### Server Actions
+
+In `features/items/actions.ts`, delete, restore, and hard-delete flows allow `admin` and `staff`.
+
+In `features/settings/actions.ts`, `requireSettingsManager()` allows `admin` and `staff` for metadata management. `requireAdmin()` remains admin-only and continues to guard `updateProfile`.
+
+### Database RLS (`db/migrations/00022_restrict_staff_permissions.sql`)
+
+Metadata policies for `categories`, `locations`, and `units`, plus the `items_hard_delete` policy, allow `private.current_app_role() IN ('admin', 'staff')`.
+
+Admin-only policies for profile/user management and DB administration are not relaxed.
