@@ -47,6 +47,19 @@ npm run dev
 
 ## Development commands
 
+Recommended solo workflow:
+
+- `npm run check` - run the solo developer gate: env check, tests, lint, and build
+- `npm run test:smoke` - run fast Playwright browser smoke tests
+- `npm run test:e2e` - run Playwright critical browser journeys
+- `npm run test:all` - run `check` and browser smoke tests
+
+For browser flows that need real seeded users (`admin@registry.s`, `staff@registry.s`), enable them explicitly:
+
+```powershell
+$env:CAMMS_E2E_REAL_AUTH='true'; npm run test:e2e
+```
+
 - `npm run dev` — start the development server
 - `npm run build` — build production output
 - `npm run start` — run the production build locally

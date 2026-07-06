@@ -7,8 +7,12 @@
     "build": "next build && tsx scripts/check-bundle-budget.ts",
     "start": "next start",
     "lint": "eslint",
+    "check": "npm run verify-env && npm test && npm run lint && npm run build",
     "test": "tsx scripts/run-tests.ts",
     "test:coverage": "tsx scripts/run-tests.ts --coverage",
+    "test:smoke": "playwright test --project=smoke",
+    "test:e2e": "playwright test --project=chromium",
+    "test:all": "npm run check && npm run test:smoke",
     "verify-env": "tsx scripts/verify-env.ts",
     "mcp": "tsx scripts/mcp-server.ts"
   },
