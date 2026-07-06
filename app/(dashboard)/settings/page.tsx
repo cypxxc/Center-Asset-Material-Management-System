@@ -29,14 +29,19 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect('/dashboard')
   }
   const isAdmin = currentProfile?.role === 'admin'
-
-  const [params, data, profiles] = await Promise.all([
-    searchParams,
-    getSettingsData(),
-    isAdmin ? getAllProfiles() : Promise.resolve([]),
-  ])
-
+  const params = await searchParams
   const activeTab = params.tab || 'categories'
+  const metadataSection =
+    activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units'
+      ? activeTab
+      : 'all'
+
+  const [data, profiles] = await Promise.all([
+    activeTab === 'import' || activeTab === 'users'
+      ? Promise.resolve({ categories: [], locations: [], units: [] })
+      : getSettingsData(metadataSection),
+    activeTab === 'users' && isAdmin ? getAllProfiles() : Promise.resolve([]),
+  ])
 
   const tabs = [
     { id: 'categories', label: 'หมวดหมู่พัสดุ', icon: <Tag className="h-4 w-4" /> },
@@ -125,4 +130,3 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     </PageContainer>
   )
 }
-

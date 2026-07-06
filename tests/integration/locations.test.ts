@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { getItemReferences, getItemById, clearReferencesCache } from '../../features/items/queries';
+import { getItemReferences, getItemById, getItemAuditLogs, clearReferencesCache } from '../../features/items/queries';
 
 test('getItemReferences fetches categories, locations and units concurrently', async () => {
   mockSupabaseRegistry.clear();
@@ -35,4 +35,26 @@ test('clearReferencesCache runs successfully without throwing', () => {
   assert.doesNotThrow(() => {
     clearReferencesCache();
   });
+});
+
+test('getItemAuditLogs preserves full audit timeline query for admins', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'admin-user', email: 'admin@example.com' },
+    { id: 'admin-user', email: 'admin@example.com', role: 'admin', is_active: true }
+  );
+  mockSupabaseRegistry.setTableResponse('audit_logs', []);
+
+  await getItemAuditLogs('item-1');
+
+  const auditLogQuery = mockSupabaseRegistry
+    .getQueryLog()
+    .find((entry) => entry.table === 'audit_logs');
+  assert.ok(auditLogQuery);
+  assert.deepEqual(auditLogQuery.operations, [
+    ['select'],
+    ['eq', 'target_table', 'items'],
+    ['eq', 'target_id', 'item-1'],
+    ['order', 'created_at'],
+  ]);
 });

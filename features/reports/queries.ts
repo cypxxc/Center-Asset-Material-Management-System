@@ -160,10 +160,98 @@ export interface ReportListResult {
   overdueAuditItems: ReportItemRow[]
 }
 
+interface ReportItemsPageRpcResponse {
+  items?: unknown[]
+  total_count?: number
+  total_quantity?: number
+  total_value?: number
+  total_pages?: number
+  page?: number
+  audited_count?: number
+  overdue_audit_items?: unknown[]
+}
+
+function toReportItemRow(row: unknown): ReportItemRow {
+  const r = row as {
+    id: string
+    item_name: string
+    item_type: string
+    quantity: number
+    asset_no: string | null
+    serial_no: string | null
+    brand: string | null
+    model: string | null
+    responsible_person: string | null
+    status: string
+    updated_at: string
+    category: unknown
+    unit: unknown
+    location: unknown
+  }
+
+  return {
+    ...r,
+    category: firstRelation(r.category as Record<string, unknown> | Record<string, unknown>[] | null),
+    unit: firstRelation(r.unit as Record<string, unknown> | Record<string, unknown>[] | null),
+    location: firstRelation(r.location as Record<string, unknown> | Record<string, unknown>[] | null),
+  } as unknown as ReportItemRow
+}
+
+async function getReportItemsPageViaRpc(
+  params: ItemListSearchParams,
+): Promise<ReportListResult | null> {
+  const supabase = await createClient()
+  const page = Math.max(1, parseInt(params.page || '1') || 1)
+  const pageSize = 15
+  const q = normalizeForSearch(params.q || '')
+
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportItemsPage', () =>
+    supabase.rpc('get_report_items_page', {
+      p_q: q || null,
+      p_type: params.type || null,
+      p_status: params.status || null,
+      p_category_id: params.category_id || null,
+      p_location_id: params.location_id || null,
+      p_sort_by: params.sort_by || 'updated_at',
+      p_sort_dir: params.sort_dir === 'asc' ? 'asc' : 'desc',
+      p_page: page,
+      p_page_size: pageSize,
+    })
+  )
+
+  if (error || !data) {
+    return null
+  }
+
+  const payload = data as ReportItemsPageRpcResponse
+  if (!Array.isArray(payload.items)) {
+    return null
+  }
+  const totalCount = payload.total_count ?? 0
+
+  return {
+    items: (payload.items ?? []).map(toReportItemRow),
+    totalCount,
+    totalQuantity: payload.total_quantity ?? 0,
+    totalValue: payload.total_value ?? 0,
+    totalPages: payload.total_pages ?? Math.max(1, Math.ceil(totalCount / pageSize)),
+    page: payload.page ?? page,
+    auditedCount: payload.audited_count ?? 0,
+    overdueAuditItems: (payload.overdue_audit_items ?? []).map(toReportItemRow),
+  }
+}
+
 export async function getReportItemsList(
   params: ItemListSearchParams,
   noPagination = false
 ): Promise<ReportListResult> {
+  if (!noPagination) {
+    const rpcResult = await getReportItemsPageViaRpc(params)
+    if (rpcResult) return rpcResult
+  }
+
   const supabase = await createClient()
   const q = normalizeForSearch(params.q || '')
 
@@ -226,30 +314,7 @@ export async function getReportItemsList(
   if (error) throw new Error(error.message)
   
   const rawRows = data ?? []
-  const allItems = rawRows.map((row) => {
-    const r = row as {
-      id: string
-      item_name: string
-      item_type: string
-      quantity: number
-      asset_no: string | null
-      serial_no: string | null
-      brand: string | null
-      model: string | null
-      responsible_person: string | null
-      status: string
-      updated_at: string
-      category: unknown
-      unit: unknown
-      location: unknown
-    }
-    return {
-      ...r,
-      category: firstRelation(r.category as Record<string, unknown> | Record<string, unknown>[] | null),
-      unit: firstRelation(r.unit as Record<string, unknown> | Record<string, unknown>[] | null),
-      location: firstRelation(r.location as Record<string, unknown> | Record<string, unknown>[] | null),
-    }
-  }) as unknown as ReportItemRow[]
+  const allItems = rawRows.map(toReportItemRow)
 
   // Sort allItems in JS before pagination and aggregation slices
   const sortBy = params.sort_by || 'updated_at'

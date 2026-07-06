@@ -67,17 +67,18 @@ export async function checkReadiness(): Promise<ReadinessResult> {
     error: missingEnv.length ? `Missing: ${missingEnv.join(', ')}` : undefined,
   }
 
-  const database = await timedCheck(async () => {
-    const supabase = createServiceRoleClient()
-    const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
-    if (error) throw error
-  })
-
-  const storage = await timedCheck(async () => {
-    const supabase = createServiceRoleClient()
-    const { error } = await supabase.storage.from(config.supabase.storageBucket).list('', { limit: 1 })
-    if (error) throw error
-  })
+  const [database, storage] = await Promise.all([
+    timedCheck(async () => {
+      const supabase = createServiceRoleClient()
+      const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
+      if (error) throw error
+    }),
+    timedCheck(async () => {
+      const supabase = createServiceRoleClient()
+      const { error } = await supabase.storage.from(config.supabase.storageBucket).list('', { limit: 1 })
+      if (error) throw error
+    }),
+  ])
 
   const ready =
     environment.status === 'up' && database.status === 'up' && storage.status === 'up'

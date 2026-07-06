@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
 import { createCategory, deleteLocation, updateCategory } from '../../features/settings/actions';
+import { getSettingsData } from '../../features/settings/queries';
 
 function isRedirectError(err: unknown): err is Error & { digest: string } {
   return err instanceof Error && typeof (err as { digest?: unknown }).digest === 'string';
@@ -105,4 +106,21 @@ test('deleteLocation blocks deletion when any item still references the location
       throw err;
     }
   }
+});
+
+test('getSettingsData can fetch only the active metadata section', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setTableResponse('categories', [{ id: 'cat-1', name: 'IT' }]);
+  mockSupabaseRegistry.setTableResponse('locations', [{ id: 'loc-1', name: 'HQ' }]);
+  mockSupabaseRegistry.setTableResponse('units', [{ id: 'unit-1', name: 'pcs' }]);
+
+  const data = await getSettingsData('categories');
+
+  assert.equal(data.categories.length, 1);
+  assert.equal(data.locations.length, 0);
+  assert.equal(data.units.length, 0);
+  assert.deepEqual(
+    mockSupabaseRegistry.getQueryLog().map((entry) => entry.table),
+    ['categories']
+  );
 });

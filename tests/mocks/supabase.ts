@@ -1,29 +1,109 @@
-import path from 'path';
-
 export interface MockResponse {
-  data: any;
-  error: any;
+  data: unknown;
+  error: unknown;
+}
+
+type MockOperation = [string, ...unknown[]];
+
+export interface MockQueryLogEntry {
+  table: string;
+  operations: MockOperation[];
+}
+
+export interface MockRpcLogEntry {
+  name: string;
+  args?: Record<string, unknown>;
+}
+
+interface MockUser {
+  id: string;
+  email?: string;
+}
+
+interface MockProfile extends MockUser {
+  role?: string;
+  is_active?: boolean;
+}
+
+interface MockQueryResult {
+  data: unknown;
+  error: unknown;
+  count: number;
+}
+
+interface MockQueryBuilder extends PromiseLike<MockQueryResult> {
+  select(columns?: string, options?: unknown): MockQueryBuilder;
+  insert(values: unknown): MockQueryBuilder;
+  update(values: unknown): MockQueryBuilder;
+  delete(): MockQueryBuilder;
+  eq(column: string, value: unknown): MockQueryBuilder;
+  neq(column: string, value: unknown): MockQueryBuilder;
+  in(column: string, values: unknown[]): MockQueryBuilder;
+  order(column: string, options?: unknown): MockQueryBuilder;
+  range(from: number, to: number): MockQueryBuilder;
+  limit(limit: number): MockQueryBuilder;
+  is(column: string, value: unknown): MockQueryBuilder;
+  not(column: string, operator: string, value: unknown): MockQueryBuilder;
+  or(filters: string): MockQueryBuilder;
+  single(): Promise<MockQueryResult>;
+  maybeSingle(): Promise<MockQueryResult>;
 }
 
 class SupabaseMockRegistry {
   private responses: Map<string, MockResponse> = new Map();
-  private anonTableErrors: Map<string, any> = new Map();
-  private authUser: any = null;
-  private authProfile: any = null;
+  private anonTableErrors: Map<string, unknown> = new Map();
+  private tableDelays: Map<string, number> = new Map();
+  private storageDelay = 0;
+  private queryLog: MockQueryLogEntry[] = [];
+  private rpcLog: MockRpcLogEntry[] = [];
+  private authUser: MockUser | null = null;
+  private authProfile: MockProfile | null = null;
 
-  setTableResponse(table: string, data: any, error: any = null) {
+  setTableResponse(table: string, data: unknown, error: unknown = null) {
     this.responses.set(`table:${table}`, { data, error });
   }
 
-  setAnonTableError(table: string, error: any) {
+  setTableDelay(table: string, delayMs: number) {
+    this.tableDelays.set(table, delayMs);
+  }
+
+  setStorageDelay(delayMs: number) {
+    this.storageDelay = delayMs;
+  }
+
+  getTableDelay(table: string) {
+    return this.tableDelays.get(table) ?? 0;
+  }
+
+  getStorageDelay() {
+    return this.storageDelay;
+  }
+
+  recordQuery(entry: MockQueryLogEntry) {
+    this.queryLog.push(entry);
+  }
+
+  recordRpc(entry: MockRpcLogEntry) {
+    this.rpcLog.push(entry);
+  }
+
+  getQueryLog() {
+    return [...this.queryLog];
+  }
+
+  getRpcLog() {
+    return [...this.rpcLog];
+  }
+
+  setAnonTableError(table: string, error: unknown) {
     this.anonTableErrors.set(table, error);
   }
 
-  setRpcResponse(rpcName: string, data: any, error: any = null) {
+  setRpcResponse(rpcName: string, data: unknown, error: unknown = null) {
     this.responses.set(`rpc:${rpcName}`, { data, error });
   }
 
-  setAuth(user: any, profile: any) {
+  setAuth(user: MockUser | null, profile: MockProfile | null) {
     this.authUser = user;
     this.authProfile = profile;
     // Also save profile to the profile table response
@@ -50,6 +130,10 @@ class SupabaseMockRegistry {
   clear() {
     this.responses.clear();
     this.anonTableErrors.clear();
+    this.tableDelays.clear();
+    this.storageDelay = 0;
+    this.queryLog = [];
+    this.rpcLog = [];
     this.authUser = null;
     this.authProfile = null;
   }
@@ -58,36 +142,59 @@ class SupabaseMockRegistry {
 export const mockSupabaseRegistry = new SupabaseMockRegistry();
 
 export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | 'service' = 'anon') {
+  const operations: MockOperation[] = [];
+
+  const waitForDelay = async () => {
+    const delayMs = mockSupabaseRegistry.getTableDelay(tableName);
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  };
+
   const resolveResponse = () => {
     const { data, error } = mockSupabaseRegistry.getTableResponse(tableName, clientKind);
     const count = Array.isArray(data) ? data.length : data ? 1 : 0;
     return { data, error, count };
   };
 
-  const chain: any = {
-    select: (columns?: string) => chain,
-    insert: (values: any) => chain,
-    update: (values: any) => chain,
-    delete: () => chain,
-    eq: (column: string, value: any) => chain,
-    neq: (column: string, value: any) => chain,
-    order: (column: string, options?: any) => chain,
-    range: (from: number, to: number) => chain,
-    limit: (limit: number) => chain,
-    is: (column: string, value: any) => chain,
-    not: (column: string, operator: string, value: any) => chain,
-    or: (filters: string) => chain,
-    single: () => {
-      const { data, error, count } = resolveResponse();
-      return Promise.resolve({ data: Array.isArray(data) ? data[0] : data, error, count });
+  const record = (operation: MockOperation) => {
+    operations.push(operation);
+    return chain;
+  };
+
+  const recordAndResolve = async () => {
+    mockSupabaseRegistry.recordQuery({ table: tableName, operations: [...operations] });
+    await waitForDelay();
+    return resolveResponse();
+  };
+
+  const chain: MockQueryBuilder = {
+    select: () => record(['select']),
+    insert: () => record(['insert']),
+    update: () => record(['update']),
+    delete: () => record(['delete']),
+    eq: (column: string, value: unknown) => record(['eq', column, value]),
+    neq: (column: string, value: unknown) => record(['neq', column, value]),
+    in: (column: string, values: unknown[]) => record(['in', column, values]),
+    order: (column: string) => record(['order', column]),
+    range: (from: number, to: number) => record(['range', from, to]),
+    limit: (limit: number) => record(['limit', limit]),
+    is: (column: string, value: unknown) => record(['is', column, value]),
+    not: (column: string, operator: string, value: unknown) => record(['not', column, operator, value]),
+    or: (filters: string) => record(['or', filters]),
+    single: async () => {
+      const { data, error, count } = await recordAndResolve();
+      return { data: Array.isArray(data) ? data[0] : data, error, count };
     },
-    maybeSingle: () => {
-      const { data, error, count } = resolveResponse();
-      return Promise.resolve({ data: Array.isArray(data) ? data[0] || null : data, error, count });
+    maybeSingle: async () => {
+      const { data, error, count } = await recordAndResolve();
+      return { data: Array.isArray(data) ? data[0] || null : data, error, count };
     },
-    then: (onfulfilled: any) => {
-      const { data, error, count } = resolveResponse();
-      return Promise.resolve({ data, error, count }).then(onfulfilled);
+    then: <TResult1 = MockQueryResult, TResult2 = never>(
+      onfulfilled?: ((value: MockQueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ) => {
+      return recordAndResolve().then(onfulfilled ?? undefined, onrejected ?? undefined);
     }
   };
   return chain;
@@ -96,7 +203,8 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
 export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon') {
   return {
   from: (table: string) => createMockQueryBuilder(table, clientKind),
-  rpc: (name: string, args?: any) => {
+  rpc: (name: string, args?: Record<string, unknown>) => {
+    mockSupabaseRegistry.recordRpc({ name, args });
     const { data, error } = mockSupabaseRegistry.getRpcResponse(name);
     return Promise.resolve({ data, error });
   },
@@ -115,7 +223,7 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
       mockSupabaseRegistry.clear();
       return { error: null };
     },
-    signInWithPassword: async (credentials: any) => {
+    signInWithPassword: async (credentials: { email?: string }) => {
       const user = { id: 'mock-user-id', email: credentials.email || 'user@example.com' };
       const profile = { id: 'mock-user-id', email: credentials.email || 'user@example.com', role: 'admin', is_active: true };
       mockSupabaseRegistry.setAuth(user, profile);
@@ -124,10 +232,16 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
   },
   storage: {
     from: (bucket: string) => ({
-      upload: async (path: string, file: any) => ({ data: { path: `mocked/${path}` }, error: null }),
+      upload: async (path: string) => ({ data: { path: `mocked/${path}` }, error: null }),
       getPublicUrl: (path: string) => ({ data: { publicUrl: `https://example.com/storage/v1/object/public/${bucket}/${path}` } }),
-      list: async (path?: string, options?: any) => ({ data: [], error: null }),
-      remove: async (paths: string[]) => ({ data: [], error: null }),
+      list: async () => {
+        const delayMs = mockSupabaseRegistry.getStorageDelay();
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        return { data: [], error: null };
+      },
+      remove: async () => ({ data: [], error: null }),
     })
   }
   };
@@ -147,4 +261,4 @@ require.cache[supabaseServerPath] = {
     createAdminClient: async () => createMockSupabaseClient('service'),
     createServiceRoleClient: () => createMockSupabaseClient('service'),
   }
-} as any;
+} as NodeJS.Module;

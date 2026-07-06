@@ -8,12 +8,12 @@ interface ReportsPageProps {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const [params, references, stats] = await Promise.all([
-    searchParams,
+  const params = await searchParams
+  const [references, stats, reportData] = await Promise.all([
     getItemReferences(),
-    getReportStats()
+    getReportStats(),
+    getReportItemsList(params)
   ])
-  const reportData = await getReportItemsList(params)
 
   return (
     <ReportsList
@@ -31,4 +31,3 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     />
   )
 }
-

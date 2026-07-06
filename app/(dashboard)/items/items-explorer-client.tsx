@@ -860,7 +860,11 @@ function ItemsGrid({
                 <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100 shadow-inner transition-transform group-hover:scale-105">
                   {item.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.image_url} alt={item.item_name} className="w-full h-full object-cover rounded-lg" />
+                    <img
+                      src={item.image_url}
+                      alt={item.item_name}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   ) : (
                     typeIcons[item.item_type]
                   )}

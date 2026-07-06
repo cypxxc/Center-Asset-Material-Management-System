@@ -60,6 +60,20 @@ test('/api/health/readiness uses service role for database check so RLS does not
   assert.equal(body.checks.database.status, 'up')
 })
 
+test('/api/health/readiness checks database and storage concurrently', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', [{ id: 'x' }])
+  mockSupabaseRegistry.setTableDelay('profiles', 80)
+  mockSupabaseRegistry.setStorageDelay(80)
+
+  const start = performance.now()
+  const response = await readiness()
+  const elapsedMs = performance.now() - start
+
+  assert.equal(response.status, 200)
+  assert.ok(elapsedMs < 140, `expected concurrent checks below 140ms, got ${elapsedMs}`)
+})
+
 test('/api/health/liveness returns alive', async () => {
   const response = await liveness()
   const body = await response.json()

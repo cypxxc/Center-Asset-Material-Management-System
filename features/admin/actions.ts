@@ -195,9 +195,17 @@ export async function exportDatabaseData() {
   const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
   const backup: Record<string, Record<string, unknown>[]> = {}
 
-  for (const table of tables) {
+  const tableResults = await Promise.all(tables.map(async (table) => {
     const { data, error } = await supabase.from(table).select('*')
     if (!error && data) {
+      return [table, data] as const
+    }
+    return null
+  }))
+
+  for (const result of tableResults) {
+    if (result) {
+      const [table, data] = result
       backup[table] = data
     }
   }
