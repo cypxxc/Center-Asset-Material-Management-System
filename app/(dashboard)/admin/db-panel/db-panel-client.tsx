@@ -90,12 +90,14 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
     { name: 'brand', label: 'ยี่ห้อ/แบรนด์', type: 'text' },
     { name: 'model', label: 'รุ่นสินค้า', type: 'text' },
     { name: 'quantity', label: 'จำนวน', type: 'number' },
-    { name: 'unit_price', label: 'Unit Price', type: 'number' },
+    { name: 'unit_price', label: 'ราคาต่อหน่วย', type: 'number' },
     { name: 'status', label: 'สถานะพัสดุ', type: 'select', options: [
       { value: 'active', label: 'ใช้งานปกติ (Active)' },
       { value: 'spare', label: 'สำรอง (Spare)' },
       { value: 'damaged', label: 'ชำรุด (Damaged)' },
-      { value: 'waiting_repair', label: 'รอซ่อม (Waiting Repair)' }
+      { value: 'waiting_repair', label: 'รอซ่อม (Waiting Repair)' },
+      { value: 'inactive', label: 'ไม่ใช้งาน (Inactive)' },
+      { value: 'disposed', label: 'จำหน่ายแล้ว (Disposed)' }
     ]},
     { name: 'responsible_person', label: 'ผู้รับผิดชอบ', type: 'text' },
     { name: 'note', label: 'หมายเหตุ', type: 'textarea' },

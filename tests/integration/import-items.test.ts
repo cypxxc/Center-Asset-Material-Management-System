@@ -48,6 +48,30 @@ test('importItemsBulk rejects general item type', async () => {
   assert.equal(res.error, 'บรรทัดที่ 2: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material');
 });
 
+test('importItemsBulk rejects non-numeric unit price', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  const res = await importItemsBulk('item_name,item_type,quantity,unit_price\nCable,asset,1,abc');
+  assert.equal(res.success, false);
+  assert.match(res.error ?? '', /unit_price/);
+});
+
+test('importItemsBulk rejects negative unit price', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  const res = await importItemsBulk('item_name,item_type,quantity,unit_price\nCable,asset,1,-1');
+  assert.equal(res.success, false);
+  assert.match(res.error ?? '', /unit_price/);
+});
+
 test('importItemsBulk returns readable custom RPC error message', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(

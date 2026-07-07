@@ -104,7 +104,7 @@ async function handleRequest(request: { id?: string | number | null; method: str
                   type: 'string',
                   description: 'Filter by status: active, spare, damaged, waiting_repair, inactive, disposed',
                 },
-                item_type: { type: 'string', description: 'Filter by type: asset, material, general' },
+                item_type: { type: 'string', description: 'Filter by type: asset, material' },
                 category_id: { type: 'string', description: 'Filter by category UUID' },
                 location_id: { type: 'string', description: 'Filter by location UUID' },
                 limit: { type: 'number', description: 'Max items to return (default 25, max 100)' },
@@ -129,7 +129,8 @@ async function handleRequest(request: { id?: string | number | null; method: str
               type: 'object',
               properties: {
                 item_name: { type: 'string', description: 'Name of the item' },
-                item_type: { type: 'string', enum: ['asset', 'material', 'general'] },
+                item_type: { type: 'string', enum: ['asset', 'material'] },
+                unit_price: { type: 'number', description: 'Unit price used for inventory valuation' },
                 category_id: { type: 'string', description: 'Category UUID' },
                 quantity: { type: 'number', description: 'Quantity (must be >= 1)' },
                 unit_id: { type: 'string', description: 'Unit UUID' },
@@ -156,7 +157,8 @@ async function handleRequest(request: { id?: string | number | null; method: str
                   type: 'object',
                   properties: {
                     item_name: { type: 'string' },
-                    item_type: { type: 'string', enum: ['asset', 'material', 'general'] },
+                    item_type: { type: 'string', enum: ['asset', 'material'] },
+                    unit_price: { type: 'number' },
                     category_id: { type: 'string' },
                     quantity: { type: 'number' },
                     unit_id: { type: 'string' },

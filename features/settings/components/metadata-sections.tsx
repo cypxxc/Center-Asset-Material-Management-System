@@ -737,7 +737,7 @@ export function ImportSection() {
                 </tr>
                 <tr className="hover:bg-slate-50/50">
                   <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">status</td>
-                  <td className="p-2 border-r border-slate-100">สถานะ: active / spare / damaged / waiting_repair</td>
+                  <td className="p-2 border-r border-slate-100">สถานะ: active / spare / damaged / waiting_repair / inactive / disposed</td>
                   <td className="p-2">active</td>
                 </tr>
               </tbody>

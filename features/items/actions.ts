@@ -860,7 +860,14 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
       const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
       const rawUnitPrice = getVal('unit_price')
-      const unitPrice = rawUnitPrice === '' ? null : Math.max(0, Number(rawUnitPrice) || 0)
+      const parsedUnitPrice = rawUnitPrice === '' ? null : Number(rawUnitPrice)
+      if (
+        parsedUnitPrice !== null &&
+        (!Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0)
+      ) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: ราคาต่อหน่วย (unit_price) ต้องเป็นตัวเลขที่ไม่ติดลบ`)
+      }
+      const unitPrice = parsedUnitPrice
       const status = getVal('status').toLowerCase() || 'active'
 
       itemsToInsert.push({
