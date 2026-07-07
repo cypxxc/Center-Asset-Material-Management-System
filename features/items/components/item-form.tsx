@@ -68,11 +68,8 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
   const [activeTab, setActiveTab] = useState<'asset' | 'material'>(
     item?.item_type === 'asset' || !item?.item_type ? 'asset' : 'material'
   )
-  const [subType, setSubType] = useState<'material' | 'general'>(
-    item?.item_type === 'general' ? 'general' : 'material'
-  )
 
-  const itemType = activeTab === 'asset' ? 'asset' : subType
+  const itemType = activeTab
 
   return (
     <form
@@ -126,7 +123,7 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
           }`}
         >
           <ClipboardList className="h-4 w-4" />
-          <span>วัสดุและอุปกรณ์</span>
+          <span>วัสดุสิ้นเปลือง</span>
         </button>
       </div>
 
@@ -146,36 +143,6 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
             />
             <FieldError errors={state?.fieldErrors?.item_name} />
           </FormField>
-
-          {activeTab === 'material' && (
-            <FormField>
-              <FormLabel required>ประเภทย่อย</FormLabel>
-              <div className="flex rounded-lg bg-slate-100 p-0.5 max-w-[280px] mt-1">
-                <button
-                  type="button"
-                  onClick={() => setSubType('material')}
-                  className={`flex-1 text-center py-1.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    subType === 'material'
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  วัสดุสิ้นเปลือง
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubType('general')}
-                  className={`flex-1 text-center py-1.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    subType === 'general'
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  อุปกรณ์ทั่วไป
-                </button>
-              </div>
-            </FormField>
-          )}
 
           <FormField>
             <FormLabel htmlFor="category_id">หมวดหมู่</FormLabel>

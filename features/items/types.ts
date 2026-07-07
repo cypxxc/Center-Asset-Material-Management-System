@@ -1,4 +1,4 @@
-export type ItemType = 'material' | 'asset' | 'general'
+export type ItemType = 'material' | 'asset'
 
 export type ItemStatus =
   | 'active'
@@ -61,9 +61,8 @@ export interface ItemListResult {
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  material: 'วัสดุ',
+  material: 'วัสดุสิ้นเปลือง',
   asset: 'ครุภัณฑ์',
-  general: 'อุปกรณ์ทั่วไป',
 }
 
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {

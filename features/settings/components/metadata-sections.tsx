@@ -699,7 +699,7 @@ export function ImportSection() {
                 </tr>
                 <tr className="hover:bg-slate-50/50">
                   <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">item_type</td>
-                  <td className="p-2 border-r border-slate-100">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (วัสดุ)</td>
+                  <td className="p-2 border-r border-slate-100">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (วัสดุสิ้นเปลือง)</td>
                   <td className="p-2">asset</td>
                 </tr>
                 <tr className="hover:bg-slate-50/50">

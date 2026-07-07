@@ -36,6 +36,18 @@ test('importItemsBulk rejects rows with mismatched columns count', async () => {
   assert.equal(res.error, 'บรรทัดที่ 2: จำนวนคอลัมน์ไม่ครบถ้วน (พบ 2 คอลัมน์, ต้องการอย่างน้อย 3 คอลัมน์)');
 });
 
+test('importItemsBulk rejects general item type', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  const res = await importItemsBulk('item_name,item_type,quantity\nCable,general,1');
+  assert.equal(res.success, false);
+  assert.equal(res.error, 'บรรทัดที่ 2: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material');
+});
+
 test('importItemsBulk returns readable custom RPC error message', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(

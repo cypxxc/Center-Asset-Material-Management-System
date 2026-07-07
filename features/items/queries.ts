@@ -69,7 +69,7 @@ function parsePage(value: string | undefined) {
 }
 
 function isItemType(value: string | undefined): value is ItemType {
-  return value === 'material' || value === 'asset' || value === 'general'
+  return value === 'material' || value === 'asset'
 }
 
 function isItemStatus(value: string | undefined): value is ItemStatus {

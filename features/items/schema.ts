@@ -30,7 +30,7 @@ const optionalTextLimit = (maxLen: number) => z.preprocess(
     .transform((value) => (value && value.length > 0 ? value : null))
 )
 
-export const itemTypeSchema = z.enum(['material', 'asset', 'general'])
+export const itemTypeSchema = z.enum(['material', 'asset'])
 
 export const itemStatusSchema = z.enum([
   'active',

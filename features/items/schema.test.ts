@@ -43,6 +43,20 @@ test('itemFormSchema rejects missing item name and invalid quantity', () => {
   }
 })
 
+test('itemFormSchema rejects unsupported general item type', () => {
+  const result = itemFormSchema.safeParse({
+    item_name: 'Generic accessory',
+    item_type: 'general',
+    quantity: '1',
+    status: 'active',
+  })
+
+  assert.equal(result.success, false)
+  if (!result.success) {
+    assert.ok(result.error.flatten().fieldErrors.item_type?.length)
+  }
+})
+
 test('itemFormSchema rejects item name with zero-width spaces only and normalizes input', () => {
   const result = itemFormSchema.safeParse({
     item_name: '\u200B\u200B\u200B', // zero-width spaces only

@@ -853,8 +853,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       }
 
       const itemType = getVal('item_type').toLowerCase() || 'asset'
-      if (itemType !== 'asset' && itemType !== 'material' && itemType !== 'general') {
-        return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset, material หรือ general`)
+      if (itemType !== 'asset' && itemType !== 'material') {
+        return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
       }
 
       const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)

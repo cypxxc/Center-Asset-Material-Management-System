@@ -21,7 +21,6 @@ import { SearchInput } from '@/components/ui/search-input'
 const typeIcons: Record<string, React.ReactNode> = {
   asset: <Package className="w-4 h-4 text-blue-600" />,
   material: <FileText className="w-4 h-4 text-emerald-600" />,
-  general: <Folder className="w-4 h-4 text-slate-500" />,
 }
 
 interface LocationItem {

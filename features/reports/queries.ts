@@ -43,7 +43,6 @@ export async function getReportStats(): Promise<ReportStats> {
       typeCounts: {
         asset: { count: 0, qty: 0 },
         material: { count: 0, qty: 0 },
-        general: { count: 0, qty: 0 },
       },
       statusCounts: {},
       categoryCounts: {},
@@ -66,7 +65,6 @@ export async function getReportStats(): Promise<ReportStats> {
     typeCounts: {
       asset: res.type_counts.asset ?? { count: 0, qty: 0 },
       material: res.type_counts.material ?? { count: 0, qty: 0 },
-      general: res.type_counts.general ?? { count: 0, qty: 0 },
     },
     statusCounts: res.status_counts,
     categoryCounts: res.category_counts,
