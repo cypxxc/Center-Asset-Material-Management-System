@@ -169,6 +169,7 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
         item_name,
         item_type,
         quantity,
+        unit_price,
         asset_no,
         serial_no,
         responsible_person,
@@ -198,13 +199,8 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     query = query.eq('item_type', params.type)
   }
 
-  if (params.status === 'archive') {
-    query = query.in('status', ['inactive', 'disposed'])
-  } else if (isItemStatus(params.status)) {
+  if (isItemStatus(params.status)) {
     query = query.eq('status', params.status)
-  } else {
-    // Hide inactive & disposed items from the main explorer by default
-    query = query.not('status', 'in', '("inactive","disposed")')
   }
 
   if (params.category_id) {
@@ -276,6 +272,7 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
         item_name,
         item_type,
         quantity,
+        unit_price,
         asset_no,
         serial_no,
         brand,
@@ -373,6 +370,7 @@ export interface DeletedItemRow {
   item_name: string
   item_type: ItemType
   quantity: number
+  unit_price: number | null
   asset_no: string | null
   serial_no: string | null
   responsible_person: string | null
@@ -406,6 +404,7 @@ export async function getDeletedItems(params: ItemListSearchParams): Promise<Del
         item_name,
         item_type,
         quantity,
+        unit_price,
         asset_no,
         serial_no,
         responsible_person,

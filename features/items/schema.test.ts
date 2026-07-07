@@ -57,6 +57,34 @@ test('itemFormSchema rejects unsupported general item type', () => {
   }
 })
 
+test('itemFormSchema accepts optional unit price and rejects negative prices', () => {
+  const valid = itemFormSchema.safeParse({
+    item_name: 'Office chair',
+    item_type: 'asset',
+    quantity: '2',
+    unit_price: '1250.50',
+    status: 'active',
+  })
+
+  assert.equal(valid.success, true)
+  if (valid.success) {
+    assert.equal(valid.data.unit_price, 1250.50)
+  }
+
+  const invalid = itemFormSchema.safeParse({
+    item_name: 'Office chair',
+    item_type: 'asset',
+    quantity: '2',
+    unit_price: '-1',
+    status: 'active',
+  })
+
+  assert.equal(invalid.success, false)
+  if (!invalid.success) {
+    assert.ok(invalid.error.flatten().fieldErrors.unit_price?.length)
+  }
+})
+
 test('itemFormSchema rejects item name with zero-width spaces only and normalizes input', () => {
   const result = itemFormSchema.safeParse({
     item_name: '\u200B\u200B\u200B', // zero-width spaces only

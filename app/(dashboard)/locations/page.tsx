@@ -40,7 +40,6 @@ export default async function LocationsPage() {
       location:locations(id, name)
     `)
     .is('deleted_at', null)
-    .not('status', 'in', '("inactive","disposed")')
 
   if (itemsError) {
     throw new Error(itemsError.message)

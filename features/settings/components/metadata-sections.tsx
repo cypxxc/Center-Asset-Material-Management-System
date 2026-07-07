@@ -439,6 +439,7 @@ export function ImportSection() {
         { header: 'item_name', key: 'item_name', width: 30 },
         { header: 'item_type', key: 'item_type', width: 15 },
         { header: 'quantity', key: 'quantity', width: 10 },
+        { header: 'unit_price', key: 'unit_price', width: 14 },
         { header: 'brand', key: 'brand', width: 15 },
         { header: 'model', key: 'model', width: 15 },
         { header: 'asset_no', key: 'asset_no', width: 20 },
@@ -463,6 +464,7 @@ export function ImportSection() {
         item_name: 'เครื่องคอมพิวเตอร์ MacBook Air (ตัวอย่าง)',
         item_type: 'asset',
         quantity: 1,
+        unit_price: 35900,
         brand: 'Apple',
         model: 'M2',
         asset_no: 'CAMMS-AS-9872',
@@ -478,6 +480,7 @@ export function ImportSection() {
         item_name: 'กระดาษ A4 80 แกรม (ตัวอย่าง)',
         item_type: 'material',
         quantity: 5,
+        unit_price: 125,
         brand: 'Double A',
         model: '-',
         asset_no: '',
@@ -706,6 +709,11 @@ export function ImportSection() {
                   <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">quantity</td>
                   <td className="p-2 border-r border-slate-100">จำนวนพัสดุครุภัณฑ์ (ตัวเลขจำนวนเต็ม)</td>
                   <td className="p-2">1</td>
+                </tr>
+                <tr className="hover:bg-slate-50/50">
+                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">unit_price</td>
+                  <td className="p-2 border-r border-slate-100">ราคาต่อหน่วย ใช้คำนวณมูลค่าในรายงาน (ไม่บังคับ)</td>
+                  <td className="p-2">35900</td>
                 </tr>
                 <tr className="hover:bg-slate-50/50">
                   <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">brand</td>

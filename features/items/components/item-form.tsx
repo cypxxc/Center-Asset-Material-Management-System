@@ -175,6 +175,20 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
           </FormField>
 
           <FormField>
+            <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
+            <FormInput
+              id="unit_price"
+              name="unit_price"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={item?.unit_price ?? ''}
+              aria-invalid={!!state?.fieldErrors?.unit_price}
+            />
+            <FieldError errors={state?.fieldErrors?.unit_price} />
+          </FormField>
+
+          <FormField>
             <FormLabel htmlFor="unit_id">หน่วยนับ</FormLabel>
             <FormSelect
               id="unit_id"

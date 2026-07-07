@@ -18,6 +18,7 @@ export interface ItemListRow {
   item_name: string
   item_type: ItemType
   quantity: number
+  unit_price: number | null
   asset_no: string | null
   serial_no: string | null
   responsible_person: string | null

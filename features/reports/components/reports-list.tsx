@@ -109,6 +109,7 @@ export function ReportsList({
       { header: 'ประเภท', key: 'item_type', width: 15 },
       { header: 'หมวดหมู่', key: 'category_name', width: 15 },
       { header: 'จำนวน', key: 'quantity', width: 10 },
+      { header: 'ราคาต่อหน่วย', key: 'unit_price', width: 14 },
       { header: 'หน่วยนับ', key: 'unit_name', width: 10 },
       { header: 'เลขครุภัณฑ์', key: 'asset_no', width: 20 },
       { header: 'Serial Number', key: 'serial_no', width: 20 },
@@ -125,6 +126,7 @@ export function ReportsList({
         item_type: ITEM_TYPE_LABELS[item.item_type as keyof typeof ITEM_TYPE_LABELS] || item.item_type,
         category_name: item.category?.name || '-',
         quantity: item.quantity,
+        unit_price: item.unit_price ?? 0,
         unit_name: item.unit?.name || '-',
         asset_no: item.asset_no || '-',
         serial_no: item.serial_no || '-',
@@ -156,21 +158,6 @@ export function ReportsList({
 
   const handlePrint = () => {
     window.print()
-  }
-
-  // Define pricing calculation for value reports (THB) matching prototype logic
-  const getItemValue = (name: string, category?: string): number => {
-    const title = name.toLowerCase()
-    const cat = (category || '').toLowerCase()
-    if (title.includes('dell') || title.includes('latitude') || title.includes('macbook')) return 35000
-    if (title.includes('chair') || title.includes('ergonomic')) return 5500
-    if (title.includes('projector') || title.includes('epson')) return 18900
-    if (title.includes('printer') || title.includes('laserjet')) return 8900
-    if (title.includes('ipad') || title.includes('tablet')) return 16900
-    if (cat.includes('it') || cat.includes('tech') || cat.includes('คอม')) return 12000
-    if (cat.includes('เฟอร์') || cat.includes('โต๊ะ') || cat.includes('เก้าอี้')) return 3000
-    if (cat.includes('av')) return 9000
-    return 1500
   }
 
   const auditProgressPct = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 100
@@ -232,11 +219,11 @@ export function ReportsList({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Card 1: Asset Valuation */}
           <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ประเมินมูลค่าทรัพย์สินทั้งหมด</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">มูลค่าทรัพย์สินทั้งหมด</p>
             <h3 className="text-2xl font-bold text-slate-800 mt-1">
               {totalValue.toLocaleString('th-TH')} บาท
             </h3>
-            <p className="text-[10px] text-slate-500 mt-1">คำนวณตามราคาประเมินเฉลี่ยของครุภัณฑ์และพัสดุ</p>
+            <p className="text-[10px] text-slate-500 mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
           </div>
 
           {/* Card 2: Audit Rate */}
@@ -376,12 +363,12 @@ export function ReportsList({
                   <DataTableHead className="py-2.5 px-3">หมวดหมู่</DataTableHead>
                   <DataTableHead className="py-2.5 px-3 text-center">จำนวน</DataTableHead>
                   <DataTableHead className="py-2.5 px-3 text-right">ราคาต่อหน่วย</DataTableHead>
-                  <DataTableHead className="py-2.5 px-3 text-right">ราคารวมประเมิน</DataTableHead>
+                  <DataTableHead className="py-2.5 px-3 text-right">ราคารวม</DataTableHead>
                 </tr>
               </DataTableHeader>
               <DataTableBody>
                 {items.map((item) => {
-                  const unitPrice = getItemValue(item.item_name, item.category?.name)
+                  const unitPrice = item.unit_price ?? 0
                   const totalPrice = unitPrice * item.quantity
                   return (
                     <DataTableRow key={item.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
@@ -416,7 +403,7 @@ export function ReportsList({
               {items.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-slate-900 bg-slate-50/50 font-black">
-                    <td colSpan={2} className="py-3 px-3 text-slate-800 text-right font-black text-sm">มูลค่าประเมินรวมทั้งสิ้น:</td>
+                    <td colSpan={2} className="py-3 px-3 text-slate-800 text-right font-black text-sm">มูลค่ารวมทั้งสิ้น:</td>
                     <td className="py-3 px-3 text-center font-black text-sm">{totalQuantity} ชิ้น</td>
                     <td colSpan={2} className="py-3 px-3 text-right font-black text-blue-700 text-sm">{totalValue.toLocaleString('th-TH')} บาท</td>
                   </tr>

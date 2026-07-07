@@ -90,6 +90,7 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
     { name: 'brand', label: 'ยี่ห้อ/แบรนด์', type: 'text' },
     { name: 'model', label: 'รุ่นสินค้า', type: 'text' },
     { name: 'quantity', label: 'จำนวน', type: 'number' },
+    { name: 'unit_price', label: 'Unit Price', type: 'number' },
     { name: 'status', label: 'สถานะพัสดุ', type: 'select', options: [
       { value: 'active', label: 'ใช้งานปกติ (Active)' },
       { value: 'spare', label: 'สำรอง (Spare)' },

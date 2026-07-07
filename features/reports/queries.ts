@@ -3,7 +3,6 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
 import { normalizeForSearch } from '@/lib/unicode'
-import { getItemValue } from '@/lib/utils'
 import { measureQuery } from '@/lib/performance'
 
 export interface ReportCountBucket {
@@ -145,6 +144,7 @@ function firstRelation<T>(value: T | T[] | null): T | null {
 export interface ReportItemRow extends ItemListRow {
   brand: string | null
   model: string | null
+  unit_price: number | null
 }
 
 export interface ReportListResult {
@@ -175,6 +175,7 @@ function toReportItemRow(row: unknown): ReportItemRow {
     item_name: string
     item_type: string
     quantity: number
+    unit_price: number | null
     asset_no: string | null
     serial_no: string | null
     brand: string | null
@@ -189,6 +190,7 @@ function toReportItemRow(row: unknown): ReportItemRow {
 
   return {
     ...r,
+    unit_price: r.unit_price ?? null,
     category: firstRelation(r.category as Record<string, unknown> | Record<string, unknown>[] | null),
     unit: firstRelation(r.unit as Record<string, unknown> | Record<string, unknown>[] | null),
     location: firstRelation(r.location as Record<string, unknown> | Record<string, unknown>[] | null),
@@ -261,6 +263,7 @@ export async function getReportItemsList(
         item_name,
         item_type,
         quantity,
+        unit_price,
         asset_no,
         serial_no,
         brand,
@@ -286,13 +289,8 @@ export async function getReportItemsList(
     query = query.eq('item_type', params.type)
   }
 
-  if (params.status === 'archive') {
-    query = query.in('status', ['inactive', 'disposed'])
-  } else if (params.status) {
+  if (params.status) {
     query = query.eq('status', params.status)
-  } else {
-    // Hide inactive & disposed items from reports by default
-    query = query.not('status', 'in', '("inactive","disposed")')
   }
 
   if (params.category_id) {
@@ -332,11 +330,11 @@ export async function getReportItemsList(
       valA = a.quantity || 0
       valB = b.quantity || 0
     } else if (sortBy === 'unit_price') {
-      valA = getItemValue(a.item_name, a.category?.name)
-      valB = getItemValue(b.item_name, b.category?.name)
+      valA = a.unit_price ?? 0
+      valB = b.unit_price ?? 0
     } else if (sortBy === 'total_price') {
-      valA = getItemValue(a.item_name, a.category?.name) * a.quantity
-      valB = getItemValue(b.item_name, b.category?.name) * b.quantity
+      valA = (a.unit_price ?? 0) * a.quantity
+      valB = (b.unit_price ?? 0) * b.quantity
     } else {
       // Default: updated_at
       valA = new Date(a.updated_at).getTime()
@@ -357,7 +355,7 @@ export async function getReportItemsList(
   // Aggregations over the FULL matching list (un-paginated)
   const totalCount = allItems.length
   const totalQuantity = allItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
-  const totalValue = allItems.reduce((sum, item) => sum + (getItemValue(item.item_name, item.category?.name) * item.quantity), 0)
+  const totalValue = allItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
 
   // Audited count: items updated within past month (simulated as audited)
   const auditedCount = allItems.filter(item => {

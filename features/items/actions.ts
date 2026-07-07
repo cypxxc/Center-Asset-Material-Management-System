@@ -64,6 +64,7 @@ function parseFormData(formData: FormData) {
     item_type: formData.get('item_type'),
     category_id: formData.get('category_id'),
     quantity: formData.get('quantity'),
+    unit_price: formData.get('unit_price'),
     unit_id: formData.get('unit_id'),
     asset_no: formData.get('asset_no'),
     serial_no: formData.get('serial_no'),
@@ -858,6 +859,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       }
 
       const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
+      const rawUnitPrice = getVal('unit_price')
+      const unitPrice = rawUnitPrice === '' ? null : Math.max(0, Number(rawUnitPrice) || 0)
       const status = getVal('status').toLowerCase() || 'active'
 
       itemsToInsert.push({
@@ -867,6 +870,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         location_name: preventCSVInjection(getVal('location_name')),
         unit_name: preventCSVInjection(getVal('unit_name')),
         quantity,
+        unit_price: unitPrice,
         status,
         asset_no: preventCSVInjection(getVal('asset_no')) || null,
         serial_no: preventCSVInjection(getVal('serial_no')) || null,

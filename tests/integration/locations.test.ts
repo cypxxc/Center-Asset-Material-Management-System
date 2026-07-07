@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { getItemReferences, getItemById, getItemAuditLogs, clearReferencesCache } from '../../features/items/queries';
+import { getItemReferences, getItemById, getItemAuditLogs, clearReferencesCache, getItems } from '../../features/items/queries';
 
 test('getItemReferences fetches categories, locations and units concurrently', async () => {
   mockSupabaseRegistry.clear();
@@ -29,6 +29,27 @@ test('getItemById fetches a single item detail from mock store', async () => {
   const item = await getItemById('item-1');
   assert.ok(item);
   assert.equal(item.item_name, 'Dell Monitor');
+});
+
+test('getItems includes inactive and disposed items in the main list by default', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setTableResponse('items', [
+    { id: 'item-1', item_name: 'Active Monitor', item_type: 'asset', quantity: 1, status: 'active' },
+    { id: 'item-2', item_name: 'Inactive Monitor', item_type: 'asset', quantity: 1, status: 'inactive' },
+    { id: 'item-3', item_name: 'Disposed Monitor', item_type: 'asset', quantity: 1, status: 'disposed' },
+  ]);
+
+  await getItems({});
+
+  const itemQuery = mockSupabaseRegistry
+    .getQueryLog()
+    .find((entry) => entry.table === 'items');
+
+  assert.ok(itemQuery);
+  assert.equal(
+    itemQuery.operations.some((operation) => operation[0] === 'not' && operation[1] === 'status'),
+    false
+  );
 });
 
 test('clearReferencesCache runs successfully without throwing', () => {

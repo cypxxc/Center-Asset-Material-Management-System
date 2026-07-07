@@ -79,6 +79,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
               <DetailRow label="สถานะ" value={ITEM_STATUS_LABELS[item.status]} />
               <DetailRow label="หมวดหมู่" value={item.category?.name} />
               <DetailRow label="จำนวน" value={`${item.quantity} ${item.unit?.name ?? ''}`} />
+              <DetailRow label="ราคาต่อหน่วย" value={item.unit_price == null ? null : `${item.unit_price.toLocaleString('th-TH')} บาท`} />
               <DetailRow label="เลขครุภัณฑ์" value={item.asset_no} />
               <DetailRow label="Serial Number" value={item.serial_no} />
               <DetailRow label="ยี่ห้อ" value={item.brand} />

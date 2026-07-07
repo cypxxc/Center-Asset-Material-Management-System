@@ -30,6 +30,22 @@ const optionalTextLimit = (maxLen: number) => z.preprocess(
     .transform((value) => (value && value.length > 0 ? value : null))
 )
 
+const optionalUnitPrice = z.preprocess(
+  (val) => {
+    if (typeof val === 'string') {
+      const normalized = normalizeForStorage(val)
+      return normalized === '' ? null : normalized
+    }
+    return val ?? null
+  },
+  z
+    .coerce
+    .number('ราคาต่อหน่วยต้องเป็นตัวเลข')
+    .min(0, 'ราคาต่อหน่วยต้องไม่ติดลบ')
+    .max(999999999.99, 'ราคาต่อหน่วยสูงเกินกำหนด')
+    .nullable()
+)
+
 export const itemTypeSchema = z.enum(['material', 'asset'])
 
 export const itemStatusSchema = z.enum([
@@ -52,6 +68,7 @@ export const itemFormSchema = z.object({
   item_type: itemTypeSchema,
   category_id: optionalUuid,
   quantity: z.coerce.number().int('จำนวนต้องเป็นจำนวนเต็ม').min(1, 'จำนวนต้องมากกว่า 0'),
+  unit_price: optionalUnitPrice,
   unit_id: optionalUuid,
   asset_no: optionalTextLimit(150),
   serial_no: optionalTextLimit(150),

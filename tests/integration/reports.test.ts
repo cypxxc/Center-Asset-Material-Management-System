@@ -53,6 +53,28 @@ test('getReportItemsForExport fetches filtered items lists', async () => {
   assert.deepEqual(mockSupabaseRegistry.getRpcLog(), []);
 });
 
+test('getReportItemsForExport includes inactive and disposed items by default', async () => {
+  mockSupabaseRegistry.clear();
+
+  mockSupabaseRegistry.setTableResponse('items', [
+    { id: '1', item_name: 'Active Laptop', quantity: 1, status: 'active', item_type: 'asset' },
+    { id: '2', item_name: 'Inactive Laptop', quantity: 1, status: 'inactive', item_type: 'asset' },
+    { id: '3', item_name: 'Disposed Laptop', quantity: 1, status: 'disposed', item_type: 'asset' },
+  ]);
+
+  await getReportItemsForExport({});
+
+  const itemQuery = mockSupabaseRegistry
+    .getQueryLog()
+    .find((entry) => entry.table === 'items');
+
+  assert.ok(itemQuery);
+  assert.equal(
+    itemQuery.operations.some((operation) => operation[0] === 'not' && operation[1] === 'status'),
+    false
+  );
+});
+
 test('getReportItemsList sends filters, Thai sort and pagination to paginated report RPC', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setTableResponse('items', [
@@ -142,6 +164,55 @@ test('getReportItemsList sends filters, Thai sort and pagination to paginated re
       },
     },
   ]);
+});
+
+test('getReportItemsList calculates value from stored unit_price only', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setTableResponse('items', [
+    {
+      id: 'priced-1',
+      item_name: 'Dell Latitude Laptop',
+      item_type: 'asset',
+      quantity: 2,
+      unit_price: 1234.5,
+      asset_no: null,
+      serial_no: null,
+      brand: null,
+      model: null,
+      responsible_person: null,
+      status: 'active',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      category: null,
+      unit: null,
+      location: null,
+    },
+    {
+      id: 'priced-2',
+      item_name: 'Epson Projector EB-X06',
+      item_type: 'asset',
+      quantity: 1,
+      unit_price: null,
+      asset_no: null,
+      serial_no: null,
+      brand: null,
+      model: null,
+      responsible_person: null,
+      status: 'active',
+      updated_at: '2026-01-02T00:00:00.000Z',
+      category: null,
+      unit: null,
+      location: null,
+    },
+  ]);
+
+  const result = await getReportItemsList({}, true);
+
+  const priced = result.items.find((item) => item.id === 'priced-1');
+  const unpriced = result.items.find((item) => item.id === 'priced-2');
+
+  assert.equal(result.totalValue, 2469);
+  assert.equal(priced?.unit_price, 1234.5);
+  assert.equal(unpriced?.unit_price, null);
 });
 
 test('report RPC migration preserves Thai collation for text ordering', () => {

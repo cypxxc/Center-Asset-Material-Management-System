@@ -36,7 +36,6 @@ export default async function DashboardPage() {
       .eq('item_type', 'material')
       .lte('quantity', 5)
       .is('deleted_at', null)
-      .not('status', 'in', '("inactive","disposed")')
       .order('quantity', { ascending: true })
       .limit(5),
   ])

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  Archive,
   Armchair,
   BarChart2,
   ChevronDown,
@@ -83,7 +82,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const currentType = searchParams.get('type')
   const currentCategory = searchParams.get('category_id')
   const currentLocation = searchParams.get('location_id')
-  const currentStatus = searchParams.get('status')
   const currentDeleted = searchParams.get('deleted')
 
   const [assetsFolderExpanded, setAssetsFolderExpanded] = useState(true)
@@ -100,7 +98,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const totalAssetsCount = counts.total_assets
   const totalSuppliesCount = counts.total_supplies
-  const archiveCount = counts.archive_count
   const trashCount = counts.trash_count
 
   const getCategoryCount = (catId: string) => {
@@ -409,27 +406,8 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         })}
       </nav>
 
-      {/* Footer Area: Settings, Archive, Trash, Profile, Logout */}
+      {/* Footer Area: Settings, Trash, Profile, Logout */}
       <div className="px-2.5 pt-3 border-t border-slate-200 bg-slate-50/30 text-xs">
-        {/* Archive Link */}
-        <Link
-          href="/items?status=archive"
-          className={cn(
-            'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all',
-            pathname === '/items' && currentStatus === 'archive'
-              ? 'bg-slate-100 text-slate-800 font-bold'
-              : 'text-slate-500 hover:bg-slate-50'
-          )}
-        >
-          <div className="flex items-center">
-            <Archive className="w-4 h-4 mr-2.5 text-slate-400" />
-            <span>Archive</span>
-          </div>
-          <span className="text-[10px] font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">
-            {archiveCount}
-          </span>
-        </Link>
-
         {/* Trash Link (Soft-deleted items) - Visible for Admins and Staff */}
         {canWrite && (
           <Link
