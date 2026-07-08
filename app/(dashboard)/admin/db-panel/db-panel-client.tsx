@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Eye,
   X
 } from 'lucide-react'
 import {
@@ -32,6 +33,13 @@ import {
 } from '@/features/admin/actions'
 import { cn } from '@/lib/utils'
 import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
+import {
+  buildAuditDiff,
+  formatJsonForDisplay,
+  getAuditActionLabel,
+  getAuditTableLabel,
+  summarizeAuditPayload,
+} from '@/features/audit-log-display/format'
 
 interface ColumnSchema {
   name: string
@@ -120,6 +128,32 @@ const TABLES = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_
 
 type TabId = 'browser' | 'sql' | 'backup' | 'audit'
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function formatCellValue(row: Record<string, unknown>, colName: string, selectedTable: string, activeTab: TabId) {
+  const rawVal = row[colName]
+
+  if (activeTab === 'audit') {
+    if (colName === 'action') return getAuditActionLabel(typeof rawVal === 'string' ? rawVal : null)
+    if (colName === 'target_table') return getAuditTableLabel(typeof rawVal === 'string' ? rawVal : null)
+    if (colName === 'old_data' || colName === 'new_data') {
+      return summarizeAuditPayload(asRecord(row.old_data), asRecord(row.new_data))
+    }
+  }
+
+  if (rawVal === null || rawVal === undefined) return '-'
+  if (typeof rawVal === 'boolean') return rawVal ? 'TRUE' : 'FALSE'
+  if (typeof rawVal === 'object') return JSON.stringify(rawVal)
+  if (selectedTable === 'profiles' && colName === 'email' && typeof rawVal === 'string') {
+    return formatDisplayEmail(rawVal)
+  }
+  return String(rawVal)
+}
+
 export default function DBPanelClient() {
   const [activeTab, setActiveTab] = useState<TabId>('browser')
   
@@ -138,6 +172,7 @@ export default function DBPanelClient() {
   const [formError, setFormError] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [formNonce, setFormNonce] = useState<string>('')
+  const [selectedAuditRow, setSelectedAuditRow] = useState<Record<string, unknown> | null>(null)
   
   // Tab 2: SQL Console states
   const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM profiles LIMIT 5;')
@@ -576,20 +611,8 @@ export default function DBPanelClient() {
                       <tr key={(typeof row.id === 'string' || typeof row.id === 'number') ? row.id : idx} className="hover:bg-slate-900/30 transition-colors">
                         {activeSchema.map(col => {
                           const rawVal = row[col.name]
-                          let valStr = ''
-                          if (rawVal === null || rawVal === undefined) {
-                            valStr = '-'
-                          } else if (typeof rawVal === 'boolean') {
-                            valStr = rawVal ? 'TRUE' : 'FALSE'
-                          } else if (typeof rawVal === 'object') {
-                            valStr = JSON.stringify(rawVal)
-                          } else {
-                            valStr = String(rawVal)
-                          }
-
-                          if (selectedTable === 'profiles' && col.name === 'email' && typeof rawVal === 'string') {
-                            valStr = formatDisplayEmail(rawVal)
-                          }
+                          const valStr = formatCellValue(row, col.name, selectedTable, activeTab)
+                          const isAuditJsonCell = activeTab === 'audit' && (col.name === 'old_data' || col.name === 'new_data')
 
                           return (
                             <td 
@@ -600,7 +623,23 @@ export default function DBPanelClient() {
                               )}
                               title={valStr}
                             >
-                              {valStr}
+                              {isAuditJsonCell ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedAuditRow(row)}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-blue-900/50 bg-blue-950/30 px-2 py-1 text-[10px] font-bold text-blue-200 hover:border-blue-700 hover:bg-blue-900/50"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                  <span>{valStr}</span>
+                                </button>
+                              ) : activeTab === 'audit' && (col.name === 'action' || col.name === 'target_table') ? (
+                                <div>
+                                  <div className="font-bold text-slate-100">{valStr}</div>
+                                  <div className="text-[9px] text-slate-500">{String(rawVal ?? '-')}</div>
+                                </div>
+                              ) : (
+                                valStr
+                              )}
                             </td>
                           )
                         })}
@@ -893,6 +932,96 @@ export default function DBPanelClient() {
           )}
         </main>
       </div>
+
+      {selectedAuditRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[88vh] overflow-hidden rounded-xl border border-slate-800 bg-slate-900 text-slate-200 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-800 p-5">
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-white">
+                  รายละเอียดประวัติการทำรายการ
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  {getAuditActionLabel(String(selectedAuditRow.action ?? ''))}
+                  {' · '}
+                  {getAuditTableLabel(String(selectedAuditRow.target_table ?? ''))}
+                  {' · '}
+                  {String(selectedAuditRow.target_id ?? 'ไม่ระบุแถว')}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {selectedAuditRow.created_at ? new Date(String(selectedAuditRow.created_at)).toLocaleString('th-TH') : 'ไม่ระบุเวลา'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAuditRow(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                aria-label="ปิดรายละเอียดประวัติ"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(88vh-96px)] overflow-y-auto p-5 space-y-4">
+              {(() => {
+                const oldData = asRecord(selectedAuditRow.old_data)
+                const newData = asRecord(selectedAuditRow.new_data)
+                const diff = buildAuditDiff(oldData, newData)
+
+                return (
+                  <>
+                    <section className="rounded-lg border border-slate-800 bg-slate-950/50">
+                      <div className="border-b border-slate-800 px-4 py-3">
+                        <h4 className="text-xs font-bold text-slate-100">รายการเปลี่ยนแปลง</h4>
+                      </div>
+                      {diff.length > 0 ? (
+                        <div className="divide-y divide-slate-800">
+                          {diff.map((entry) => (
+                            <div key={entry.key} className="grid gap-3 p-4 md:grid-cols-[180px_1fr_1fr]">
+                              <div>
+                                <div className="text-xs font-bold text-slate-100">{entry.label}</div>
+                                <div className="text-[10px] text-slate-500 font-mono">{entry.key}</div>
+                              </div>
+                              <div className="rounded-lg border border-red-950/60 bg-red-950/20 p-3">
+                                <div className="mb-1 text-[10px] font-bold text-red-300">ค่าเดิม</div>
+                                <div className="break-words text-xs text-slate-200">{entry.oldValue}</div>
+                              </div>
+                              <div className="rounded-lg border border-blue-950/60 bg-blue-950/20 p-3">
+                                <div className="mb-1 text-[10px] font-bold text-blue-300">ค่าใหม่</div>
+                                <div className="break-words text-xs text-slate-200">{entry.newValue}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-xs text-slate-400">
+                          ไม่พบฟิลด์ที่เปลี่ยนแปลง หรือรายการนี้เป็นข้อมูลเหตุการณ์แบบ JSON ดิบ
+                        </div>
+                      )}
+                    </section>
+
+                    <details className="rounded-lg border border-slate-800 bg-slate-950/40">
+                      <summary className="cursor-pointer px-4 py-3 text-xs font-bold text-slate-200">
+                        ดู JSON ต้นฉบับ
+                      </summary>
+                      <div className="grid gap-3 border-t border-slate-800 p-4 md:grid-cols-2">
+                        <div>
+                          <div className="mb-2 text-[10px] font-bold text-slate-500">old_data</div>
+                          <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-[10px] text-slate-300">{formatJsonForDisplay(selectedAuditRow.old_data)}</pre>
+                        </div>
+                        <div>
+                          <div className="mb-2 text-[10px] font-bold text-slate-500">new_data</div>
+                          <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-[10px] text-slate-300">{formatJsonForDisplay(selectedAuditRow.new_data)}</pre>
+                        </div>
+                      </div>
+                    </details>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL FORM: Add / Edit Row */}
       {isFormOpen && (

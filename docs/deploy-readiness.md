@@ -11,14 +11,18 @@
 - [x] Added an environment validation script (`scripts/verify-env.ts`)
 - [x] Added a deployment readiness summary document
 - [x] Polished admin profile reset password UX with a separate action button
+- [x] Verified audit log display improvements with unit tests, lint, and production build
+- [x] Updated Next.js 16 cache revalidation usage to the two-argument `revalidateTag` signature
 
 ## Required production environment variables
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `REVALIDATE_SECRET` if `/api/revalidate` is enabled for direct Supabase/admin tooling cache refresh
 
 > Important: `SUPABASE_SERVICE_ROLE_KEY` must be stored securely in production and must never be committed to git.
+> If `REVALIDATE_SECRET` is omitted, `/api/revalidate` intentionally returns 404.
 
 ## GitHub Actions secrets
 
@@ -36,3 +40,7 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 2. Verify Supabase RLS policies and auth row-level security for `profiles`, `items`, and related tables.
 3. Ensure the production deployment environment provides `SUPABASE_SERVICE_ROLE_KEY` privately.
 4. Confirm admin users can create/reset accounts through the app without using Supabase Dashboard.
+5. Smoke test admin/staff/viewer login and role gates.
+6. Smoke test item create, edit, soft delete, restore, and sidebar count refresh.
+7. Smoke test DB Panel audit modal and item detail audit timeline with recent audit rows.
+8. Smoke test backup export/import paths against staging data before production use.

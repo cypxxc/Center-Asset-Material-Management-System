@@ -203,6 +203,16 @@ async function handleRequest(request: { id?: string | number | null; method: str
               properties: {},
             },
           },
+          {
+            name: 'revalidate_cache',
+            description: 'Bust the Next.js sidebar cache so item counts refresh after direct Supabase mutations. Call this after create_item / update_item / delete_item.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                app_url: { type: 'string', description: 'Base URL of the running Next.js app (default: http://localhost:3000)' },
+              },
+            },
+          },
         ],
       },
     };
@@ -370,6 +380,27 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
 
       if (error) throw new Error(error.message);
       return JSON.stringify(data || [], null, 2);
+    }
+
+    case 'revalidate_cache': {
+      const secret = process.env.REVALIDATE_SECRET;
+      const appUrl = (args?.app_url as string | undefined) || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+      if (!secret) {
+        return 'REVALIDATE_SECRET is not set in .env.local. Reload the browser page to see updated sidebar counts.';
+      }
+
+      const res = await fetch(`${appUrl}/api/revalidate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Revalidate endpoint returned ${res.status}: ${await res.text()}`);
+      }
+
+      const json = await res.json() as { revalidated: boolean; at: string };
+      return `✅ Next.js sidebar cache busted at ${json.at}. Sidebar counts will reflect the latest data on the next page load.`;
     }
 
     default:

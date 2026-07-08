@@ -29,6 +29,10 @@ All notable changes to this project will be documented here.
 - Playwright E2E
 - Test Coverage
 - Production Runbooks
+- Thai-first audit log display helper with unit coverage
+- DB Panel audit detail modal with readable field diffs and raw JSON access
+- Collapsible item audit timeline on item detail pages
+- Protected cache revalidation endpoint for direct Supabase/admin tooling workflows
 
 ### Security
 
@@ -45,3 +49,4 @@ All notable changes to this project will be documented here.
 - Optimized cache
 - Retry policies
 - Bundle budget
+- Sidebar cache revalidation support for out-of-band item mutations
