@@ -11,6 +11,7 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
 
 import { ZoomableImage } from '@/components/ui/zoomable-image'
+import { ItemAuditTimeline } from './item-audit-timeline'
 
 interface ItemDetailPageProps {
   params: Promise<{
@@ -108,69 +109,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           )}
         </div>
 
-        {/* Audit Log Timeline (Admin Only) */}
-        {profile?.role === 'admin' && auditLogs.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
-              ประวัติการทำรายการและตรวจนับ (Audit Logs)
-            </h3>
-            <div className="flow-root">
-              <ul className="-mb-8">
-                {auditLogs.map((log, logIdx) => {
-                  let actionText = log.action
-                  if (log.action === 'create') actionText = 'ขึ้นทะเบียนใหม่ (Created)'
-                  if (log.action === 'update') actionText = 'แก้ไขข้อมูล (Updated)'
-                  if (log.action === 'delete') actionText = 'ลบพัสดุ (Deleted)'
-
-                  return (
-                    <li key={log.id}>
-                      <div className="relative pb-8">
-                        {logIdx !== auditLogs.length - 1 ? (
-                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200" aria-hidden="true" />
-                        ) : null}
-                        <div className="relative flex space-x-3">
-                          <div>
-                            <span className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center ring-8 ring-white">
-                              <span className="material-symbols-outlined text-[15px] text-blue-600">history</span>
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
-                            <div>
-                              <p className="text-xs text-slate-800 font-bold">
-                                {actionText}{' '}
-                                <span className="font-semibold text-slate-500">โดย {log.user_name}</span>
-                              </p>
-                              {/* Displaying diff details */}
-                              {log.old_data && log.new_data && (
-                                <div className="mt-2 text-[11px] bg-slate-50 border border-slate-100 p-2 rounded-lg font-mono text-slate-600 max-h-32 overflow-y-auto space-y-1">
-                                  {Object.keys(log.new_data).map((key) => {
-                                    const oldVal = log.old_data ? (log.old_data as Record<string, unknown>)[key] : null
-                                    const newVal = log.new_data ? (log.new_data as Record<string, unknown>)[key] : null
-                                    if (oldVal !== newVal && key !== 'updated_at') {
-                                      return (
-                                        <div key={key}>
-                                          <span className="font-bold text-slate-700">{key}</span>: {String(oldVal ?? 'none')} ➔ <span className="font-bold text-blue-600">{String(newVal ?? 'none')}</span>
-                                        </div>
-                                      )
-                                    }
-                                    return null
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right text-[10px] whitespace-nowrap text-slate-400 font-semibold">
-                              {new Date(log.created_at).toLocaleString('th-TH')}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          </div>
-        )}
+        {profile?.role === 'admin' && <ItemAuditTimeline logs={auditLogs} />}
       </div>
     </div>
   )
