@@ -44,3 +44,7 @@ To prevent brute force, scraping, and denial of service (DoS), Server Actions ar
 - **CSV Injection Prevention:** Any cell value starting with formula trigger prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) is prepended with a single quote `'` during CSV import and exports, neutralizing spreadsheet cell formula executions.
 - **HTML Injection:** Standard React-DOM auto-escaping processes all text bindings, avoiding simple HTML/XSS injection vulnerabilities. Raw HTML rendering is strictly forbidden.
 - **Filename Validation:** Special path symbols are replaced by underscores using `normalizeFilename` to prevent directory traversal or invalid path injection during image uploads.
+
+## 4. Release Dependency Audit
+
+Release CI must run `npm run audit:release`, which fails on high or critical production dependency vulnerabilities. A moderate PostCSS advisory remains transitive inside the exact PostCSS version bundled by the current Next.js release; forcing a downgrade of Next.js or an incompatible PostCSS override is intentionally avoided. Reassess this exception whenever Next.js publishes a compatible dependency update.

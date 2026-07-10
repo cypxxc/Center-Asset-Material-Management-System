@@ -41,8 +41,9 @@ Database schemas and RLS policies are maintained via SQL migration scripts in `d
 
 ### Applying Migrations locally or to Staging/Prod:
 ```bash
-# Run local migrations script using tsx
-npx tsx scripts/apply-migrations.ts
+# Always pass the exact migrations being deployed. The runner rejects an
+# unspecified list to prevent replaying old migrations.
+$env:MIGRATION_FILES='00026_atomic_database_restore.sql,00027_lock_down_admin_sql.sql,00028_revoke_authenticated_admin_sql.sql'; npx tsx scripts/apply-migrations.ts
 ```
 
 ### Key Migration Guidelines:
@@ -60,3 +61,4 @@ Before marking a deployment as successful, verify:
 4. `/api/health` yields status `200` with database and storage marked `up`.
 5. Apply all pending migrations before deploying application code. The database restore and admin SQL hardening migrations are required by the current application.
 6. Keep `ADMIN_SQL_ENABLED` unset or `false` in normal production operation. Enable it only during a controlled maintenance window.
+7. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The current moderate PostCSS advisory is a transitive dependency pinned by Next.js and has no safe non-breaking npm fix.

@@ -65,6 +65,24 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 async function main() {
+  const requestedFiles = process.env.MIGRATION_FILES
+    ?.split(',')
+    .map((file) => file.trim())
+    .filter(Boolean)
+
+  if (!requestedFiles || requestedFiles.length === 0) {
+    throw new Error('MIGRATION_FILES is required. Pass an explicit comma-separated migration list.')
+  }
+
+  const migrationsDir = path.join(process.cwd(), 'db', 'migrations')
+  const files = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort()
+  const missingFiles = requestedFiles.filter((file) => !files.includes(file))
+  if (missingFiles.length > 0) {
+    throw new Error(`Migration files not found: ${missingFiles.join(', ')}`)
+  }
+
   const tempEmail = `temp_migrate_${Date.now()}@example.com`
   const tempPassword = `TempPassword_${Date.now()}!23`
   let tempUserId: string | null = null
@@ -106,20 +124,7 @@ async function main() {
 
     console.log('Authentication successful!')
 
-    // Find and sort migration files
-    const migrationsDir = path.join(process.cwd(), 'db', 'migrations')
-    const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
-      .sort()
-
-    // We want to apply migrations starting from 00010_
-    const requestedFiles = process.env.MIGRATION_FILES
-      ?.split(',')
-      .map((file) => file.trim())
-      .filter(Boolean)
-    const pendingMigrations = requestedFiles
-      ? files.filter((file) => requestedFiles.includes(file))
-      : files.filter(f => parseInt(f.split('_')[0], 10) >= 10)
+    const pendingMigrations = files.filter((file) => requestedFiles.includes(file))
 
     console.log(`Found ${pendingMigrations.length} migrations to apply:`, pendingMigrations)
 
