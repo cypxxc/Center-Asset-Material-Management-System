@@ -217,19 +217,16 @@ export async function createItem(
     }
     newItem = data
 
-    // Centralized Audit Log - non-blocking
-    setImmediate(async () => {
-      if (newItem) {
-        await writeAuditLog({
-          operation: 'create',
-          feature: 'items',
-          userId: auth.profile.id,
-          targetType: 'items',
-          targetId: newItem.id,
-          newValues: parsed.data,
-        })
-      }
-    })
+    if (newItem) {
+      await writeAuditLog({
+        operation: 'create',
+        feature: 'items',
+        userId: auth.profile.id,
+        targetType: 'items',
+        targetId: newItem.id,
+        newValues: parsed.data,
+      })
+    }
 
     const durationMs = timer.stop()
     const ctx = await getRequestContext(auth.profile.id)
@@ -340,27 +337,24 @@ export async function updateItem(
       return { message: friendlyDatabaseError(error.message) }
     }
 
-    // Centralized Audit Log - non-blocking
     if (oldItem) {
-      setImmediate(async () => {
-        const cleanOld: Record<string, unknown> = { ...oldItem }
-        const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
-        removeKey(cleanOld, 'created_at')
-        removeKey(cleanOld, 'updated_at')
-        removeKey(cleanOld, 'created_by')
-        removeKey(cleanOld, 'updated_by')
-        removeKey(cleanOld, 'deleted_at')
-        removeKey(cleanOld, 'deleted_by')
-        
-        await writeAuditLog({
-          operation: 'update',
-          feature: 'items',
-          userId: auth.profile.id,
-          targetType: 'items',
-          targetId: id,
-          oldValues: cleanOld,
-          newValues: parsed.data,
-        })
+      const cleanOld: Record<string, unknown> = { ...oldItem }
+      const removeKey = (obj: Record<string, unknown>, key: string) => { delete obj[key] }
+      removeKey(cleanOld, 'created_at')
+      removeKey(cleanOld, 'updated_at')
+      removeKey(cleanOld, 'created_by')
+      removeKey(cleanOld, 'updated_by')
+      removeKey(cleanOld, 'deleted_at')
+      removeKey(cleanOld, 'deleted_by')
+
+      await writeAuditLog({
+        operation: 'update',
+        feature: 'items',
+        userId: auth.profile.id,
+        targetType: 'items',
+        targetId: id,
+        oldValues: cleanOld,
+        newValues: parsed.data,
       })
     }
 
@@ -431,27 +425,20 @@ export async function softDeleteItem(id: string) {
     }
 
     const timestamp = new Date().toISOString()
-    // Centralized Audit Log - non-blocking, query item details asynchronously
-    setImmediate(async () => {
-      try {
-        const { data: oldItem } = await supabase
-          .from('items')
-          .select('item_name, asset_no, serial_no')
-          .eq('id', id)
-          .single()
-        
-        await writeAuditLog({
-          operation: 'delete',
-          feature: 'items',
-          userId: profile.id,
-          targetType: 'items',
-          targetId: id,
-          oldValues: oldItem || null,
-          newValues: { deleted_at: timestamp },
-        })
-      } catch (err) {
-        logger.error({ operation: 'softDeleteItemAudit', feature: 'items', userId: profile.id, details: { id } }, err)
-      }
+    const { data: oldItem } = await supabase
+      .from('items')
+      .select('item_name, asset_no, serial_no')
+      .eq('id', id)
+      .single()
+
+    await writeAuditLog({
+      operation: 'delete',
+      feature: 'items',
+      userId: profile.id,
+      targetType: 'items',
+      targetId: id,
+      oldValues: oldItem || null,
+      newValues: { deleted_at: timestamp },
     })
 
     const durationMs = timer.stop()

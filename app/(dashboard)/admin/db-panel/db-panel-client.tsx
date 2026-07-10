@@ -114,7 +114,7 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
   ],
   audit_logs: [
     { name: 'id', label: 'UUID', type: 'readonly' },
-    { name: 'user_id', label: 'แอดมิน ID (UUID)', type: 'readonly' },
+    { name: 'user_id', label: 'รหัสผู้ดูแลระบบ (UUID)', type: 'readonly' },
     { name: 'action', label: 'ประเภทกระทำ', type: 'readonly' },
     { name: 'target_table', label: 'ตารางเป้าหมาย', type: 'readonly' },
     { name: 'target_id', label: 'แถวเป้าหมาย ID', type: 'readonly' },
@@ -757,12 +757,9 @@ export default function DBPanelClient() {
                       <div className="mt-3 p-3 bg-slate-950 rounded-lg border border-red-950 text-[10px] space-y-2 max-w-2xl text-slate-300 font-mono">
                         <p className="text-amber-400 font-bold">⚠️ ยังไม่มีฟังก์ชัน exec_admin_sql ใน Supabase:</p>
                         <p>กรุณาก๊อปปี้ SQL โค้ดในไฟล์ด้านล่างนี้ ไปรันที่ช่อง SQL Editor บนหน้า Supabase Dashboard เพื่อติดตั้งฟังก์ชันความปลอดภัยก่อนรันคำสั่ง:</p>
-                        <a 
-                          href="file:///d:/registry-s/db/migrations/00007_exec_admin_sql.sql"
-                          className="text-blue-400 underline block hover:text-blue-300"
-                        >
+                        <code className="text-blue-300 block">
                           db/migrations/00007_exec_admin_sql.sql
-                        </a>
+                        </code>
                       </div>
                     )}
                   </div>
@@ -816,7 +813,7 @@ export default function DBPanelClient() {
 
                   {!isSqlRunning && sqlResult && (!sqlResult.rows || sqlResult.rows.length === 0) && (
                     <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-500 font-mono text-xs">
-                      <CheckCircle className="h-6 w-6 text-emerald-500 mb-2 animate-bounce" />
+                      <CheckCircle className="h-6 w-6 text-emerald-500 mb-2" />
                       <p className="font-bold text-slate-300">ดำเนินการคำสั่งสำเร็จเรียบร้อยแล้ว</p>
                       {sqlResult.affected_rows !== undefined && (
                         <p className="mt-1 text-slate-400">จำนวนแถวข้อมูลที่ได้รับผลกระทบ: {sqlResult.affected_rows} แถว</p>

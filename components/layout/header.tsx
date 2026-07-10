@@ -265,7 +265,7 @@ export function Header({ profile }: HeaderProps) {
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">พิมพ์รายงาน และ Export ข้อมูลเป็น Excel/PDF</td>
+                        <td className="p-2.5">พิมพ์รายงานและส่งออกข้อมูลเป็น Excel/PDF</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
@@ -277,31 +277,31 @@ export function Header({ profile }: HeaderProps) {
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">ลบสิ่งของชั่วคราวลงถังขยะ (Soft Delete)</td>
+                        <td className="p-2.5">ลบรายการออกจากมุมมองหลักชั่วคราว</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">เข้าสู่ระบบจัดการถังขยะ และกู้คืนข้อมูล (Restore)</td>
+                        <td className="p-2.5">จัดการรายการที่ลบและกู้คืนข้อมูล</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">ลบสิ่งของถาวรออกจากฐานข้อมูล (Hard Delete)</td>
+                        <td className="p-2.5">ลบรายการออกจากฐานข้อมูลอย่างถาวร</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">ตั้งค่าข้อมูลระบบ (ประเภท/หมวดหมู่/สถานที่)</td>
+                        <td className="p-2.5">จัดการข้อมูลพื้นฐานของระบบ (ประเภท/หมวดหมู่/สถานที่)</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                       </tr>
                       <tr className="hover:bg-slate-50/50">
-                        <td className="p-2.5">เข้าใช้แผงควบคุมฐานข้อมูลระดับสูง (DB Admin Panel)</td>
+                        <td className="p-2.5">ใช้งานแผงควบคุมฐานข้อมูลสำหรับผู้ดูแลระบบ</td>
                         <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                         <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
@@ -318,7 +318,7 @@ export function Header({ profile }: HeaderProps) {
                   การเข้าสู่ระบบและจัดการโปรไฟล์ (Login & Profile)
                 </h3>
                 <ul className="list-disc pl-5 space-y-1.5 text-[11px] md:text-xs text-slate-600">
-                  <li><strong>การเข้าสู่ระบบ:</strong> กรอก รหัสผู้ใช้/อีเมล และรหัสผ่านที่ได้รับจากแอดมิน หากบัญชีโดนระงับใช้งาน (Inactive) ระบบจะไม่ยอมให้เข้าสู่ระบบ</li>
+                  <li><strong>การเข้าสู่ระบบ:</strong> กรอกรหัสผู้ใช้หรืออีเมล และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ หากบัญชีถูกระงับการใช้งาน ระบบจะไม่อนุญาตให้เข้าสู่ระบบ</li>
                   <li><strong>แก้ไขโปรไฟล์ส่วนตัว:</strong> ไปที่เมนูโปรไฟล์เพื่อปรับปรุงชื่อ-นามสกุล และเปลี่ยนรหัสผ่านส่วนตัว (รหัสผ่านอย่างน้อย 6 ตัวอักษร)</li>
                 </ul>
               </div>
@@ -330,10 +330,10 @@ export function Header({ profile }: HeaderProps) {
                   การจัดการรายการพัสดุและครุภัณฑ์ (Item Management)
                 </h3>
                 <ul className="list-disc pl-5 space-y-1.5 text-[11px] md:text-xs text-slate-600">
-                  <li><strong>การค้นหาแบบด่วน:</strong> สามารถพิมพ์ค้นหาด้วย ชื่อ, เลขครุภัณฑ์, Serial No, ยี่ห้อ, รุ่น หรือผู้รับผิดชอบ ผ่านแถบค้นหาแบบ Real-time</li>
+                  <li><strong>การค้นหา:</strong> ค้นหาด้วยชื่อ เลขครุภัณฑ์ หมายเลขซีเรียล ยี่ห้อ รุ่น หรือผู้รับผิดชอบผ่านช่องค้นหา</li>
                   <li><strong>การกรองข้อมูล:</strong> คัดกรองตามหมวดหมู่ สถานที่ตั้งจัดเก็บ หรือสถานะการใช้งาน</li>
                   <li><strong>ขึ้นทะเบียนใหม่:</strong> เลือกประเภทสิ่งของ (วัสดุสิ้นเปลือง / ครุภัณฑ์) กรอกรายละเอียด และสามารถอัปโหลดรูปภาพเพื่อประกอบทะเบียนสิ่งของได้</li>
-                  <li><strong>Bulk Actions:</strong> สามารถเลือกพัสดุพร้อมกันหลายๆ ชิ้นเพื่อแก้ไขสถานที่จัดเก็บ หรือแก้ไขสถานะการทำงานพร้อมกันได้ในครั้งเดียว</li>
+                  <li><strong>การดำเนินการหลายรายการ:</strong> เลือกรายการหลายรายการเพื่อแก้ไขสถานที่จัดเก็บหรือสถานะพร้อมกันได้</li>
                 </ul>
               </div>
 
@@ -344,9 +344,9 @@ export function Header({ profile }: HeaderProps) {
                   ระบบถังขยะและการกู้คืนข้อมูล (Trash & Recovery)
                 </h3>
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] md:text-xs text-amber-900 space-y-2">
-                  <p><strong>การลบชั่วคราว (Soft Delete):</strong> เฉพาะแอดมินเท่านั้นที่สั่งลบสิ่งของลงถังขยะได้ รายการที่ถูกลบจะย้ายมาที่หน้าถังขยะเพื่อกันการสูญหาย</p>
-                  <p><strong>การกู้คืนสิ่งของ (Restore):</strong> สิทธิ์ Admin และ Staff สามารถดึงของในถังขยะกลับคืนสู่ระบบหลักได้ตลอดเวลา</p>
-                  <p><strong>การลบถาวร (Hard Delete):</strong> แอดมิน (Admin) เท่านั้นที่สั่งลบถาวรได้ โดยระบบจะทำลายข้อมูลในฐานข้อมูลและถอนไฟล์รูปภาพออกจากพื้นที่เก็บข้อมูลออนไลน์โดยตรง</p>
+                  <p><strong>การลบชั่วคราว:</strong> เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถนำรายการไปยังถังขยะได้ รายการจะยังสามารถกู้คืนได้</p>
+                  <p><strong>การกู้คืนรายการ:</strong> ผู้ดูแลระบบและเจ้าหน้าที่สามารถกู้คืนรายการจากถังขยะกลับเข้าสู่ระบบได้</p>
+                  <p><strong>การลบถาวร:</strong> เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบรายการออกจากฐานข้อมูลและพื้นที่จัดเก็บรูปภาพอย่างถาวรได้</p>
                 </div>
               </div>
 
@@ -381,8 +381,8 @@ export function Header({ profile }: HeaderProps) {
                 </h3>
                 <ul className="list-disc pl-5 space-y-1.5 text-[11px] md:text-xs text-slate-600">
                   <li><strong>Database Browser:</strong> ดู แก้ไข เพิ่ม หรือลบข้อมูลดิบในตารางฐานข้อมูลโดยตรง</li>
-                  <li><strong>Create Auth User:</strong> สร้างบัญชีผู้ใช้เข้าสู่ระบบพร้อมสร้าง Profile อะตอมมิกพร้อมกันในคลิกเดียว</li>
-                  <li><strong>Backup & Restore:</strong> ดาวน์โหลดไฟล์สำรองข้อมูล JSON และกู้คืนฐานข้อมูลผ่านการแนบไฟล์ดิสก์</li>
+                  <li><strong>สร้างบัญชีผู้ใช้:</strong> สร้างบัญชีสำหรับเข้าสู่ระบบและข้อมูลผู้ใช้ในขั้นตอนเดียว</li>
+                  <li><strong>สำรองและกู้คืนข้อมูล:</strong> ดาวน์โหลดไฟล์สำรองข้อมูล JSON และกู้คืนฐานข้อมูลด้วยไฟล์สำรอง</li>
                   <li><strong>SQL Console:</strong> รันคำสั่ง SQL Query ด่วน เพื่อเขียนโค้ดวิเคราะห์ข้อมูลหรือทำรายการด่วนกับฐานข้อมูลหลังบ้าน</li>
                 </ul>
               </div>

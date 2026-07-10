@@ -31,7 +31,7 @@ function StatusBadge({ active }: { active: boolean }) {
           : 'inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 border border-slate-200'
       }
     >
-      {active ? 'เปิดใช้งาน (Active)' : 'ปิดใช้งาน (Inactive)'}
+      {active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
     </span>
   )
 }

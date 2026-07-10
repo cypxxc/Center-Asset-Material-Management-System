@@ -284,7 +284,7 @@ export function TrashExplorerClient({
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
+        <form onSubmit={handleSearch} className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-[200px]">
           <SearchInput
             value={searchVal}
             onChange={(val) => {

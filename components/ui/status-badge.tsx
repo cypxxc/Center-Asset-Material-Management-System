@@ -42,7 +42,7 @@ const statusLabels: Record<string, string> = {
   active: "ใช้งานอยู่",
   spare: "สำรอง",
   damaged: "ชำรุด",
-  waiting_repair: "รอซ่อม",
+  waiting_repair: "รอการซ่อมแซม",
   inactive: "ไม่ใช้งาน",
   disposed: "จำหน่ายแล้ว",
 }

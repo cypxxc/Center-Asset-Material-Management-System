@@ -18,7 +18,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
       .from('categories')
       .select('id, name, description, is_active, updated_at')
       .order('name')
-    if (error) throw new Error(error.message)
+    if (error) throw new Error('Unable to load settings data')
     return { ...emptyData, categories: data ?? [] }
   }
 
@@ -27,7 +27,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
       .from('locations')
       .select('id, name, building, floor, room, department, description, is_active, updated_at')
       .order('name')
-    if (error) throw new Error(error.message)
+    if (error) throw new Error('Unable to load settings data')
     return { ...emptyData, locations: data ?? [] }
   }
 
@@ -36,7 +36,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
       .from('units')
       .select('id, name, is_active, updated_at')
       .order('name')
-    if (error) throw new Error(error.message)
+    if (error) throw new Error('Unable to load settings data')
     return { ...emptyData, units: data ?? [] }
   }
 
@@ -55,9 +55,9 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
       .order('name'),
   ])
 
-  if (categories.error) throw new Error(categories.error.message)
-  if (locations.error) throw new Error(locations.error.message)
-  if (units.error) throw new Error(units.error.message)
+  if (categories.error) throw new Error('Unable to load categories')
+  if (locations.error) throw new Error('Unable to load locations')
+  if (units.error) throw new Error('Unable to load units')
 
   return {
     categories: categories.data ?? [],
@@ -73,6 +73,6 @@ export async function getAllProfiles(): Promise<ProfileRow[]> {
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error('Unable to load settings data')
   return data ?? []
 }

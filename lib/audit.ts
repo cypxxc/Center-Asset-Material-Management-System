@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import { after } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logging'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
@@ -67,9 +68,7 @@ export async function writeAuditLog(payload: AuditLogPayload) {
     }),
   )
 
-  // 2. Persist to Supabase database (audit_logs table) - non-blocking
-  // Fire and forget to avoid slowing down user operations
-  setImmediate(async () => {
+  const persist = async () => {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -109,5 +108,13 @@ export async function writeAuditLog(payload: AuditLogPayload) {
         error
       )
     }
-  })
+  }
+
+  // Keep the response fast while allowing Next.js/Vercel to finish the write.
+  try {
+    after(persist)
+  } catch {
+    // Non-request contexts (for example unit tests) have no after lifecycle.
+    await persist()
+  }
 }

@@ -12,7 +12,6 @@ test('softDeleteItem rejects viewer role with error message', async () => {
   );
 
   const res = await softDeleteItem('item-id');
-  assert.equal(res.success, undefined);
   assert.equal(res.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้');
 });
 

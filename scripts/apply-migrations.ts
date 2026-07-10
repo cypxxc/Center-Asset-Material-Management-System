@@ -113,10 +113,13 @@ async function main() {
       .sort()
 
     // We want to apply migrations starting from 00010_
-    const pendingMigrations = files.filter(f => {
-      const num = parseInt(f.split('_')[0], 10)
-      return num >= 10
-    })
+    const requestedFiles = process.env.MIGRATION_FILES
+      ?.split(',')
+      .map((file) => file.trim())
+      .filter(Boolean)
+    const pendingMigrations = requestedFiles
+      ? files.filter((file) => requestedFiles.includes(file))
+      : files.filter(f => parseInt(f.split('_')[0], 10) >= 10)
 
     console.log(`Found ${pendingMigrations.length} migrations to apply:`, pendingMigrations)
 
@@ -130,7 +133,9 @@ async function main() {
 
       for (let i = 0; i < statements.length; i++) {
         const stmt = statements[i]
-        const { data: rpcRes, error: rpcError } = await userClient.rpc('exec_admin_sql', {
+        const migrationNumber = parseInt(file.split('_')[0], 10)
+        const migrationClient = migrationNumber >= 28 ? adminClient : userClient
+        const { data: rpcRes, error: rpcError } = await migrationClient.rpc('exec_admin_sql', {
           sql_query: stmt
         })
 
@@ -150,6 +155,7 @@ async function main() {
     console.log('\nAll pending migrations applied successfully!')
   } catch (err) {
     console.error('Migration failed:', err)
+    process.exitCode = 1
   } finally {
     if (tempUserId) {
       console.log('\n4. Cleaning up temporary migration user...')

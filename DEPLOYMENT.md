@@ -31,6 +31,7 @@ The GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on push/PR to `mai
 ```
 
 - **E2E Fallback in CI:** Playwright tests automatically skip active browser validations if real Supabase credentials are not present in repository secrets, avoiding PR build failures on forks.
+- **Database-backed E2E:** The unauthenticated redirect journey always runs; authenticated journeys require `CAMMS_E2E_REAL_AUTH=true` and seeded users.
 
 ---
 
@@ -57,3 +58,5 @@ Before marking a deployment as successful, verify:
 2. All Jest/JSDOM components and action tests pass.
 3. Build completes cleanly without warnings: `npm run build`.
 4. `/api/health` yields status `200` with database and storage marked `up`.
+5. Apply all pending migrations before deploying application code. The database restore and admin SQL hardening migrations are required by the current application.
+6. Keep `ADMIN_SQL_ENABLED` unset or `false` in normal production operation. Enable it only during a controlled maintenance window.

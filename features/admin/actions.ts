@@ -1,7 +1,7 @@
 'use server'
 
 import { getCurrentProfile } from '@/features/auth/queries'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { clearReferencesCache } from '@/features/items/queries'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
@@ -169,7 +169,11 @@ export async function runAdminSql(sqlQuery: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
-  const supabase = await createClient()
+  if (process.env.ADMIN_SQL_ENABLED !== 'true') {
+    return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
+  }
+
+  const supabase = createServiceRoleClient()
   const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
 
   if (error) {
@@ -181,7 +185,7 @@ export async function runAdminSql(sqlQuery: string) {
     user_id: auth.profile.id,
     action: 'SQL_EXECUTE',
     target_table: 'multiple/raw_sql',
-    new_data: { query: sqlQuery }
+    new_data: { query_hash: await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex')) }
   })
 
   return data
@@ -197,20 +201,25 @@ export async function exportDatabaseData() {
 
   const tableResults = await Promise.all(tables.map(async (table) => {
     const { data, error } = await supabase.from(table).select('*')
-    if (!error && data) {
-      return [table, data] as const
-    }
-    return null
+    return { table, data, error }
   }))
 
-  for (const result of tableResults) {
-    if (result) {
-      const [table, data] = result
-      backup[table] = data
-    }
+  const failed = tableResults.find((result) => result.error || !result.data)
+  if (failed) {
+    logger.error({ operation: 'exportDatabaseData', feature: 'admin', details: { table: failed.table } }, failed.error)
+    return { error: `ไม่สามารถส่งออกข้อมูลตาราง ${failed.table} ได้`, backup: null }
   }
 
-  return { backup }
+  for (const result of tableResults) {
+    backup[result.table] = result.data as Record<string, unknown>[]
+  }
+
+  return {
+    backup: {
+      __meta: { version: 1, exportedAt: new Date().toISOString(), tables },
+      ...backup,
+    },
+  }
 }
 
 export async function importDatabaseData(backupJsonStr: string) {
@@ -219,35 +228,36 @@ export async function importDatabaseData(backupJsonStr: string) {
 
   const supabase = await getSupabaseClient()
   try {
+    if (backupJsonStr.length > 25 * 1024 * 1024) {
+      return { error: 'Backup file is too large. Maximum size is 25 MB.' }
+    }
+
     const cleanStr = stripBom(backupJsonStr)
     const backup = JSON.parse(cleanStr)
     const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
 
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup)) {
+      return { error: 'Invalid backup file format: expected an object.' }
+    }
+
     for (const table of tables) {
       const rows = backup[table]
-      if (Array.isArray(rows) && rows.length > 0) {
-        const { error } = await supabase
-          .from(table)
-          .upsert(rows, { onConflict: 'id' })
-
-        if (error) {
-          return { error: `Failed to restore table ${table}: ${error.message}` }
-        }
+      if (!Array.isArray(rows)) {
+        return { error: `Invalid backup file format: ${table} must be an array.` }
       }
     }
 
-    // Log restore action
-    await supabase.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'DATABASE_RESTORE',
-      target_table: 'all',
-      new_data: { tables_restored: Object.keys(backup) }
-    })
+    if (backup.__meta?.version !== 1) {
+      return { error: 'Unsupported backup format version.' }
+    }
 
-    return { success: true }
-  } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err)
-    return { error: 'Invalid backup file format: ' + errMsg }
+    const { data, error } = await supabase.rpc('restore_database_backup', { backup })
+    if (error) return { error: 'ไม่สามารถกู้คืนฐานข้อมูลได้ กรุณาตรวจสอบ backup และลองใหม่อีกครั้ง' }
+    if (!data?.ok) return { error: data?.error || 'Database restore failed.' }
+
+    return { success: true, tablesRestored: data.tables_restored ?? [] }
+  } catch {
+    return { error: 'Invalid backup file format. กรุณาใช้ไฟล์ backup ที่สร้างจากระบบ' }
   }
 }
 

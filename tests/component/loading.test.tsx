@@ -15,5 +15,5 @@ test('LoadingSpinner renders correctly', () => {
 
 test('LoadingOverlay renders loading text and spinner', () => {
   render(React.createElement(LoadingOverlay));
-  assert.ok(screen.getByText('กำลังโหลด...'));
+  assert.ok(screen.getByText('กำลังโหลดข้อมูล...'));
 });

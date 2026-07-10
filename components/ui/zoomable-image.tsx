@@ -37,13 +37,15 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
           "relative group overflow-hidden cursor-zoom-in active:scale-[0.98] transition-transform block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg", 
           className
         )}
-        title="คลิกเพื่อขยายรูปภาพ"
+        title="เลือกเพื่อขยายรูปภาพ"
         aria-label={`ขยายรูปภาพ: ${alt}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           className={cn("w-full h-full object-cover transition-transform group-hover:scale-105 duration-300", imgClassName)}
         />
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -79,6 +81,8 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
             <img
               src={src}
               alt={alt}
+              loading="lazy"
+              decoding="async"
               className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/15 select-none"
             />
             

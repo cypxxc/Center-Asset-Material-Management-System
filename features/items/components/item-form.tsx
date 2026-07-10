@@ -376,6 +376,8 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
             <img
               src={preview}
               alt="Item preview"
+              loading="lazy"
+              decoding="async"
               className="object-cover w-full h-full max-w-[240px] max-h-[180px] rounded-lg"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">

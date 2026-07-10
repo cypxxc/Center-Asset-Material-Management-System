@@ -245,7 +245,7 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
   )
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Unable to load item data')
   }
 
   const total = count ?? 0
@@ -294,7 +294,7 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   )
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Unable to load item data')
   }
 
   return data ? normalizeItemDetail(data as Parameters<typeof normalizeItemDetail>[0]) : null
@@ -459,7 +459,7 @@ export async function getDeletedItems(params: ItemListSearchParams): Promise<Del
   const { data, count, error } = await query.order(orderColumn, { ascending }).range(from, to)
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error('Unable to load item data')
   }
 
   const total = count ?? 0

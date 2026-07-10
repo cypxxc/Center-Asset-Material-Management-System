@@ -13,6 +13,9 @@
 - [x] Polished admin profile reset password UX with a separate action button
 - [x] Verified audit log display improvements with unit tests, lint, and production build
 - [x] Updated Next.js 16 cache revalidation usage to the two-argument `revalidateTag` signature
+- [x] Hardened database backup export/restore with required tables and format version validation
+- [x] Restricted raw SQL RPC execution to the server-role maintenance path
+- [x] Removed fire-and-forget audit writes from item mutations
 
 ## Required production environment variables
 
@@ -37,6 +40,7 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 ## Manual deployment/staging items
 
 1. Run pending database migrations from `db/migrations/` in the staging/production database.
+   - This includes `00026_atomic_database_restore.sql` and `00027_lock_down_admin_sql.sql`.
 2. Verify Supabase RLS policies and auth row-level security for `profiles`, `items`, and related tables.
 3. Ensure the production deployment environment provides `SUPABASE_SERVICE_ROLE_KEY` privately.
 4. Confirm admin users can create/reset accounts through the app without using Supabase Dashboard.
@@ -44,3 +48,4 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 6. Smoke test item create, edit, soft delete, restore, and sidebar count refresh.
 7. Smoke test DB Panel audit modal and item detail audit timeline with recent audit rows.
 8. Smoke test backup export/import paths against staging data before production use.
+9. Confirm `ADMIN_SQL_ENABLED` is disabled outside an approved maintenance window.

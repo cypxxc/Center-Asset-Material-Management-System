@@ -268,6 +268,30 @@ interface McpToolArguments {
   [key: string]: unknown;
 }
 
+const itemWriteFields = [
+  'item_name', 'item_type', 'unit_price', 'category_id', 'quantity', 'unit_id',
+  'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person',
+  'status', 'note',
+] as const;
+
+function pickItemFields(input: Record<string, unknown>) {
+  return Object.fromEntries(
+    itemWriteFields
+      .filter((field) => input[field] !== undefined)
+      .map((field) => [field, input[field]])
+  );
+}
+
+async function writeMcpAudit(action: string, targetId: string, values: unknown) {
+  await supabase.from('audit_logs').insert({
+    user_id: null,
+    action,
+    target_table: 'items',
+    target_id: targetId,
+    new_data: { source: 'mcp', values },
+  });
+}
+
 async function executeTool(name: string, args: McpToolArguments | undefined): Promise<string> {
   switch (name) {
     case 'list_items': {
@@ -310,10 +334,11 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
 
     case 'create_item': {
       if (!args) throw new Error('Arguments are required to create an item');
+      const payload = pickItemFields(args);
       const { data, error } = await supabase
         .from('items')
         .insert({
-          ...args,
+          ...payload,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -321,6 +346,7 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
         .single();
 
       if (error) throw new Error(error.message);
+      await writeMcpAudit('create', data.id, payload);
       return `Item created successfully:\n${JSON.stringify(data, null, 2)}`;
     }
 
@@ -328,10 +354,11 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
       const id = args?.id;
       const updates = args?.updates;
       if (!id || !updates) throw new Error('Item ID and updates are required');
+      const payload = pickItemFields(updates);
       const { data, error } = await supabase
         .from('items')
         .update({
-          ...updates,
+          ...payload,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -340,6 +367,7 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
         .single();
 
       if (error) throw new Error(error.message);
+      await writeMcpAudit('update', data.id, payload);
       return `Item updated successfully:\n${JSON.stringify(data, null, 2)}`;
     }
 
@@ -357,6 +385,7 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
         .single();
 
       if (error) throw new Error(error.message);
+      await writeMcpAudit('delete', data.id, { deleted_at: data.deleted_at });
       return `Item deleted successfully:\n${JSON.stringify(data, null, 2)}`;
     }
 

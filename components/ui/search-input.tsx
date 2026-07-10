@@ -20,7 +20,7 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     isLoading = false,
     debounceMs = 0,
     className,
-    placeholder = "ค้นหา...",
+    placeholder = "ค้นหารายการ",
     disabled,
     ...props
   }, ref) => {

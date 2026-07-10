@@ -200,9 +200,9 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
             </div>
           ) : (
             <EmptyState
-              icon={<MapPin className="w-10 h-10 mx-auto text-slate-300 animate-bounce" />}
+              icon={<MapPin className="w-10 h-10 mx-auto text-slate-300" />}
               title="เลือกสถานที่เพื่อดูรายการสิ่งของ"
-              description="คลิกเลือกแผนกหรือห้องสำนักงานในแถบซ้ายมือเพื่อตรวจสอบรายละเอียดสิ่งของภายในห้องนั้น"
+              description="เลือกรายการแผนกหรือห้องสำนักงานจากแถบด้านซ้ายเพื่อดูรายละเอียดสิ่งของภายในพื้นที่"
             />
           )}
         </div>

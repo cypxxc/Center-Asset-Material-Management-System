@@ -15,7 +15,7 @@ export function DeleteItemButton({ id }: { id: string }) {
       disabled={pending}
       className="font-semibold flex items-center gap-1.5 h-10 px-4"
       onClick={() => {
-        if (!confirm('ยืนยันการลบรายการนี้แบบ Soft Delete?')) return
+        if (!confirm('ยืนยันการนำรายการนี้ไปยังถังขยะหรือไม่?')) return
         startTransition(async () => {
           const result = await softDeleteItem(id)
           // ถ้ามี message แปลว่า action return error ก่อน redirect

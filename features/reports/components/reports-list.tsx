@@ -188,7 +188,7 @@ export function ReportsList({
             <span>รายงานสรุปและวิเคราะห์ผล (Inventory Reports)</span>
           </div>
         }
-        subtitle="สรุปภาพรวมมูลค่าครุภัณฑ์ อัตราการตรวจเช็ค และส่งออกข้อมูลเป็นไฟล์ Excel/CSV"
+        subtitle="สรุปมูลค่าครุภัณฑ์ ตรวจสอบสถานะ และส่งออกข้อมูลเป็นไฟล์ Excel/CSV"
         className="print:hidden"
         actions={
           <>

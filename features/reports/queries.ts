@@ -35,7 +35,7 @@ export async function getReportStats(): Promise<ReportStats> {
   } = await measureQuery('reports.getReportStats', () => supabase.rpc('get_report_stats'))
 
   if (error || !data) {
-    if (error) throw new Error(error.message)
+    if (error) throw new Error('Unable to load report data')
     return {
       totalItems: 0,
       totalQuantity: 0,
@@ -109,10 +109,10 @@ export async function getRecentAuditLogs(): Promise<RecentAuditLog[]> {
     
     let actionLabel = log.action
     if (log.action === 'create') actionLabel = 'ขึ้นทะเบียนใหม่ (Created)'
-    if (log.action === 'update') actionLabel = 'แก้ไขข้อมูล (Updated)'
-    if (log.action === 'delete') actionLabel = 'ลบพัสดุลงถังขยะ (Deleted)'
-    if (log.action === 'restore') actionLabel = 'กู้คืนพัสดุ (Restored)'
-    if (log.action === 'hard_delete') actionLabel = 'ลบพัสดุถาวร (Hard Deleted)'
+    if (log.action === 'update') actionLabel = 'แก้ไขข้อมูล'
+    if (log.action === 'delete') actionLabel = 'นำรายการไปยังถังขยะ'
+    if (log.action === 'restore') actionLabel = 'กู้คืนรายการ'
+    if (log.action === 'hard_delete') actionLabel = 'ลบรายการอย่างถาวร'
 
     let detailsText = newData?.responsible_person 
       ? `เปลี่ยนผู้รับผิดชอบเป็น ${newData.responsible_person}` 
@@ -307,7 +307,7 @@ export async function getReportItemsList(
     query.order('updated_at', { ascending: false })
   )
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error('Unable to load report data')
   
   const rawRows = data ?? []
   const allItems = rawRows.map(toReportItemRow)

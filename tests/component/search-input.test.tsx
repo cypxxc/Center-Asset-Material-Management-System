@@ -13,7 +13,7 @@ test('SearchInput renders and updates local value', () => {
     onChange
   }));
 
-  const input = screen.getByPlaceholderText('ค้นหา...') as HTMLInputElement;
+  const input = screen.getByPlaceholderText('ค้นหารายการ') as HTMLInputElement;
   assert.equal(input.value, 'test');
 
   fireEvent.change(input, { target: { value: 'new query' } });
@@ -45,7 +45,7 @@ test('SearchInput handles Escape key to clear value', () => {
     onChange: (v) => { value = v; }
   }));
 
-  const input = screen.getByPlaceholderText('ค้นหา...');
+  const input = screen.getByPlaceholderText('ค้นหารายการ');
   fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
   assert.equal(value, '');
 });

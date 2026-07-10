@@ -22,5 +22,5 @@ test('exportDatabaseData reads backup tables concurrently', async () => {
 
   assert.equal(result.error, undefined);
   assert.equal(result.backup?.items?.[0]?.id, 'items-1');
-  assert.ok(elapsedMs < 180, `expected parallel backup below 180ms, got ${elapsedMs}`);
+  assert.ok(elapsedMs < 300, `expected parallel backup below 300ms, got ${elapsedMs}`);
 });

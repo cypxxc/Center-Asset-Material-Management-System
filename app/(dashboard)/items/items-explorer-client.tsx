@@ -347,10 +347,12 @@ export function ItemsExplorerClient({
                   type="button"
                   onClick={() => setViewMode('list')}
                   className={cn(
-                    'rounded-md p-1.5 transition-all cursor-pointer',
+                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
                     viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   )}
                   title="List view"
+                  aria-label="แสดงรายการแบบลิสต์"
+                  aria-pressed={viewMode === 'list'}
                 >
                   <List className="h-3.5 w-3.5" />
                 </button>
@@ -358,10 +360,12 @@ export function ItemsExplorerClient({
                   type="button"
                   onClick={() => setViewMode('grid')}
                   className={cn(
-                    'rounded-md p-1.5 transition-all cursor-pointer',
+                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
                     viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   )}
                   title="Grid view"
+                  aria-label="แสดงรายการแบบตาราง"
+                  aria-pressed={viewMode === 'grid'}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </button>
@@ -754,7 +758,7 @@ function ItemsList({
                 className={cn(
                   'cursor-pointer',
                   isSelected
-                    ? 'border-l-2 border-l-blue-600 bg-blue-50/80 text-slate-900'
+                    ? 'border border-blue-200 bg-blue-50/80 text-blue-900'
                     : 'text-slate-600 hover:bg-slate-50'
                 )}
               >
@@ -828,8 +832,11 @@ function ItemsGrid({
                 <div className="absolute top-3 right-3 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => onToggleSelectItem(item.id)}
+                    type="button"
+                    aria-label={`เลือก ${item.item_name}`}
+                    aria-pressed={isChecked}
                     className={cn(
-                      'w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer',
+                      'flex h-11 w-11 items-center justify-center rounded border transition-colors cursor-pointer',
                       isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white opacity-0 group-hover:opacity-100'
                     )}
                   >
@@ -843,6 +850,8 @@ function ItemsGrid({
                     <img
                       src={item.image_url}
                       alt={item.item_name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
@@ -907,7 +916,7 @@ function Inspector({
         <Folder className="h-10 w-10 text-slate-300" />
         <p className="mt-2 text-xs font-bold text-slate-700">เลือกสิ่งของเพื่อดูรายละเอียด</p>
         <p className="mt-1 max-w-[220px] text-[10px] leading-relaxed text-slate-400">
-          คลิกรายการในตารางหรือ grid เพื่อเปิด inspector ด้านขวา
+          เลือกรายการในตารางหรือมุมมองแบบตารางเพื่อดูรายละเอียดด้านขวา
         </p>
       </aside>
     )
