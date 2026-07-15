@@ -43,7 +43,7 @@ Database schemas and RLS policies are maintained via SQL migration scripts in `d
 ```bash
 # Always pass the exact migrations being deployed. The runner rejects an
 # unspecified list to prevent replaying old migrations.
-$env:MIGRATION_FILES='00026_atomic_database_restore.sql,00027_lock_down_admin_sql.sql,00028_revoke_authenticated_admin_sql.sql'; npx tsx scripts/apply-migrations.ts
+$env:MIGRATION_FILES='00026_atomic_database_restore.sql,00027_lock_down_admin_sql.sql,00028_revoke_authenticated_admin_sql.sql,00029_harden_profile_role_defaults.sql,00030_revoke_anon_admin_sql.sql,00031_lock_down_public_report_rpcs.sql'; npx tsx scripts/apply-migrations.ts
 ```
 
 ### Key Migration Guidelines:
@@ -59,6 +59,7 @@ Before marking a deployment as successful, verify:
 2. All Jest/JSDOM components and action tests pass.
 3. Build completes cleanly without warnings: `npm run build`.
 4. `/api/health` yields status `200` with database and storage marked `up`.
-5. Apply all pending migrations before deploying application code. The database restore and admin SQL hardening migrations are required by the current application.
+5. Apply all pending migrations before deploying application code. The database restore, admin SQL hardening, and public RPC lockdown migrations are required by the current application.
 6. Keep `ADMIN_SQL_ENABLED` unset or `false` in normal production operation. Enable it only during a controlled maintenance window.
-7. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The current moderate PostCSS advisory is a transitive dependency pinned by Next.js and has no safe non-breaking npm fix.
+7. Confirm public Supabase Auth signups are disabled unless intentionally required. New profiles default to `viewer` through migration `00029`.
+8. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The PostCSS advisory is resolved by the non-breaking npm override in `package.json`.

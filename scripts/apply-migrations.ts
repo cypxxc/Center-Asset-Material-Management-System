@@ -138,9 +138,11 @@ async function main() {
 
       for (let i = 0; i < statements.length; i++) {
         const stmt = statements[i]
-        const migrationNumber = parseInt(file.split('_')[0], 10)
-        const migrationClient = migrationNumber >= 28 ? adminClient : userClient
-        const { data: rpcRes, error: rpcError } = await migrationClient.rpc('exec_admin_sql', {
+        // The maintenance RPC is service-role-only after migration 00027/00028.
+        // Use the service-role path for every explicitly requested migration so
+        // rerunning an older pending migration cannot fail merely because the
+        // database has already received the RPC hardening migrations.
+        const { data: rpcRes, error: rpcError } = await adminClient.rpc('exec_admin_sql', {
           sql_query: stmt
         })
 

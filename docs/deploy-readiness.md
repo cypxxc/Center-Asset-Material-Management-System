@@ -41,7 +41,7 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 ## Manual deployment/staging items
 
 1. Run pending database migrations from `db/migrations/` in the staging/production database.
-   - This includes `00026_atomic_database_restore.sql`, `00027_lock_down_admin_sql.sql`, and `00028_revoke_authenticated_admin_sql.sql`.
+   - This includes `00026_atomic_database_restore.sql`, `00027_lock_down_admin_sql.sql`, `00028_revoke_authenticated_admin_sql.sql`, `00029_harden_profile_role_defaults.sql`, `00030_revoke_anon_admin_sql.sql`, and `00031_lock_down_public_report_rpcs.sql`.
    - Apply them with an explicit `MIGRATION_FILES` list; the runner rejects unspecified migration lists.
 2. Verify Supabase RLS policies and auth row-level security for `profiles`, `items`, and related tables.
 3. Ensure the production deployment environment provides `SUPABASE_SERVICE_ROLE_KEY` privately.
@@ -51,4 +51,5 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 7. Smoke test DB Panel audit modal and item detail audit timeline with recent audit rows.
 8. Smoke test backup export/import paths against staging data before production use.
 9. Confirm `ADMIN_SQL_ENABLED` is disabled outside an approved maintenance window.
-10. Run `npm run audit:release`; document any remaining moderate upstream advisories before approval.
+10. Confirm public Supabase Auth signups are disabled unless intentionally required; migration `00029` prevents signup metadata from assigning elevated roles.
+11. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The PostCSS advisory is resolved by the non-breaking npm override in `package.json`.
