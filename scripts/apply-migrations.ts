@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import {
+  buildAtomicMigrationSql,
   parseRequestedMigrations,
   splitSqlStatements,
   validateAvailableMigrationNumbers,
@@ -34,15 +35,14 @@ async function main() {
   for (const file of requested) {
     const statements = splitSqlStatements(fs.readFileSync(path.join(migrationsDir, file), 'utf8'))
     console.log(`Applying ${file} (${statements.length} statements)`)
+    const atomicSql = buildAtomicMigrationSql(statements)
 
-    for (const [index, sqlQuery] of statements.entries()) {
-      const { data, error } = await adminClient.rpc('exec_admin_sql', { sql_query: sqlQuery })
-      if (error) throw new Error(`${file} statement ${index + 1}: ${error.message}`)
+    const { data, error } = await adminClient.rpc('exec_admin_sql', { sql_query: atomicSql })
+    if (error) throw new Error(`${file}: ${error.message}`)
 
-      const result = data as { ok?: boolean; error?: string }
-      if (!result?.ok) {
-        throw new Error(`${file} statement ${index + 1}: ${result?.error ?? 'unknown migration error'}`)
-      }
+    const result = data as { ok?: boolean; error?: string }
+    if (!result?.ok) {
+      throw new Error(`${file}: ${result?.error ?? 'unknown migration error'}`)
     }
     console.log(`Applied ${file}`)
   }

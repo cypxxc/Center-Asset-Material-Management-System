@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import {
+  buildAtomicMigrationSql,
   parseRequestedMigrations,
   splitSqlStatements,
   validateAvailableMigrationNumbers,
@@ -81,4 +83,30 @@ COMMIT;`
     `CREATE FUNCTION public.sample()\nRETURNS void LANGUAGE plpgsql AS $$\nBEGIN\n  PERFORM 1;\nEND;\n$$;`,
     'GRANT EXECUTE ON FUNCTION public.sample() TO authenticated;',
   ])
+})
+
+test('atomic migration SQL embeds every split statement in one outer block', () => {
+  const statements = [
+    `CREATE FUNCTION public.sample() RETURNS void LANGUAGE plpgsql AS $$ BEGIN PERFORM '$camms_migration_statement_0$'; END; $$;`,
+    `INSERT INTO sample(value) VALUES ('$camms_migration_outer$');`,
+  ]
+
+  const sql = buildAtomicMigrationSql(statements)
+  assert.match(sql, /^DO \$camms_migration_outer_\d+\$/)
+  assert.match(sql, /EXECUTE \$camms_migration_statement_\d+\$/)
+  for (const statement of statements) assert.ok(sql.includes(statement))
+  assert.equal((sql.match(/EXECUTE /g) ?? []).length, statements.length)
+})
+
+test('atomic migration SQL rejects an empty statement list and avoids quote collisions', () => {
+  assert.throws(() => buildAtomicMigrationSql([]), /at least one SQL statement/i)
+  const sql = buildAtomicMigrationSql([`SELECT '$camms_migration_statement_0$'`])
+  assert.doesNotMatch(sql, /EXECUTE \$camms_migration_statement_0\$/)
+})
+
+test('migration runner sends one atomic RPC call per migration file', () => {
+  const source = readFileSync(new URL('./apply-migrations.ts', import.meta.url), 'utf8')
+  assert.match(source, /buildAtomicMigrationSql\(statements\)/)
+  assert.doesNotMatch(source, /for \(const \[index, sqlQuery\] of statements\.entries\(\)\)/)
+  assert.match(source, /rpc\('exec_admin_sql', \{ sql_query: atomicSql \}\)/)
 })

@@ -13,9 +13,9 @@ export type BudgetKey = keyof typeof DEFAULT_BUDGETS
 export type BundleBudgets = Record<BudgetKey, number>
 
 interface BuildManifest {
-  rootMainFiles?: string[]
+  rootMainFiles: string[]
   polyfillFiles?: string[]
-  pages?: Record<string, string[]>
+  pages: Record<string, string[]>
 }
 
 export interface BundleAnalysis {
@@ -96,6 +96,23 @@ function readDashboardEntryFiles(buildDir: string): string[] {
   return [...new Set(files)]
 }
 
+function validateBuildManifest(value: unknown): BuildManifest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Build manifest must be a non-null object')
+  }
+  const manifest = value as Record<string, unknown>
+  if (!Array.isArray(manifest.rootMainFiles) || manifest.rootMainFiles.some((file) => typeof file !== 'string')) {
+    throw new Error('Build manifest rootMainFiles must be an array of strings')
+  }
+  if (!manifest.pages || typeof manifest.pages !== 'object' || Array.isArray(manifest.pages)) {
+    throw new Error('Build manifest pages must be a non-null object')
+  }
+  if (Object.values(manifest.pages).some((files) => !Array.isArray(files) || files.some((file) => typeof file !== 'string'))) {
+    throw new Error('Build manifest pages values must be arrays of strings')
+  }
+  return value as BuildManifest
+}
+
 export function analyzeBundle(
   buildDir: string,
   budgets: BundleBudgets = DEFAULT_BUDGETS,
@@ -105,7 +122,7 @@ export function analyzeBundle(
 
   const buildManifestPath = path.join(buildDir, 'build-manifest.json')
   if (!fs.existsSync(buildManifestPath)) throw new Error(`Build manifest is missing: ${buildManifestPath}`)
-  const buildManifest = JSON.parse(fs.readFileSync(buildManifestPath, 'utf8')) as BuildManifest
+  const buildManifest = validateBuildManifest(JSON.parse(fs.readFileSync(buildManifestPath, 'utf8')))
 
   const readAsset = (relativePath: string) => {
     const assetPath = path.join(buildDir, relativePath)
@@ -116,10 +133,14 @@ export function analyzeBundle(
   const gzipSize = (files: string[]) =>
     files.reduce((total, file) => total + gzipSync(readAsset(file)).length, 0)
 
-  const sharedRuntimeFiles = [
-    ...new Set([...(buildManifest.rootMainFiles ?? []), ...Object.values(buildManifest.pages ?? {}).flat()]),
-  ]
+  const sharedRuntimeFiles = [...new Set([...buildManifest.rootMainFiles, ...Object.values(buildManifest.pages).flat()])]
+  if (sharedRuntimeFiles.length === 0) throw new Error('Build manifest shared runtime file set must be non-empty')
   const dashboardEntryFiles = readDashboardEntryFiles(buildDir)
+  for (const file of dashboardEntryFiles) {
+    if (readAsset(file).includes('CAMMS User Guide')) {
+      throw new Error(`CAMMS User Guide was found in an initial dashboard entry: ${file}`)
+    }
+  }
   const sizes = {
     shared_runtime_raw_max: rawSize(sharedRuntimeFiles),
     shared_runtime_gzip_max: gzipSize(sharedRuntimeFiles),

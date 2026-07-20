@@ -54,6 +54,7 @@ npm run verify-db-release
 1. **No Destructive Operations:** Never run `DROP COLUMN` or `DROP TABLE` in an active migration without a zero-downtime plan.
 2. **Backward Compatibility:** Code must support both old and new schema structures during blue-green deployment windows.
 3. **Unique Migration Numbers:** `00018_allow_staff_manage_metadata.sql` and `00018_import_items_bulk_tx_line_errors.sql` are a frozen historical exception and must never be renamed. Every new migration must use a unique five-digit prefix.
+4. **Atomic execution:** The runner sends each migration file as one `exec_admin_sql` RPC transaction. Any statement failure returns a file-level error and rolls back that migration file.
 
 ---
 

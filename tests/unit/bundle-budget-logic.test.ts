@@ -18,16 +18,26 @@ const dashboardManifestRelativePath = path.join(
   'page_client-reference-manifest.js',
 )
 
-function fixture(options: { dashboardManifest?: string; omitAsset?: string } = {}) {
+function fixture(options: {
+  buildManifest?: unknown
+  dashboardManifest?: string
+  omitAsset?: string
+  assetContents?: Partial<Record<'a' | 'b', string>>
+} = {}) {
   const buildDir = mkdtempSync(path.join(tmpdir(), 'camms-bundle-budget-'))
   mkdirSync(path.join(buildDir, 'static', 'chunks'), { recursive: true })
   mkdirSync(path.dirname(path.join(buildDir, dashboardManifestRelativePath)), { recursive: true })
   writeFileSync(
     path.join(buildDir, 'build-manifest.json'),
-    JSON.stringify({ rootMainFiles: ['static/chunks/a.js'], pages: { '/_app': ['static/chunks/a.js'] } }),
+    JSON.stringify(
+      options.buildManifest ?? {
+        rootMainFiles: ['static/chunks/a.js'],
+        pages: { '/_app': ['static/chunks/a.js'] },
+      },
+    ),
   )
-  if (options.omitAsset !== 'a') writeFileSync(path.join(buildDir, 'static', 'chunks', 'a.js'), 'alpha')
-  if (options.omitAsset !== 'b') writeFileSync(path.join(buildDir, 'static', 'chunks', 'b.js'), 'beta')
+  if (options.omitAsset !== 'a') writeFileSync(path.join(buildDir, 'static', 'chunks', 'a.js'), options.assetContents?.a ?? 'alpha')
+  if (options.omitAsset !== 'b') writeFileSync(path.join(buildDir, 'static', 'chunks', 'b.js'), options.assetContents?.b ?? 'beta')
   writeFileSync(
     path.join(buildDir, dashboardManifestRelativePath),
     options.dashboardManifest ??
@@ -42,10 +52,59 @@ test('analyzeBundle rejects missing build prerequisites', () => {
     assert.throws(() => analyzeBundle(emptyDir), /production build assets.*missing/i)
     mkdirSync(path.join(emptyDir, 'static'))
     assert.throws(() => analyzeBundle(emptyDir), /build manifest.*missing/i)
-    writeFileSync(path.join(emptyDir, 'build-manifest.json'), '{}')
+    writeFileSync(
+      path.join(emptyDir, 'build-manifest.json'),
+      JSON.stringify({ rootMainFiles: ['static/chunks/a.js'], pages: {} }),
+    )
     assert.throws(() => analyzeBundle(emptyDir), /dashboard client reference manifest.*missing/i)
   } finally {
     rmSync(emptyDir, { recursive: true, force: true })
+  }
+})
+
+test('analyzeBundle validates the shared build manifest structure', () => {
+  for (const [manifest, message] of [
+    [{}, /rootMainFiles.*array of strings/i],
+    [{ rootMainFiles: 'a.js', pages: {} }, /rootMainFiles.*array of strings/i],
+    [{ rootMainFiles: [], pages: null }, /pages.*non-null object/i],
+    [{ rootMainFiles: [], pages: { '/_app': 'a.js' } }, /pages.*arrays of strings/i],
+    [{ rootMainFiles: [], pages: {} }, /shared runtime file set.*non-empty/i],
+  ] as const) {
+    const item = fixture({ buildManifest: manifest })
+    try {
+      assert.throws(() => analyzeBundle(item.buildDir), message)
+    } finally {
+      item.cleanup()
+    }
+  }
+})
+
+test('analyzeBundle rejects a missing referenced shared runtime asset', () => {
+  const item = fixture({ omitAsset: 'a' })
+  try {
+    assert.throws(() => analyzeBundle(item.buildDir), /Build asset is missing: static[\\/]chunks[\\/]a\.js/)
+  } finally {
+    item.cleanup()
+  }
+})
+
+test('analyzeBundle proves the deferred guide is absent from initial dashboard entries', () => {
+  const deferred = fixture({
+    assetContents: { b: 'CAMMS User Guide' },
+    dashboardManifest:
+      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = {"entryJSFiles":{"page":["static/chunks/a.js"]}};',
+  })
+  try {
+    assert.doesNotThrow(() => analyzeBundle(deferred.buildDir))
+  } finally {
+    deferred.cleanup()
+  }
+
+  const initial = fixture({ assetContents: { a: 'CAMMS User Guide' } })
+  try {
+    assert.throws(() => analyzeBundle(initial.buildDir), /CAMMS User Guide.*initial dashboard/i)
+  } finally {
+    initial.cleanup()
   }
 })
 

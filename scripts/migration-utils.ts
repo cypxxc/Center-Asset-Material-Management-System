@@ -76,3 +76,21 @@ export function splitSqlStatements(sql: string): string[] {
   if (current.trim()) statements.push(current.trim())
   return statements
 }
+
+function collisionSafeDollarTag(prefix: string, values: string[]): string {
+  let suffix = 0
+  while (values.some((value) => value.includes(`$${prefix}_${suffix}$`))) suffix += 1
+  return `$${prefix}_${suffix}$`
+}
+
+export function buildAtomicMigrationSql(statements: string[]): string {
+  if (statements.length === 0) throw new Error('Atomic migration requires at least one SQL statement')
+
+  const executions = statements.map((statement) => {
+    const tag = collisionSafeDollarTag('camms_migration_statement', [statement])
+    return `  EXECUTE ${tag}${statement}${tag};`
+  })
+  const body = `BEGIN\n${executions.join('\n')}\nEND;`
+  const outerTag = collisionSafeDollarTag('camms_migration_outer', [body, ...statements])
+  return `DO ${outerTag}\n${body}\n${outerTag};`
+}
