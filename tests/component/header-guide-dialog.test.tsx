@@ -15,7 +15,7 @@ test('HeaderGuideDialog renders the guide and closes accessibly', () => {
     }),
   )
 
-  assert.ok(screen.getByText(/CAMMS User Guide/))
+  assert.ok(screen.getByRole('heading', { name: /CAMMS User Guide/ }))
   fireEvent.click(screen.getByRole('button', { name: 'ปิดคู่มือการใช้งาน' }))
   assert.equal(closeCount, 1)
 })
