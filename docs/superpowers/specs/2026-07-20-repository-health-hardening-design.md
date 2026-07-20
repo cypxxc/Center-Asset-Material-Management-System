@@ -9,7 +9,7 @@ Improve release consistency and prevent known repository-health regressions with
 The work covers four focused areas:
 
 1. Pin the supported Node.js and npm toolchain in `package.json` so local development and CI use the same runtime family.
-2. Recover safe headroom beneath the existing initial JavaScript bundle limits by measuring the current build output and deferring code that is not required for the initial route.
+2. Correct bundle accounting for the Next.js App Router, preserve the existing shared-runtime limits, add explicit dashboard-route limits, and defer code that is not required for the initial route.
 3. Treat Playwright output as generated data by ignoring `test-results/` and removing the currently tracked result file from version control.
 4. Prevent new migration-number collisions while preserving the two historical `00018` migrations exactly as committed and potentially deployed.
 
@@ -23,7 +23,9 @@ Add `engines.node` for the Node 20 runtime used by CI and a `packageManager` ent
 
 ### Bundle headroom
 
-Use production build artifacts to identify initial-route JavaScript contributors. Optimize only code that is not needed for first render, using the repository's existing Next.js 16 patterns and its bundled documentation. Keep the current gzip and raw limits unchanged; increasing the limits is not an optimization. The change is successful when the production build passes and raw initial JavaScript has materially more than the current 3.93 KB margin without harming route behavior.
+The existing checker reads `.next/build-manifest.json`, whose approximately 446 KB result describes shared Pages/runtime files rather than the App Router dashboard route. Preserve its 150 KB gzip and 450 KB raw limits, label it accurately, and enforce both limits. Add App Router accounting from the dashboard `page_client-reference-manifest.js`, with 50 KB gzip and 160 KB raw route limits based on the measured baseline of approximately 40.13 KB gzip and 144.45 KB raw.
+
+Optimize only code that is not needed for first render, using the repository's existing Next.js 16 patterns and its bundled documentation. The optional header guide is the first candidate because it is closed by default. The change is successful when the production build passes, the guide is absent from the initial dashboard chunk set, and dashboard route JavaScript remains below both route limits without harming behavior.
 
 ### Generated test artifacts
 
@@ -62,7 +64,7 @@ Authenticated staging E2E and `verify-db-release` will be documented as operator
 ## Success criteria
 
 - Local and CI runtime expectations are explicit and aligned on Node 20.
-- Initial bundle budgets still pass with meaningful raw-size headroom.
+- Shared-runtime and dashboard-route bundle budgets are measured separately, labeled accurately, and pass with meaningful headroom.
 - Playwright result files no longer appear as tracked or untracked changes.
 - Existing `00018` migration history remains compatible.
 - Future unapproved migration-number collisions fail deterministically before database execution.
