@@ -6,6 +6,35 @@ export function parseRequestedMigrations(value: string | undefined): string[] {
   return files
 }
 
+const LEGACY_DUPLICATE_MIGRATIONS = new Set([
+  '00018_allow_staff_manage_metadata.sql',
+  '00018_import_items_bulk_tx_line_errors.sql',
+])
+
+export function validateAvailableMigrationNumbers(available: string[]): void {
+  const filesByNumber = new Map<string, string[]>()
+
+  for (const file of available) {
+    const match = /^(\d{5})_[a-z0-9_]+\.sql$/.exec(file)
+    if (!match) throw new Error(`Invalid migration filename: ${file}`)
+
+    const files = filesByNumber.get(match[1]) ?? []
+    files.push(file)
+    filesByNumber.set(match[1], files)
+  }
+
+  for (const [number, files] of filesByNumber) {
+    if (files.length < 2) continue
+
+    const isLegacyPair =
+      files.length === LEGACY_DUPLICATE_MIGRATIONS.size &&
+      files.every((file) => LEGACY_DUPLICATE_MIGRATIONS.has(file))
+    if (!isLegacyPair) {
+      throw new Error(`Duplicate migration number ${number}: ${files.sort().join(', ')}`)
+    }
+  }
+}
+
 export function validateMigrationOrder(requested: string[], available: string[]) {
   const missing = requested.filter((file) => !available.includes(file))
   if (missing.length > 0) {

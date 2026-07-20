@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   parseRequestedMigrations,
   splitSqlStatements,
+  validateAvailableMigrationNumbers,
   validateMigrationOrder,
 } from './migration-utils'
 
@@ -25,6 +26,43 @@ test('migration selection rejects unknown and out-of-order files', () => {
   assert.throws(
     () => validateMigrationOrder(['00031_c.sql', '00030_b.sql'], available),
     /must be listed in ascending order/,
+  )
+})
+
+test('migration numbers allow only the historical 00018 pair', () => {
+  const legacyPair = [
+    '00018_allow_staff_manage_metadata.sql',
+    '00018_import_items_bulk_tx_line_errors.sql',
+  ]
+  assert.doesNotThrow(() =>
+    validateAvailableMigrationNumbers([
+      ...legacyPair,
+      '00019_add_sidebar_order_to_profiles.sql',
+    ]),
+  )
+
+  assert.throws(
+    () => validateAvailableMigrationNumbers(['00032_second.sql', '00032_first.sql']),
+    /Duplicate migration number 00032: 00032_first\.sql, 00032_second\.sql/,
+  )
+  assert.throws(
+    () => validateAvailableMigrationNumbers([...legacyPair, '00018_third.sql']),
+    /Duplicate migration number 00018: 00018_allow_staff_manage_metadata\.sql, 00018_import_items_bulk_tx_line_errors\.sql, 00018_third\.sql/,
+  )
+  assert.throws(
+    () =>
+      validateAvailableMigrationNumbers([
+        '00018_allow_staff_manage_metadata.sql',
+        '00018_legacy_impostor.sql',
+      ]),
+    /Duplicate migration number 00018: 00018_allow_staff_manage_metadata\.sql, 00018_legacy_impostor\.sql/,
+  )
+})
+
+test('migration filenames use a five-digit lowercase SQL format', () => {
+  assert.throws(
+    () => validateAvailableMigrationNumbers(['32_invalid.sql']),
+    /Invalid migration filename: 32_invalid\.sql/,
   )
 })
 

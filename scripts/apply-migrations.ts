@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import {
   parseRequestedMigrations,
   splitSqlStatements,
+  validateAvailableMigrationNumbers,
   validateMigrationOrder,
 } from './migration-utils'
 
@@ -22,6 +23,7 @@ async function main() {
   const migrationsDir = path.join(process.cwd(), 'db', 'migrations')
   const available = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort()
   const requested = parseRequestedMigrations(process.env.MIGRATION_FILES)
+  validateAvailableMigrationNumbers(available)
   validateMigrationOrder(requested, available)
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
