@@ -24,14 +24,17 @@ The GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on push/PR to `mai
 [ Unit, Component & Integration Tests ] (npm test)
        |
        v
+[ ESLint ] (npm run lint)
+       |
+       v
 [ Build Production Bundle ] (npm run build)
        |
        v
-[ Playwright E2E Tests ] (npx playwright test)
+[ Playwright Smoke Tests ] (npm run test:smoke)
 ```
 
 - **E2E Fallback in CI:** Playwright tests automatically skip active browser validations if real Supabase credentials are not present in repository secrets, avoiding PR build failures on forks.
-- **Database-backed E2E:** The unauthenticated redirect journey always runs; authenticated journeys require `CAMMS_E2E_REAL_AUTH=true` and seeded users.
+- **Database-backed release E2E:** Run `npm run test:e2e:release` from the protected staging workflow. It requires `CAMMS_E2E_REAL_AUTH=true`, `CAMMS_E2E_ADMIN_ID`, and `CAMMS_E2E_ADMIN_PASSWORD`; missing values fail rather than skip.
 
 ---
 
@@ -44,6 +47,7 @@ Database schemas and RLS policies are maintained via SQL migration scripts in `d
 # Always pass the exact migrations being deployed. The runner rejects an
 # unspecified list to prevent replaying old migrations.
 $env:MIGRATION_FILES='00026_atomic_database_restore.sql,00027_lock_down_admin_sql.sql,00028_revoke_authenticated_admin_sql.sql,00029_harden_profile_role_defaults.sql,00030_revoke_anon_admin_sql.sql,00031_lock_down_public_report_rpcs.sql'; npx tsx scripts/apply-migrations.ts
+npm run verify-db-release
 ```
 
 ### Key Migration Guidelines:
@@ -63,3 +67,7 @@ Before marking a deployment as successful, verify:
 6. Keep `ADMIN_SQL_ENABLED` unset or `false` in normal production operation. Enable it only during a controlled maintenance window.
 7. Confirm public Supabase Auth signups are disabled unless intentionally required. New profiles default to `viewer` through migration `00029`.
 8. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The PostCSS advisory is resolved by the non-breaking npm override in `package.json`.
+9. Run `npm run test:e2e:release` against staging and require a complete authenticated pass.
+10. Run `npm run verify-db-release` against the exact production target after migrations and before application traffic is promoted.
+
+If migration verification fails, stop the release and keep the previous application deployment active. Database migrations are forward-only; restore from the verified backup only through the documented recovery procedure rather than attempting an ad-hoc reverse migration.
