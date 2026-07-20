@@ -38,8 +38,9 @@ const dashboardManifestRelativePath = path.join(
 function extractAssignedJson(source: string, assignment: string): string {
   const assignmentStart = source.indexOf(assignment)
   if (assignmentStart < 0) throw new Error('Dashboard manifest assignment is malformed')
-  const jsonStart = source.indexOf('{', assignmentStart + assignment.length)
-  if (jsonStart < 0) throw new Error('Dashboard manifest JSON is malformed')
+  let jsonStart = assignmentStart + assignment.length
+  while (/\s/.test(source[jsonStart] ?? '')) jsonStart += 1
+  if (source[jsonStart] !== '{') throw new Error('Dashboard manifest JSON is malformed')
 
   let depth = 0
   let inString = false
@@ -56,7 +57,11 @@ function extractAssignedJson(source: string, assignment: string): string {
     else if (character === '{') depth += 1
     else if (character === '}') {
       depth -= 1
-      if (depth === 0) return source.slice(jsonStart, index + 1)
+      if (depth === 0) {
+        const suffix = source.slice(index + 1)
+        if (!/^\s*;\s*$/.test(suffix)) throw new Error('Dashboard manifest JSON is malformed')
+        return source.slice(jsonStart, index + 1)
+      }
     }
   }
   throw new Error('Dashboard manifest JSON is malformed')

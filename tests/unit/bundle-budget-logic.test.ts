@@ -31,7 +31,7 @@ function fixture(options: { dashboardManifest?: string; omitAsset?: string } = {
   writeFileSync(
     path.join(buildDir, dashboardManifestRelativePath),
     options.dashboardManifest ??
-      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = {"note":"semi;colon","entryJSFiles":{"layout":["static/chunks/a.js","static/chunks/b.js"],"page":["static/chunks/a.js"]}};',
+      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = {"note":"semi;colon } brace","entryJSFiles":{"layout":["static/chunks/a.js","static/chunks/b.js"],"page":["static/chunks/a.js"]}};',
   )
   return { buildDir, cleanup: () => rmSync(buildDir, { recursive: true, force: true }) }
 }
@@ -86,6 +86,38 @@ test('analyzeBundle scans assigned JSON strings safely and deduplicates dashboar
     assert.equal(result.sizes.dashboard_route_raw_max, Buffer.byteLength('alpha') + Buffer.byteLength('beta'))
   } finally {
     cleanup()
+  }
+})
+
+test('analyzeBundle rejects garbage around the assigned dashboard JSON object', () => {
+  const prefixGarbage = fixture({
+    dashboardManifest:
+      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = garbage {"entryJSFiles":{"page":["static/chunks/a.js"]}};',
+  })
+  try {
+    assert.throws(() => analyzeBundle(prefixGarbage.buildDir), /manifest JSON.*malformed/i)
+  } finally {
+    prefixGarbage.cleanup()
+  }
+
+  const suffixGarbage = fixture({
+    dashboardManifest:
+      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = {"entryJSFiles":{"page":["static/chunks/a.js"]}} garbage;',
+  })
+  try {
+    assert.throws(() => analyzeBundle(suffixGarbage.buildDir), /manifest JSON.*malformed/i)
+  } finally {
+    suffixGarbage.cleanup()
+  }
+
+  const missingSemicolon = fixture({
+    dashboardManifest:
+      'globalThis.__RSC_MANIFEST["/(dashboard)/dashboard/page"] = {"entryJSFiles":{"page":["static/chunks/a.js"]}}',
+  })
+  try {
+    assert.throws(() => analyzeBundle(missingSemicolon.buildDir), /manifest JSON.*malformed/i)
+  } finally {
+    missingSemicolon.cleanup()
   }
 })
 
