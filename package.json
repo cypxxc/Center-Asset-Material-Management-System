@@ -2,6 +2,10 @@
   "name": "camms",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0 <21"
+  },
+  "packageManager": "npm@11.14.1",
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build && tsx scripts/check-bundle-budget.ts",

@@ -20,8 +20,8 @@ A custom Next.js + Supabase admin application for internal asset and inventory m
 
 ## Requirements
 
-- Node.js 20+
-- npm 10+
+- Node.js 20.19.x
+- npm 11.14.1
 - Supabase project with:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
