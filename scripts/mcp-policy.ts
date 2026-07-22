@@ -34,6 +34,7 @@ const updateFieldsSchema = z.strictObject({
 })
 
 const updateItemSchema = z.strictObject({ id: z.uuid(), updates: updateFieldsSchema })
+const deleteItemSchema = z.strictObject({ id: z.uuid() })
 
 export function isMcpWriteEnabled(env: NodeJS.ProcessEnv): boolean {
   return env.CAMMS_MCP_ALLOW_WRITE === 'true' && Boolean(env.SUPABASE_SERVICE_ROLE_KEY)
@@ -45,4 +46,8 @@ export function parseMcpCreateItem(input: unknown) {
 
 export function parseMcpUpdateItem(input: unknown) {
   return updateItemSchema.parse(input)
+}
+
+export function parseMcpDeleteItem(input: unknown) {
+  return deleteItemSchema.parse(input)
 }
