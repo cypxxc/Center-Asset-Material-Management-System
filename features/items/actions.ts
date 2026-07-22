@@ -173,6 +173,7 @@ type CreateItemCoreResult =
 
 type CreateItemCoreOptions = {
   afterAuthorize?: (userId: string) => Promise<{ message: string } | null>
+  onCommitted?: (result: { itemId: string; userId: string }) => Promise<void>
 }
 
 async function createItemCore(
@@ -227,8 +228,9 @@ async function createItemCore(
     }
   }
 
+  const supabase = await createClient()
+  let committedResult: { itemId: string; userId: string }
   try {
-    const supabase = await createClient()
     const { data, error } = await supabase
       .from('items')
       .insert({
@@ -258,9 +260,8 @@ async function createItemCore(
       newValues: parsed.data,
     })
 
-    revalidatePath('/items')
-    revalidateSidebarCache()
-    return { ok: true, itemId: data.id, userId }
+    committedResult = { itemId: data.id, userId }
+    await options.onCommitted?.(committedResult)
   } catch (err) {
     await deleteUploadedImage()
     return {
@@ -271,6 +272,10 @@ async function createItemCore(
       userId,
     }
   }
+
+  revalidatePath('/items')
+  revalidateSidebarCache()
+  return { ok: true, ...committedResult }
 }
 
 export async function createItem(
@@ -282,6 +287,19 @@ export async function createItem(
     afterAuthorize: async () => {
       const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
       return rateLimitCheck.success ? null : { message: rateLimitCheck.error! }
+    },
+    onCommitted: async ({ userId }) => {
+      const durationMs = timer.stop()
+      const ctx = await getRequestContext(userId)
+      metrics.itemCreated()
+      logger.info(withTraceContext(ctx, {
+        operation: 'createItem',
+        feature: 'items',
+        action: 'createItem',
+        userId,
+        latency: durationMs,
+        status: 'success',
+      }))
     },
   })
 
@@ -295,17 +313,6 @@ export async function createItem(
     return { message: errRes.message! }
   }
 
-  const durationMs = timer.stop()
-  const ctx = await getRequestContext(result.userId)
-  metrics.itemCreated()
-  logger.info(withTraceContext(ctx, {
-    operation: 'createItem',
-    feature: 'items',
-    action: 'createItem',
-    userId: result.userId,
-    latency: durationMs,
-    status: 'success',
-  }))
   redirect('/items')
 }
 

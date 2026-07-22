@@ -2,13 +2,17 @@ import '../setup/dom'
 import test, { after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createMockSupabaseClient, mockSupabaseRegistry } from '../mocks/supabase'
-import { resetMetricsExporter, setMetricsExporter, type MetricSnapshot } from '../../lib/metrics'
+import { metrics, resetMetricsExporter, setMetricsExporter, type MetricSnapshot } from '../../lib/metrics'
 
 type InsertObservation = { table: string; values: unknown }
 const inserts: InsertObservation[] = []
 const cacheCalls: unknown[][] = []
 const rateLimitCalls: unknown[][] = []
 let rateLimitResponse: { success: boolean; error?: string } = { success: true }
+let createClientFailureAfterUpload: Error | null = null
+let cacheFailure: Error | null = null
+let telemetryFailure: 'context' | 'metric' | 'log' | null = null
+let telemetrySecret = ''
 
 function observedClient(kind: 'anon' | 'service') {
   const client = createMockSupabaseClient(kind)
@@ -29,7 +33,12 @@ function observedClient(kind: 'anon' | 'service') {
 const serverPath = require.resolve('../../lib/supabase/server')
 const originalServerExports = { ...require.cache[serverPath]!.exports }
 Object.assign(require.cache[serverPath]!.exports, {
-  createClient: async () => observedClient('anon'),
+  createClient: async () => {
+    if (createClientFailureAfterUpload && mockSupabaseRegistry.getStorageLog().some(({ operation }) => operation === 'upload')) {
+      throw createClientFailureAfterUpload
+    }
+    return observedClient('anon')
+  },
   createAdminClient: async () => observedClient('service'),
   createServiceRoleClient: () => observedClient('service'),
 })
@@ -37,7 +46,10 @@ Object.assign(require.cache[serverPath]!.exports, {
 const cachePath = require.resolve('next/cache')
 const originalCacheExports = { ...require.cache[cachePath]!.exports }
 Object.assign(require.cache[cachePath]!.exports, {
-  revalidatePath: (...args: unknown[]) => cacheCalls.push(['path', ...args]),
+  revalidatePath: (...args: unknown[]) => {
+    cacheCalls.push(['path', ...args])
+    if (cacheFailure) throw cacheFailure
+  },
   revalidateTag: (...args: unknown[]) => cacheCalls.push(['tag', ...args]),
 })
 
@@ -53,6 +65,39 @@ require.cache[rateLimitPath]!.exports = {
   },
 }
 
+const tracingPath = require.resolve('../../lib/tracing')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require(tracingPath)
+const originalTracingExports = require.cache[tracingPath]!.exports
+require.cache[tracingPath]!.exports = {
+  ...originalTracingExports,
+  getRequestContext: async (...args: Parameters<typeof import('../../lib/tracing').getRequestContext>) => {
+    if (telemetryFailure === 'context') {
+      telemetryFailure = null
+      throw new Error(`context failed: ${telemetrySecret}`)
+    }
+    return originalTracingExports.getRequestContext(...args)
+  },
+}
+
+const loggingPath = require.resolve('../../lib/logging')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require(loggingPath)
+const originalLoggingExports = require.cache[loggingPath]!.exports
+const originalLoggerInfo = originalLoggingExports.logger.info.bind(originalLoggingExports.logger)
+const testLogger = Object.create(originalLoggingExports.logger)
+testLogger.info = (...args: unknown[]) => {
+  if (telemetryFailure === 'log') throw new Error(`log failed: ${telemetrySecret}`)
+  return originalLoggerInfo(...args)
+}
+require.cache[loggingPath]!.exports = { ...originalLoggingExports, logger: testLogger }
+
+const originalMetricItemCreated = metrics.itemCreated
+metrics.itemCreated = function () {
+  if (telemetryFailure === 'metric') throw new Error(`metric failed: ${telemetrySecret}`)
+  return originalMetricItemCreated.call(metrics)
+}
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createItem, createItemInline } = require('../../features/items/actions') as typeof import('../../features/items/actions')
 
@@ -60,6 +105,9 @@ after(() => {
   require.cache[serverPath]!.exports = originalServerExports
   require.cache[cachePath]!.exports = originalCacheExports
   require.cache[rateLimitPath]!.exports = originalRateLimitExports
+  require.cache[tracingPath]!.exports = originalTracingExports
+  require.cache[loggingPath]!.exports = originalLoggingExports
+  metrics.itemCreated = originalMetricItemCreated
 })
 
 function validItemFormData(withImage = false) {
@@ -99,6 +147,10 @@ function reset() {
   cacheCalls.length = 0
   rateLimitCalls.length = 0
   rateLimitResponse = { success: true }
+  createClientFailureAfterUpload = null
+  cacheFailure = null
+  telemetryFailure = null
+  telemetrySecret = ''
 }
 
 function restoreEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE_KEY', previous: string | undefined) {
@@ -354,4 +406,78 @@ test('only createItem applies the existing create rate limit contract', async ()
   await createItem(null, new FormData())
   await createItemInline(null, new FormData())
   assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
+})
+
+test('createItem safely handles each committed telemetry failure and removes the upload exactly once', async () => {
+  const originalConsoleError = console.error
+
+  for (const failure of ['context', 'metric', 'log'] as const) {
+    reset()
+    staff()
+    mockSupabaseRegistry.setTableResponse('items', [{ id: 'new-item-uuid' }])
+    const secret = `sbp_1234567890abcdef1234567890abcde${failure.length}`
+    const errorCalls: unknown[][] = []
+    console.error = (...args: unknown[]) => errorCalls.push(args)
+    telemetryFailure = failure
+    telemetrySecret = secret
+
+    try {
+      assert.deepEqual(await createItem(null, validItemFormData(true)), {
+        message: 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง',
+      })
+      const output = errorCalls.flat().map(String).join(' ')
+      assert.match(output, /"operation":"createItem"/)
+      assert.match(output, /\[KEY_REDACTED\]/)
+      assert.equal(output.includes(secret), false)
+      const storageLog = mockSupabaseRegistry.getStorageLog()
+      assert.deepEqual(storageLog.map(({ operation }) => operation), ['upload', 'remove'])
+      assert.equal(storageLog[1].path, storageLog[0].path)
+      assert.deepEqual(cacheCalls, [])
+    } finally {
+      telemetryFailure = null
+      telemetrySecret = ''
+      console.error = originalConsoleError
+    }
+  }
+})
+
+test('both actions reject createClient construction failures after upload without cleanup or cache work', async () => {
+  for (const action of [createItem, createItemInline]) {
+    reset()
+    staff()
+    const constructionError = new Error('client construction failed')
+    createClientFailureAfterUpload = constructionError
+    try {
+      await assert.rejects(action(null, validItemFormData(true)), constructionError)
+      assert.deepEqual(mockSupabaseRegistry.getStorageLog().map(({ operation }) => operation), ['upload'])
+      assert.deepEqual(cacheCalls, [])
+    } finally {
+      createClientFailureAfterUpload = null
+    }
+  }
+})
+
+test('both actions reject cache failures after commit without removing the uploaded image', async () => {
+  for (const action of [createItem, createItemInline]) {
+    reset()
+    staff()
+    mockSupabaseRegistry.setTableResponse('items', [{ id: 'new-item-uuid' }])
+    const cacheError = new Error('cache invalidation failed')
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+    cacheFailure = cacheError
+    try {
+      await assert.rejects(action(null, validItemFormData(true)), cacheError)
+      assert.deepEqual(mockSupabaseRegistry.getStorageLog().map(({ operation }) => operation), ['upload'])
+      assert.deepEqual(cacheCalls, [['path', '/items']])
+      assert.ok(inserts.some(({ table }) => table === 'items'))
+      assert.ok(inserts.some(({ table }) => table === 'audit_logs'))
+    } finally {
+      cacheFailure = null
+      restoreEnv('NEXT_PUBLIC_SUPABASE_URL', previousUrl)
+      restoreEnv('SUPABASE_SERVICE_ROLE_KEY', previousKey)
+    }
+  }
 })
