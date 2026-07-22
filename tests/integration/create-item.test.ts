@@ -2,6 +2,7 @@ import '../setup/dom'
 import test, { after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createMockSupabaseClient, mockSupabaseRegistry } from '../mocks/supabase'
+import { resetMetricsExporter, setMetricsExporter, type MetricSnapshot } from '../../lib/metrics'
 
 type InsertObservation = { table: string; values: unknown }
 const inserts: InsertObservation[] = []
@@ -237,6 +238,66 @@ test('createItem inserts attribution, writes the creation audit, refreshes cache
     ['tag', 'sidebar-data', 'max'],
     ['path', '/', 'layout'],
   ])
+})
+
+test('createItem records its metric, timer, traced success log, and redirect', async () => {
+  reset()
+  staff()
+  mockSupabaseRegistry.setTableResponse('items', [{ id: 'new-item-uuid' }])
+  const snapshots: MetricSnapshot[] = []
+  const infoCalls: unknown[][] = []
+  const originalConsoleInfo = console.info
+  setMetricsExporter({ record: (snapshot) => snapshots.push(snapshot) })
+  console.info = (...args: unknown[]) => infoCalls.push(args)
+  try {
+    await assert.rejects(
+      createItem(null, validItemFormData()),
+      (error: Error & { digest?: string }) => error.message === 'NEXT_REDIRECT' && Boolean(error.digest?.includes('/items')),
+    )
+
+    assert.deepEqual(snapshots.filter(({ name }) => name === 'items.created').map(({ name, type, value }) => ({ name, type, value })), [
+      { name: 'items.created', type: 'counter', value: 1 },
+    ])
+    const log = JSON.parse(String(infoCalls.at(-1)?.[1])) as Record<string, unknown>
+    assert.equal(log.operation, 'createItem')
+    assert.equal(log.action, 'createItem')
+    assert.equal(log.userId, 'user-staff')
+    assert.equal(log.status, 'success')
+    assert.equal(typeof log.latency, 'number')
+    assert.equal(typeof log.requestId, 'string')
+    assert.equal(typeof log.correlationId, 'string')
+    assert.equal(typeof log.traceId, 'string')
+  } finally {
+    console.info = originalConsoleInfo
+    resetMetricsExporter()
+  }
+})
+
+test('createItem routes unexpected insert exceptions through its safe error handler without leaking secrets', async () => {
+  reset()
+  staff()
+  const secret = 'sbp_1234567890abcdef1234567890abcdef'
+  const errorCalls: unknown[][] = []
+  const originalConsoleError = console.error
+  const originalRecordQuery = mockSupabaseRegistry.recordQuery
+  console.error = (...args: unknown[]) => errorCalls.push(args)
+  mockSupabaseRegistry.recordQuery = (entry) => {
+    originalRecordQuery.call(mockSupabaseRegistry, entry)
+    if (entry.table === 'items') throw new Error(`insert exploded: ${secret}`)
+  }
+  try {
+    const result = await createItem(null, validItemFormData())
+    assert.deepEqual(result, { message: 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง' })
+    const output = errorCalls.flat().map(String).join(' ')
+    assert.match(output, /"operation":"createItem"/)
+    assert.match(output, /"action":"createItem"/)
+    assert.match(output, /"status":"failure"/)
+    assert.match(output, /\[KEY_REDACTED\]/)
+    assert.equal(output.includes(secret), false)
+  } finally {
+    console.error = originalConsoleError
+    mockSupabaseRegistry.recordQuery = originalRecordQuery
+  }
 })
 
 test('each action independently creates the complete expected item audit payload', async () => {

@@ -38,16 +38,29 @@ function validItemFormData(withImage = false) {
 }
 
 test('createItemInline uses ActionResponse for unauthenticated and viewer requests', async () => {
-  mockSupabaseRegistry.clear()
-  assert.deepEqual(await createItemInline(null, validItemFormData()), {
-    success: false, ok: false, message: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', fieldErrors: undefined,
-  })
+  const warnCalls: unknown[][] = []
+  const originalConsoleWarn = console.warn
+  console.warn = (...args: unknown[]) => warnCalls.push(args)
+  try {
+    mockSupabaseRegistry.clear()
+    assert.deepEqual(await createItemInline(null, validItemFormData()), {
+      success: false, ok: false, message: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', fieldErrors: undefined,
+    })
 
-  mockSupabaseRegistry.clear()
-  mockSupabaseRegistry.setAuth({ id: 'viewer' }, { id: 'viewer', role: 'viewer', is_active: true })
-  assert.deepEqual(await createItemInline(null, validItemFormData()), {
-    success: false, ok: false, message: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', error: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', fieldErrors: undefined,
-  })
+    mockSupabaseRegistry.clear()
+    mockSupabaseRegistry.setAuth({ id: 'viewer' }, { id: 'viewer', role: 'viewer', is_active: true })
+    assert.deepEqual(await createItemInline(null, validItemFormData()), {
+      success: false, ok: false, message: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', error: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', fieldErrors: undefined,
+    })
+    assert.equal(warnCalls.length, 2)
+    for (const call of warnCalls) {
+      const log = JSON.parse(String(call[1])) as Record<string, unknown>
+      assert.equal(log.operation, 'createItemInline')
+      assert.equal(log.details, 'Unauthorized inline create attempt')
+    }
+  } finally {
+    console.warn = originalConsoleWarn
+  }
 })
 
 test('createItemInline returns the friendly uniqueness message as ActionResponse', async () => {
@@ -75,5 +88,35 @@ test('createItemInline succeeds without throwing NEXT_REDIRECT', async () => {
     assert.deepEqual(log.details, { id: 'new-item' })
   } finally {
     console.info = originalConsoleInfo
+  }
+})
+
+test('createItemInline returns its generic unexpected response and redacts insert secrets', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setAuth({ id: 'staff' }, { id: 'staff', role: 'staff', is_active: true })
+  const secret = 'sbp_1234567890abcdef1234567890abcdef'
+  const errorCalls: unknown[][] = []
+  const originalConsoleError = console.error
+  const originalRecordQuery = mockSupabaseRegistry.recordQuery
+  console.error = (...args: unknown[]) => errorCalls.push(args)
+  mockSupabaseRegistry.recordQuery = (entry) => {
+    originalRecordQuery.call(mockSupabaseRegistry, entry)
+    if (entry.table === 'items') throw new Error(`inline insert exploded: ${secret}`)
+  }
+  try {
+    assert.deepEqual(await createItemInline(null, validItemFormData()), {
+      success: false,
+      ok: false,
+      message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายหรือเข้าถึงฐานข้อมูล',
+      error: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายหรือเข้าถึงฐานข้อมูล',
+      fieldErrors: undefined,
+    })
+    const output = errorCalls.flat().map(String).join(' ')
+    assert.match(output, /"operation":"createItemInline"/)
+    assert.match(output, /\[KEY_REDACTED\]/)
+    assert.equal(output.includes(secret), false)
+  } finally {
+    console.error = originalConsoleError
+    mockSupabaseRegistry.recordQuery = originalRecordQuery
   }
 })
