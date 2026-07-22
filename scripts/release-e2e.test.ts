@@ -5,8 +5,12 @@ import { getE2EInvocation, validateReleaseE2EEnv } from './release-e2e'
 import { getPlaywrightInvocation, settleWithin } from './run-playwright'
 import playwrightConfig, { getWebServerConfig } from '../playwright.config'
 
+function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return { NODE_ENV: 'test', ...overrides }
+}
+
 test('release E2E rejects missing real-auth prerequisites', () => {
-  assert.deepEqual(validateReleaseE2EEnv({}), [
+  assert.deepEqual(validateReleaseE2EEnv(env()), [
     'CAMMS_E2E_REAL_AUTH must be set to true',
     'CAMMS_E2E_ADMIN_ID is required',
     'CAMMS_E2E_ADMIN_PASSWORD is required',
@@ -14,15 +18,15 @@ test('release E2E rejects missing real-auth prerequisites', () => {
 })
 
 test('release E2E accepts complete real-auth prerequisites', () => {
-  assert.deepEqual(validateReleaseE2EEnv({
+  assert.deepEqual(validateReleaseE2EEnv(env({
     CAMMS_E2E_REAL_AUTH: 'true',
     CAMMS_E2E_ADMIN_ID: 'admin@registry.s',
     CAMMS_E2E_ADMIN_PASSWORD: 'secret',
-  }), [])
+  })), [])
 })
 
 test('release E2E invokes npm through Node without a Windows command wrapper', () => {
-  assert.deepEqual(getE2EInvocation({ npm_execpath: 'C:/node/npm-cli.js' }), {
+  assert.deepEqual(getE2EInvocation(env({ npm_execpath: 'C:/node/npm-cli.js' })), {
     command: process.execPath,
     args: ['C:/node/npm-cli.js', 'run', 'test:e2e'],
   })
@@ -36,8 +40,8 @@ test('Playwright starts Next directly so Windows teardown reaches the server pro
 })
 
 test('external server orchestration disables Playwright webServer ownership', () => {
-  assert.equal(getWebServerConfig({ PLAYWRIGHT_EXTERNAL_SERVER: 'true' }), undefined)
-  assert.ok(getWebServerConfig({}))
+  assert.equal(getWebServerConfig(env({ PLAYWRIGHT_EXTERNAL_SERVER: 'true' })), undefined)
+  assert.ok(getWebServerConfig(env()))
 })
 
 test('Playwright runner invokes its Node CLI without an npm wrapper', () => {

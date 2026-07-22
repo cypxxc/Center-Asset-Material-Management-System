@@ -4,6 +4,11 @@ import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
 import { exportDatabaseData } from '../../features/admin/actions';
 
+type BackupResult = {
+  error?: string
+  backup?: { items?: Array<{ id: string }> }
+}
+
 test('exportDatabaseData reads backup tables concurrently', async () => {
   mockSupabaseRegistry.clear();
   const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs'];
@@ -17,7 +22,7 @@ test('exportDatabaseData reads backup tables concurrently', async () => {
   );
 
   const start = performance.now();
-  const result = await exportDatabaseData();
+  const result = await exportDatabaseData() as BackupResult;
   const elapsedMs = performance.now() - start;
 
   assert.equal(result.error, undefined);
