@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import { z } from 'zod';
+import { isMcpWriteEnabled, parseMcpCreateItem, parseMcpUpdateItem } from './mcp-policy';
 
 // 1. Load env variables from .env.local
 function loadEnv() {
@@ -26,8 +28,10 @@ function loadEnv() {
 loadEnv();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-// Use Service Role Key if available (bypasses RLS), fallback to Anon Key
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const writeEnabled = isMcpWriteEnabled(process.env);
+const supabaseKey = writeEnabled
+  ? process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Error: Supabase environment variables not configured in .env.local');
@@ -39,6 +43,10 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: false,
   },
 });
+
+function requireMcpWriteCapability() {
+  if (!writeEnabled) throw new Error('MCP write tools are disabled');
+}
 
 // 2. Setup Stdio JSON-RPC 2.0 interface
 const rl = readline.createInterface({
@@ -122,7 +130,7 @@ async function handleRequest(request: { id?: string | number | null; method: str
               required: ['id'],
             },
           },
-          {
+          ...(writeEnabled ? [{
             name: 'create_item',
             description: 'Create a new item in the CAMMS registry',
             inputSchema: {
@@ -186,7 +194,7 @@ async function handleRequest(request: { id?: string | number | null; method: str
               },
               required: ['id'],
             },
-          },
+          }] : []),
           {
             name: 'list_categories',
             description: 'List all active categories in CAMMS',
@@ -333,8 +341,9 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'create_item': {
-      if (!args) throw new Error('Arguments are required to create an item');
-      const payload = pickItemFields(args);
+      requireMcpWriteCapability();
+      const parsed = parseMcpCreateItem(args);
+      const payload = pickItemFields(parsed);
       const { data, error } = await supabase
         .from('items')
         .insert({
@@ -351,9 +360,8 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'update_item': {
-      const id = args?.id;
-      const updates = args?.updates;
-      if (!id || !updates) throw new Error('Item ID and updates are required');
+      requireMcpWriteCapability();
+      const { id, updates } = parseMcpUpdateItem(args);
       const payload = pickItemFields(updates);
       const { data, error } = await supabase
         .from('items')
@@ -372,8 +380,8 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'delete_item': {
-      const id = args?.id;
-      if (!id) throw new Error('Item ID is required');
+      requireMcpWriteCapability();
+      const id = z.uuid().parse(args?.id);
       const { data, error } = await supabase
         .from('items')
         .update({

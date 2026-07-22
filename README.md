@@ -84,6 +84,12 @@ The release command fails when any prerequisite is missing; authenticated covera
 - `npm test` — run schema/tests
 - `npm run verify-env` — verify required environment variables are set
 
+### MCP server
+
+MCP starts read-only by default. To expose create/update/delete tools, set
+`CAMMS_MCP_ALLOW_WRITE=true` together with `SUPABASE_SERVICE_ROLE_KEY` in the
+local process environment. Never expose the stdio process to untrusted callers.
+
 ## Deployment readiness
 
 This repo includes:
