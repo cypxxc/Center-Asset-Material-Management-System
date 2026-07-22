@@ -148,7 +148,12 @@ async function handleImageUpload(
         .getPublicUrl(fileName)
 
       return { imageUrl: publicUrl, oldImageUrlToDelete: currentImageUrl }
-    } catch {
+    } catch (error) {
+      logger.error({
+        operation: 'uploadItemImage',
+        feature: 'items',
+        details: 'Failed to process or upload item image',
+      }, error)
       return { imageUrl: null, error: 'เกิดข้อผิดพลาดในการประมวลผลไฟล์รูปภาพ' }
     }
   }
