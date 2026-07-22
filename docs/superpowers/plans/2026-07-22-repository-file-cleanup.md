@@ -170,42 +170,42 @@ Run: `npm run typecheck`, then commit as `refactor: remove unused report and uti
 
 ---
 
-### Task 5: Remove obsolete seed runner and direct WebSocket dependencies
+### Task 5: Remove obsolete seed runner and preserve required WebSocket dependencies
 
 **Files:**
 - Delete: `scripts/apply-seed.ts`
-- Modify: `package.json` (remove `ws` and `@types/ws`)
-- Modify: `package-lock.json` via npm
+- Preserve: `package.json` entries `ws` and `@types/ws`
+- Preserve: `package-lock.json`
 
 **Interfaces:**
 - Consumes: current `exec_admin_sql` service-role-only policy in migrations 00027/00028/00030
-- Produces: unchanged supported migration and `db/seed.sql` contracts
+- Produces: unchanged supported migration, `db/seed.sql`, and Supabase Realtime transport contracts
 
 - [ ] **Step 1: Confirm no supported caller exists**
 
 Run: repository-wide searches for `apply-seed`, imports from `ws`, `require('ws')`, and WebSocket server types; run `npm explain ws` and `npm explain @types/ws`.
 
-Expected: the script has no caller; both packages are root-only direct dependencies with no source consumer.
+Expected: the script has no caller; `lib/supabase/server.ts` imports `ws` and configures it as the Supabase Realtime transport, so both `ws` and its type package must remain.
 
 - [ ] **Step 2: Delete the obsolete script**
 
-Use `apply_patch`; preserve `db/seed.sql`, `scripts/apply-migrations.ts`, `seed-50-items.ts`, `seed-100-items.ts`, and `lookup-refs.ts`.
+Use `apply_patch`; preserve `db/seed.sql`, `scripts/apply-migrations.ts`, `seed-50-items.ts`, `seed-100-items.ts`, `lookup-refs.ts`, `ws`, and `@types/ws`.
 
-- [ ] **Step 3: Remove dependencies through npm**
+- [ ] **Step 3: Verify required WebSocket dependencies remain unchanged**
 
-Run: `npm uninstall -D ws @types/ws`
+Run: `git diff -- package.json package-lock.json` and `npm explain ws` / `npm explain @types/ws`.
 
-Expected: `package.json` and lockfile are updated consistently.
+Expected: no manifest/lockfile diff; both direct packages remain because application source consumes them.
 
 - [ ] **Step 4: Verify clean dependency installation**
 
-Run: `npm ci` followed by `npm run typecheck` and `npm test`.
+Run: `npm ci`, `npm run typecheck`, `npm run build`, and `npm test`.
 
 Expected: installation succeeds and all tests pass.
 
 - [ ] **Step 5: Commit tooling cleanup**
 
-Run: `git add -- scripts/apply-seed.ts package.json package-lock.json && git commit -m "chore: remove obsolete seed tooling"`
+Run: `git add -- scripts/apply-seed.ts docs/superpowers/plans/2026-07-22-repository-file-cleanup.md && git commit -m "chore: remove obsolete seed tooling"`
 
 ---
 
