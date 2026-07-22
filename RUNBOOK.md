@@ -36,9 +36,10 @@ If the system experiences downtime, check:
 
 ---
 
-## 3. Rollback Procedures
+## 3. Recovery Procedures
 
 If a deployment introduces regressions:
 1. **Rollback Release:** In the hosting platform (Vercel or custom server), promote the previous stable build hash.
-2. **Revert Migrations:** If a migration broke the database schema, run the rollback migration sql script.
-3. **Sidebar Cache Flush:** If counts or item references become stale, trigger revalidation by making a dummy item modification or restarting Next.js instance to refresh `unstable_cache`.
+2. **Remediate Migrations Forward:** If a migration broke the database schema, stop the release and keep the previous compatible application build active. Prepare, review, and apply a new forward-only corrective migration; do not attempt an ad-hoc reverse migration.
+3. **Restore When Required:** If forward remediation cannot safely recover the database, restore the verified backup through the documented recovery procedure in `RECOVERY.md`.
+4. **Sidebar Cache Flush:** If counts or item references become stale, trigger revalidation by making a dummy item modification or restarting Next.js instance to refresh `unstable_cache`.

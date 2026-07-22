@@ -22,7 +22,7 @@
 
 1. Verify Supabase project status
 2. Check RLS/migration drift
-3. Review recent migrations: `tsx scripts/apply-migrations.ts`
+3. Review the migration ledger and the exact files selected for the most recent release. To apply an approved corrective migration, provide the mandatory ordered selection explicitly: `$env:MIGRATION_FILES='<five-digit-migration-file>.sql'; npx tsx scripts/apply-migrations.ts`
 4. See `RECOVERY.md`
 
 ### Storage down (readiness.storage = down)

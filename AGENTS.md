@@ -13,12 +13,13 @@ Next.js 16 + Supabase internal app for tracking office assets, supplies, and equ
 - `npm run dev` — dev server (http://localhost:3000)
 - `npm run build` / `npm run start` — production build / run
 - `npm run lint` — ESLint (flat config, `eslint.config.mjs`)
+- `npm run typecheck` — strict TypeScript check without emitting files
 - `npm test` — `tsx --test`, runs `*.test.ts` (e.g. `features/items/schema.test.ts`)
 - `npm run verify-env` — validate required Supabase env vars
 - `npm run mcp` — local MCP server (`scripts/mcp-server.ts`)
 - `tsx scripts/apply-migrations.ts` — apply `db/migrations/` to Supabase
 
-There is no separate `typecheck` script; TS runs through `next build` (`tsconfig.json` has `"strict": true`).
+TypeScript is checked separately with `npm run typecheck` and also as part of the Next.js production build (`tsconfig.json` has `"strict": true`).
 
 ## Stack & gotchas
 
@@ -66,7 +67,7 @@ Required env (`.env.local` for dev; `.env*` is gitignored):
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` — **never commit**; admin-auth operations depend on it.
 
-CI (`.github/workflows/ci.yml`, Node 20) runs `verify-env` → `test` → `build` on push/PR to `main`, with fallback placeholder secrets.
+The package and CI toolchain use Node 24 (`package.json`, `.nvmrc`, and `.github/workflows/ci.yml`). CI runs `verify-env` → `audit:release` → `test` → `lint` → `build` → `test:smoke` on push/PR to `main`, with fallback placeholder secrets.
 
 ## Excluded paths
 
