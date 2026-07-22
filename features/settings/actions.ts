@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { categorySchema, locationSchema, unitSchema } from './schema'
-import { clearReferencesCache } from '@/features/items/queries'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { startTimer } from '@/lib/performance'
@@ -96,7 +95,6 @@ function revalidateSettings() {
   revalidatePath('/', 'layout')
   revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max')
   revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
-  clearReferencesCache()
 }
 
 export async function createCategory(formData: FormData) {

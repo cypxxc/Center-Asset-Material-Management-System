@@ -3,7 +3,6 @@
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { clearReferencesCache } from '@/features/items/queries'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { beginActionTrace } from '@/lib/tracing'
@@ -94,10 +93,6 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
       new_data: cleanPayload
     })
 
-    if (['categories', 'locations', 'units'].includes(safeTable)) {
-      clearReferencesCache()
-    }
-
     revalidatePath('/admin/db-panel')
     return { success: true, data: data?.[0] }
   } else {
@@ -120,10 +115,6 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
         target_id: newId,
         new_data: cleanPayload
       })
-    }
-
-    if (['categories', 'locations', 'units'].includes(safeTable)) {
-      clearReferencesCache()
     }
 
     revalidatePath('/admin/db-panel')
@@ -160,10 +151,6 @@ export async function deleteTableRow(tableName: string, rowId: string) {
     target_id: rowId,
     old_data: oldRow || null
   })
-
-  if (['categories', 'locations', 'units'].includes(safeTable)) {
-    clearReferencesCache()
-  }
 
   revalidatePath('/admin/db-panel')
   return { success: true }

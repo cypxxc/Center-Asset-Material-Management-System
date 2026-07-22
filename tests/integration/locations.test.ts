@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { getItemReferences, getItemById, getItemAuditLogs, clearReferencesCache, getItems } from '../../features/items/queries';
+import { getItemReferences, getItemById, getItemAuditLogs, getItems } from '../../features/items/queries';
 
 test('getItemReferences fetches categories, locations and units concurrently', async () => {
   mockSupabaseRegistry.clear();
@@ -50,12 +50,6 @@ test('getItems includes inactive and disposed items in the main list by default'
     itemQuery.operations.some((operation) => operation[0] === 'not' && operation[1] === 'status'),
     false
   );
-});
-
-test('clearReferencesCache runs successfully without throwing', () => {
-  assert.doesNotThrow(() => {
-    clearReferencesCache();
-  });
 });
 
 test('getItemAuditLogs preserves full audit timeline query for admins', async () => {

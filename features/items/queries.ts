@@ -59,10 +59,6 @@ const getCachedItemReferences = unstable_cache(
   { tags: [CACHE_TAGS.ITEM_REFERENCES], revalidate: 3600 }
 )
 
-export function clearReferencesCache() {
-  // no-op, cache is managed via Next.js revalidateTag
-}
-
 function parsePage(value: string | undefined) {
   const page = Number(value ?? '1')
   return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1

@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
 import { itemFormSchema } from './schema'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
-import { clearReferencesCache } from './queries'
 import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
@@ -925,7 +924,6 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
     revalidatePath('/items')
     revalidateSidebarCache()
-    clearReferencesCache()
     return successResponse(`นำเข้าพัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
   } catch (err) {
     return handleActionError<{ count: number }>(err, 'importItemsBulk', 'items', auth.profile.id)
