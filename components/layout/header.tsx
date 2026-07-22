@@ -76,20 +76,20 @@ export function Header({ profile }: HeaderProps) {
         )
       } else if (segment === 'new') {
         breadcrumbs.push(
-          <span key={segment} className="text-xs font-semibold text-slate-400 shrink-0">
+          <span key={segment} className="text-xs font-semibold text-slate-600 shrink-0">
             ขึ้นทะเบียนใหม่
           </span>
         )
       } else if (segment === 'edit') {
         breadcrumbs.push(
-          <span key={segment} className="text-xs font-semibold text-slate-400 shrink-0">
+          <span key={segment} className="text-xs font-semibold text-slate-600 shrink-0">
             แก้ไขข้อมูล
           </span>
         )
       } else if (index === 1 && segments[0] === 'items') {
         // segment is ID
         breadcrumbs.push(
-          <span key={segment} className="text-xs font-semibold text-slate-400 shrink-0">
+          <span key={segment} className="text-xs font-semibold text-slate-600 shrink-0">
             รายละเอียดพัสดุ
           </span>
         )
@@ -99,7 +99,7 @@ export function Header({ profile }: HeaderProps) {
             key={segment}
             className={cn(
               'text-xs font-semibold shrink-0',
-              isLast ? 'text-slate-400' : 'text-slate-600 hover:text-blue-600 transition-colors'
+              isLast ? 'text-slate-600' : 'text-slate-600 hover:text-blue-600 transition-colors'
             )}
           >
             {label}

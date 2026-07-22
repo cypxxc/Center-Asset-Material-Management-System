@@ -197,7 +197,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
               <span className="truncate">Supplies (วัสดุสิ้นเปลือง)</span>
             </div>
-            <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+            <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               {totalSuppliesCount}
             </span>
           </Link>
@@ -227,7 +227,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
                 <span className="truncate">Assets (ครุภัณฑ์)</span>
               </Link>
-              <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {totalAssetsCount}
               </span>
             </div>
@@ -252,7 +252,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                         {getCategoryIcon(cat.name)}
                         <span className="truncate">{cat.name}</span>
                       </div>
-                      <span className="text-[9px] font-bold text-slate-400">{count}</span>
+                      <span className="text-[9px] font-bold text-slate-600">{count}</span>
                     </Link>
                   )
                 })}
@@ -285,7 +285,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 <MapPin className="w-4 h-4 mr-2 text-rose-500 flex-shrink-0" />
                 <span className="truncate">Locations (สถานที่ตั้ง)</span>
               </Link>
-              <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {locations.length}
               </span>
             </div>
@@ -307,7 +307,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                       )}
                     >
                       <span className="truncate">{loc.name}</span>
-                      <span className="text-[9px] font-bold text-slate-400">{count}</span>
+                      <span className="text-[9px] font-bold text-slate-600">{count}</span>
                     </Link>
                   )
                 })}
@@ -345,7 +345,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate text-sm font-extrabold text-slate-800">CAMMS</div>
-            <div className="truncate text-[9px] font-semibold text-slate-400">Asset & Material Management</div>
+            <div className="truncate text-[9px] font-semibold text-slate-600">Asset & Material Management</div>
           </div>
         </Link>
       </div>
@@ -356,7 +356,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           <FolderOpen className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
           <span>Directory Tree</span>
         </h2>
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Inventory File System</p>
+        <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">Inventory File System</p>
         
         {canWrite && (
           <Link

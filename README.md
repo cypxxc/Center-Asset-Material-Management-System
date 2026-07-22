@@ -15,12 +15,23 @@ A custom Next.js + Supabase admin application for internal asset and inventory m
 - `admin/db-panel` UI for database browsing, insertion, update, and delete operations
 - Auth-safe `createAuthUser`, `resetAuthPassword`, and `deleteAuthUser` flows
 - Audit logging for admin actions
+- A compact Thai-first dashboard with registry totals, items needing attention, and a status summary
 - Production-ready build and CI pipeline
 - Development protections and sensitive endpoint removal
 
+## Dashboard
+
+The `/dashboard` page is intentionally kept as a concise operational overview rather than a full analytics screen. It shows:
+
+- Total registered items, assets, and materials
+- Items needing attention, including damaged items, items waiting for repair, and low-quantity materials
+- A compact status summary for active, spare, damaged, and waiting-for-repair items
+
+Detailed filtering, category and location analysis, exports, and audit history remain available in `/items` and `/reports`.
+
 ## Requirements
 
-- Node.js 20.19.x
+- Node.js 24.x LTS
 - npm 11.14.1
 - Supabase project with:
   - `NEXT_PUBLIC_SUPABASE_URL`
@@ -52,13 +63,20 @@ Recommended solo workflow:
 - `npm run check` - run the solo developer gate: env check, tests, lint, and build
 - `npm run test:smoke` - run fast Playwright browser smoke tests
 - `npm run test:e2e` - run Playwright critical browser journeys
+- `npm run test:e2e:release` - require and run the authenticated staging journey
+- `npm run verify-db-release` - read-only verification of migrations, RLS, and RPC grants
 - `npm run test:all` - run `check` and browser smoke tests
 
 For browser flows that need real seeded users (`admin@registry.s`, `staff@registry.s`), enable them explicitly:
 
 ```powershell
-$env:CAMMS_E2E_REAL_AUTH='true'; npm run test:e2e
+$env:CAMMS_E2E_REAL_AUTH='true'
+$env:CAMMS_E2E_ADMIN_ID='admin@registry.s'
+$env:CAMMS_E2E_ADMIN_PASSWORD='<staging-password>'
+npm run test:e2e:release
 ```
+
+The release command fails when any prerequisite is missing; authenticated coverage is never reported as a skipped success.
 
 - `npm run dev` — start the development server
 - `npm run build` — build production output

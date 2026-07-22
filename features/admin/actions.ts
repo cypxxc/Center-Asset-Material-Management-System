@@ -330,9 +330,8 @@ export async function createAuthUser(payload: {
       return { error: 'อีเมลนี้มีอยู่ในระบบแล้ว' }
     }
 
-    // Step 1: Create auth user via Supabase Auth Admin API
-    // We pass role and status directly in user_metadata so that the trigger private.handle_new_user()
-    // creates the profiles record atomically with the correct settings.
+    // Step 1: Create the Auth user. The database trigger always creates a safe
+    // viewer profile; the server-only upsert below applies the requested role.
     const authResult = await retrySupabase(async () => {
       const result = await adminClient.auth.admin.createUser({
         email,

@@ -17,6 +17,9 @@
 - [x] Restricted raw SQL RPC execution to the server-role maintenance path
 - [x] Removed fire-and-forget audit writes from item mutations
 - [x] Added release dependency audit gate for high and critical vulnerabilities
+- [x] Added deterministic Playwright server teardown and an authenticated staging release gate
+- [x] Added read-only database release verification for migration ledger, RLS, and RPC grants
+- [x] Added explicit CI lint and browser smoke gates
 
 ## Required production environment variables
 
@@ -43,6 +46,7 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 1. Run pending database migrations from `db/migrations/` in the staging/production database.
    - This includes `00026_atomic_database_restore.sql`, `00027_lock_down_admin_sql.sql`, `00028_revoke_authenticated_admin_sql.sql`, `00029_harden_profile_role_defaults.sql`, `00030_revoke_anon_admin_sql.sql`, and `00031_lock_down_public_report_rpcs.sql`.
    - Apply them with an explicit `MIGRATION_FILES` list; the runner rejects unspecified migration lists.
+   - Immediately run `npm run verify-db-release`; do not promote application traffic unless it passes.
 2. Verify Supabase RLS policies and auth row-level security for `profiles`, `items`, and related tables.
 3. Ensure the production deployment environment provides `SUPABASE_SERVICE_ROLE_KEY` privately.
 4. Confirm admin users can create/reset accounts through the app without using Supabase Dashboard.
@@ -53,3 +57,4 @@ These will be injected into the workflow via `.github/workflows/ci.yml`.
 9. Confirm `ADMIN_SQL_ENABLED` is disabled outside an approved maintenance window.
 10. Confirm public Supabase Auth signups are disabled unless intentionally required; migration `00029` prevents signup metadata from assigning elevated roles.
 11. Run `npm run audit:release`; high and critical vulnerabilities must be zero. The PostCSS advisory is resolved by the non-breaking npm override in `package.json`.
+12. Set `CAMMS_E2E_REAL_AUTH=true`, `CAMMS_E2E_ADMIN_ID`, and `CAMMS_E2E_ADMIN_PASSWORD`, then run `npm run test:e2e:release` against staging. A skipped authenticated journey is not release evidence.

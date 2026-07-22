@@ -9,4 +9,8 @@ REVOKE EXECUTE ON FUNCTION public.exec_admin_sql(text) FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.exec_admin_sql(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.exec_admin_sql(text) TO service_role;
 
+INSERT INTO public.app_migrations (migration)
+VALUES ('00030_revoke_anon_admin_sql.sql')
+ON CONFLICT (migration) DO NOTHING;
+
 COMMIT;

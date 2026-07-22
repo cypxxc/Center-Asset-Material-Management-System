@@ -3,7 +3,11 @@ import AxeBuilder from '@axe-core/playwright';
 
 const realAuthE2EEnabled = process.env.CAMMS_E2E_REAL_AUTH === 'true';
 
-async function signIn(page: Page, email = 'admin@registry.s', password = 'admin1234') {
+async function signIn(
+  page: Page,
+  email = process.env.CAMMS_E2E_ADMIN_ID ?? 'admin@registry.s',
+  password = process.env.CAMMS_E2E_ADMIN_PASSWORD ?? 'admin1234',
+) {
   await page.goto('/login');
   await page.locator('input[name="id"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
@@ -48,7 +52,7 @@ test.describe('CAMMS E2E critical journeys and accessibility', () => {
     await expect(page.locator('input[name="item_name"]')).toBeVisible();
     await page.locator('input[name="item_name"]').fill(itemName);
     await page.locator('input[name="quantity"]').fill('1');
-    await page.locator('select[name="status"]').selectOption('active');
+    await page.locator('.new-item-sheet-dialog select[name="status"]').selectOption('active');
     await page.locator('.new-item-sheet-dialog button[type="submit"]').click();
 
     await expect(page.locator(`text=${itemName}`).first()).toBeVisible({ timeout: 15_000 });
@@ -60,7 +64,7 @@ test.describe('CAMMS E2E critical journeys and accessibility', () => {
 
     await expect(page.locator('input[name="quantity"]')).toBeVisible();
     await page.locator('input[name="quantity"]').fill('5');
-    await page.locator('form button[type="submit"]').click();
+    await page.getByRole('button', { name: 'บันทึกข้อมูล' }).click();
     await page.waitForURL(/\/items\/[a-f0-9-]+/);
     await expect(page.locator('body')).toContainText('5');
 
