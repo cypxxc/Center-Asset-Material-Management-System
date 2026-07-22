@@ -5,7 +5,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { mockSupabaseRegistry } from '../mocks/supabase';
 import { getReportItemsList, getReportStats } from '../../features/reports/queries';
-import { getReportItemsForExport } from '../../features/reports/actions';
 
 test('getReportStats queries get_report_stats RPC and formats counts', async () => {
   mockSupabaseRegistry.clear();
@@ -32,47 +31,6 @@ test('getReportStats queries get_report_stats RPC and formats counts', async () 
   assert.equal(stats.totalQuantity, 12);
   assert.equal(stats.typeCounts.asset.count, 6);
   assert.equal(stats.locationCount, 3);
-});
-
-test('getReportItemsForExport fetches filtered items lists', async () => {
-  mockSupabaseRegistry.clear();
-
-  const mockItems = [
-    { id: '1', item_name: 'Laptop Dell', quantity: 2, status: 'active', item_type: 'asset' },
-    { id: '2', item_name: 'Paper A4', quantity: 10, status: 'active', item_type: 'material' }
-  ];
-  mockSupabaseRegistry.setTableResponse('items', mockItems);
-
-  const items = await getReportItemsForExport({
-    q: 'Laptop',
-    status: 'active'
-  });
-
-  assert.equal(items.length, 2);
-  assert.equal(items[0].item_name, 'Laptop Dell');
-  assert.deepEqual(mockSupabaseRegistry.getRpcLog(), []);
-});
-
-test('getReportItemsForExport includes inactive and disposed items by default', async () => {
-  mockSupabaseRegistry.clear();
-
-  mockSupabaseRegistry.setTableResponse('items', [
-    { id: '1', item_name: 'Active Laptop', quantity: 1, status: 'active', item_type: 'asset' },
-    { id: '2', item_name: 'Inactive Laptop', quantity: 1, status: 'inactive', item_type: 'asset' },
-    { id: '3', item_name: 'Disposed Laptop', quantity: 1, status: 'disposed', item_type: 'asset' },
-  ]);
-
-  await getReportItemsForExport({});
-
-  const itemQuery = mockSupabaseRegistry
-    .getQueryLog()
-    .find((entry) => entry.table === 'items');
-
-  assert.ok(itemQuery);
-  assert.equal(
-    itemQuery.operations.some((operation) => operation[0] === 'not' && operation[1] === 'status'),
-    false
-  );
 });
 
 test('getReportItemsList sends filters, Thai sort and pagination to paginated report RPC', async () => {

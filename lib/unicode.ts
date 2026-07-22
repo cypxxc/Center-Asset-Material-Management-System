@@ -33,13 +33,6 @@ export function stripControlCharacters(str: string): string {
 }
 
 /**
- * Checks if a character (or string) consists entirely of Unicode whitespace.
- */
-export function isUnicodeWhitespace(char: string): boolean {
-  return /^\s+$/.test(char)
-}
-
-/**
  * Returns the exact visual length of a string in grapheme clusters (emojis, combining characters).
  * Uses standard Intl.Segmenter when available, falls back to codepoint array conversion.
  */
