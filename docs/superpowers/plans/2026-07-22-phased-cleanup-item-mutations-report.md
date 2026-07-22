@@ -131,7 +131,7 @@ The final production/database pass recorded:
 
 The first smoke attempt failed because worktree-local dependencies were absent. A later exit-0 attempt was explicitly rejected because port 3000 was occupied by an unknown existing server and could not prove which application was exercised. After stopping the confirmed stale process and confirming the port was free, the exact smoke command started its own server without `EADDRINUSE` and produced the accepted result above. These failed/rejected gates are not counted as passes.
 
-Earlier task-scoped findings were resolved in the listed commits. Final whole-branch review then identified Important exception-boundary regressions involving client construction, cache invalidation, and classic telemetry. Commit `637a49c` addresses those findings with public-action regression coverage. The fixes are pending re-review; this report does not claim the final review is clean. No production or database changes were made during Task 4.
+Earlier task-scoped findings were resolved in the listed commits. Final whole-branch review then identified Important exception-boundary regressions involving client construction, cache invalidation, and classic telemetry. Commit `637a49c` addressed those findings with public-action regression coverage. The final independent re-review closed all prior exception-boundary findings and returned: Ready to merge — Yes; Critical findings — none; Important findings — none; Minor findings — none. No production or database changes were made during Task 4.
 
 ## Remaining risks and environment notes
 
@@ -141,7 +141,7 @@ Earlier task-scoped findings were resolved in the listed commits. Final whole-br
 - The configured ignored `.env.local` was used by build/readiness commands. No configured value is reproduced in this report.
 - Database readiness verification was non-mutating: no migrations were applied.
 
-- The boundary fixes have not yet received the requested independent re-review, so review closure remains pending.
+- Final independent re-review found no remaining Critical, Important, or Minor findings.
 
 ## Report integrity and rollback scope
 
