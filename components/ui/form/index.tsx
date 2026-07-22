@@ -28,15 +28,6 @@ export const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
 )
 FormLabel.displayName = "FormLabel"
 
-export type FormHintProps = React.HTMLAttributes<HTMLParagraphElement>
-
-export const FormHint = React.forwardRef<HTMLParagraphElement, FormHintProps>(
-  ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-[10px] text-slate-400 leading-normal", className)} {...props} />
-  )
-)
-FormHint.displayName = "FormHint"
-
 export type FormErrorProps = React.HTMLAttributes<HTMLParagraphElement>
 
 export const FormError = React.forwardRef<HTMLParagraphElement, FormErrorProps>(
@@ -93,8 +84,6 @@ export const FormGrid = React.forwardRef<HTMLDivElement, FormGridProps>(
   }
 )
 FormGrid.displayName = "FormGrid"
-
-export const FormDivider = () => <hr className="border-t border-slate-100 my-4" />
 
 export type FormInputProps = React.InputHTMLAttributes<HTMLInputElement>
 export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(

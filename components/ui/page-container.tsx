@@ -30,29 +30,3 @@ export function PageContainer({
     </div>
   )
 }
-
-export type PageSectionProps = React.HTMLAttributes<HTMLDivElement>
-
-export const PageSection = React.forwardRef<HTMLDivElement, PageSectionProps>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn("bg-white border border-slate-200 rounded-xl shadow-sm p-4 overflow-hidden flex flex-col min-h-0", className)}
-      {...props}
-    />
-  )
-)
-PageSection.displayName = "PageSection"
-
-export type PageToolbarProps = React.HTMLAttributes<HTMLDivElement>
-
-export const PageToolbar = React.forwardRef<HTMLDivElement, PageToolbarProps>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50 p-3 rounded-lg border border-slate-200", className)}
-      {...props}
-    />
-  )
-)
-PageToolbar.displayName = "PageToolbar"

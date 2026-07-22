@@ -6,7 +6,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import {
   FormField,
   FormLabel,
-  FormHint,
   FormError,
   FormInput,
 } from '../../components/ui/form';
@@ -30,17 +29,8 @@ test('FormLabel renders label and star if required', () => {
   assert.ok(star);
 });
 
-test('FormHint and FormError render texts', () => {
-  render(
-    React.createElement(
-      React.Fragment,
-      null,
-      React.createElement(FormHint, null, 'At least 8 chars'),
-      React.createElement(FormError, null, 'Required field')
-    )
-  );
-
-  assert.ok(screen.getByText('At least 8 chars'));
+test('FormError renders text', () => {
+  render(React.createElement(FormError, null, 'Required field'));
   assert.ok(screen.getByText('Required field'));
 });
 
