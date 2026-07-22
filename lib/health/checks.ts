@@ -44,6 +44,23 @@ export interface StatusResult {
   featureFlags?: Record<string, unknown>
 }
 
+function publicCheck(check: DependencyCheck): DependencyCheck {
+  return check.status === 'down'
+    ? { status: 'down', latencyMs: check.latencyMs, error: 'Dependency check failed' }
+    : check
+}
+
+export function toPublicReadiness(result: ReadinessResult): ReadinessResult {
+  return {
+    ...result,
+    checks: {
+      database: publicCheck(result.checks.database),
+      storage: publicCheck(result.checks.storage),
+      environment: publicCheck(result.checks.environment),
+    },
+  }
+}
+
 async function timedCheck(fn: () => Promise<void>): Promise<DependencyCheck> {
   const start = performance.now()
   try {

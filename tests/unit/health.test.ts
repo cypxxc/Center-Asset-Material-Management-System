@@ -74,6 +74,21 @@ test('/api/health/readiness checks database and storage concurrently', async () 
   assert.ok(elapsedMs < 140, `expected concurrent checks below 140ms, got ${elapsedMs}`)
 })
 
+test('/api/health/readiness does not expose dependency errors', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', null, {
+    message: 'connection failed with SUPABASE_SERVICE_ROLE_KEY=secret',
+  })
+
+  const response = await readiness()
+  const body = await response.json()
+
+  assert.equal(response.status, 503)
+  assert.equal(body.checks.database.status, 'down')
+  assert.equal(body.checks.database.error, 'Dependency check failed')
+  assert.equal(JSON.stringify(body).includes('SUPABASE_SERVICE_ROLE_KEY'), false)
+})
+
 test('/api/health/liveness returns alive', async () => {
   const response = await liveness()
   const body = await response.json()
