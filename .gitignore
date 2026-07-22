@@ -33,6 +33,7 @@ yarn-error.log*
 
 # local workspace / agent logs
 .agent/
+.worktrees/
 .next-dev.log
 .next-dev.err.log
 
