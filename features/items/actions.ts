@@ -161,7 +161,7 @@ async function handleImageUpload(
 }
 
 type CreateItemCoreResult =
-  | { ok: true; itemId: string }
+  | { ok: true; itemId: string; userId: string }
   | {
       ok: false
       kind: 'auth' | 'validation' | 'upload' | 'database' | 'unexpected'
@@ -260,7 +260,7 @@ async function createItemCore(
 
     revalidatePath('/items')
     revalidateSidebarCache()
-    return { ok: true, itemId: data.id }
+    return { ok: true, itemId: data.id, userId }
   } catch (err) {
     await deleteUploadedImage()
     return {
@@ -278,10 +278,8 @@ export async function createItem(
   formData: FormData
 ): Promise<ItemActionState> {
   const timer = startTimer()
-  let authorizedUserId: string | undefined
   const result = await createItemCore(formData, {
-    afterAuthorize: async (userId) => {
-      authorizedUserId = userId
+    afterAuthorize: async () => {
       const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
       return rateLimitCheck.success ? null : { message: rateLimitCheck.error! }
     },
@@ -298,13 +296,13 @@ export async function createItem(
   }
 
   const durationMs = timer.stop()
-  const ctx = await getRequestContext(authorizedUserId)
+  const ctx = await getRequestContext(result.userId)
   metrics.itemCreated()
   logger.info(withTraceContext(ctx, {
     operation: 'createItem',
     feature: 'items',
     action: 'createItem',
-    userId: authorizedUserId,
+    userId: result.userId,
     latency: durationMs,
     status: 'success',
   }))
@@ -1011,7 +1009,7 @@ export async function createItemInline(
     return errorResponse(result.message, result.fieldErrors)
   }
 
-  logger.info({ operation: 'createItemInline', feature: 'items', details: { id: result.itemId } })
+  logger.info({ operation: 'createItemInline', feature: 'items', userId: result.userId, details: { id: result.itemId } })
   // Return successResponse — caller handles close + refresh
   return successResponse('สร้างพัสดุสำเร็จ')
 }

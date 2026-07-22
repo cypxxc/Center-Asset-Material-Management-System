@@ -63,6 +63,17 @@ test('createItemInline succeeds without throwing NEXT_REDIRECT', async () => {
   mockSupabaseRegistry.clear()
   mockSupabaseRegistry.setAuth({ id: 'staff' }, { id: 'staff', role: 'staff', is_active: true })
   mockSupabaseRegistry.setTableResponse('items', [{ id: 'new-item' }])
-  const result = await createItemInline(null, validItemFormData())
-  assert.deepEqual(result, { success: true, ok: true, message: 'สร้างพัสดุสำเร็จ', data: undefined })
+  const infoCalls: unknown[][] = []
+  const originalConsoleInfo = console.info
+  console.info = (...args: unknown[]) => infoCalls.push(args)
+  try {
+    const result = await createItemInline(null, validItemFormData())
+    assert.deepEqual(result, { success: true, ok: true, message: 'สร้างพัสดุสำเร็จ', data: undefined })
+    const log = JSON.parse(String(infoCalls.at(-1)?.[1])) as Record<string, unknown>
+    assert.equal(log.operation, 'createItemInline')
+    assert.equal(log.userId, 'staff')
+    assert.deepEqual(log.details, { id: 'new-item' })
+  } finally {
+    console.info = originalConsoleInfo
+  }
 })
