@@ -4,13 +4,27 @@ import assert from 'node:assert/strict'
 import { mockSupabaseRegistry } from '../mocks/supabase'
 import { createItemInline } from '../../features/items/actions'
 
-function validItemFormData() {
+function validItemFormData(withImage = false) {
   const formData = new FormData()
-  for (const [key, value] of Object.entries({
-    item_name: 'Office Chair', item_type: 'asset', category_id: '', quantity: '1', unit_price: '',
-    unit_id: '', asset_no: '', serial_no: '', brand: '', model: '', location_id: '',
-    responsible_person: '', status: 'active', note: '', image_url: '',
-  })) formData.set(key, value)
+  const values: Record<string, string> = {
+    item_name: 'Office Chair',
+    item_type: 'asset',
+    category_id: '',
+    quantity: '2',
+    unit_price: '1250.50',
+    unit_id: '',
+    asset_no: 'ASSET-001',
+    serial_no: 'SERIAL-001',
+    brand: 'Registry',
+    model: 'S1',
+    location_id: '',
+    responsible_person: 'Somchai',
+    status: 'active',
+    note: 'Characterization fixture',
+    image_url: '',
+  }
+  for (const [key, value] of Object.entries(values)) formData.set(key, value)
+  if (withImage) formData.set('image_file', new File(['image-bytes'], 'item.jpg', { type: 'image/jpeg' }))
   return formData
 }
 
