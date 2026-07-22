@@ -4,9 +4,9 @@ Date: 2026-07-22 (Asia/Bangkok)
 
 Baseline: `aefdc5b`
 
-Implementation head: `945e56d`
+Implementation/fix head: `637a49c`
 
-Range: `aefdc5b..945e56d`
+Range: `aefdc5b..637a49c`
 
 ## Outcome
 
@@ -16,23 +16,27 @@ Inline rate limiting was intentionally **not** added. Before this work only clas
 
 ## Exact range inventory
 
-Five commits are in the implementation range, in order:
+Eight commits are in the published range, in order:
 
 1. `8c50c8e93c60cd6eee2bdeaa25a80e2671cad9e7` — `test: characterize item creation contracts`
 2. `3c9c2e68467f9895a51c0d7f1e2ec18d76a4135b` — `test: strengthen item creation characterization`
 3. `3d2b87d59b442baa164a8fadde50da251d65a5d5` — `refactor: consolidate item creation pipeline`
 4. `8769a5e100f31b80fb2134a705562aefec7605c5` — `fix: preserve inline creation log context`
 5. `945e56d6a163fc1821ef110bf570a55f3c8c7e2c` — `test: protect item creation telemetry contracts`
+6. `354a853bdd9a82f6447376cbc7a8e3920bd6ae21` — `docs: report item mutation consolidation`
+7. `6c92a9989711b5010a48cdd4b533b80452aadc33` — `docs: correct item mutation report evidence`
+8. `637a49cb88f274c783b6deb864bc1f0ecc329716` — `fix: restore item creation exception boundaries`
 
-Net file inventory from `git diff --numstat aefdc5b..945e56d`:
+Net file inventory from `git diff --numstat aefdc5b..637a49c`:
 
 | Status | File | Added | Deleted |
 | --- | --- | ---: | ---: |
-| Modified | `features/items/actions.ts` | 109 | 111 |
+| Added | `docs/superpowers/plans/2026-07-22-phased-cleanup-item-mutations-report.md` | 132 | 0 |
+| Modified | `features/items/actions.ts` | 114 | 109 |
 | Added | `tests/integration/create-item-inline.test.ts` | 122 | 0 |
-| Modified | `tests/integration/create-item.test.ts` | 337 | 126 |
+| Modified | `tests/integration/create-item.test.ts` | 463 | 126 |
 
-Total: 3 files changed, 568 insertions, 237 deletions. No files were deleted.
+Total: 4 files changed, 831 insertions, 235 deletions. No files were deleted.
 
 ## Commit evidence
 
@@ -91,6 +95,25 @@ Total: 3 files changed, 568 insertions, 237 deletions. No files were deleted.
 - Full verification: `npx tsc --noEmit`, `npm run lint`, and `npm test` passed; the full suite recorded 221 passed, 0 failed. `git diff --check` exited 0 with only line-ending notices.
 - Rollback: `git revert 945e56d6a163fc1821ef110bf570a55f3c8c7e2c`.
 
+### `354a853` and `6c92a99` — publish and correct the evidence report
+
+- Original problem: the completed implementation needed a durable evidence report; its first version then misstated Node alignment and described integrity checks prospectively.
+- Reason: publish the requested audit trail and correct its evidence language.
+- Files/stat: the first commit added this report (+127); the correction modified it (+5/-5).
+- Impact: documentation only. The report accurately records Node 24 alignment and completed integrity checks, but its initial final-review conclusion was later invalidated by the Important findings below.
+- Rollback: `git revert 6c92a9989711b5010a48cdd4b533b80452aadc33`, then `git revert 354a853bdd9a82f6447376cbc7a8e3920bd6ae21`.
+
+### `637a49c` — restore item creation exception boundaries
+
+- Original problem: final review found that consolidation had moved `createClient()` inside the database catch, cache invalidation inside that catch, and classic committed telemetry outside it. Those changes altered cleanup, rejection, and safe-error behavior relative to the baseline.
+- Reason: retain one shared core while preserving the exact legacy exception boundaries.
+- Files/stat: modified `features/items/actions.ts` (+19/-18) and `tests/integration/create-item.test.ts` (+132). Commit total: 151 insertions, 18 deletions.
+- Literal before/after: before, `const supabase = await createClient()` and cache invalidation were both inside the core `try`, while classic telemetry ran after the core returned. After, client construction precedes the inner `try`; insert, audit, and optional `onCommitted` telemetry are inside it; cache invalidation follows the catch; inline success logging remains in its wrapper.
+- Impact: post-upload client-construction failures reject raw without cleanup/cache; insert, audit, and classic telemetry failures remove the upload exactly once and map through the established wrapper error behavior; post-commit cache failures reject raw without cleanup. Classic timer/context/metric/traced-log fields and inline success logging are retained.
+- TDD evidence: the new focused cases first failed for all three missing boundaries; after the production correction, `node --import tsx --test tests/integration/create-item.test.ts tests/integration/create-item-inline.test.ts` passed 19/19.
+- Full verification: `npm run typecheck`, `npm run lint`, `npm test` (224/224), and `npm run build` all passed.
+- Rollback: `git revert 637a49cb88f274c783b6deb864bc1f0ecc329716`.
+
 ## Final verification and review
 
 The final production/database pass recorded:
@@ -99,7 +122,7 @@ The final production/database pass recorded:
 | --- | --- |
 | `npm run verify-env` | PASS; required variables were present and validated. |
 | `npm run typecheck` | PASS. |
-| `npm test` | PASS; 56 test files, 221 tests passed, 0 failed/cancelled/skipped/todo. |
+| `npm test` | PASS; 56 test files, 224 tests passed, 0 failed/cancelled/skipped/todo. |
 | `npm run lint` | PASS; no diagnostics. |
 | `npm run build` | PASS; Next.js 16.2.11 compiled, TypeScript completed, and 13/13 static pages completed within bundle budgets. |
 | `npm run test:smoke` | PASS only on the accepted clean rerun; 2 discovered, 1 passed, 1 credential-dependent test skipped. |
@@ -108,7 +131,7 @@ The final production/database pass recorded:
 
 The first smoke attempt failed because worktree-local dependencies were absent. A later exit-0 attempt was explicitly rejected because port 3000 was occupied by an unknown existing server and could not prove which application was exercised. After stopping the confirmed stale process and confirming the port was free, the exact smoke command started its own server without `EADDRINUSE` and produced the accepted result above. These failed/rejected gates are not counted as passes.
 
-Task-scoped review findings were resolved in the listed commits: stronger exact characterization, restored inline success-log actor context, and focused telemetry/error coverage. The final whole-branch review had no open Critical or Important findings. No production or database changes were made during Task 4.
+Earlier task-scoped findings were resolved in the listed commits. Final whole-branch review then identified Important exception-boundary regressions involving client construction, cache invalidation, and classic telemetry. Commit `637a49c` addresses those findings with public-action regression coverage. The fixes are pending re-review; this report does not claim the final review is clean. No production or database changes were made during Task 4.
 
 ## Remaining risks and environment notes
 
@@ -118,7 +141,7 @@ Task-scoped review findings were resolved in the listed commits: stronger exact 
 - The configured ignored `.env.local` was used by build/readiness commands. No configured value is reproduced in this report.
 - Database readiness verification was non-mutating: no migrations were applied.
 
-No other remaining risks were found.
+- The boundary fixes have not yet received the requested independent re-review, so review closure remains pending.
 
 ## Report integrity and rollback scope
 
