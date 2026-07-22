@@ -67,10 +67,15 @@ async function timedCheck(fn: () => Promise<void>): Promise<DependencyCheck> {
     await fn()
     return { status: 'up', latencyMs: Math.round(performance.now() - start) }
   } catch (err) {
+    const error = err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String(err.message)
+        : String(err)
     return {
       status: 'down',
       latencyMs: Math.round(performance.now() - start),
-      error: err instanceof Error ? err.message : String(err),
+      error,
     }
   }
 }

@@ -15,6 +15,9 @@ test('MCP writes require both explicit opt-in and service role', () => {
   assert.equal(isMcpWriteEnabled({
     NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', SUPABASE_SERVICE_ROLE_KEY: 'service-key',
   }), true)
+  assert.equal(isMcpWriteEnabled({
+    NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', SUPABASE_SERVICE_ROLE_KEY: '   \t',
+  }), false)
 })
 
 test('MCP create rejects unknown fields and invalid quantity', () => {

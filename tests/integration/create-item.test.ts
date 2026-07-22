@@ -95,6 +95,8 @@ test('createItem safely logs storage upload failures', async () => {
     const result = await createItem(null, formData);
     assert.match(result.message ?? '', /ผิดพลาด/);
     assert.equal(logLines.some((line) => line.includes('uploadItemImage')), true);
+    assert.equal(logLines.some((line) => line.includes('[KEY_REDACTED]')), true);
+    assert.equal(logLines.some((line) => line.includes('Failed to process or upload item image')), true);
     assert.equal(logLines.some((line) => line.includes(secret)), false);
   } finally {
     console.error = originalConsoleError;

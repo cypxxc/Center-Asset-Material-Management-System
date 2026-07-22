@@ -74,19 +74,31 @@ test('/api/health/readiness checks database and storage concurrently', async () 
   assert.ok(elapsedMs < 140, `expected concurrent checks below 140ms, got ${elapsedMs}`)
 })
 
-test('/api/health/readiness does not expose dependency errors', async () => {
+test('/api/health/readiness logs sanitized dependency diagnostics without exposing them publicly', async () => {
   mockSupabaseRegistry.clear()
+  const secret = 'sbp_1234567890abcdef1234567890abcdef'
   mockSupabaseRegistry.setTableResponse('profiles', null, {
-    message: 'connection failed with SUPABASE_SERVICE_ROLE_KEY=secret',
+    message: `connection failed with ${secret}`,
   })
+  const logLines: string[] = []
+  const originalConsoleError = console.error
+  console.error = (...args: unknown[]) => logLines.push(args.map(String).join(' '))
 
-  const response = await readiness()
-  const body = await response.json()
+  try {
+    const response = await readiness()
+    const body = await response.json()
 
-  assert.equal(response.status, 503)
-  assert.equal(body.checks.database.status, 'down')
-  assert.equal(body.checks.database.error, 'Dependency check failed')
-  assert.equal(JSON.stringify(body).includes('SUPABASE_SERVICE_ROLE_KEY'), false)
+    assert.equal(response.status, 503)
+    assert.equal(body.checks.database.status, 'down')
+    assert.equal(body.checks.database.error, 'Dependency check failed')
+    assert.equal(JSON.stringify(body).includes(secret), false)
+    assert.equal(logLines.some((line) => line.includes('readinessCheck')), true)
+    assert.equal(logLines.some((line) => line.includes('database')), true)
+    assert.equal(logLines.some((line) => line.includes('[KEY_REDACTED]')), true)
+    assert.equal(logLines.some((line) => line.includes(secret)), false)
+  } finally {
+    console.error = originalConsoleError
+  }
 })
 
 test('/api/health/liveness returns alive', async () => {
