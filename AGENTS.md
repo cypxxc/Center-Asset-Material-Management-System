@@ -17,7 +17,7 @@ Next.js 16 + Supabase internal app for tracking office assets, supplies, and equ
 - `npm test` — `tsx --test`, runs `*.test.ts` (e.g. `features/items/schema.test.ts`)
 - `npm run verify-env` — validate required Supabase env vars
 - `npm run mcp` — local MCP server (`scripts/mcp-server.ts`)
-- `tsx scripts/apply-migrations.ts` — apply `db/migrations/` to Supabase
+- `$env:MIGRATION_FILES='<ordered comma-separated migration filenames>'; npx tsx scripts/apply-migrations.ts` — apply only the explicitly selected migrations to Supabase; see `DEPLOYMENT.md`
 
 TypeScript is checked separately with `npm run typecheck` and also as part of the Next.js production build (`tsconfig.json` has `"strict": true`).
 
