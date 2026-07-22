@@ -160,99 +160,159 @@ async function handleImageUpload(
   return { imageUrl: currentImageUrl }
 }
 
-export async function createItem(
-  _prevState: ItemActionState | null,
-  formData: FormData
-): Promise<ItemActionState> {
-  const timer = startTimer()
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) return { message: auth.error ?? 'Unauthorized' }
+type CreateItemCoreResult =
+  | { ok: true; itemId: string; userId: string }
+  | {
+      ok: false
+      kind: 'auth' | 'validation' | 'upload' | 'database' | 'unexpected'
+      message: string
+      fieldErrors?: ActionResponse['fieldErrors']
+      error?: unknown
+      userId?: string
+    }
 
-  // Rate limiting check
-  const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
-  if (!rateLimitCheck.success) {
-    return { message: rateLimitCheck.error! }
+type CreateItemCoreOptions = {
+  afterAuthorize?: (userId: string) => Promise<{ message: string } | null>
+  onCommitted?: (result: { itemId: string; userId: string }) => Promise<void>
+}
+
+async function createItemCore(
+  formData: FormData,
+  options: CreateItemCoreOptions = {},
+): Promise<CreateItemCoreResult> {
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) {
+    return { ok: false, kind: 'auth', message: auth.error ?? 'Unauthorized' }
+  }
+
+  const userId = auth.profile.id
+  const authorizationFollowUp = await options.afterAuthorize?.(userId)
+  if (authorizationFollowUp) {
+    return { ok: false, kind: 'unexpected', message: authorizationFollowUp.message, userId }
   }
 
   formData.set('image_url', '')
   const initialParsed = parseFormData(formData)
   if (!initialParsed.success) {
     return {
+      ok: false,
+      kind: 'validation',
       message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
       fieldErrors: initialParsed.error.flatten().fieldErrors,
+      userId,
     }
   }
 
   const uploadResult = await handleImageUpload(formData)
   if (uploadResult.error) {
-    return { message: uploadResult.error }
+    return { ok: false, kind: 'upload', message: uploadResult.error, userId }
   }
   formData.set('image_url', uploadResult.imageUrl || '')
 
+  let uploadedImageDeleted = false
+  async function deleteUploadedImage() {
+    if (!uploadResult.imageUrl || uploadedImageDeleted) return
+    uploadedImageDeleted = true
+    await deleteOldImage(uploadResult.imageUrl)
+  }
+
   const parsed = parseFormData(formData)
   if (!parsed.success) {
-    if (uploadResult.imageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
-    }
+    await deleteUploadedImage()
     return {
+      ok: false,
+      kind: 'validation',
       message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
       fieldErrors: parsed.error.flatten().fieldErrors,
+      userId,
     }
   }
 
   const supabase = await createClient()
-  let newItem: { id: string } | null = null
+  let committedResult: { itemId: string; userId: string }
   try {
     const { data, error } = await supabase
       .from('items')
       .insert({
         ...parsed.data,
-        created_by: auth.profile.id,
-        updated_by: auth.profile.id,
+        created_by: userId,
+        updated_by: userId,
       })
       .select('id')
       .single()
 
     if (error || !data) {
-      if (uploadResult.imageUrl) {
-        await deleteOldImage(uploadResult.imageUrl)
+      await deleteUploadedImage()
+      return {
+        ok: false,
+        kind: 'database',
+        message: friendlyDatabaseError(error?.message || 'Database error'),
+        userId,
       }
-      return { message: friendlyDatabaseError(error?.message || 'Database error') }
-    }
-    newItem = data
-
-    if (newItem) {
-      await writeAuditLog({
-        operation: 'create',
-        feature: 'items',
-        userId: auth.profile.id,
-        targetType: 'items',
-        targetId: newItem.id,
-        newValues: parsed.data,
-      })
     }
 
-    const durationMs = timer.stop()
-    const ctx = await getRequestContext(auth.profile.id)
-    metrics.itemCreated()
-    logger.info(withTraceContext(ctx, {
-      operation: 'createItem',
+    await writeAuditLog({
+      operation: 'create',
       feature: 'items',
-      action: 'createItem',
-      userId: auth.profile.id,
-      latency: durationMs,
-      status: 'success',
-    }))
+      userId,
+      targetType: 'items',
+      targetId: data.id,
+      newValues: parsed.data,
+    })
+
+    committedResult = { itemId: data.id, userId }
+    await options.onCommitted?.(committedResult)
   } catch (err) {
-    if (uploadResult.imageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
+    await deleteUploadedImage()
+    return {
+      ok: false,
+      kind: 'unexpected',
+      message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายหรือเข้าถึงฐานข้อมูล',
+      error: err,
+      userId,
     }
-    const errRes = await handleActionError(err, 'createItem', 'items', auth.profile.id)
-    return { message: errRes.message! }
   }
 
   revalidatePath('/items')
   revalidateSidebarCache()
+  return { ok: true, ...committedResult }
+}
+
+export async function createItem(
+  _prevState: ItemActionState | null,
+  formData: FormData
+): Promise<ItemActionState> {
+  const timer = startTimer()
+  const result = await createItemCore(formData, {
+    afterAuthorize: async () => {
+      const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
+      return rateLimitCheck.success ? null : { message: rateLimitCheck.error! }
+    },
+    onCommitted: async ({ userId }) => {
+      const durationMs = timer.stop()
+      const ctx = await getRequestContext(userId)
+      metrics.itemCreated()
+      logger.info(withTraceContext(ctx, {
+        operation: 'createItem',
+        feature: 'items',
+        action: 'createItem',
+        userId,
+        latency: durationMs,
+        status: 'success',
+      }))
+    },
+  })
+
+  if (!result.ok) {
+    if (result.kind !== 'unexpected' || result.error === undefined) {
+      return result.fieldErrors
+        ? { message: result.message, fieldErrors: result.fieldErrors }
+        : { message: result.message }
+    }
+    const errRes = await handleActionError(result.error, 'createItem', 'items', result.userId)
+    return { message: errRes.message! }
+  }
+
   redirect('/items')
 }
 
@@ -945,73 +1005,18 @@ export async function createItemInline(
   _prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) {
-    logger.warn({ operation: 'createItemInline', feature: 'items', details: 'Unauthorized inline create attempt' })
-    return errorResponse(auth.error ?? 'Unauthorized')
-  }
-
-  formData.set('image_url', '')
-  const initialParsed = parseFormData(formData)
-  if (!initialParsed.success) {
-    return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', initialParsed.error.flatten().fieldErrors)
-  }
-
-  const uploadResult = await handleImageUpload(formData)
-  if (uploadResult.error) {
-    return errorResponse(uploadResult.error)
-  }
-  formData.set('image_url', uploadResult.imageUrl || '')
-
-  const parsed = parseFormData(formData)
-  if (!parsed.success) {
-    if (uploadResult.imageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
+  const result = await createItemCore(formData)
+  if (!result.ok) {
+    if (result.kind === 'auth') {
+      logger.warn({ operation: 'createItemInline', feature: 'items', details: 'Unauthorized inline create attempt' })
     }
-    return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', parsed.error.flatten().fieldErrors)
+    if (result.kind === 'unexpected' && result.error !== undefined) {
+      logger.error({ operation: 'createItemInline', feature: 'items', userId: result.userId }, result.error)
+    }
+    return errorResponse(result.message, result.fieldErrors)
   }
 
-  const supabase = await createClient()
-  let newItem
-  try {
-    const { data, error } = await supabase
-      .from('items')
-      .insert({
-        ...parsed.data,
-        created_by: auth.profile.id,
-        updated_by: auth.profile.id,
-      })
-      .select('id')
-      .single()
-
-    if (error || !data) {
-      if (uploadResult.imageUrl) {
-        await deleteOldImage(uploadResult.imageUrl)
-      }
-      return errorResponse(friendlyDatabaseError(error?.message || 'Database error'))
-    }
-    newItem = data
-
-    await writeAuditLog({
-      operation: 'create',
-      feature: 'items',
-      userId: auth.profile.id,
-      targetType: 'items',
-      targetId: newItem.id,
-      newValues: parsed.data,
-    })
-  } catch (err) {
-    if (uploadResult.imageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
-    }
-    logger.error({ operation: 'createItemInline', feature: 'items', userId: auth.profile.id }, err)
-    return errorResponse('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายหรือเข้าถึงฐานข้อมูล')
-  }
-
-  logger.info({ operation: 'createItemInline', feature: 'items', userId: auth.profile.id, details: { id: newItem.id } })
-
-  revalidatePath('/items')
-  revalidateSidebarCache()
+  logger.info({ operation: 'createItemInline', feature: 'items', userId: result.userId, details: { id: result.itemId } })
   // Return successResponse — caller handles close + refresh
   return successResponse('สร้างพัสดุสำเร็จ')
 }
