@@ -113,7 +113,7 @@ Task-scoped review findings were resolved in the listed commits: stronger exact 
 ## Remaining risks and environment notes
 
 - Authenticated release E2E was not run. The smoke suite skipped its credential-dependent draft-persistence test, so only the unauthenticated redirect path has accepted smoke evidence.
-- The project specifies Node 20 for CI, while the initial failed smoke attempt reported Node.js v24.15.0.
+- The verification runtime was Node.js v24.15.0, aligned with `package.json` (`>=24.0.0 <25`) and CI (`24.x`).
 - Next.js warned about multiple lockfiles and inferred `D:\registry-s\package-lock.json` as the workspace root while listing the worktree lockfile as additional. This may relate to the initial worktree-local dependency issue; it was not diagnosed or changed.
 - The configured ignored `.env.local` was used by build/readiness commands. No configured value is reproduced in this report.
 - Database readiness verification was non-mutating: no migrations were applied.
@@ -122,6 +122,11 @@ No other remaining risks were found.
 
 ## Report integrity and rollback scope
 
-This report must be the only file in its documentation commit. Before committing it, configured non-empty environment values are scanned against the report without printing those values, `git diff --cached --check` must pass, and `git diff --cached --name-only` must list only `docs/superpowers/plans/2026-07-22-phased-cleanup-item-mutations-report.md`.
+The initial documentation commit completed these integrity checks:
+
+- The configured-secret scan checked 4 configured non-empty values without printing them and found 0 matches in the report.
+- `git diff --cached --check` passed after three Markdown trailing-space findings were removed and the exact check was rerun.
+- `git diff --cached --name-only` listed only `docs/superpowers/plans/2026-07-22-phased-cleanup-item-mutations-report.md`.
+- The post-commit `git diff HEAD^ HEAD --check` passed, and the committed file list contained only the report.
 
 Each implementation commit has an explicit independent `git revert <sha>` command above. Because later commits build on earlier tests/refactoring, reverting multiple commits should normally be done newest-to-oldest to minimize conflicts.
