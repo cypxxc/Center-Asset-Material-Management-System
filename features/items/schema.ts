@@ -80,5 +80,3 @@ export const itemFormSchema = z.object({
   note: optionalTextLimit(2000),
   image_url: optionalUrl,
 })
-
-export type ItemFormInput = z.infer<typeof itemFormSchema>

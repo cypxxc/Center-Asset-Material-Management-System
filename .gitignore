@@ -13,6 +13,8 @@
 # testing
 /coverage
 /test-results/
+/playwright-report/
+/blob-report/
 
 # next.js
 /.next/
@@ -23,7 +25,11 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+*.tmp
+*.swp
+*~
 
 # debug
 npm-debug.log*
@@ -36,9 +42,17 @@ yarn-error.log*
 .worktrees/
 .next-dev.log
 .next-dev.err.log
+/.cache/
+/.turbo/
+/.superpowers/sdd/task-*-brief.md
+/.superpowers/sdd/task-*-report.md
+/.superpowers/sdd/task-*-review-package.md
+/.superpowers/sdd/review-*.diff
+/.superpowers/sdd/progress.md
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

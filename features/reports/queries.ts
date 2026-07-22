@@ -19,15 +19,6 @@ export interface ReportStats {
   locationCount: number
 }
 
-export interface RecentAuditLog {
-  id: string
-  user: string
-  action: string
-  itemName: string
-  details: string
-  timestamp: string
-}
-
 export async function getReportStats(): Promise<ReportStats> {
   const supabase = await createClient()
   const {
@@ -70,71 +61,6 @@ export async function getReportStats(): Promise<ReportStats> {
     locationCount: res.location_count,
   }
 }
-
-export async function getRecentAuditLogs(): Promise<RecentAuditLog[]> {
-  const supabase = await createClient()
-  const {
-    result: { data, error },
-  } = await measureQuery('reports.getRecentAuditLogs', () =>
-    supabase
-      .from('audit_logs')
-      .select(`
-      id,
-      action,
-      created_at,
-      profiles:user_id(full_name),
-      old_data,
-      new_data
-    `)
-      .order('created_at', { ascending: false })
-      .limit(8)
-  )
-
-  if (error) {
-    // Return empty array for non-admins (due to RLS read constraint)
-    return []
-  }
-
-  return (data ?? []).map((log) => {
-    const profile = Array.isArray(log.profiles) ? log.profiles[0] : log.profiles
-    interface AuditLogPayload {
-      item_name?: string
-      responsible_person?: string
-      note?: string
-      asset_no?: string
-    }
-    const oldData = log.old_data as AuditLogPayload | null
-    const newData = log.new_data as AuditLogPayload | null
-    const itemName = newData?.item_name || oldData?.item_name || 'พัสดุในระบบ'
-    
-    let actionLabel = log.action
-    if (log.action === 'create') actionLabel = 'ขึ้นทะเบียนใหม่ (Created)'
-    if (log.action === 'update') actionLabel = 'แก้ไขข้อมูล'
-    if (log.action === 'delete') actionLabel = 'นำรายการไปยังถังขยะ'
-    if (log.action === 'restore') actionLabel = 'กู้คืนรายการ'
-    if (log.action === 'hard_delete') actionLabel = 'ลบรายการอย่างถาวร'
-
-    let detailsText = newData?.responsible_person 
-      ? `เปลี่ยนผู้รับผิดชอบเป็น ${newData.responsible_person}` 
-      : (newData?.note || oldData?.note || `ปรับปรุงข้อมูลครุภัณฑ์รหัส ${newData?.asset_no || oldData?.asset_no || '-'}`)
-
-    if (log.action === 'restore') {
-      detailsText = 'กู้คืนสิ่งของกลับสู่ระบบหลักสำเร็จ'
-    } else if (log.action === 'hard_delete') {
-      detailsText = `ลบข้อมูลสิ่งของออกจากระบบแบบถาวร (รหัสครุภัณฑ์ ${oldData?.asset_no || '-'})`
-    }
-
-    return {
-      id: log.id,
-      user: profile?.full_name || 'ผู้ใช้งานระบบ',
-      action: actionLabel,
-      itemName,
-      details: detailsText,
-      timestamp: log.created_at,
-    }
-  })
-}
-
 
 function firstRelation<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) return value[0] ?? null
