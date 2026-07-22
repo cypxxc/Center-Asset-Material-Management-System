@@ -10,6 +10,7 @@ import { config } from '@/lib/config'
 import { retrySupabase } from '@/lib/retry'
 import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
+import { resolveUniqueProfileEmail } from './login-identifier'
 
 
 export async function signOut() {
@@ -83,18 +84,19 @@ export async function login(_prevState: { error?: string } | null, formData: For
         }
       } else {
         const profileResult = await retrySupabase(async () => {
-          const result = await adminClient.from('profiles').select('email').ilike('full_name', identifier).limit(1)
+          const result = await adminClient.from('profiles').select('email').ilike('full_name', identifier).limit(2)
           if (result.error) throw result.error
           return result
         })
 
         const profiles = profileResult.data
-        if (!profiles?.length) {
+        const profileEmail = resolveUniqueProfileEmail(profiles ?? [])
+        if (!profileEmail) {
           metrics.loginFailure()
           trace.complete('failure', { reason: 'profile_not_found' })
           return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
         }
-        email = profiles[0].email as string
+        email = profileEmail
       }
     }
   } catch (err) {

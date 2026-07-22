@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
 import { itemFormSchema } from './schema'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
-import { clearReferencesCache } from './queries'
 import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
@@ -148,7 +147,12 @@ async function handleImageUpload(
         .getPublicUrl(fileName)
 
       return { imageUrl: publicUrl, oldImageUrlToDelete: currentImageUrl }
-    } catch {
+    } catch (error) {
+      logger.error({
+        operation: 'uploadItemImage',
+        feature: 'items',
+        details: 'Failed to process or upload item image',
+      }, error)
       return { imageUrl: null, error: 'เกิดข้อผิดพลาดในการประมวลผลไฟล์รูปภาพ' }
     }
   }
@@ -920,7 +924,6 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
     revalidatePath('/items')
     revalidateSidebarCache()
-    clearReferencesCache()
     return successResponse(`นำเข้าพัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
   } catch (err) {
     return handleActionError<{ count: number }>(err, 'importItemsBulk', 'items', auth.profile.id)

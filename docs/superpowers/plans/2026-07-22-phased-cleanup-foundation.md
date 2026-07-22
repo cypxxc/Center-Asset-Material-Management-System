@@ -533,10 +533,12 @@ In `tests/integration/create-item.test.ts`, add a storage-upload failure case us
 ```ts
 assert.match(result.message ?? '', /ผิดพลาด/)
 assert.equal(logLines.some((line) => line.includes('uploadItemImage')), true)
-assert.equal(logLines.some((line) => line.includes('service-role')), false)
+assert.equal(logLines.some((line) => line.includes('sbp_1234567890abcdef1234567890abcdef')), false)
 ```
 
-Configure the storage mock to reject with `new Error('service-role diagnostic')`; the exact secret phrase must not appear after Task 2 sanitization.
+Configure the storage mock to reject with
+`new Error('sbp_1234567890abcdef1234567890abcdef')`; that exact key must not
+appear after Task 2 sanitization.
 
 - [ ] **Step 5: Verify upload diagnostics currently fail**
 

@@ -3,12 +3,12 @@
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { clearReferencesCache } from '@/features/items/queries'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
+import { assertAdminTable } from '@/features/admin/table-policy'
 
 
 async function getSupabaseClient() {
@@ -30,16 +30,17 @@ export async function requireAdmin() {
 export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, data: [], count: 0 }
+  const safeTable = assertAdminTable(tableName, 'read')
 
   const supabase = await getSupabaseClient()
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
   // Handle audit_logs sorting by created_at, others can sort by name or created_at if exists
-  const sortBy = tableName === 'audit_logs' || tableName === 'items' ? 'created_at' : 'id'
+  const sortBy = safeTable === 'audit_logs' || safeTable === 'items' ? 'created_at' : 'id'
 
   const { data, error, count } = await supabase
-    .from(tableName)
+    .from(safeTable)
     .select('*', { count: 'exact' })
     .order(sortBy, { ascending: false })
     .range(from, to)
@@ -51,6 +52,7 @@ export async function getTableData(tableName: string, page: number = 1, pageSize
 export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
+  const safeTable = assertAdminTable(tableName, 'write')
 
   const supabase = await getSupabaseClient()
 
@@ -61,7 +63,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
   delete cleanPayload.updated_at
   delete cleanPayload.deleted_at
 
-  if (tableName === 'profiles') {
+  if (safeTable === 'profiles') {
     delete cleanPayload.email
   }
 
@@ -75,7 +77,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
   if (rowId) {
     // Update
     const { data, error } = await supabase
-      .from(tableName)
+      .from(safeTable)
       .update(cleanPayload)
       .eq('id', rowId)
       .select()
@@ -86,21 +88,17 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     await supabase.from('audit_logs').insert({
       user_id: auth.profile.id,
       action: 'UPDATE',
-      target_table: tableName,
+      target_table: safeTable,
       target_id: rowId,
       new_data: cleanPayload
     })
-
-    if (['categories', 'locations', 'units'].includes(tableName)) {
-      clearReferencesCache()
-    }
 
     revalidatePath('/admin/db-panel')
     return { success: true, data: data?.[0] }
   } else {
     // Insert
     const { data, error } = await supabase
-      .from(tableName)
+      .from(safeTable)
       .insert(cleanPayload)
       .select()
 
@@ -113,14 +111,10 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
       await supabase.from('audit_logs').insert({
         user_id: auth.profile.id,
         action: 'INSERT',
-        target_table: tableName,
+        target_table: safeTable,
         target_id: newId,
         new_data: cleanPayload
       })
-    }
-
-    if (['categories', 'locations', 'units'].includes(tableName)) {
-      clearReferencesCache()
     }
 
     revalidatePath('/admin/db-panel')
@@ -131,18 +125,19 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 export async function deleteTableRow(tableName: string, rowId: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
+  const safeTable = assertAdminTable(tableName, 'delete')
 
   const supabase = await getSupabaseClient()
 
   // Fetch old data for audit log first
   const { data: oldRow } = await supabase
-    .from(tableName)
+    .from(safeTable)
     .select('*')
     .eq('id', rowId)
     .single()
 
   const { error } = await supabase
-    .from(tableName)
+    .from(safeTable)
     .delete()
     .eq('id', rowId)
 
@@ -152,14 +147,10 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   await supabase.from('audit_logs').insert({
     user_id: auth.profile.id,
     action: 'DELETE',
-    target_table: tableName,
+    target_table: safeTable,
     target_id: rowId,
     old_data: oldRow || null
   })
-
-  if (['categories', 'locations', 'units'].includes(tableName)) {
-    clearReferencesCache()
-  }
 
   revalidatePath('/admin/db-panel')
   return { success: true }
@@ -330,9 +321,8 @@ export async function createAuthUser(payload: {
       return { error: 'อีเมลนี้มีอยู่ในระบบแล้ว' }
     }
 
-    // Step 1: Create auth user via Supabase Auth Admin API
-    // We pass role and status directly in user_metadata so that the trigger private.handle_new_user()
-    // creates the profiles record atomically with the correct settings.
+    // Step 1: Create the Auth user. The database trigger always creates a safe
+    // viewer profile; the server-only upsert below applies the requested role.
     const authResult = await retrySupabase(async () => {
       const result = await adminClient.auth.admin.createUser({
         email,

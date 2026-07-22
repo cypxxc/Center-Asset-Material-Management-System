@@ -149,17 +149,6 @@
   background: #94a3b8;
 }
 
-.table-row-hover {
-  transition: all 0.2s ease;
-}
-.table-row-hover:hover {
-  background-color: #f8fafc;
-}
-.table-row-selected {
-  background-color: #eff6ff;
-  border-color: #bfdbfe;
-}
-
 /* Enable Unicode-aware bidirectional text handling for inputs and text fields */
 input[type="text"],
 input[type="search"],

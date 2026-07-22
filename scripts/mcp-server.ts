@@ -2,6 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import {
+  isMcpWriteEnabled,
+  parseMcpCreateItem,
+  parseMcpDeleteItem,
+  parseMcpUpdateItem,
+} from './mcp-policy';
 
 // 1. Load env variables from .env.local
 function loadEnv() {
@@ -26,8 +32,10 @@ function loadEnv() {
 loadEnv();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-// Use Service Role Key if available (bypasses RLS), fallback to Anon Key
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const writeEnabled = isMcpWriteEnabled(process.env);
+const supabaseKey = writeEnabled
+  ? process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Error: Supabase environment variables not configured in .env.local');
@@ -39,6 +47,10 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: false,
   },
 });
+
+function requireMcpWriteCapability() {
+  if (!writeEnabled) throw new Error('MCP write tools are disabled');
+}
 
 // 2. Setup Stdio JSON-RPC 2.0 interface
 const rl = readline.createInterface({
@@ -122,26 +134,27 @@ async function handleRequest(request: { id?: string | number | null; method: str
               required: ['id'],
             },
           },
-          {
+          ...(writeEnabled ? [{
             name: 'create_item',
             description: 'Create a new item in the CAMMS registry',
             inputSchema: {
               type: 'object',
+              additionalProperties: false,
               properties: {
                 item_name: { type: 'string', description: 'Name of the item' },
                 item_type: { type: 'string', enum: ['asset', 'material'] },
                 unit_price: { type: 'number', description: 'Unit price used for inventory valuation' },
-                category_id: { type: 'string', description: 'Category UUID' },
-                quantity: { type: 'number', description: 'Quantity (must be >= 1)' },
-                unit_id: { type: 'string', description: 'Unit UUID' },
-                asset_no: { type: 'string', description: 'Asset inventory number' },
-                serial_no: { type: 'string', description: 'Serial number' },
-                brand: { type: 'string', description: 'Brand name' },
-                model: { type: 'string', description: 'Model name' },
-                location_id: { type: 'string', description: 'Location UUID' },
-                responsible_person: { type: 'string', description: 'Responsible person name' },
+                category_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }], description: 'Category UUID' },
+                quantity: { type: 'integer', minimum: 1, description: 'Quantity (must be >= 1)' },
+                unit_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }], description: 'Unit UUID' },
+                asset_no: { type: ['string', 'null'], description: 'Asset inventory number' },
+                serial_no: { type: ['string', 'null'], description: 'Serial number' },
+                brand: { type: ['string', 'null'], description: 'Brand name' },
+                model: { type: ['string', 'null'], description: 'Model name' },
+                location_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }], description: 'Location UUID' },
+                responsible_person: { type: ['string', 'null'], description: 'Responsible person name' },
                 status: { type: 'string', description: 'Status' },
-                note: { type: 'string', description: 'Additional note' },
+                note: { type: ['string', 'null'], description: 'Additional note' },
               },
               required: ['item_name', 'item_type', 'quantity'],
             },
@@ -151,25 +164,28 @@ async function handleRequest(request: { id?: string | number | null; method: str
             description: 'Update properties of an existing item in the registry',
             inputSchema: {
               type: 'object',
+              additionalProperties: false,
               properties: {
-                id: { type: 'string', description: 'Item UUID' },
+                id: { type: 'string', format: 'uuid', description: 'Item UUID' },
                 updates: {
                   type: 'object',
+                  additionalProperties: false,
+                  minProperties: 1,
                   properties: {
                     item_name: { type: 'string' },
                     item_type: { type: 'string', enum: ['asset', 'material'] },
                     unit_price: { type: 'number' },
-                    category_id: { type: 'string' },
-                    quantity: { type: 'number' },
-                    unit_id: { type: 'string' },
-                    asset_no: { type: 'string' },
-                    serial_no: { type: 'string' },
-                    brand: { type: 'string' },
-                    model: { type: 'string' },
-                    location_id: { type: 'string' },
-                    responsible_person: { type: 'string' },
+                    category_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+                    quantity: { type: 'integer', minimum: 1 },
+                    unit_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+                    asset_no: { type: ['string', 'null'] },
+                    serial_no: { type: ['string', 'null'] },
+                    brand: { type: ['string', 'null'] },
+                    model: { type: ['string', 'null'] },
+                    location_id: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+                    responsible_person: { type: ['string', 'null'] },
                     status: { type: 'string' },
-                    note: { type: 'string' },
+                    note: { type: ['string', 'null'] },
                   },
                 },
               },
@@ -181,12 +197,13 @@ async function handleRequest(request: { id?: string | number | null; method: str
             description: 'Soft-delete an item from the registry by setting deleted_at',
             inputSchema: {
               type: 'object',
+              additionalProperties: false,
               properties: {
-                id: { type: 'string', description: 'Item UUID' },
+                id: { type: 'string', format: 'uuid', description: 'Item UUID' },
               },
               required: ['id'],
             },
-          },
+          }] : []),
           {
             name: 'list_categories',
             description: 'List all active categories in CAMMS',
@@ -283,13 +300,17 @@ function pickItemFields(input: Record<string, unknown>) {
 }
 
 async function writeMcpAudit(action: string, targetId: string, values: unknown) {
-  await supabase.from('audit_logs').insert({
+  const { error } = await supabase.from('audit_logs').insert({
     user_id: null,
     action,
     target_table: 'items',
     target_id: targetId,
     new_data: { source: 'mcp', values },
   });
+  if (error) {
+    console.error('MCP audit log insert failed', { code: error.code });
+    throw new Error('Failed to write MCP audit log');
+  }
 }
 
 async function executeTool(name: string, args: McpToolArguments | undefined): Promise<string> {
@@ -333,8 +354,9 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'create_item': {
-      if (!args) throw new Error('Arguments are required to create an item');
-      const payload = pickItemFields(args);
+      requireMcpWriteCapability();
+      const parsed = parseMcpCreateItem(args);
+      const payload = pickItemFields(parsed);
       const { data, error } = await supabase
         .from('items')
         .insert({
@@ -351,9 +373,8 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'update_item': {
-      const id = args?.id;
-      const updates = args?.updates;
-      if (!id || !updates) throw new Error('Item ID and updates are required');
+      requireMcpWriteCapability();
+      const { id, updates } = parseMcpUpdateItem(args);
       const payload = pickItemFields(updates);
       const { data, error } = await supabase
         .from('items')
@@ -372,8 +393,8 @@ async function executeTool(name: string, args: McpToolArguments | undefined): Pr
     }
 
     case 'delete_item': {
-      const id = args?.id;
-      if (!id) throw new Error('Item ID is required');
+      requireMcpWriteCapability();
+      const { id } = parseMcpDeleteItem(args);
       const { data, error } = await supabase
         .from('items')
         .update({

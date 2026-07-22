@@ -101,7 +101,9 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30 transition-colors cursor-pointer"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -116,7 +118,7 @@ function LoginForm() {
 
         {/* Footer copyright */}
         <div className="text-center">
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-slate-600">
             © {new Date().getFullYear()} Registry-S. สงวนลิขสิทธิ์ทั้งหมด
           </p>
         </div>

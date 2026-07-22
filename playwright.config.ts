@@ -1,5 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
+export function getWebServerConfig(env: NodeJS.ProcessEnv) {
+  if (env.PLAYWRIGHT_EXTERNAL_SERVER === 'true') return undefined
+
+  return {
+    command: 'node node_modules/next/dist/bin/next start',
+    url: 'http://localhost:3000',
+    reuseExistingServer: false,
+    timeout: 120_000,
+  }
+}
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -7,12 +18,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: 'list',
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: getWebServerConfig(process.env),
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',

@@ -20,6 +20,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -104,6 +107,8 @@ export function ItemsExplorerClient({
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
+  const [inspectorWidth, setInspectorWidth] = useState(360)
+  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false)
 
   // Reactively open sheet when URL query param changes during render
   if (newParam !== lastNewParam) {
@@ -320,6 +325,25 @@ export function ItemsExplorerClient({
     }
   }
 
+  const handleInspectorResizeStart = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = inspectorWidth
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextWidth = startWidth + (startX - moveEvent.clientX)
+      setInspectorWidth(Math.min(520, Math.max(280, nextWidth)))
+    }
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+  }
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-secondary text-slate-900 font-sans">
 
@@ -399,6 +423,7 @@ export function ItemsExplorerClient({
                     {/* Category Filter */}
                     <select
                       name="category_id"
+                      aria-label="กรองตามหมวดหมู่"
                       value={params.category_id ?? ''}
                       onChange={(e) => handleFilterChange({ category_id: e.target.value })}
                       className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
@@ -412,6 +437,7 @@ export function ItemsExplorerClient({
                     {/* Status Filter */}
                     <select
                       name="status"
+                      aria-label="กรองตามสถานะ"
                       value={params.status ?? ''}
                       onChange={(e) => handleFilterChange({ status: e.target.value })}
                       className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
@@ -514,6 +540,10 @@ export function ItemsExplorerClient({
           userCanWrite={userCanWrite}
           userCanDelete={userCanDelete}
           onCopy={copyReference}
+          width={inspectorWidth}
+          collapsed={isInspectorCollapsed}
+          onToggleCollapsed={() => setIsInspectorCollapsed((collapsed) => !collapsed)}
+          onResizeStart={handleInspectorResizeStart}
         />
       </div>
 
@@ -528,6 +558,7 @@ export function ItemsExplorerClient({
           {/* Bulk Update Status */}
           {userCanWrite && (
             <select
+              aria-label="เปลี่ยนสถานะรายการที่เลือก"
               onChange={async (e) => {
                 const newStatus = e.target.value
                 if (!newStatus) return
@@ -561,6 +592,7 @@ export function ItemsExplorerClient({
           {/* Bulk Update Location */}
           {userCanWrite && (
             <select
+              aria-label="เปลี่ยนสถานที่รายการที่เลือก"
               onChange={async (e) => {
                 const newLocId = e.target.value
                 if (!newLocId) return
@@ -625,7 +657,7 @@ export function ItemsExplorerClient({
           {/* Clear Selection */}
           <button
             onClick={() => setSelectedItemIds([])}
-            className="text-xs text-slate-400 hover:text-slate-600 font-bold transition-colors cursor-pointer"
+            className="text-xs text-slate-600 hover:text-slate-800 font-bold transition-colors cursor-pointer"
           >
             ยกเลิก
           </button>
@@ -732,6 +764,7 @@ function ItemsList({
             <DataTableHead isCheckbox>
               <input
                 type="checkbox"
+                aria-label="เลือกทุกรายการในหน้านี้"
                 checked={items.length > 0 && selectedItemIds.length === items.length}
                 onChange={onToggleSelectAll}
                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
@@ -765,6 +798,7 @@ function ItemsList({
                 <DataTableCell isCheckbox onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
+                    aria-label={`เลือก ${item.item_name}`}
                     checked={isChecked}
                     onChange={() => onToggleSelectItem(item.id)}
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
@@ -777,7 +811,7 @@ function ItemsList({
                 </DataTableCell>
                 <DataTableCell className="px-2">
                   <div className="font-extrabold text-slate-800">{item.item_name}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-slate-400">
+                  <div className="mt-0.5 font-mono text-[10px] text-slate-600">
                     {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
                   </div>
                 </DataTableCell>
@@ -859,7 +893,7 @@ function ItemsGrid({
                   )}
                 </div>
                 <p className="line-clamp-2 text-xs font-extrabold leading-snug text-slate-800 pr-4">{item.item_name}</p>
-                <p className="mt-1 truncate font-mono text-[10px] text-slate-400">{item.asset_no || item.serial_no || '-'}</p>
+                <p className="mt-1 truncate font-mono text-[10px] text-slate-600">{item.asset_no || item.serial_no || '-'}</p>
                 <div className="mt-auto flex items-center justify-between pt-3">
                   <span className="rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
                     {ITEM_TYPE_LABELS[item.item_type]}
@@ -904,20 +938,31 @@ function Inspector({
   userCanWrite,
   userCanDelete,
   onCopy,
+  width,
+  collapsed,
+  onToggleCollapsed,
+  onResizeStart,
 }: {
   item: ItemListRow | null
   userCanWrite: boolean
   userCanDelete: boolean
   onCopy: (value: string | null | undefined) => void
+  width: number
+  collapsed: boolean
+  onToggleCollapsed: () => void
+  onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
 }) {
   if (!item) {
     return (
-      <aside className="hidden w-[320px] shrink-0 flex-col items-center justify-center border-l border-slate-200 bg-white p-6 text-center text-slate-400 lg:flex">
+      <aside style={{ width: collapsed ? 44 : width }} className="relative hidden shrink-0 flex-col items-center justify-center overflow-hidden border-l border-slate-200 bg-white p-6 text-center text-slate-600 transition-[width] duration-200 lg:flex">
+        <InspectorControls collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
+        {!collapsed && <>
         <Folder className="h-10 w-10 text-slate-300" />
         <p className="mt-2 text-xs font-bold text-slate-700">เลือกสิ่งของเพื่อดูรายละเอียด</p>
-        <p className="mt-1 max-w-[220px] text-[10px] leading-relaxed text-slate-400">
+        <p className="mt-1 max-w-[220px] text-[10px] leading-relaxed text-slate-600">
           เลือกรายการในตารางหรือมุมมองแบบตารางเพื่อดูรายละเอียดด้านขวา
         </p>
+        </>}
       </aside>
     )
   }
@@ -925,7 +970,9 @@ function Inspector({
   const reference = item.serial_no || item.asset_no
 
   return (
-    <aside className="hidden h-full w-[320px] shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-sm lg:flex xl:w-[360px]">
+    <aside style={{ width: collapsed ? 44 : width }} className={cn('relative hidden h-full shrink-0 flex-col border-l border-slate-200 bg-white shadow-sm transition-[width] duration-200 lg:flex', collapsed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden')} aria-label="รายละเอียดรายการ">
+      <InspectorControls collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
+      <div className={cn('flex min-w-0 flex-1 flex-col', collapsed && 'pointer-events-none opacity-0')}>
       <div className="relative h-48 shrink-0 overflow-hidden border-b border-slate-100 bg-slate-100">
         {item.image_url ? (
           <ZoomableImage
@@ -937,7 +984,7 @@ function Inspector({
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-slate-300">
             <Package className="h-12 w-12 stroke-[1.25]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">No Image Available</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">No Image Available</span>
           </div>
         )}
 
@@ -966,7 +1013,7 @@ function Inspector({
           </div>
         </div>
 
-        <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-blue-500">tag</span>} label="Serial Number / เลขครุภัณฑ์">
+        <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-blue-700">tag</span>} label="Serial Number / เลขครุภัณฑ์">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate rounded border border-slate-100 bg-slate-50 px-2 py-1 font-mono text-xs font-bold text-slate-800">
               {reference || '-'}
@@ -1024,7 +1071,43 @@ function Inspector({
           )}
         </div>
       </div>
+      </div>
     </aside>
+  )
+}
+
+function InspectorControls({
+  collapsed,
+  onToggleCollapsed,
+  onResizeStart,
+}: {
+  collapsed: boolean
+  onToggleCollapsed: () => void
+  onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="absolute left-1 top-3 z-20 flex h-8 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={collapsed ? 'ขยายรายละเอียดรายการ' : 'ย่อรายละเอียดรายการ'}
+        title={collapsed ? 'ขยายแถบรายละเอียด' : 'ย่อแถบรายละเอียด'}
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </button>
+      {!collapsed && (
+        <button
+          type="button"
+          onPointerDown={onResizeStart}
+          className="absolute left-0 top-1/2 z-10 flex h-16 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center rounded-r-md border border-l-0 border-slate-200 bg-white/95 text-slate-300 shadow-sm hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="ปรับความกว้างแถบรายละเอียด"
+          title="ลากเพื่อปรับความกว้าง"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+    </>
   )
 }
 
@@ -1059,7 +1142,7 @@ function PaginationLink({
 }) {
   if (disabled) {
     return (
-      <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-300">
+      <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
         {children}
       </span>
     )

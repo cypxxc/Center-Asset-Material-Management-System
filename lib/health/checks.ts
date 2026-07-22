@@ -44,16 +44,38 @@ export interface StatusResult {
   featureFlags?: Record<string, unknown>
 }
 
+function publicCheck(check: DependencyCheck): DependencyCheck {
+  return check.status === 'down'
+    ? { status: 'down', latencyMs: check.latencyMs, error: 'Dependency check failed' }
+    : check
+}
+
+export function toPublicReadiness(result: ReadinessResult): ReadinessResult {
+  return {
+    ...result,
+    checks: {
+      database: publicCheck(result.checks.database),
+      storage: publicCheck(result.checks.storage),
+      environment: publicCheck(result.checks.environment),
+    },
+  }
+}
+
 async function timedCheck(fn: () => Promise<void>): Promise<DependencyCheck> {
   const start = performance.now()
   try {
     await fn()
     return { status: 'up', latencyMs: Math.round(performance.now() - start) }
   } catch (err) {
+    const error = err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String(err.message)
+        : String(err)
     return {
       status: 'down',
       latencyMs: Math.round(performance.now() - start),
-      error: err instanceof Error ? err.message : String(err),
+      error,
     }
   }
 }

@@ -61,6 +61,49 @@ test('createItem validates form data before uploading item image', async () => {
   assert.deepEqual(mockSupabaseRegistry.getStorageLog(), []);
 });
 
+test('createItem safely logs storage upload failures', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  const formData = new FormData();
+  formData.set('item_name', 'Office Chair');
+  formData.set('item_type', 'asset');
+  formData.set('quantity', '1');
+  formData.set('status', 'active');
+  formData.set('image_file', new File(['image-bytes'], 'item.jpg', { type: 'image/jpeg' }));
+  for (const field of [
+    'category_id', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model',
+    'location_id', 'responsible_person', 'note', 'image_url',
+  ]) {
+    formData.set(field, '');
+  }
+
+  const secret = 'sbp_1234567890abcdef1234567890abcdef';
+  const logLines: string[] = [];
+  const originalConsoleError = console.error;
+  const originalRecordStorage = mockSupabaseRegistry.recordStorage;
+  console.error = (...args: unknown[]) => logLines.push(args.map(String).join(' '));
+  mockSupabaseRegistry.recordStorage = (entry) => {
+    originalRecordStorage.call(mockSupabaseRegistry, entry);
+    if (entry.operation === 'upload') throw new Error(secret);
+  };
+
+  try {
+    const result = await createItem(null, formData);
+    assert.match(result.message ?? '', /ผิดพลาด/);
+    assert.equal(logLines.some((line) => line.includes('uploadItemImage')), true);
+    assert.equal(logLines.some((line) => line.includes('[KEY_REDACTED]')), true);
+    assert.equal(logLines.some((line) => line.includes('Failed to process or upload item image')), true);
+    assert.equal(logLines.some((line) => line.includes(secret)), false);
+  } finally {
+    console.error = originalConsoleError;
+    mockSupabaseRegistry.recordStorage = originalRecordStorage;
+  }
+});
+
 test('createItem redirects to /items upon successful creation', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(

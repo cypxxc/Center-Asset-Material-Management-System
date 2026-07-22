@@ -5,6 +5,15 @@
 
 BEGIN;
 
+CREATE TABLE IF NOT EXISTS public.app_migrations (
+  migration text PRIMARY KEY,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.app_migrations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.app_migrations FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.app_migrations TO service_role;
+
 CREATE OR REPLACE FUNCTION private.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -27,5 +36,13 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+INSERT INTO public.app_migrations (migration)
+VALUES
+  ('00026_atomic_database_restore.sql'),
+  ('00027_lock_down_admin_sql.sql'),
+  ('00028_revoke_authenticated_admin_sql.sql'),
+  ('00029_harden_profile_role_defaults.sql')
+ON CONFLICT (migration) DO NOTHING;
 
 COMMIT;

@@ -50,6 +50,10 @@ function sanitizeValue(value: unknown): unknown {
 export function formatLog(level: string, payload: LogPayload, err?: unknown): string {
   const errorObj = err instanceof Error ? err : null
   const sanitizedPayload = sanitizeValue(payload) as LogPayload
+  const rawErrorMessage = errorObj ? errorObj.message : err ? String(err) : undefined
+  const rawErrorStack = errorObj?.stack
+  const errorMessage = sanitizeValue(rawErrorMessage) as string | undefined
+  const errorStack = sanitizeValue(rawErrorStack) as string | undefined
 
   const severityMap: Record<string, LogPayload['severity']> = {
     DEBUG: 'debug',
@@ -70,8 +74,8 @@ export function formatLog(level: string, payload: LogPayload, err?: unknown): st
       process.env.VERCEL_URL ??
       'localhost',
     duration: sanitizedPayload.duration ?? sanitizedPayload.latency,
-    error_message: errorObj ? errorObj.message : err ? String(err) : undefined,
-    error_stack: errorObj ? errorObj.stack : undefined,
+    error_message: errorMessage,
+    error_stack: errorStack,
     ...sanitizedPayload,
   }
   return JSON.stringify(logLine)
