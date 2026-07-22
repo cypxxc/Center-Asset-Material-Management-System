@@ -7,6 +7,7 @@ type InsertObservation = { table: string; values: unknown }
 const inserts: InsertObservation[] = []
 const cacheCalls: unknown[][] = []
 const rateLimitCalls: unknown[][] = []
+let rateLimitResponse: { success: boolean; error?: string } = { success: true }
 
 function observedClient(kind: 'anon' | 'service') {
   const client = createMockSupabaseClient(kind)
@@ -40,16 +41,18 @@ Object.assign(require.cache[cachePath]!.exports, {
 })
 
 const rateLimitPath = require.resolve('../../lib/rate-limit')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const realRateLimit = require(rateLimitPath)
 const originalRateLimitExports = require.cache[rateLimitPath]!.exports
 require.cache[rateLimitPath]!.exports = {
   ...realRateLimit,
   checkRateLimit: async (...args: unknown[]) => {
     rateLimitCalls.push(args)
-    return { success: true }
+    return rateLimitResponse
   },
 }
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createItem, createItemInline } = require('../../features/items/actions') as typeof import('../../features/items/actions')
 
 after(() => {
@@ -94,6 +97,7 @@ function reset() {
   inserts.length = 0
   cacheCalls.length = 0
   rateLimitCalls.length = 0
+  rateLimitResponse = { success: true }
 }
 
 function restoreEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE_KEY', previous: string | undefined) {
@@ -164,6 +168,19 @@ test('createItem validates before attempting an image upload', async () => {
   assert.equal(result.message, 'กรุณาตรวจสอบข้อมูลในฟอร์ม')
   assert.ok(result.fieldErrors?.item_name)
   assert.deepEqual(mockSupabaseRegistry.getStorageLog(), [])
+})
+
+test('createItem applies rate limiting before validation, upload, and insert', async () => {
+  reset()
+  staff()
+  rateLimitResponse = { success: false, error: 'rate limit reached' }
+  const invalid = validItemFormData(true)
+  invalid.set('item_name', '')
+
+  assert.deepEqual(await createItem(null, invalid), { message: 'rate limit reached' })
+  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
+  assert.deepEqual(mockSupabaseRegistry.getStorageLog(), [])
+  assert.deepEqual(inserts, [])
 })
 
 test('createItem safely logs a redacted image upload failure', async () => {

@@ -1,8 +1,17 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { mockSupabaseRegistry } from '../mocks/supabase'
 import { createItemInline } from '../../features/items/actions'
+
+test('creation wrappers share one private creation core', () => {
+  const source = readFileSync(require.resolve('../../features/items/actions'), 'utf8')
+  assert.match(source, /async function createItemCore\(/)
+  assert.doesNotMatch(source, /export\s+(?:async\s+)?function createItemCore/)
+  assert.equal(source.match(/await createItemCore\(formData/g)?.length, 2)
+  assert.equal(source.match(/\.from\('items'\)\s*\r?\n\s*\.insert\(/g)?.length, 1)
+})
 
 function validItemFormData(withImage = false) {
   const formData = new FormData()
