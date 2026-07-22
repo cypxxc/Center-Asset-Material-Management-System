@@ -74,6 +74,27 @@ test('formatLog includes environment, latency, and requestId', () => {
   assert.strictEqual(result.environment, 'staging')
 })
 
+test('formatLog sanitizes secrets in Error message and stack', () => {
+  const secret = 'sbp_1234567890abcdef1234567890abcdef'
+  const error = new Error(`connection failed with ${secret}`)
+  error.stack = `Error: ${secret}\n at test`
+
+  const result = JSON.parse(formatLog('ERROR', { operation: 'test', feature: 'logging' }, error))
+
+  assert.equal(result.error_message, 'connection failed with [KEY_REDACTED]')
+  assert.equal(result.error_stack, 'Error: [KEY_REDACTED]\n at test')
+  assert.equal(JSON.stringify(result).includes(secret), false)
+})
+
+test('formatLog sanitizes non-Error diagnostic strings', () => {
+  const result = JSON.parse(formatLog(
+    'ERROR',
+    { operation: 'test', feature: 'logging' },
+    'token eyJabcdefghij.abcdefghij.abcdefghij',
+  ))
+  assert.equal(result.error_message.includes('eyJabcdefghij'), false)
+})
+
 test('logger object supports info, warn, error, audit, and debug methods', () => {
   // Make sure calling these does not crash
   logger.info({ operation: 'test', feature: 'test' })
