@@ -80,90 +80,87 @@ export default async function DashboardPage() {
   return (
     <PageContainer maxWidth="full">
         
-        {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute right-0 top-0 -translate-y-6 translate-x-6 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="absolute right-12 bottom-0 translate-y-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-xl"></div>
-          
-          <div className="relative z-10 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="bg-white/15 px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider">
-                Console Dashboard
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold">สวัสดีคุณ {profile?.full_name || 'ผู้ใช้งาน'}, ยินดีต้อนรับสู่แผงควบคุมระบบ CAMMS</h2>
-            <p className="text-xs text-blue-100 max-w-2xl leading-relaxed">
-              ระบบตรวจสอบสถานะ คลังวัสดุ และแผนกซ่อมบำรุงในปัจจุบันของทรัพย์สินทั้งหมดของสำนักงาน 
-              คุณสามารถตรวจสอบประเภทครุภัณฑ์ ปรับปรุงวัสดุ หรือพิมพ์รายงานสรุปผลได้ทันที
-            </p>
-            <div className="flex items-center gap-3 pt-3">
-              {userCanWrite && (
-                <Link href="/items/new" className="bg-white hover:bg-blue-50 text-blue-800 text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-md transform hover:-translate-y-0.5">
-                  <PlusCircle className="w-4 h-4 text-blue-600" />
-                  ขึ้นทะเบียนสิ่งของใหม่
-                </Link>
-              )}
-              <Link href="/items" className="bg-blue-600/50 hover:bg-blue-600 border border-blue-400/40 hover:border-blue-300 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-all">
-                ดูรายการทะเบียนทั้งหมด
+        {/* Welcome Control Strip */}
+        <div className="bg-card border border-border text-card-foreground rounded-xl p-6 shadow-2xs space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+              Console Dashboard
+            </span>
+          </div>
+          <h2 className="text-xl font-bold text-card-foreground">
+            สวัสดีคุณ {profile?.full_name || 'ผู้ใช้งาน'}, ยินดีต้อนรับสู่แผงควบคุมระบบ CAMMS
+          </h2>
+          <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+            ระบบตรวจสอบสถานะ คลังวัสดุ และแผนกซ่อมบำรุงในปัจจุบันของทรัพย์สินทั้งหมดของสำนักงาน 
+            คุณสามารถตรวจสอบประเภทครุภัณฑ์ ปรับปรุงวัสดุ หรือพิมพ์รายงานสรุปผลได้ทันที
+          </p>
+          <div className="flex items-center gap-3 pt-1">
+            {userCanWrite && (
+              <Link href="/items/new" className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs">
+                <PlusCircle className="w-4 h-4" />
+                ขึ้นทะเบียนสิ่งของใหม่
               </Link>
-            </div>
+            )}
+            <Link href="/items" className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-semibold px-3.5 py-2 rounded-lg transition-all">
+              ดูรายการทะเบียนทั้งหมด
+            </Link>
           </div>
         </div>
 
         {/* Metrics Bento Grid */}
         <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Metric 1 */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-card text-card-foreground p-5 rounded-xl border border-border shadow-2xs flex items-center justify-between hover:shadow-xs transition-all">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">ครุภัณฑ์ทั้งหมด (Assets)</p>
-              <h3 className="text-2xl font-bold text-slate-800">{totalAssets} รายการ</h3>
-              <p className="text-[10px] text-green-700 font-semibold flex items-center gap-0.5 mt-1">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">ครุภัณฑ์ทั้งหมด (Assets)</p>
+              <h3 className="text-2xl font-bold text-card-foreground">{totalAssets} รายการ</h3>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
                 <CheckCircle className="w-3 h-3" /> ใช้งานอยู่ปกติ {activeCount} รายการ
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Package className="h-6 w-6" />
             </div>
           </div>
 
           {/* Metric 2 */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-card text-card-foreground p-5 rounded-xl border border-border shadow-2xs flex items-center justify-between hover:shadow-xs transition-all">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">วัสดุและอุปกรณ์รวม</p>
-              <h3 className="text-2xl font-bold text-slate-800">{stats.totalQuantity} ชิ้น</h3>
-              <p className="text-[10px] text-slate-500 font-semibold flex items-center gap-0.5 mt-1">
-                <FolderOpen className="w-3 h-3 text-slate-400" /> จากสิ่งของทั้งหมด {stats.totalItems} รายการ
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">วัสดุและอุปกรณ์รวม</p>
+              <h3 className="text-2xl font-bold text-card-foreground">{stats.totalQuantity} ชิ้น</h3>
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mt-1">
+                <FolderOpen className="w-3 h-3 text-muted-foreground" /> จากสิ่งของทั้งหมด {stats.totalItems} รายการ
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <ClipboardList className="h-6 w-6" />
             </div>
           </div>
 
           {/* Metric 3 */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-card text-card-foreground p-5 rounded-xl border border-border shadow-2xs flex items-center justify-between hover:shadow-xs transition-all">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">ชำรุด/รอซ่อมบำรุง</p>
-              <h3 className="text-2xl font-bold text-rose-600">{damagedCount} รายการ</h3>
-              <p className="text-[10px] text-rose-700 font-semibold flex items-center gap-0.5 mt-1">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">ชำรุด/รอซ่อมบำรุง</p>
+              <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400">{damagedCount} รายการ</h3>
+              <p className="text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-1">
                 <Hammer className="w-3 h-3" /> รอการดำเนินการแก้ไขส่งซ่อม
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6" />
             </div>
           </div>
 
           {/* Metric 4 */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div className="bg-card text-card-foreground p-5 rounded-xl border border-border shadow-2xs flex items-center justify-between hover:shadow-xs transition-all">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">สถานที่ตั้งเก็บรักษา</p>
-              <h3 className="text-2xl font-bold text-slate-800">{stats.locationCount} โซน</h3>
-              <p className="text-[10px] text-slate-500 font-semibold flex items-center gap-0.5 mt-1">
-                <MapPin className="w-3 h-3 text-slate-400" /> มีห้องเก็บและอาคารที่รองรับ
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">สถานที่ตั้งเก็บรักษา</p>
+              <h3 className="text-2xl font-bold text-card-foreground">{stats.locationCount} โซน</h3>
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mt-1">
+                <MapPin className="w-3 h-3 text-muted-foreground" /> มีห้องเก็บและอาคารที่รองรับ
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Layers className="h-6 w-6" />
             </div>
           </div>
