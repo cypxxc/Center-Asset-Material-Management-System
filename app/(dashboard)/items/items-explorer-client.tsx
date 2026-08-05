@@ -345,18 +345,18 @@ export function ItemsExplorerClient({
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-secondary text-slate-900 font-sans">
+    <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Main Content Area */}
-        <main className="flex min-w-0 flex-1 flex-col bg-white">
+        <main className="flex min-w-0 flex-1 flex-col bg-background">
           {/* Dynamic Integrated Header Area */}
-          <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-5 md:px-8">
+          <div className="shrink-0 border-b border-border bg-card px-6 py-5 md:px-8">
             {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col min-w-0">
                 {/* Dynamic Main Title */}
-                <h2 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight">
+                <h2 className="text-lg md:text-xl font-bold tracking-tight text-card-foreground leading-tight">
                   {params.type === 'material'
                     ? 'รายการทะเบียนวัสดุ'
                     : params.type === 'asset'
@@ -366,13 +366,13 @@ export function ItemsExplorerClient({
               </div>
 
               {/* View Mode Toggle */}
-              <div className="flex shrink-0 items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+              <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
                   className={cn(
                     'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    viewMode === 'list' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
                   )}
                   title="List view"
                   aria-label="แสดงรายการแบบลิสต์"
@@ -385,7 +385,7 @@ export function ItemsExplorerClient({
                   onClick={() => setViewMode('grid')}
                   className={cn(
                     'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    viewMode === 'grid' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
                   )}
                   title="Grid view"
                   aria-label="แสดงรายการแบบตาราง"
@@ -426,7 +426,7 @@ export function ItemsExplorerClient({
                       aria-label="กรองตามหมวดหมู่"
                       value={params.category_id ?? ''}
                       onChange={(e) => handleFilterChange({ category_id: e.target.value })}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
+                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
                     >
                       <option value="">กรองตามหมวดหมู่</option>
                       {categories.map((cat) => (
@@ -440,7 +440,7 @@ export function ItemsExplorerClient({
                       aria-label="กรองตามสถานะ"
                       value={params.status ?? ''}
                       onChange={(e) => handleFilterChange({ status: e.target.value })}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm"
+                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
                     >
                       <option value="">กรองตามสถานะ</option>
                       {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
@@ -468,10 +468,10 @@ export function ItemsExplorerClient({
 
           <div className="relative flex-1 min-h-0 flex flex-col">
             {isPending && (
-              <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-all duration-200">
-                <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white shadow-xl border border-slate-100 animate-in zoom-in-95 duration-200">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
-                  <span className="text-[10px] font-bold text-slate-500">กำลังดึงข้อมูล...</span>
+              <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/40 backdrop-blur-[1px] transition-all duration-200">
+                <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card shadow-xl border border-border animate-in zoom-in-95 duration-200">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+                  <span className="text-xs font-bold text-muted-foreground">กำลังดึงข้อมูล...</span>
                 </div>
               </div>
             )}
@@ -505,16 +505,16 @@ export function ItemsExplorerClient({
             </div>
           </div>
 
-          <footer className="flex h-[40px] shrink-0 items-center justify-between border-t border-slate-200 bg-white px-4 text-xs text-slate-500 shadow-inner z-10">
+          <footer className="flex h-[40px] shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10">
             <div className="flex items-center gap-4">
-              <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+              <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground">
                 ทั้งหมด {total} รายการ
               </span>
-              <span className="text-slate-500 font-semibold hidden md:inline">
-                มูลค่าตามราคาที่บันทึกในหน้านี้: <span className="text-blue-600 font-black">฿{folderValuation.toLocaleString()}</span>
+              <span className="text-muted-foreground font-semibold hidden md:inline">
+                มูลค่าตามราคาที่บันทึกในหน้านี้: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
-                <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 font-bold text-[10px]">
+                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs">
                   เลือกอยู่ {selectedItemIds.length} รายการ
                 </span>
               )}
@@ -527,7 +527,7 @@ export function ItemsExplorerClient({
               <PaginationLink href={buildPageHref(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
                 ถัดไป
               </PaginationLink>
-              <div className="hidden items-center gap-1.5 font-semibold text-blue-600 sm:flex">
+              <div className="hidden items-center gap-1.5 font-semibold text-primary sm:flex">
                 <span className="material-symbols-outlined text-[15px]">sync</span>
                 <span>Synced</span>
               </div>
@@ -548,12 +548,12 @@ export function ItemsExplorerClient({
       </div>
 
       {selectedItemIds.length > 0 && (
-        <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-blue-200 bg-white/90 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="text-xs font-bold text-slate-700">
-            เลือกอยู่ <span className="text-blue-600 font-black">{selectedItemIds.length}</span> รายการ
+        <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-border bg-card/90 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="text-xs font-bold text-card-foreground">
+            เลือกอยู่ <span className="text-primary font-black">{selectedItemIds.length}</span> รายการ
           </span>
 
-          <div className="h-4 w-px bg-slate-200" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Bulk Update Status */}
           {userCanWrite && (
@@ -580,7 +580,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-bold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="">เปลี่ยนสถานะ...</option>
               {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
@@ -616,7 +616,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer max-w-[150px]"
+              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-bold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px]"
             >
               <option value="">ย้ายสถานที่...</option>
               {locations.map((loc) => (
@@ -646,18 +646,18 @@ export function ItemsExplorerClient({
                 }
               }}
               variant="outline"
-              className="h-8 rounded-lg px-3 text-[11px] font-bold text-red-600 hover:bg-red-50 border-red-200 cursor-pointer"
+              className="h-8 rounded-lg px-3 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
             >
               ลบทั้งหมด
             </Button>
           )}
 
-          <div className="h-4 w-px bg-slate-200" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Clear Selection */}
           <button
             onClick={() => setSelectedItemIds([])}
-            className="text-xs text-slate-600 hover:text-slate-800 font-bold transition-colors cursor-pointer"
+            className="text-xs text-muted-foreground hover:text-card-foreground font-bold transition-colors cursor-pointer"
           >
             ยกเลิก
           </button>
@@ -666,20 +666,20 @@ export function ItemsExplorerClient({
 
       {/* Blocking Error Modal */}
       {blockingError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                 <span className="material-symbols-outlined text-[28px]">error</span>
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-slate-950">การดำเนินงานล้มเหลว</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{blockingError}</p>
+                <h3 className="text-base font-bold text-card-foreground">การดำเนินงานล้มเหลว</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{blockingError}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setBlockingError(null)}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center cursor-pointer"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center cursor-pointer"
               >
                 ตกลง
               </button>
@@ -738,28 +738,28 @@ function ItemsList({
         type="button"
         onClick={() => onToggleSort(field)}
         className={cn(
-          "flex items-center gap-1 hover:text-slate-700 transition-colors font-bold uppercase cursor-pointer select-none",
+          "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
           alignClass
         )}
       >
         <span>{label}</span>
         {isSorted ? (
           currentDir === 'asc' ? (
-            <ArrowUp className="w-3 h-3 text-blue-600 shrink-0" />
+            <ArrowUp className="w-3 h-3 text-primary shrink-0" />
           ) : (
-            <ArrowDown className="w-3 h-3 text-blue-600 shrink-0" />
+            <ArrowDown className="w-3 h-3 text-primary shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 shrink-0" />
+          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" />
         )}
       </button>
     )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto bg-slate-50/20">
-      <DataTable>
-        <DataTableHeader>
+    <div className="min-h-0 flex-1 overflow-auto bg-muted/20">
+      <DataTable wrapperClassName="border-0 rounded-none bg-transparent shadow-none" className="text-card-foreground">
+        <DataTableHeader className="bg-muted/50 border-b border-border">
           <tr>
             <DataTableHead isCheckbox>
               <input
@@ -767,7 +767,7 @@ function ItemsList({
                 aria-label="เลือกทุกรายการในหน้านี้"
                 checked={items.length > 0 && selectedItemIds.length === items.length}
                 onChange={onToggleSelectAll}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
               />
             </DataTableHead>
             <DataTableHead className="w-12 px-2" />
@@ -780,7 +780,7 @@ function ItemsList({
             <DataTableHead>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
         </DataTableHeader>
-        <DataTableBody>
+        <DataTableBody className="divide-y divide-border/40 bg-transparent">
           {items.map((item) => {
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
@@ -791,8 +791,8 @@ function ItemsList({
                 className={cn(
                   'cursor-pointer',
                   isSelected
-                    ? 'border border-blue-200 bg-blue-50/80 text-blue-900'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
+                    : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
                 )}
               >
                 <DataTableCell isCheckbox onClick={(e) => e.stopPropagation()}>
@@ -801,25 +801,25 @@ function ItemsList({
                     aria-label={`เลือก ${item.item_name}`}
                     checked={isChecked}
                     onChange={() => onToggleSelectItem(item.id)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
                   />
                 </DataTableCell>
                 <DataTableCell className="px-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-100">
+                  <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
                     {typeIcons[item.item_type]}
                   </div>
                 </DataTableCell>
                 <DataTableCell className="px-2">
-                  <div className="font-extrabold text-slate-800">{item.item_name}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-slate-600">
+                  <div className="font-extrabold text-card-foreground">{item.item_name}</div>
+                  <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                     {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
                   </div>
                 </DataTableCell>
-                <DataTableCell className="hidden font-semibold sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
-                <DataTableCell className="hidden md:table-cell">{item.category?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="text-center font-extrabold text-slate-800">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                <DataTableCell className="font-semibold text-slate-600">{item.location?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="hidden font-semibold xl:table-cell">{item.responsible_person ?? '-'}</DataTableCell>
+                <DataTableCell className="hidden font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
+                <DataTableCell className="hidden text-muted-foreground md:table-cell">{item.category?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+                <DataTableCell className="font-semibold text-muted-foreground">{item.location?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="hidden font-semibold text-muted-foreground xl:table-cell">{item.responsible_person ?? '-'}</DataTableCell>
                 <DataTableCell><StatusBadge status={item.status} /></DataTableCell>
               </DataTableRow>
             )
@@ -847,7 +847,7 @@ function ItemsGrid({
   onToggleSelectItem,
 }: ItemsGridProps) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/20 p-4">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4">
       {items.length ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {items.map((item) => {
@@ -858,8 +858,8 @@ function ItemsGrid({
                 key={item.id}
                 onClick={() => onSelect(item)}
                 className={cn(
-                  'group relative flex min-h-40 flex-col rounded-lg border bg-white p-3 text-left transition-all cursor-pointer',
-                  isSelected ? 'border-blue-300 bg-blue-50/80 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                  'group relative flex min-h-40 flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
+                  isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
                 )}
               >
                 {/* Checkbox Overlay */}
@@ -871,14 +871,14 @@ function ItemsGrid({
                     aria-pressed={isChecked}
                     className={cn(
                       'flex h-11 w-11 items-center justify-center rounded border transition-colors cursor-pointer',
-                      isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white opacity-0 group-hover:opacity-100'
+                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground opacity-0 group-hover:opacity-100'
                     )}
                   >
-                    {isChecked && <Check className="w-3 h-3 stroke-[3px]" />}
+                    {isChecked && <Check className="w-4 h-4 stroke-[3px]" />}
                   </button>
                 </div>
 
-                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100 shadow-inner transition-transform group-hover:scale-105">
+                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-muted-foreground shadow-inner transition-transform group-hover:scale-105">
                   {item.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -892,13 +892,13 @@ function ItemsGrid({
                     typeIcons[item.item_type]
                   )}
                 </div>
-                <p className="line-clamp-2 text-xs font-extrabold leading-snug text-slate-800 pr-4">{item.item_name}</p>
-                <p className="mt-1 truncate font-mono text-[10px] text-slate-600">{item.asset_no || item.serial_no || '-'}</p>
+                <p className="line-clamp-2 text-xs font-extrabold leading-snug text-card-foreground pr-4">{item.item_name}</p>
+                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{item.asset_no || item.serial_no || '-'}</p>
                 <div className="mt-auto flex items-center justify-between pt-3">
-                  <span className="rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                  <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
                     {ITEM_TYPE_LABELS[item.item_type]}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500">{item.quantity} {item.unit?.name ?? ''}</span>
+                  <span className="text-xs font-bold text-muted-foreground">{item.quantity} {item.unit?.name ?? ''}</span>
                 </div>
               </div>
             )
@@ -909,7 +909,7 @@ function ItemsGrid({
           <EmptyState
             title="ไม่พบข้อมูลสิ่งของในทะเบียน"
             description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
-            icon={<Package className="h-10 w-10 text-slate-300 opacity-60" />}
+            icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
             className="border-0 shadow-none bg-transparent"
           />
         </div>
@@ -925,7 +925,7 @@ function EmptyRows() {
         <EmptyState
           title="ไม่พบข้อมูลสิ่งของ"
           description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
-          icon={<Package className="h-10 w-10 text-slate-300 opacity-60" />}
+          icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
           className="border-0 shadow-none bg-transparent"
         />
       </td>
@@ -1142,14 +1142,14 @@ function PaginationLink({
 }) {
   if (disabled) {
     return (
-      <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
+      <span className="rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-bold text-muted-foreground/60">
         {children}
       </span>
     )
   }
 
   return (
-    <Link href={href} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+    <Link href={href} className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-card-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary">
       {children}
     </Link>
   )
