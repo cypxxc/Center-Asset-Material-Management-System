@@ -27,6 +27,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       overdueAuditItems={reportData.overdueAuditItems}
       searchParams={params}
       categories={references.categories}
+      locations={references.locations}
       stats={stats}
     />
   )

@@ -34,11 +34,13 @@ interface ReportsListProps {
     type?: string
     status?: string
     category_id?: string
+    location_id?: string
     sort_by?: string
     sort_dir?: string
     page?: string
   }
   categories: { id: string; name: string }[]
+  locations: { id: string; name: string }[]
   stats: {
     totalItems: number
     totalQuantity: number
@@ -59,7 +61,8 @@ export function ReportsList({
   auditedCount,
   overdueAuditItems,
   searchParams,
-  categories
+  categories,
+  locations
 }: ReportsListProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -78,6 +81,7 @@ export function ReportsList({
     type?: string
     status?: string
     category_id?: string
+    location_id?: string
     page?: string
   }) => {
     const query = new URLSearchParams()
@@ -86,12 +90,14 @@ export function ReportsList({
     const newType = updates.type !== undefined ? updates.type : (searchParams.type ?? '')
     const newStatus = updates.status !== undefined ? updates.status : (searchParams.status ?? '')
     const newCategory = updates.category_id !== undefined ? updates.category_id : (searchParams.category_id ?? '')
+    const newLocation = updates.location_id !== undefined ? updates.location_id : (searchParams.location_id ?? '')
     const newPage = updates.page !== undefined ? updates.page : '1'
     
     if (newQ) query.set('q', newQ)
     if (newType) query.set('type', newType)
     if (newStatus) query.set('status', newStatus)
     if (newCategory) query.set('category_id', newCategory)
+    if (newLocation) query.set('location_id', newLocation)
     if (newPage && newPage !== '1') query.set('page', newPage)
     
     startTransition(() => {
@@ -166,16 +172,16 @@ export function ReportsList({
     <PageContainer className="print:bg-white print:p-0">
       
       {/* Printable Report Header */}
-      <div className="hidden print:block p-8 border-b-2 border-slate-900 mb-6">
+      <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">รายงานครุภัณฑ์สํานักงานประจําปี</h1>
-            <p className="text-xs text-slate-500 mt-1">สำนักงานใหญ่ แผนกเทคโนโลยีสารสนเทศและบริหารจัดการทั่วไป</p>
-            <p className="text-xs text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {new Date().toLocaleDateString('th-TH')} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
+            <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานครุภัณฑ์สํานักงานประจําปี</h1>
+            <p className="text-xs text-muted-foreground print:text-slate-500 mt-1">สำนักงานใหญ่ แผนกเทคโนโลยีสารสนเทศและบริหารจัดการทั่วไป</p>
+            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {new Date().toLocaleDateString('th-TH')} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold text-blue-600">Registry-S</h2>
-            <p className="text-[10px] text-slate-400">ระบบควบคุมทรัพย์สินส่วนกลาง</p>
+            <h2 className="text-xl font-bold text-primary print:text-blue-600">Registry-S</h2>
+            <p className="text-xs text-muted-foreground print:text-slate-400">ระบบควบคุมทรัพย์สินส่วนกลาง</p>
           </div>
         </div>
       </div>
@@ -184,7 +190,7 @@ export function ReportsList({
       <PageHeader
         title={
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+            <FileText className="w-5 h-5 text-primary" />
             <span>รายงานสรุปและวิเคราะห์ผล (Inventory Reports)</span>
           </div>
         }
@@ -195,7 +201,7 @@ export function ReportsList({
             <Button
               onClick={exportToExcel}
               aria-label="ดาวน์โหลดรายงาน Excel"
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-sm h-9 cursor-pointer"
+              className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
               variant="outline"
               disabled={items.length === 0}
             >
@@ -205,7 +211,7 @@ export function ReportsList({
             <Button
               onClick={handlePrint}
               aria-label="พิมพ์หรือบันทึกเป็น PDF"
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-md h-9 cursor-pointer"
+              className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs h-9 cursor-pointer"
               disabled={items.length === 0}
             >
               <Printer className="w-4 h-4" />
@@ -218,39 +224,39 @@ export function ReportsList({
         {/* Analytical Value Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Card 1: Asset Valuation */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">มูลค่าทรัพย์สินทั้งหมด</p>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">
+          <div className="bg-card p-6 rounded-xl border border-border shadow-xs">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">มูลค่าทรัพย์สินทั้งหมด</p>
+            <h3 className="text-2xl font-bold text-card-foreground mt-1">
               {totalValue.toLocaleString('th-TH')} บาท
             </h3>
-            <p className="text-[10px] text-slate-500 mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
+            <p className="text-xs text-muted-foreground mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
           </div>
 
           {/* Card 2: Audit Rate */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">อัตราการสแกนตรวจสอบข้อมูล</p>
+          <div className="bg-card p-6 rounded-xl border border-border shadow-xs">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">อัตราการสแกนตรวจสอบข้อมูล</p>
             <div className="flex items-center justify-between mt-1">
-              <h3 className="text-2xl font-bold text-emerald-600">
+              <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {auditProgressPct}%
               </h3>
-              <span className="text-xs text-slate-500 font-bold">
+              <span className="text-xs text-muted-foreground font-bold">
                 {auditedCount} / {totalCount} รายการ
               </span>
             </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mt-2">
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden mt-2">
               <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${auditProgressPct}%` }}></div>
             </div>
           </div>
 
           {/* Card 3: Quality Standard Badge */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+          <div className="bg-card p-6 rounded-xl border border-border shadow-xs flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-slate-800">มาตรฐานการจัดการสิ่งของ</h4>
-              <p className="text-xs text-emerald-600 font-bold mt-0.5">ผ่านเกณฑ์คุณภาพดีเยี่ยม (A+)</p>
-              <p className="text-[9px] text-slate-400">มีระบบการบันทึกประวัติ RLS ครอบคลุม</p>
+              <h4 className="text-xs font-bold text-card-foreground">มาตรฐานการจัดการสิ่งของ</h4>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">ผ่านเกณฑ์คุณภาพดีเยี่ยม (A+)</p>
+              <p className="text-[11px] text-muted-foreground">มีระบบการบันทึกประวัติ RLS ครอบคลุม</p>
             </div>
           </div>
         </div>
@@ -261,7 +267,7 @@ export function ReportsList({
             e.preventDefault()
             handleFilterChange({ q: searchVal })
           }}
-          className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-center print:hidden"
+          className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col gap-3 md:flex-row md:items-center print:hidden"
         >
           <SearchInput
             value={searchVal}
@@ -277,22 +283,36 @@ export function ReportsList({
           <select 
             name="category_id" 
             value={searchParams.category_id ?? ''} 
-            onChange={(e) => handleFilterChange({ category_id: e.target.value })}
-            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+            onChange={(e) => handleFilterChange({ category_id: e.target.value, page: '1' })}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
           >
-            <option value="">กรองตามหมวดหมู่</option>
+            <option value="">ทุกหมวดหมู่</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+
+          <select
+            name="location_id"
+            value={searchParams.location_id ?? ''}
+            onChange={(e) => handleFilterChange({ location_id: e.target.value, page: '1' })}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
+          >
+            <option value="">ทุกสถานที่ตั้ง</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
             ))}
           </select>
 
           <select 
             name="type" 
             value={searchParams.type ?? ''} 
-            onChange={(e) => handleFilterChange({ type: e.target.value })}
-            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+            onChange={(e) => handleFilterChange({ type: e.target.value, page: '1' })}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
           >
-            <option value="">กรองตามประเภท</option>
+            <option value="">ทุกประเภท</option>
             {Object.entries(ITEM_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
@@ -301,10 +321,10 @@ export function ReportsList({
           <select 
             name="status" 
             value={searchParams.status ?? ''} 
-            onChange={(e) => handleFilterChange({ status: e.target.value })}
-            className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-xs cursor-pointer"
+            onChange={(e) => handleFilterChange({ status: e.target.value, page: '1' })}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
           >
-            <option value="">กรองตามสถานะ</option>
+            <option value="">ทุกสถานะ</option>
             {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
@@ -312,29 +332,29 @@ export function ReportsList({
         </form>
 
         {/* Overdue Audits / Maintenance Alert */}
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm print:hidden">
-          <h3 className="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-orange-500" />
+        <div className="bg-card p-6 rounded-xl border border-border shadow-xs print:hidden">
+          <h3 className="font-bold text-card-foreground text-sm mb-1.5 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
             <span>รายการครุภัณฑ์ที่พบชำรุดหรือต้องการตรวจสอบสภาพ (Audit & Repair Alerts)</span>
           </h3>
-          <p className="text-xs text-slate-400 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             รายการอุปกรณ์ที่ได้รับการแจ้งชำรุด (Damaged) หรือรอการประสานงานซ่อมบำรุงในทะเบียนระบบงานปัจจุบัน
           </p>
 
           <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
             {overdueAuditItems.map((item) => (
-              <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+              <div key={item.id} className="p-3 bg-muted/50 border border-border rounded-xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                  <div className="w-7 h-7 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
                     !
                   </div>
                   <div>
-                    <p className="font-bold text-slate-800">{item.item_name}</p>
-                    <p className="text-[10px] text-slate-400">S/N: {item.serial_no || '-'} | สถานที่: {item.location?.name || '-'}</p>
+                    <p className="font-bold text-card-foreground">{item.item_name}</p>
+                    <p className="text-[11px] text-muted-foreground">S/N: {item.serial_no || '-'} | สถานที่: {item.location?.name || '-'}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                     {ITEM_STATUS_LABELS[item.status as keyof typeof ITEM_STATUS_LABELS]}
                   </span>
                 </div>
@@ -342,7 +362,7 @@ export function ReportsList({
             ))}
 
             {overdueAuditItems.length === 0 && (
-              <div className="text-center py-6 text-slate-400">
+              <div className="text-center py-6 text-muted-foreground">
                 <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                 <p className="text-xs">ครุภัณฑ์ทุกชิ้นอยู่ในสภาพพร้อมใช้งานและไม่มีรายการชำรุดค้างระบบ</p>
               </div>
@@ -351,14 +371,14 @@ export function ReportsList({
         </div>
 
         {/* Main Asset Ledger Table */}
-        <div className="relative bg-white p-6 rounded-xl border border-slate-100 shadow-sm print:shadow-none print:border-none flex flex-col">
+        <div className="relative bg-card p-6 rounded-xl border border-border shadow-xs print:shadow-none print:border-none flex flex-col">
           {isPending && <LoadingOverlay />}
           <div className={`flex-1 min-h-0 flex flex-col transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
-            <h3 className="font-bold text-slate-800 text-sm mb-4">รายงานราคาและทรัพย์สินรายตัว (Asset Ledger Valuation)</h3>
+            <h3 className="font-bold text-card-foreground text-sm mb-4">รายงานราคาและทรัพย์สินรายตัว (Asset Ledger Valuation)</h3>
             
             <DataTable>
               <DataTableHeader>
-                <tr className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="border-b border-border bg-muted/50 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <DataTableHead className="py-2.5 px-3">ชื่อครุภัณฑ์ / หมายเลข</DataTableHead>
                   <DataTableHead className="py-2.5 px-3">หมวดหมู่</DataTableHead>
                   <DataTableHead className="py-2.5 px-3 text-center">จำนวน</DataTableHead>
@@ -371,17 +391,17 @@ export function ReportsList({
                   const unitPrice = item.unit_price ?? 0
                   const totalPrice = unitPrice * item.quantity
                   return (
-                    <DataTableRow key={item.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                    <DataTableRow key={item.id} className="hover:bg-muted/50 print:hover:bg-transparent">
                       <DataTableCell className="py-3 px-3">
-                        <div className="font-bold text-slate-800 print:text-black">{item.item_name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        <div className="font-bold text-card-foreground print:text-black">{item.item_name}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
                           S/N: {item.serial_no || item.asset_no || '-'}
                         </div>
                       </DataTableCell>
-                      <DataTableCell className="py-3 px-3 text-slate-500">{item.category?.name || 'ทั่วไป'}</DataTableCell>
-                      <DataTableCell className="py-3 px-3 text-center font-bold">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                      <DataTableCell className="py-3 px-3 text-right font-mono">{unitPrice.toLocaleString('th-TH')} บาท</DataTableCell>
-                      <DataTableCell className="py-3 px-3 text-right font-black font-mono text-slate-800 print:text-black">
+                      <DataTableCell className="py-3 px-3 text-muted-foreground">{item.category?.name || 'ทั่วไป'}</DataTableCell>
+                      <DataTableCell className="py-3 px-3 text-center font-bold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+                      <DataTableCell className="py-3 px-3 text-right font-mono text-card-foreground">{unitPrice.toLocaleString('th-TH')} บาท</DataTableCell>
+                      <DataTableCell className="py-3 px-3 text-right font-black font-mono text-card-foreground print:text-black">
                         {totalPrice.toLocaleString('th-TH')} บาท
                       </DataTableCell>
                     </DataTableRow>
@@ -402,10 +422,10 @@ export function ReportsList({
               </DataTableBody>
               {items.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-slate-900 bg-slate-50/50 font-black">
-                    <td colSpan={2} className="py-3 px-3 text-slate-800 text-right font-black text-sm">มูลค่ารวมทั้งสิ้น:</td>
-                    <td className="py-3 px-3 text-center font-black text-sm">{totalQuantity} ชิ้น</td>
-                    <td colSpan={2} className="py-3 px-3 text-right font-black text-blue-700 text-sm">{totalValue.toLocaleString('th-TH')} บาท</td>
+                  <tr className="border-t-2 border-border bg-muted/50 font-black">
+                    <td colSpan={2} className="py-3 px-3 text-card-foreground text-right font-black text-sm">มูลค่ารวมทั้งสิ้น:</td>
+                    <td className="py-3 px-3 text-center font-black text-sm text-card-foreground">{totalQuantity} ชิ้น</td>
+                    <td colSpan={2} className="py-3 px-3 text-right font-black text-primary text-sm">{totalValue.toLocaleString('th-TH')} บาท</td>
                   </tr>
                 </tfoot>
               )}
@@ -413,8 +433,8 @@ export function ReportsList({
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-4 print:hidden">
-                <div className="text-xs text-slate-400 font-semibold">
+              <div className="flex items-center justify-between border-t border-border pt-4 mt-4 print:hidden">
+                <div className="text-xs text-muted-foreground font-semibold">
                   แสดงหน้า {currentPage} จากทั้งหมด {totalPages} หน้า (ทั้งหมด {totalCount} รายการ)
                 </div>
                 <div className="flex items-center gap-2">
@@ -424,7 +444,7 @@ export function ReportsList({
                     size="sm"
                     disabled={currentPage <= 1}
                     onClick={() => handleFilterChange({ page: String(currentPage - 1) })}
-                    className="h-8 px-3 rounded-lg text-xs font-bold border border-slate-200 bg-white cursor-pointer"
+                    className="h-8 px-3 rounded-lg text-xs font-bold border border-input bg-card text-card-foreground hover:bg-muted cursor-pointer"
                   >
                     ก่อนหน้า
                   </Button>
@@ -434,7 +454,7 @@ export function ReportsList({
                     size="sm"
                     disabled={currentPage >= totalPages}
                     onClick={() => handleFilterChange({ page: String(currentPage + 1) })}
-                    className="h-8 px-3 rounded-lg text-xs font-bold border border-slate-200 bg-white cursor-pointer"
+                    className="h-8 px-3 rounded-lg text-xs font-bold border border-input bg-card text-card-foreground hover:bg-muted cursor-pointer"
                   >
                     ถัดไป
                   </Button>
