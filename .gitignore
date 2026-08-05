@@ -49,8 +49,11 @@ desktop.ini
 
 # temporary scratch & draft files
 scratch/
-*.scratch.md
-*.tmp.md
+*.md
+!README.md
+!readme.md
+!**/README.md
+!**/readme.md
 
 
 # env files (can opt-in for committing if needed)
