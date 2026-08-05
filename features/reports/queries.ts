@@ -330,4 +330,56 @@ export async function getReportItemsList(
   }
 }
 
+export async function getExportReportItems(params: ItemListSearchParams): Promise<{
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+}> {
+  const supabase = await createClient()
+  const q = params.q ? normalizeForSearch(params.q) : null
+  const itemType = params.type || null
+  const status = params.status || null
+  const categoryId = params.category_id || null
+  const locationId = params.location_id || null
+
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getExportReportItems', () =>
+    supabase.rpc('get_report_items_page', {
+      p_q: q,
+      p_type: itemType,
+      p_status: status,
+      p_category_id: categoryId,
+      p_location_id: locationId,
+      p_page: 1,
+      p_page_size: 5000,
+      p_sort_by: params.sort_by || 'created_at',
+      p_sort_dir: params.sort_dir || 'desc',
+    })
+  )
+
+  if (error || !data) {
+    return { items: [], totalCount: 0, totalQuantity: 0, totalValue: 0 }
+  }
+
+  const res = data as {
+    items?: unknown[]
+    total_count?: number
+    total_quantity?: number
+    total_value?: number
+  }
+
+  const rawItems = res.items ?? []
+  const items = rawItems.map((r) => toReportItemRow(r))
+
+  return {
+    items,
+    totalCount: res.total_count ?? items.length,
+    totalQuantity: res.total_quantity ?? items.reduce((acc, i) => acc + i.quantity, 0),
+    totalValue: res.total_value ?? items.reduce((acc, i) => acc + i.quantity * (i.unit_price ?? 0), 0),
+  }
+}
+
+
 
