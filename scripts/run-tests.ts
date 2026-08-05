@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { glob } from 'glob';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -46,11 +46,10 @@ async function main() {
   }
   nodeArgs.push('--test', ...testFiles);
 
-  const command = `node ${nodeArgs.join(' ')}`;
-  console.log(`Running: ${command}`);
+  console.log(`Running node --import tsx --test (${testFiles.length} files)`);
 
   try {
-    execSync(command, { cwd: root, stdio: 'inherit' });
+    execFileSync('node', nodeArgs, { cwd: root, stdio: 'inherit' });
   } catch {
     process.exit(1);
   }
