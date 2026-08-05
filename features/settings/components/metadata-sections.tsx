@@ -6,8 +6,13 @@ import { Box, Building2, Save, Tag, Users, Upload, FileText, CheckCircle2, Alert
 import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import dynamic from 'next/dynamic'
 import { importItemsBulk } from '@/features/items/actions'
+
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((mod) => mod.ConfirmDialog),
+  { ssr: false }
+)
 import {
   createCategory,
   createLocation,

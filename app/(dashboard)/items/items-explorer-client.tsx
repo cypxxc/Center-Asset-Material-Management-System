@@ -35,8 +35,13 @@ import {
   ItemType,
   ItemListSearchParams,
 } from '@/features/items/types'
+import dynamic from 'next/dynamic'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
-import { NewItemSheet } from '@/features/items/components/new-item-sheet'
+
+const NewItemSheet = dynamic(
+  () => import('@/features/items/components/new-item-sheet').then((mod) => mod.NewItemSheet),
+  { ssr: false }
+)
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'

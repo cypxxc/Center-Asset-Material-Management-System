@@ -28,9 +28,14 @@ import {
 import { formatDateTime } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PageContainer } from '@/components/ui/page-container'
+
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((mod) => mod.ConfirmDialog),
+  { ssr: false }
+)
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'
