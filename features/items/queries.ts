@@ -22,6 +22,10 @@ import {
 
 const PAGE_SIZE = 10
 
+/**
+ * Fetches item reference options (categories, locations, units) concurrently via Promise.all
+ * and caches the result using Next.js unstable_cache.
+ */
 const getCachedItemReferences = unstable_cache(
   async () => {
     const supabase = createServiceRoleClient()
