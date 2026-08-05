@@ -4,6 +4,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CAMMS",
   description: "Center Asset Material Management System - ระบบทะเบียนครุภัณฑ์และวัสดุสำนักงาน",
+  icons: {
+    icon: [
+      { url: "/boxes.png", type: "image/png" },
+    ],
+    shortcut: "/boxes.png",
+    apple: "/boxes.png",
+  },
 };
 
 export default function RootLayout({

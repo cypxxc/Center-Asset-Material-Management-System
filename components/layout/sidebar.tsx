@@ -340,8 +340,9 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
       {/* Brand Header */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-slate-200 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-500/20">
-            <Package className="h-4 w-4" />
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-card border border-border p-0.5 shadow-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/boxes.png" alt="CAMMS Logo" className="h-5 w-5 object-contain" />
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate text-sm font-extrabold text-slate-800">CAMMS</div>
