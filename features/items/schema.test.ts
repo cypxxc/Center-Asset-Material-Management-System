@@ -121,3 +121,18 @@ test('itemFormSchema rejects brand/model exceeding limit', () => {
   }
 })
 
+test('itemFormSchema accepts comma-formatted numbers for quantity and unit_price', () => {
+  const result = itemFormSchema.safeParse({
+    item_name: 'Server Rack',
+    item_type: 'asset',
+    quantity: '10,000',
+    unit_price: '12,500.50',
+    status: 'active',
+  })
+
+  assert.equal(result.success, true)
+  if (result.success) {
+    assert.equal(result.data.quantity, 10000)
+    assert.equal(result.data.unit_price, 12500.50)
+  }
+})

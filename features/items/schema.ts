@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeForStorage, getGraphemeLength } from '@/lib/unicode'
+import { stripCommas } from '@/lib/number-format'
 
 const optionalUuid = z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
@@ -33,7 +34,7 @@ const optionalTextLimit = (maxLen: number) => z.preprocess(
 const optionalUnitPrice = z.preprocess(
   (val) => {
     if (typeof val === 'string') {
-      const normalized = normalizeForStorage(val)
+      const normalized = stripCommas(normalizeForStorage(val))
       return normalized === '' ? null : normalized
     }
     return val ?? null
@@ -67,7 +68,10 @@ export const itemFormSchema = z.object({
   ),
   item_type: itemTypeSchema,
   category_id: optionalUuid,
-  quantity: z.coerce.number().int('จำนวนต้องเป็นจำนวนเต็ม').min(1, 'จำนวนต้องมากกว่า 0'),
+  quantity: z.preprocess(
+    (val) => typeof val === 'string' ? stripCommas(val) : val,
+    z.coerce.number().int('จำนวนต้องเป็นจำนวนเต็ม').min(1, 'จำนวนต้องมากกว่า 0')
+  ),
   unit_price: optionalUnitPrice,
   unit_id: optionalUuid,
   asset_no: optionalTextLimit(150),
