@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
@@ -45,6 +45,11 @@ interface SidebarProps {
   }
 }
 
+const DEFAULT_WIDTH = 260
+const MIN_WIDTH = 200
+const MAX_WIDTH = 450
+const STORAGE_KEY = 'camms_sidebar_width'
+
 const roleLabels: Record<string, string> = {
   admin: 'ผู้ดูแลระบบ',
   staff: 'เจ้าหน้าที่',
@@ -83,6 +88,54 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const currentCategory = searchParams.get('category_id')
   const currentLocation = searchParams.get('location_id')
   const currentDeleted = searchParams.get('deleted')
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_WIDTH
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = parseInt(saved, 10)
+      if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
+        return parsed
+      }
+    }
+    return DEFAULT_WIDTH
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarWidthRef = useRef(sidebarWidth)
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH)
+      setSidebarWidth(newWidth)
+      sidebarWidthRef.current = newWidth
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      localStorage.setItem(STORAGE_KEY, sidebarWidthRef.current.toString())
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }
+
+  const handleDoubleClick = () => {
+    setSidebarWidth(DEFAULT_WIDTH)
+    sidebarWidthRef.current = DEFAULT_WIDTH
+    localStorage.setItem(STORAGE_KEY, DEFAULT_WIDTH.toString())
+  }
 
   const [assetsFolderExpanded, setAssetsFolderExpanded] = useState(true)
   const [locationsFolderExpanded, setLocationsFolderExpanded] = useState(true)
@@ -336,7 +389,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   }
 
   return (
-    <aside className="relative z-30 hidden h-full w-[260px] shrink-0 select-none flex-col border-r border-slate-200 bg-white md:flex">
+    <aside
+      style={{ width: `${sidebarWidth}px` }}
+      className="relative z-30 hidden h-full shrink-0 select-none flex-col border-r border-slate-200 bg-white md:flex"
+    >
       {/* Brand Header */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-slate-200 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
@@ -486,6 +542,24 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <span>ออกจากระบบ</span>
           </button>
         </form>
+      </div>
+
+      {/* Resizable Drag Handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
+        title="ลากเพื่อปรับขนาดแถบข้าง (ดับเบิ้ลคลิกเพื่อรีเซ็ต)"
+        className={cn(
+          'absolute top-0 right-0 bottom-0 w-1.5 cursor-col-resize z-40 transition-colors group',
+          isResizing ? 'bg-blue-500/50' : 'hover:bg-blue-500/30'
+        )}
+      >
+        <div
+          className={cn(
+            'absolute top-1/2 right-0 -translate-y-1/2 w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-500 transition-colors opacity-0 group-hover:opacity-100',
+            isResizing && 'opacity-100 bg-blue-500'
+          )}
+        />
       </div>
     </aside>
   )
