@@ -40,15 +40,18 @@ yarn-error.log*
 # local workspace / agent logs
 .agent/
 .worktrees/
+.superpowers/
 .next-dev.log
 .next-dev.err.log
 /.cache/
 /.turbo/
-/.superpowers/sdd/task-*-brief.md
-/.superpowers/sdd/task-*-report.md
-/.superpowers/sdd/task-*-review-package.md
-/.superpowers/sdd/review-*.diff
-/.superpowers/sdd/progress.md
+desktop.ini
+
+# temporary scratch & draft files
+scratch/
+*.scratch.md
+*.tmp.md
+
 
 # env files (can opt-in for committing if needed)
 .env*
