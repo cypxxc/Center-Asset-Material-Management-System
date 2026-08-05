@@ -1,10 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-test('check-bundle-budget script executes successfully and outputs budget info', () => {
+test('check-bundle-budget script executes successfully and outputs budget info', (t) => {
+  const staticDir = path.resolve(process.cwd(), '.next', 'static')
+  if (!existsSync(staticDir)) {
+    t.skip('Production build assets (.next/static) do not exist yet')
+    return
+  }
+
   const scriptPath = path.resolve(process.cwd(), 'scripts', 'check-bundle-budget.ts')
   
   try {
