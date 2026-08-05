@@ -466,3 +466,56 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     return { error: 'เกิดข้อผิดพลาดขณะรีเซ็ตรหัสผ่าน: ' + errMsg }
   }
 }
+
+// ============================================================
+// Update Auth User email (admin)
+// ============================================================
+
+export async function updateUserEmail(userId: string, newEmail: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อแก้ไขอีเมล' }
+  }
+
+  const trimmedEmail = (newEmail || '').trim().toLowerCase()
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+    return { error: 'กรุณาระบุรูปแบบอีเมลให้ถูกต้อง' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  try {
+    const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
+      email: trimmedEmail,
+      email_confirm: true,
+    })
+
+    if (error) {
+      logger.error({ operation: 'updateUserEmail', feature: 'admin', details: 'updateUserById error' }, error)
+      return { error: error.message }
+    }
+
+    // Sync profiles table
+    await adminClient
+      .from('profiles')
+      .update({ email: trimmedEmail, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+
+    await adminClient.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'UPDATE_EMAIL',
+      target_table: 'profiles',
+      target_id: userId,
+      new_data: { new_email: trimmedEmail }
+    })
+
+    revalidatePath('/admin/db-panel')
+    return { success: true, data }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    logger.error({ operation: 'updateUserEmail', feature: 'admin', details: 'unexpected error' }, err)
+    return { error: 'เกิดข้อผิดพลาดขณะเปลี่ยนอีเมล: ' + errMsg }
+  }
+}

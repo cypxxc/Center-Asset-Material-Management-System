@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { measureQuery } from '@/lib/performance'
+import { readDevelopmentSessionUser } from '@/features/auth/dev-auth'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -41,12 +42,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // This will refresh the session if expired. MUST be called for SSR auth.
-  const {
-    result: {
-      data: { user },
-    },
-  } = await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
+  const devSessionUser = readDevelopmentSessionUser(request.cookies as unknown as import('@/features/auth/dev-auth').CookieStoreLike)
+  const user = devSessionUser
+    ? ({ id: devSessionUser.id, email: devSessionUser.email } as { id: string; email: string })
+    : (
+        await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
+      ).result.data.user
 
   // Auth pages logic
   const isLoginPage = pathname === '/login'

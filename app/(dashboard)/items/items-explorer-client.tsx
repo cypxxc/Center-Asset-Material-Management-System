@@ -548,7 +548,7 @@ export function ItemsExplorerClient({
       </div>
 
       {selectedItemIds.length > 0 && (
-        <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-border bg-card/90 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
           <span className="text-xs font-bold text-card-foreground">
             เลือกอยู่ <span className="text-primary font-black">{selectedItemIds.length}</span> รายการ
           </span>
@@ -580,7 +580,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-bold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-semibold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="">เปลี่ยนสถานะ...</option>
               {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
@@ -616,7 +616,7 @@ export function ItemsExplorerClient({
                 }
                 e.target.value = ''
               }}
-              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-bold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px]"
+              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-semibold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px]"
             >
               <option value="">ย้ายสถานที่...</option>
               {locations.map((loc) => (
@@ -954,15 +954,20 @@ function Inspector({
 }) {
   if (!item) {
     return (
-      <aside style={{ width: collapsed ? 44 : width }} className="relative hidden shrink-0 flex-col items-center justify-center overflow-hidden border-l border-slate-200 bg-white p-6 text-center text-slate-600 transition-[width] duration-200 lg:flex">
-        <InspectorControls collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
-        {!collapsed && <>
-        <Folder className="h-10 w-10 text-slate-300" />
-        <p className="mt-2 text-xs font-bold text-slate-700">เลือกสิ่งของเพื่อดูรายละเอียด</p>
-        <p className="mt-1 max-w-[220px] text-[10px] leading-relaxed text-slate-600">
-          เลือกรายการในตารางหรือมุมมองแบบตารางเพื่อดูรายละเอียดด้านขวา
-        </p>
-        </>}
+      <aside
+        style={{ width: collapsed ? 44 : width }}
+        className="relative hidden h-full shrink-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-card p-6 text-center text-muted-foreground transition-[width] duration-200 lg:flex"
+      >
+        <InspectorControls item={null} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
+        {!collapsed && (
+          <>
+            <Folder className="h-10 w-10 text-muted-foreground/40" />
+            <p className="mt-2 text-xs font-bold text-card-foreground">เลือกสิ่งของเพื่อดูรายละเอียด</p>
+            <p className="mt-1 max-w-[220px] text-xs leading-relaxed text-muted-foreground">
+              เลือกรายการในตารางหรือมุมมองแบบตารางเพื่อดูรายละเอียดด้านขวา
+            </p>
+          </>
+        )}
       </aside>
     )
   }
@@ -970,117 +975,126 @@ function Inspector({
   const reference = item.serial_no || item.asset_no
 
   return (
-    <aside style={{ width: collapsed ? 44 : width }} className={cn('relative hidden h-full shrink-0 flex-col border-l border-slate-200 bg-white shadow-sm transition-[width] duration-200 lg:flex', collapsed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden')} aria-label="รายละเอียดรายการ">
-      <InspectorControls collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
+    <aside
+      style={{ width: collapsed ? 44 : width }}
+      className={cn(
+        'relative hidden h-full shrink-0 flex-col border-l border-border bg-card shadow-2xs transition-[width] duration-200 lg:flex',
+        collapsed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
+      )}
+      aria-label="รายละเอียดรายการ"
+    >
+      <InspectorControls item={item} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
       <div className={cn('flex min-w-0 flex-1 flex-col', collapsed && 'pointer-events-none opacity-0')}>
-      <div className="relative h-48 shrink-0 overflow-hidden border-b border-slate-100 bg-slate-100">
-        {item.image_url ? (
-          <ZoomableImage
-            src={item.image_url}
-            alt={item.item_name}
-            className="h-full w-full"
-            imgClassName="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-slate-300">
-            <Package className="h-12 w-12 stroke-[1.25]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">No Image Available</span>
-          </div>
-        )}
-
-        <Link
-          href={`/items/${item.id}`}
-          className="absolute right-3 top-3 rounded-full bg-white/95 p-2 text-blue-600 shadow-md transition-transform hover:scale-105 hover:bg-white animate-fade-in"
-          title="เปิดหน้ารายละเอียดเต็ม"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Link>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-4 bg-gradient-to-b from-white to-slate-50/40 p-4">
-        <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-base font-extrabold leading-tight text-slate-800">{item.item_name}</h3>
-            <StatusBadge status={item.status} />
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="rounded border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-              {item.category?.name || 'หมวดหมู่ทั่วไป'}
-            </span>
-            <span className="rounded border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              {ITEM_TYPE_LABELS[item.item_type]}
-            </span>
-          </div>
-        </div>
-
-        <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-blue-700">tag</span>} label="Serial Number / เลขครุภัณฑ์">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate rounded border border-slate-100 bg-slate-50 px-2 py-1 font-mono text-xs font-bold text-slate-800">
-              {reference || '-'}
-            </p>
-            <button
-              type="button"
-              onClick={() => onCopy(reference)}
-              disabled={!reference}
-              className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40 cursor-pointer"
-              title="คัดลอกเลขอ้างอิง"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </InspectorBox>
-
-        <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-orange-500" />} label="สถานที่จัดเก็บ">
-          <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs font-semibold text-slate-700">
-            {item.location?.name || 'ไม่ได้ระบุ'}
-          </div>
-        </InspectorBox>
-
-        <InspectorBox icon={<User className="h-3.5 w-3.5 text-emerald-500" />} label="ผู้รับผิดชอบ">
-          <div className="flex items-center rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs font-semibold text-slate-700">
-            <div className="mr-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-blue-300 bg-blue-100 text-[10px] font-bold text-blue-700">
-              {(item.responsible_person || 'U').charAt(0).toUpperCase()}
-            </div>
-            <span className="font-bold">{item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}</span>
-          </div>
-        </InspectorBox>
-
-        <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-amber-500" />} label="หมายเหตุ">
-          <p className="max-h-24 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs leading-relaxed text-slate-500">
-            {item.note || '- ไม่มีหมายเหตุ -'}
-          </p>
-        </InspectorBox>
-
-        <div className="mt-auto border-t border-slate-100 pt-4">
-          {(userCanWrite || userCanDelete) && (
-            <div className="flex flex-col gap-2 w-full">
-              {userCanWrite && (
-                <Link href={`/items/${item.id}/edit`} className="w-full">
-                  <Button variant="outline" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer">
-                    <Edit className="h-4 w-4" />
-                    แก้ไขข้อมูล
-                  </Button>
-                </Link>
-              )}
-              {userCanDelete && (
-                <div className="w-full">
-                  <DeleteItemButton id={item.id} />
-                </div>
-              )}
+        <div className="relative h-48 shrink-0 overflow-hidden border-b border-border bg-muted">
+          {item.image_url ? (
+            <ZoomableImage
+              src={item.image_url}
+              alt={item.item_name}
+              className="h-full w-full"
+              imgClassName="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
+              <Package className="h-12 w-12 stroke-[1.25]" />
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">No Image Available</span>
             </div>
           )}
+
+          <Link
+            href={`/items/${item.id}`}
+            className="absolute right-3 top-3 rounded-full bg-card/95 p-2 text-primary shadow-md transition-transform hover:scale-105 hover:bg-card animate-fade-in"
+            title="เปิดหน้ารายละเอียดเต็ม"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Link>
         </div>
-      </div>
+
+        <div className="flex flex-1 flex-col gap-4 bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-extrabold leading-tight text-card-foreground">{item.item_name}</h3>
+              <StatusBadge status={item.status} />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+                {item.category?.name || 'หมวดหมู่ทั่วไป'}
+              </span>
+              <span className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                {ITEM_TYPE_LABELS[item.item_type]}
+              </span>
+            </div>
+          </div>
+
+          <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-primary">tag</span>} label="Serial Number / เลขครุภัณฑ์">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
+                {reference || '-'}
+              </p>
+              <button
+                type="button"
+                onClick={() => onCopy(reference)}
+                disabled={!reference}
+                className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                title="คัดลอกเลขอ้างอิง"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </InspectorBox>
+
+          <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary" />} label="สถานที่จัดเก็บ">
+            <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
+              {item.location?.name || 'ไม่ได้ระบุ'}
+            </div>
+          </InspectorBox>
+
+          <InspectorBox icon={<User className="h-3.5 w-3.5 text-primary" />} label="ผู้รับผิดชอบ">
+            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
+              <div className="mr-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
+                {(item.responsible_person || 'U').charAt(0).toUpperCase()}
+              </div>
+              <span className="font-bold text-card-foreground">{item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}</span>
+            </div>
+          </InspectorBox>
+
+          <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-primary" />} label="หมายเหตุ">
+            <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2.5 text-xs leading-relaxed text-muted-foreground">
+              {item.note || '- ไม่มีหมายเหตุ -'}
+            </p>
+          </InspectorBox>
+
+          <div className="mt-auto border-t border-border pt-4">
+            {(userCanWrite || userCanDelete) && (
+              <div className="flex flex-col gap-2 w-full">
+                {userCanWrite && (
+                  <Link href={`/items/${item.id}/edit`} className="w-full">
+                    <Button variant="outline" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer">
+                      <Edit className="h-4 w-4" />
+                      แก้ไขข้อมูล
+                    </Button>
+                  </Link>
+                )}
+                {userCanDelete && (
+                  <div className="w-full">
+                    <DeleteItemButton id={item.id} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </aside>
   )
 }
 
 function InspectorControls({
+  item,
   collapsed,
   onToggleCollapsed,
   onResizeStart,
 }: {
+  item?: ItemListRow | null
   collapsed: boolean
   onToggleCollapsed: () => void
   onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
@@ -1090,17 +1104,22 @@ function InspectorControls({
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className="absolute left-1 top-3 z-20 flex h-8 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute left-1 top-3 z-20 flex h-8 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-2xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={collapsed ? 'ขยายรายละเอียดรายการ' : 'ย่อรายละเอียดรายการ'}
         title={collapsed ? 'ขยายแถบรายละเอียด' : 'ย่อแถบรายละเอียด'}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </button>
+      {collapsed && item && (
+        <div className="mt-14 flex flex-col items-center gap-2">
+          {typeIcons[item.item_type]}
+        </div>
+      )}
       {!collapsed && (
         <button
           type="button"
           onPointerDown={onResizeStart}
-          className="absolute left-0 top-1/2 z-10 flex h-16 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center rounded-r-md border border-l-0 border-slate-200 bg-white/95 text-slate-300 shadow-sm hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute left-0 top-1/2 z-10 flex h-16 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center rounded-r-md border border-l-0 border-border bg-card/95 text-muted-foreground/40 shadow-2xs hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="ปรับความกว้างแถบรายละเอียด"
           title="ลากเพื่อปรับความกว้าง"
         >
@@ -1121,8 +1140,8 @@ function InspectorBox({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-      <p className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">
+    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+      <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary">
         {icon}
         <span>{label}</span>
       </p>

@@ -21,6 +21,12 @@ export interface MockStorageLogEntry {
   path?: string;
 }
 
+export interface MockAuthAdminLogEntry {
+  operation: 'createUser' | 'deleteUser' | 'updateUserById';
+  userId?: string;
+  payload?: Record<string, unknown>;
+}
+
 interface MockUser {
   id: string;
   email?: string;
@@ -63,6 +69,7 @@ class SupabaseMockRegistry {
   private queryLog: MockQueryLogEntry[] = [];
   private rpcLog: MockRpcLogEntry[] = [];
   private storageLog: MockStorageLogEntry[] = [];
+  private authAdminLog: MockAuthAdminLogEntry[] = [];
   private authUser: MockUser | null = null;
   private authProfile: MockProfile | null = null;
 
@@ -98,6 +105,10 @@ class SupabaseMockRegistry {
     this.storageLog.push(entry);
   }
 
+  recordAuthAdmin(entry: MockAuthAdminLogEntry) {
+    this.authAdminLog.push(entry);
+  }
+
   getQueryLog() {
     return [...this.queryLog];
   }
@@ -108,6 +119,10 @@ class SupabaseMockRegistry {
 
   getStorageLog() {
     return [...this.storageLog];
+  }
+
+  getAuthAdminLog() {
+    return [...this.authAdminLog];
   }
 
   setAnonTableError(table: string, error: unknown) {
@@ -150,6 +165,7 @@ class SupabaseMockRegistry {
     this.queryLog = [];
     this.rpcLog = [];
     this.storageLog = [];
+    this.authAdminLog = [];
     this.authUser = null;
     this.authProfile = null;
   }
@@ -186,8 +202,8 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
 
   const chain: MockQueryBuilder = {
     select: () => record(['select']),
-    insert: () => record(['insert']),
-    update: () => record(['update']),
+    insert: (values: unknown) => record(['insert', values]),
+    update: (values: unknown) => record(['update', values]),
     delete: () => record(['delete']),
     eq: (column: string, value: unknown) => record(['eq', column, value]),
     neq: (column: string, value: unknown) => record(['neq', column, value]),
@@ -244,7 +260,23 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
       const profile = { id: 'mock-user-id', email: credentials.email || 'user@example.com', role: 'admin', is_active: true };
       mockSupabaseRegistry.setAuth(user, profile);
       return { data: { user, session: { user } }, error: null };
-    }
+    },
+    admin: {
+      createUser: async (payload: Record<string, unknown>) => {
+        const user = { id: 'mock-created-user-id', email: String(payload.email || 'user@example.com') };
+        mockSupabaseRegistry.recordAuthAdmin({ operation: 'createUser', payload });
+        return { data: { user }, error: null };
+      },
+      deleteUser: async (userId: string) => {
+        mockSupabaseRegistry.recordAuthAdmin({ operation: 'deleteUser', userId });
+        return { data: { user: null }, error: null };
+      },
+      updateUserById: async (userId: string, payload: Record<string, unknown>) => {
+        const user = { id: userId, email: String(payload.email || 'user@example.com') };
+        mockSupabaseRegistry.recordAuthAdmin({ operation: 'updateUserById', userId, payload });
+        return { data: { user }, error: null };
+      },
+    },
   },
   storage: {
     from: (bucket: string) => ({

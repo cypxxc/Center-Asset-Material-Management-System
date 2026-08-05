@@ -28,8 +28,9 @@ import {
   exportDatabaseData,
   importDatabaseData,
   createAuthUser,
-    deleteAuthUser,
-    resetAuthPassword,
+  deleteAuthUser,
+  resetAuthPassword,
+  updateUserEmail,
 } from '@/features/admin/actions'
 import { cn } from '@/lib/utils'
 import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
@@ -234,6 +235,16 @@ export default function DBPanelClient() {
     setFormData(prev => ({ ...prev, [fieldName]: value }))
   }
 
+  const getProfileEmailChange = (row: Record<string, unknown> | null, data: Record<string, unknown>) => {
+    if (!row || selectedTable !== 'profiles') return null
+
+    const previousEmail = typeof row.email === 'string' ? row.email.trim().toLowerCase() : ''
+    const nextEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
+    if (!nextEmail || nextEmail === previousEmail) return null
+
+    return nextEmail
+  }
+
   const handleSaveRow = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
@@ -271,6 +282,15 @@ export default function DBPanelClient() {
     }
 
     startTransition(async () => {
+      const nextProfileEmail = getProfileEmailChange(editingRow, formData)
+      if (targetTable === 'profiles' && rowId && nextProfileEmail) {
+        const emailRes = await updateUserEmail(rowId, nextProfileEmail)
+        if (emailRes.error) {
+          setFormError(emailRes.error)
+          return
+        }
+      }
+
       // If editing an existing profile and admin provided a new password, reset it first
       if (targetTable === 'profiles' && rowId && typeof formData._new_password === 'string' && formData._new_password) {
         const newPass = String(formData._new_password)
@@ -284,11 +304,13 @@ export default function DBPanelClient() {
           setFormError(pwdRes.error)
           return
         }
-        // remove the temp password field before upsert
-        delete formData._new_password
       }
 
-      const res = await upsertTableRow(targetTable, rowId, formData)
+      const { _new_password, _password, ...payload } = formData
+      void _new_password
+      void _password
+
+      const res = await upsertTableRow(targetTable, rowId, payload)
       if (res.error) {
         setFormError(res.error)
       } else {
@@ -1150,6 +1172,7 @@ export default function DBPanelClient() {
                   {activeSchema.map(col => {
                     const isReadonly = col.type === 'readonly'
                     const currentValue = formData[col.name] !== undefined ? formData[col.name] : ''
+                    const canEditProfileEmail = editingRow && selectedTable === 'profiles' && col.name === 'email'
 
                     return (
                       <div key={col.name} className="space-y-1">
@@ -1157,7 +1180,16 @@ export default function DBPanelClient() {
                           {col.label} <span className="text-[9px] text-slate-600">({col.name})</span>
                         </label>
 
-                          {isReadonly ? (
+                        {canEditProfileEmail ? (
+                          <input
+                            name={col.name + '_' + formNonce}
+                            autoComplete="off"
+                            type="email"
+                            value={typeof currentValue === 'string' ? currentValue : ''}
+                            onChange={(e) => handleFormChange(col.name, e.target.value)}
+                            className="h-8 w-full border border-slate-800 bg-slate-950 text-slate-300 rounded-lg px-3 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        ) : isReadonly ? (
                           <div className={cn(
                             "h-8 border border-slate-800/60 bg-slate-950/40 text-slate-500 rounded-lg px-3 flex items-center",
                             col.name === 'email' && typeof currentValue === 'string' && isInternalEmail(String(currentValue))

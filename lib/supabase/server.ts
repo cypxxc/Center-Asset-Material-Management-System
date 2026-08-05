@@ -3,6 +3,10 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import ws from 'ws'
 
+type WritableCookieStore = {
+  set(name: string, value: string, options?: Record<string, unknown>): void
+}
+
 export async function createClient() {
   const cookieStore = await cookies()
 
@@ -17,7 +21,7 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              (cookieStore as unknown as WritableCookieStore).set(name, value, options)
             )
           } catch {
             // Can be ignored if middleware handles session refreshing
@@ -42,7 +46,7 @@ export async function createAdminClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              (cookieStore as unknown as WritableCookieStore).set(name, value, options)
             )
           } catch {
             // Can be ignored

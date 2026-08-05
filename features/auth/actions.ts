@@ -11,6 +11,7 @@ import { retrySupabase } from '@/lib/retry'
 import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
 import { resolveUniqueProfileEmail } from './login-identifier'
+import { getDevelopmentSeedAccount, setDevelopmentSessionUser } from './dev-auth'
 
 
 export async function signOut() {
@@ -18,6 +19,8 @@ export async function signOut() {
   try {
     const supabase = await createClient()
     await supabase.auth.signOut()
+    const { clearDevelopmentSessionUser } = await import('./dev-auth')
+    await clearDevelopmentSessionUser()
     trace.complete('success')
     redirect('/login')
   } catch (err) {
@@ -111,6 +114,8 @@ export async function login(_prevState: { error?: string } | null, formData: For
     return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
   }
 
+  const developmentSeedAccount = getDevelopmentSeedAccount(email, password)
+
   try {
     const signInResult = await retrySupabase(async () => {
       const result = await supabase.auth.signInWithPassword({ email, password })
@@ -135,6 +140,29 @@ export async function login(_prevState: { error?: string } | null, formData: For
     }
   } catch (err) {
     if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+
+    if (developmentSeedAccount) {
+      const adminClient = await createAdminClient()
+      const { data: profile, error: profileError } = await adminClient
+        .from('profiles')
+        .select('id, email, is_active, role, full_name')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (!profileError && profile?.is_active) {
+        await setDevelopmentSessionUser({
+          id: profile.id,
+          email: profile.email ?? email,
+          role: (profile.role as 'admin' | 'staff' | 'viewer') ?? developmentSeedAccount.role,
+          full_name: profile.full_name ?? null,
+        })
+
+        metrics.loginSuccess()
+        trace.complete('success', { fallback: 'development_seed' })
+        redirect('/dashboard')
+      }
+    }
+
     metrics.loginFailure()
     trace.complete('failure', { reason: 'invalid_credentials' })
     return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการเชื่อมต่อ' }
