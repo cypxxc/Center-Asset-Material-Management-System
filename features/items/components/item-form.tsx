@@ -315,12 +315,29 @@ function TextInput({
 
 function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
   const [preview, setPreview] = useState<string | null>(defaultValue || null)
+  const [prevPreview, setPrevPreview] = useState<string | null>(preview)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(() => preview ? getTransformedImageUrl(preview) : null)
+  const [previewFailed, setPreviewFailed] = useState<boolean>(false)
   const [removed, setRemoved] = useState<boolean>(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
   const [isCropOpen, setIsCropOpen] = useState<boolean>(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const objectUrlRef = useRef<string | null>(null)
+
+  if (prevPreview !== preview) {
+    setPrevPreview(preview)
+    setPreviewSrc(preview ? getTransformedImageUrl(preview) : null)
+    setPreviewFailed(false)
+  }
+
+  const handlePreviewError = () => {
+    if (previewSrc && preview && previewSrc !== preview) {
+      setPreviewSrc(preview)
+    } else {
+      setPreviewFailed(true)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -405,34 +422,60 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
       
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border p-6 bg-muted/10">
         {preview ? (
-          <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] max-h-[180px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getTransformedImageUrl(preview)}
-              alt="Item preview"
-              loading="lazy"
-              decoding="async"
-              className="object-cover w-full h-full max-w-[240px] max-h-[180px] rounded-lg"
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
-                title="เปลี่ยนรูปภาพ"
-              >
-                <Upload className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
-                title="ลบรูปภาพ"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+          previewFailed ? (
+            <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] w-[240px] h-[180px] bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
+              <ImageIcon className="h-8 w-8 text-slate-400 mb-1" />
+              <span className="text-xs text-slate-400 font-medium text-center">ไม่สามารถโหลดรูปภาพได้</span>
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  title="เปลี่ยนรูปภาพ"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  title="ลบรูปภาพ"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] max-h-[180px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewSrc || ''}
+                alt="Item preview"
+                loading="lazy"
+                decoding="async"
+                onError={handlePreviewError}
+                className="object-cover w-full h-full max-w-[240px] max-h-[180px] rounded-lg"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  title="เปลี่ยนรูปภาพ"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  title="ลบรูปภาพ"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           <div className="text-center flex flex-col items-center justify-center gap-2">
             <div className="rounded-full bg-muted p-3 text-muted-foreground">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, ZoomIn } from 'lucide-react'
+import { X, ZoomIn, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getTransformedImageUrl } from '@/lib/supabase/image'
 
@@ -14,6 +14,38 @@ interface ZoomableImageProps {
 
 export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableImageProps) {
   const [isZoomed, setIsZoomed] = useState(false)
+
+  const [prevSrc, setPrevSrc] = useState(src)
+  const [imgSrc, setImgSrc] = useState(() => getTransformedImageUrl(src))
+  const [hasImgError, setHasImgError] = useState(false)
+
+  const [zoomImgSrc, setZoomImgSrc] = useState(() => getTransformedImageUrl(src, { width: 1200 }))
+  const [hasZoomImgError, setHasZoomImgError] = useState(false)
+
+  // Reset state during render when prop `src` changes
+  if (prevSrc !== src) {
+    setPrevSrc(src)
+    setImgSrc(getTransformedImageUrl(src))
+    setHasImgError(false)
+    setZoomImgSrc(getTransformedImageUrl(src, { width: 1200 }))
+    setHasZoomImgError(false)
+  }
+
+  const handleImgError = () => {
+    if (imgSrc !== src) {
+      setImgSrc(src)
+    } else {
+      setHasImgError(true)
+    }
+  }
+
+  const handleZoomImgError = () => {
+    if (zoomImgSrc !== src) {
+      setZoomImgSrc(src)
+    } else {
+      setHasZoomImgError(true)
+    }
+  }
 
   // Handle ESC key to close zoom
   useEffect(() => {
@@ -41,19 +73,29 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
         title="เลือกเพื่อขยายรูปภาพ"
         aria-label={`ขยายรูปภาพ: ${alt}`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getTransformedImageUrl(src)}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          className={cn("w-full h-full object-cover transition-transform group-hover:scale-105 duration-300", imgClassName)}
-        />
-        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div className="bg-black/50 backdrop-blur-sm p-2 rounded-full text-white scale-90 group-hover:scale-100 transition-all duration-200">
-            <ZoomIn className="h-4 w-4" />
+        {hasImgError ? (
+          <div className={cn("w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 p-4 rounded-lg", imgClassName)}>
+            <ImageIcon className="h-6 w-6 mb-1 text-slate-400" />
+            <span className="text-xs text-slate-400 font-medium">ไม่สามารถโหลดรูปภาพได้</span>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imgSrc}
+              alt={alt}
+              loading="lazy"
+              decoding="async"
+              onError={handleImgError}
+              className={cn("w-full h-full object-cover transition-transform group-hover:scale-105 duration-300", imgClassName)}
+            />
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="bg-black/50 backdrop-blur-sm p-2 rounded-full text-white scale-90 group-hover:scale-100 transition-all duration-200">
+                <ZoomIn className="h-4 w-4" />
+              </div>
+            </div>
+          </>
+        )}
       </button>
 
       {/* Fullscreen Overlay */}
@@ -78,14 +120,22 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
             onClick={(e) => e.stopPropagation()}
             className="relative max-w-full max-h-full flex items-center justify-center animate-in zoom-in-95 duration-200"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getTransformedImageUrl(src, { width: 1200 })}
-              alt={alt}
-              loading="lazy"
-              decoding="async"
-              className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/15 select-none"
-            />
+            {hasZoomImgError ? (
+              <div className="w-[300px] h-[200px] flex flex-col items-center justify-center bg-slate-800 text-slate-400 rounded-lg p-4 border border-white/15">
+                <ImageIcon className="h-10 w-10 mb-2 text-slate-400" />
+                <span className="text-sm text-slate-300 font-medium">ไม่สามารถโหลดรูปภาพได้</span>
+              </div>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={zoomImgSrc}
+                alt={alt}
+                loading="lazy"
+                decoding="async"
+                onError={handleZoomImgError}
+                className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/15 select-none"
+              />
+            )}
             
             <div className="absolute bottom-[-32px] left-0 right-0 text-center text-xs font-medium text-slate-300 truncate px-4">
               {alt}
