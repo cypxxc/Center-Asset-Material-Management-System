@@ -6,8 +6,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QrScannerModal } from '../../components/ui/qr-scanner-modal';
 
 // Mock getUserMedia
-if (!global.navigator.mediaDevices) {
-  (global.navigator as any).mediaDevices = {};
+const nav = global.navigator as unknown as { mediaDevices?: Record<string, unknown> };
+if (!nav.mediaDevices) {
+  nav.mediaDevices = {};
 }
 global.navigator.mediaDevices.getUserMedia = async () => {
   return {

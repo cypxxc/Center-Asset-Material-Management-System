@@ -4,6 +4,18 @@ import * as React from "react"
 import { QrCode, X, Camera, CameraOff, Send, ScanLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+interface BarcodeDetectorDetector {
+  detect: (image: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | ImageBitmap) => Promise<Array<{ rawValue: string }>>
+}
+
+interface BarcodeDetectorConstructor {
+  new (options?: { formats?: string[] }): BarcodeDetectorDetector
+}
+
+interface WindowWithBarcodeDetector {
+  BarcodeDetector?: BarcodeDetectorConstructor
+}
+
 export interface QrScannerModalProps {
   isOpen: boolean
   onClose: () => void
@@ -80,11 +92,11 @@ export function QrScannerModal({
     let isSubscribed = true
     let animFrameId: number | null = null
 
-    setCameraError(null)
-    setIsInitializing(true)
-    setManualCode("")
-
     const initCamera = async () => {
+      setCameraError(null)
+      setIsInitializing(true)
+      setManualCode("")
+
       try {
         if (!navigator?.mediaDevices?.getUserMedia) {
           throw new Error("อุปกรณ์นี้ไม่รองรับการเข้าถึงกล้องผ่านกล้องถ่ายภาพ")
@@ -111,9 +123,10 @@ export function QrScannerModal({
         }
 
         // Start BarcodeDetector scan loop if available
-        if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        const windowWithDetector = window as unknown as WindowWithBarcodeDetector
+        if (typeof window !== "undefined" && windowWithDetector.BarcodeDetector) {
           try {
-            const detector = new (window as any).BarcodeDetector({
+            const detector = new windowWithDetector.BarcodeDetector({
               formats: [
                 "qr_code",
                 "code_128",
