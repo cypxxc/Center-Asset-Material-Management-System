@@ -16,6 +16,7 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
+import { StatusDonutChart, type StatusItemData } from '@/components/dashboard/status-donut-chart'
 
 type LowStockItem = {
   id: string
@@ -70,11 +71,12 @@ export default async function DashboardPage() {
   const damagedPct = (damagedQty / totalQty) * 100
   const otherPct = (otherQty / totalQty) * 100
 
-  const circ = 314.159
-  const dash1 = (activePct / 100) * circ
-  const dash2 = (sparePct / 100) * circ
-  const dash3 = (damagedPct / 100) * circ
-  const dash4 = (otherPct / 100) * circ
+  const statusData: StatusItemData[] = [
+    { key: 'active', label: 'ใช้งานปกติ', qty: activeQty, pct: activePct, color: '#10b981' },
+    { key: 'spare', label: 'สำรองในคลัง', qty: spareQty, pct: sparePct, color: '#3b82f6' },
+    { key: 'damaged', label: 'ชำรุด/ส่งซ่อม', qty: damagedQty, pct: damagedPct, color: '#f43f5e' },
+    { key: 'other', label: 'อื่นๆ/จำหน่าย', qty: otherQty, pct: otherPct, color: '#94a3b8' },
+  ]
   const categoryEntries = Object.entries(stats.categoryCounts) as [string, ReportCountBucket][]
 
   return (
@@ -176,88 +178,7 @@ export default async function DashboardPage() {
               <p className="text-xs text-muted-foreground mb-4">ปริมาณจำนวนพัสดุแบ่งแยกตามสถานะการครอบครองและการใช้งาน</p>
             </div>
             
-            {/* SVG Donut Chart */}
-            <div className="relative py-4 flex items-center justify-center">
-              <svg viewBox="0 0 120 120" className="w-36 h-36" role="img" aria-label="กราฟแสดงสัดส่วนพัสดุตามสภาพการใช้งาน">
-                {/* Background Track */}
-                <circle cx="60" cy="60" r="50" fill="transparent" stroke="var(--muted, #f1f5f9)" strokeWidth="12" />
-                {/* Active segment */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="transparent"
-                  stroke="#10b981"
-                  strokeWidth="12"
-                  strokeDasharray={`${dash1} ${circ - dash1}`}
-                  strokeDashoffset={0}
-                  transform="rotate(-90 60 60)"
-                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
-                />
-                {/* Spare segment */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="transparent"
-                  stroke="#3b82f6"
-                  strokeWidth="12"
-                  strokeDasharray={`${dash2} ${circ - dash2}`}
-                  strokeDashoffset={-dash1}
-                  transform="rotate(-90 60 60)"
-                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
-                />
-                {/* Damaged segment */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="transparent"
-                  stroke="#f43f5e"
-                  strokeWidth="12"
-                  strokeDasharray={`${dash3} ${circ - dash3}`}
-                  strokeDashoffset={-(dash1 + dash2)}
-                  transform="rotate(-90 60 60)"
-                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
-                />
-                {/* Other segment */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="transparent"
-                  stroke="#94a3b8"
-                  strokeWidth="12"
-                  strokeDasharray={`${dash4} ${circ - dash4}`}
-                  strokeDashoffset={-(dash1 + dash2 + dash3)}
-                  transform="rotate(-90 60 60)"
-                  className="transition-all duration-300 hover:stroke-[15] cursor-pointer"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
-                <span className="text-xl font-black text-card-foreground">{stats.totalQuantity}</span>
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">ชิ้นงานรวม</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-4 text-xs font-medium text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                <span className="truncate">ใช้งานปกติ ({Math.round(activePct)}%)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-                <span className="truncate">สำรองในคลัง ({Math.round(sparePct)}%)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
-                <span className="truncate">ชำรุด/ส่งซ่อม ({Math.round(damagedPct)}%)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
-                <span className="truncate">อื่นๆ/จำหน่าย ({Math.round(otherPct)}%)</span>
-              </div>
-            </div>
+            <StatusDonutChart totalQuantity={stats.totalQuantity} statusData={statusData} />
           </div>
 
           {/* Category breakdown progress list */}
