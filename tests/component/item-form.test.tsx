@@ -38,11 +38,24 @@ test('ItemForm shows image file validation as inline error', () => {
   }
 });
 
-test('ItemForm revokes old local image previews when replacing files', () => {
+test('ItemForm revokes old local image previews when replacing files', async () => {
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
+  const originalFileReader = global.FileReader;
   const revoked: string[] = [];
   let counter = 0;
+
+  class MockFileReader {
+    result: string | null = null;
+    onload: (() => void) | null = null;
+    readAsDataURL() {
+      this.result = 'data:image/jpeg;base64,mock';
+      if (this.onload) {
+        this.onload();
+      }
+    }
+  }
+  global.FileReader = MockFileReader as any;
 
   URL.createObjectURL = () => {
     counter += 1;
@@ -68,15 +81,23 @@ test('ItemForm revokes old local image previews when replacing files', () => {
         files: [new File(['first'], 'first.jpg', { type: 'image/jpeg' })],
       },
     });
+
+    const confirmBtn1 = screen.getByText('ครอบรูปภาพ (4:3)');
+    fireEvent.click(confirmBtn1);
+
     fireEvent.change(fileInput, {
       target: {
         files: [new File(['second'], 'second.jpg', { type: 'image/jpeg' })],
       },
     });
 
+    const confirmBtn2 = screen.getByText('ครอบรูปภาพ (4:3)');
+    fireEvent.click(confirmBtn2);
+
     assert.deepEqual(revoked, ['blob:test-1']);
   } finally {
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+    global.FileReader = originalFileReader;
   }
 });

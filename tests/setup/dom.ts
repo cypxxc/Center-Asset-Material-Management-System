@@ -29,6 +29,7 @@ global.HTMLTextAreaElement = dom.window.HTMLTextAreaElement;
 global.HTMLSelectElement = dom.window.HTMLSelectElement;
 global.HTMLFormElement = dom.window.HTMLFormElement;
 global.SVGElement = dom.window.SVGElement;
+global.FileReader = dom.window.FileReader;
 
 // Mock Observers
 global.ResizeObserver = class ResizeObserver {

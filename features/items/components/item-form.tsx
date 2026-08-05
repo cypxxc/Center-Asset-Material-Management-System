@@ -18,6 +18,7 @@ import {
   FormTextarea
 } from '@/components/ui/form'
 import { ItemDetail, ReferenceOption } from '../types'
+import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 
 interface ItemFormProps {
   action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
@@ -317,6 +318,8 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
   const [preview, setPreview] = useState<string | null>(defaultValue || null)
   const [removed, setRemoved] = useState<boolean>(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
+  const [isCropOpen, setIsCropOpen] = useState<boolean>(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const objectUrlRef = useRef<string | null>(null)
 
@@ -341,14 +344,46 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
         e.target.value = ''
         return
       }
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current)
+      const FR = typeof FileReader !== 'undefined' ? FileReader : (typeof window !== 'undefined' ? window.FileReader : null)
+      if (FR) {
+        const reader = new FR()
+        reader.onload = () => {
+          setRawImageSrc(reader.result as string)
+          setIsCropOpen(true)
+        }
+        reader.readAsDataURL(file)
+      } else if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        const localUrl = URL.createObjectURL(file)
+        setRawImageSrc(localUrl)
+        setIsCropOpen(true)
       }
-      const localUrl = URL.createObjectURL(file)
-      objectUrlRef.current = localUrl
-      setPreview(localUrl)
-      setRemoved(false)
-      setUploadError(null)
+    }
+  }
+
+  const handleCropConfirm = (croppedFile: File) => {
+    if (fileInputRef.current && typeof DataTransfer !== 'undefined') {
+      const dt = new DataTransfer()
+      dt.items.add(croppedFile)
+      fileInputRef.current.files = dt.files
+    }
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+    }
+    const url = URL.createObjectURL(croppedFile)
+    objectUrlRef.current = url
+    setPreview(url)
+    setRemoved(false)
+    setUploadError(null)
+    setIsCropOpen(false)
+    setRawImageSrc(null)
+  }
+
+  const handleCropCancel = () => {
+    setIsCropOpen(false)
+    setRawImageSrc(null)
+    if (!preview && fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -437,6 +472,13 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
         />
         <FieldError errors={uploadError ? [uploadError] : undefined} />
       </div>
+
+      <ImageCropDialog
+        isOpen={isCropOpen}
+        imageSrc={rawImageSrc}
+        onConfirm={handleCropConfirm}
+        onCancel={handleCropCancel}
+      />
     </div>
   )
 }

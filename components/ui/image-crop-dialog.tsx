@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { ZoomIn, ZoomOut, RotateCw, Check, X } from 'lucide-react'
 import { Button } from './button'
 
@@ -22,14 +22,14 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
   const imageRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (isOpen) {
-      setZoom(1.0)
-      setRotation(0)
-      setOffset({ x: 0, y: 0 })
-      setIsProcessing(false)
-    }
-  }, [isOpen, imageSrc])
+  const [prevImageSrc, setPrevImageSrc] = useState<string | null>(null)
+  if (imageSrc !== prevImageSrc) {
+    setPrevImageSrc(imageSrc)
+    setZoom(1.0)
+    setRotation(0)
+    setOffset({ x: 0, y: 0 })
+    setIsProcessing(false)
+  }
 
   const handleRotate = () => {
     setRotation((prev) => (prev + 90) % 360)
