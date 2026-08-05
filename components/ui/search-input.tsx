@@ -18,52 +18,73 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     onChange,
     onClear,
     isLoading = false,
-    debounceMs = 0,
+    debounceMs = 300,
     className,
     placeholder = "ค้นหารายการ",
     disabled,
     ...props
   }, ref) => {
     const [localValue, setLocalValue] = React.useState(value)
-    const [prevValue, setPrevValue] = React.useState(value)
+    const [isPending, startTransition] = React.useTransition()
+    const timeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
-    if (value !== prevValue) {
-      setPrevValue(value)
+    React.useEffect(() => {
       setLocalValue(value)
-    }
+    }, [value])
 
-    const debouncedOnChange = React.useMemo(() => {
-      if (debounceMs <= 0) return onChange
-      let timeoutId: NodeJS.Timeout
-      return (val: string) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
-          onChange(val)
-        }, debounceMs)
+    React.useEffect(() => {
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+        }
       }
-    }, [onChange, debounceMs])
+    }, [])
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value
       setLocalValue(val)
-      debouncedOnChange(val)
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+
+      if (debounceMs <= 0) {
+        startTransition(() => {
+          onChange(val)
+        })
+      } else {
+        timeoutRef.current = setTimeout(() => {
+          startTransition(() => {
+            onChange(val)
+          })
+        }, debounceMs)
+      }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current)
         setLocalValue("")
-        onChange("")
-        if (onClear) onClear()
+        startTransition(() => {
+          onChange("")
+          if (onClear) onClear()
+        })
       } else if (e.key === "Enter") {
-        onChange(localValue)
+        if (timeoutRef.current) clearTimeout(timeoutRef.current)
+        startTransition(() => {
+          onChange(localValue)
+        })
       }
     }
 
     const handleClear = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
       setLocalValue("")
-      onChange("")
-      if (onClear) onClear()
+      startTransition(() => {
+        onChange("")
+        if (onClear) onClear()
+      })
     }
+
+    const showLoading = isLoading || isPending
 
     return (
       <div className="relative flex-1 max-w-sm group">
@@ -85,10 +106,10 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           {...props}
         />
         <div className="absolute inset-y-0 right-2 flex items-center gap-1.5">
-          {isLoading && (
+          {showLoading && (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
           )}
-          {!isLoading && localValue && (
+          {!showLoading && localValue && (
             <button
               type="button"
               onClick={handleClear}
@@ -104,3 +125,4 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
   }
 )
 SearchInput.displayName = "SearchInput"
+
