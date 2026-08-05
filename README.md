@@ -1,133 +1,126 @@
-# Center Asset & Material Management System
+# Center Asset & Material Management System (Registry-S)
 
-A custom Next.js + Supabase admin application for internal asset and inventory management.
+A production-ready, Next.js 16 + Supabase internal web application designed for tracking office assets, supplies, materials, and equipment. Built with a Thai-first UI, strict role-based access control, dark mode support, and comprehensive audit logging.
 
-## What this project does
+---
 
-- Admin-level user creation and profile management via a database control panel
-- Supabase Auth user creation and password reset without leaving the app
-- Supports email-less user creation using internal placeholder auth emails
-- Secure admin-only workflows with role-based access control
-- `profiles`, `items`, `locations`, `units`, `categories`, and `audit_logs` management
+## 🌟 Key Features
 
-## Key features
+- **Item & Inventory Registry**: Complete CRUD management for office assets and materials with custom asset numbers, serial numbers, locations, categories, and units.
+- **Image Management**: Integrated client-side image cropping and compression dialog before Supabase Storage upload.
+- **Trash & Soft Delete**: Safe soft-deletion with dedicated Trash Explorer, restoration, and admin-only permanent deletion with audit logging.
+- **Reports & Export System**: Full dataset query engine with downloadable **Excel (.xlsx)** and **PDF** report generators.
+- **Settings & Metadata Control**: Dynamic management of categories, locations, units, and active profile roles (Admin, Staff, Viewer).
+- **Dark Mode & Responsive UI**: Built with 100% semantic CSS theme tokens (`bg-card`, `border-border`, `text-primary`, etc.) for automatic light/dark mode transitions and route-level animated loading skeletons.
+- **Role-Based Access Control (RBAC)**:
+  - **Admin**: Full access including user role assignment, settings management, and permanent item deletion.
+  - **Staff**: Operational access to create and update items and reference metadata.
+  - **Viewer**: Read-only browsing across items, reports, and dashboards.
+- **Unicode & i18n Hardening**: Full NFC normalization, Unicode-aware validation, UTF-8 BOM handling, and database ICU Thai collation (`th-TH-x-icu`).
+- **Health & Monitoring**: Health check endpoints (`/api/health`, `/api/health/readiness`, `/api/health/liveness`, `/api/health/status`) and real-time performance bundle budget enforcement.
+- **Local MCP Integration**: Built-in Model Context Protocol server for AI assistant interaction (`npm run mcp`).
 
-- `admin/db-panel` UI for database browsing, insertion, update, and delete operations
-- Auth-safe `createAuthUser`, `resetAuthPassword`, and `deleteAuthUser` flows
-- Audit logging for admin actions
-- A compact Thai-first dashboard with registry totals, items needing attention, and a status summary
-- Production-ready build and CI pipeline
-- Development protections and sensitive endpoint removal
+---
 
-## Dashboard
+## 🛠️ Tech Stack
 
-The `/dashboard` page is intentionally kept as a concise operational overview rather than a full analytics screen. It shows:
+- **Framework**: Next.js 16.2 (App Router, Turbopack, `proxy.ts` middleware)
+- **UI & Styling**: React 19, Tailwind CSS v4, Radix UI (`radix-ui`), Lucide Icons
+- **Database & Auth**: Supabase PostgreSQL, Supabase Auth, Row Level Security (RLS)
+- **Validation**: Zod v4 schemas with custom Unicode preprocessors
+- **Export Engines**: ExcelJS, pdfmake / custom canvas PDF generator
+- **Runtime & Quality Gate**: Node.js 24.x LTS, TypeScript 5.x (Strict), ESLint 9 (Flat Config), Playwright
 
-- Total registered items, assets, and materials
-- Items needing attention, including damaged items, items waiting for repair, and low-quantity materials
-- A compact status summary for active, spare, damaged, and waiting-for-repair items
+---
 
-Detailed filtering, category and location analysis, exports, and audit history remain available in `/items` and `/reports`.
+## 🚀 Quick Start
 
-## Requirements
+### 1. Requirements
 
-- Node.js 24.x LTS
-- npm 11.14.1
-- Supabase project with:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+- Node.js `>=24.0.0 <25`
+- npm `11.14.1`
+- Supabase Project with required environment variables
 
-## Local setup
+### 2. Environment Setup
 
-1. Copy `.env.example` to `.env.local` or create a `.env.local` file.
-2. Set the required Supabase variables.
-3. Install dependencies:
+Create `.env.local` in the root directory:
 
-```bash
-npm install
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ```
 
-4. Run the app locally:
+### 3. Installation & Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run environment verification
+npm run verify-env
+
+# Start local dev server (http://localhost:3000)
 npm run dev
 ```
 
-5. Open `http://localhost:3000`.
+---
 
-## Development commands
+## 📜 Development Commands
 
-Recommended solo workflow:
+| Command | Description |
+| :--- | :--- |
+| `npm run check` | **Full Quality Gate**: Validates env, runs 224+ unit tests, lints code, and builds for production |
+| `npm run dev` | Starts Next.js dev server with Turbopack |
+| `npm run build` | Compiles production build and runs performance bundle budget checks |
+| `npm run typecheck` | Strict TypeScript check with unused locals & parameters validation |
+| `npm run lint` | Runs ESLint (flat config) |
+| `npm test` | Runs complete test suite via Node test runner (`tsx`) |
+| `npm run verify-env` | Validates required Supabase environment variables |
+| `npm run verify-db-release` | Read-only verification of migrations, RLS policies, and RPC grants |
+| `npm run test:smoke` | Runs Playwright browser smoke tests |
+| `npm run test:e2e` | Runs Playwright E2E browser tests |
+| `npm run mcp` | Starts local Model Context Protocol (MCP) server |
 
-- `npm run check` - run the solo developer gate: env check, tests, lint, and build
-- `npm run test:smoke` - run fast Playwright browser smoke tests
-- `npm run test:e2e` - run Playwright critical browser journeys
-- `npm run test:e2e:release` - require and run the authenticated staging journey
-- `npm run verify-db-release` - read-only verification of migrations, RLS, and RPC grants
-- `npm run test:all` - run `check` and browser smoke tests
+---
 
-For browser flows that need real seeded users (`admin@registry.s`, `staff@registry.s`), enable them explicitly:
+## 🗄️ Database & Migrations
 
-```powershell
-$env:CAMMS_E2E_REAL_AUTH='true'
-$env:CAMMS_E2E_ADMIN_ID='admin@registry.s'
-$env:CAMMS_E2E_ADMIN_PASSWORD='<staging-password>'
-npm run test:e2e:release
+Database schema and RLS policies are managed via migrations in `db/migrations/`:
+
+```bash
+# Apply specific migrations to target database
+$env:MIGRATION_FILES='00001_initial_schema.sql,00002_units_active_columns.sql'
+npx tsx scripts/apply-migrations.ts
 ```
 
-The release command fails when any prerequisite is missing; authenticated coverage is never reported as a skipped success.
+Migration execution is tracked atomically in the `public.app_migrations` database ledger table.
 
-- `npm run dev` — start the development server
-- `npm run build` — build production output
-- `npm run start` — run the production build locally
-- `npm test` — run schema/tests
-- `npm run verify-env` — verify required environment variables are set
+---
 
-### MCP server
+## 🔒 Security & Architecture Rules
 
-MCP starts read-only by default. To expose create/update/delete tools, set
-`CAMMS_MCP_ALLOW_WRITE=true` together with `SUPABASE_SERVICE_ROLE_KEY` in the
-local process environment. Never expose the stdio process to untrusted callers.
+1. **Client/Server Split**: Pages are Server Components querying data via `features/<domain>/queries.ts`. Mutations are performed strictly via Server Actions in `features/<domain>/actions.ts`.
+2. **Dual Supabase Clients**:
+   - `createClient()`: Anonymous key, RLS-enforced for standard user sessions.
+   - `createAdminClient()`: Service role key for admin auth management (bypasses RLS). **Never expose service role key to client-side code.**
+3. **Soft Delete Lifecycle**: Items use an active/archived status lifecycle. Explorer and KPI queries filter out deleted items by default.
+4. **Sidebar Cache Revalidation**: Any item/metadata mutation calls `revalidatePath('/', 'layout')` to keep sidebar category counts in sync.
 
-## Deployment readiness
+---
 
-This repo includes:
+## 🌐 Unicode & Internationalization Policy
 
-- `.github/workflows/ci.yml` for build/test CI
-- `scripts/verify-env.ts` to validate required env variables
-- `docs/deploy-readiness.md` for deployment guidance
+1. **NFC Normalization**: All incoming text inputs are normalized to Canonical Composition (NFC) via `lib/unicode.ts`.
+2. **Invisible Character Stripping**: Form inputs automatically strip zero-width spaces (`\u200B`) and BOM markers (`\uFEFF`).
+3. **ICU Thai Collation**: Database text columns utilize `th-TH-x-icu` collation to guarantee correct Thai dictionary sorting.
 
-## Security notes
+---
 
-- `.gitignore` excludes `.env*`, so `.env.local` should stay local
-- Never commit `SUPABASE_SERVICE_ROLE_KEY`
-- Ensure production environment provides service-role key securely
+## 📄 License & Documentation
 
-## Notes for Supabase
-
-- Confirm RLS and auth row-level security on `profiles`, `items`, `locations`, `units`, and related tables
-- Apply migrations from `db/migrations/`
-- Admin operations rely on the Supabase service-role key for auth management
-
-## Where to look next
-
-- `app/(dashboard)/admin/db-panel/db-panel-client.tsx` — admin panel UI
-- `features/admin/actions.ts` — admin auth actions and profile creation logic
-- `lib/supabase/server.ts` — service-role Supabase client builder
-
-## Contact
-
-If you need changes for deployment or additional admin workflows, update the relevant code in `features/admin/actions.ts` and `app/(dashboard)/admin/db-panel/db-panel-client.tsx`.
-
-## Unicode & Internationalization (i18n) Policy
-
-Registry-S has been fully hardened to support all Unicode scripts (Thai, Arabic, Chinese, Japanese, Korean, Emoji, etc.) across all layers of the application.
-
-1. **Normalization Policy**: All user-entered text is normalized to Unicode Normalization Form C (NFC) using [lib/unicode.ts](file:///d:/registry-s/lib/unicode.ts) before storage, validation, or comparison. This prevents duplicates due to character representation differences (e.g. NFC vs NFD).
-2. **Validation Policy**: All validation schemas (Zod) use Unicode-aware preprocessors to strip invisible characters (such as zero-width spaces `\u200B`) and reject empty unicode-only inputs. Visual length (grapheme clusters, e.g. for emojis) is validated instead of UTF-16 code units.
-3. **Search Policy**: All search queries are normalized to NFC and lowercased before querying the database, ensuring case-insensitive and representation-agnostic matches.
-4. **Import/Export Policy**: CSV and JSON imports automatically strip the UTF-8 Byte Order Mark (BOM `\uFEFF`) to prevent file parsing crashes (common in Excel exports). Column headers are normalized for search-matching, and cell values are normalized for storage.
-5. **Filename Policy**: Uploaded files have their filenames sanitized, replacing unsafe path symbols while fully preserving Unicode characters (Thai, Arabic, Emojis) in extensions and names.
-6. **Collation & Sorting Policy**: Database text columns utilize a custom ICU-based Thai collation (`th-TH-x-icu`) to guarantee that categories, locations, and units sort in lexicographical Thai dictionary order.
-
+For detailed architectural decisions, operations, and recovery guides, see:
+- [AGENTS.md](file:///D:/registry-s/AGENTS.md) — Developer & agent guidelines
+- [DEPLOYMENT.md](file:///D:/registry-s/DEPLOYMENT.md) — Deployment & migration instructions
+- [PRODUCT.md](file:///D:/registry-s/PRODUCT.md) — Functional requirements & scope
+- [SECURITY.md](file:///D:/registry-s/SECURITY.md) — Security policies & environment governance
