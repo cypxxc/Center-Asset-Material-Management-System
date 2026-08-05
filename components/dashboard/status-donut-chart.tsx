@@ -22,17 +22,17 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
   const activeSegments = statusData.filter((item) => item.qty > 0)
   const circ = 314.159
 
+  const segmentDashes: Array<StatusItemData & { dashLength: number; offset: number }> = []
   let accumulatedOffset = 0
-  const segmentDashes = activeSegments.map((item) => {
+  for (const item of activeSegments) {
     const dashLength = (item.pct / 100) * circ
-    const offset = accumulatedOffset
-    accumulatedOffset += dashLength
-    return {
+    segmentDashes.push({
       ...item,
       dashLength,
-      offset,
-    }
-  })
+      offset: accumulatedOffset,
+    })
+    accumulatedOffset += dashLength
+  }
 
   const activeHoverItem = statusData.find((item) => item.key === hoveredKey)
 
