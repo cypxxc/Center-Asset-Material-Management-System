@@ -27,8 +27,8 @@ function StatusBadge({ active }: { active: boolean }) {
     <span
       className={
         active
-          ? 'inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-100'
-          : 'inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 border border-slate-200'
+          ? 'inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+          : 'inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground border border-border'
       }
     >
       {active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
@@ -49,13 +49,13 @@ function TextInput({
 }) {
   return (
     <label className="space-y-1 block">
-      <span className="text-xs font-semibold text-slate-500">{label}</span>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
       <input
         name={name}
         defaultValue={defaultValue ?? ''}
         required={required}
         dir="auto"
-        className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs focus:outline-none focus:border-primary focus:bg-white transition-all"
+        className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs text-card-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-2xs"
       />
     </label>
   )
@@ -88,12 +88,12 @@ function SubmitButton({
 
 function ActiveCheckbox({ defaultChecked }: { defaultChecked?: boolean }) {
   return (
-    <label className="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+    <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground cursor-pointer">
       <input
         name="is_active"
         type="checkbox"
         defaultChecked={defaultChecked}
-        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+        className="h-4 w-4 rounded border-input text-primary accent-primary cursor-pointer"
       />
       เปิดใช้งาน
     </label>
@@ -112,12 +112,12 @@ function SectionShell({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-start gap-3 border-b border-slate-100 p-6 bg-slate-50/30">
-        <div className="rounded-lg border border-primary/10 bg-blue-50 p-2 text-blue-600">{icon}</div>
+    <section className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden text-card-foreground">
+      <div className="flex items-start gap-3 border-b border-border p-6 bg-muted/30">
+        <div className="rounded-lg border border-primary/10 bg-primary/10 p-2 text-primary">{icon}</div>
         <div>
-          <h3 className="text-base font-bold text-slate-800">{title}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+          <h3 className="text-base font-bold text-card-foreground">{title}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         </div>
       </div>
       <div className="space-y-4 p-6">{children}</div>
@@ -145,7 +145,7 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
       description="จัดการกลุ่มหรือประเภทหลักที่ใช้ในการขึ้นทะเบียนครุภัณฑ์และพัสดุอุปกรณ์สำนักงาน"
       icon={<Tag className="h-5 w-5" />}
     >
-      <form action={createCategory} className="grid gap-3 rounded-lg border border-dashed border-slate-200 p-3 md:grid-cols-[1fr_1.4fr_auto_auto] md:items-end">
+      <form action={createCategory} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_1.4fr_auto_auto] md:items-end bg-card/50">
         <TextInput name="name" label="ชื่อหมวดหมู่ใหม่" required />
         <TextInput name="description" label="คำอธิบายเพิ่มเติม" />
         <div className="pb-2">
@@ -159,7 +159,7 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
           <form
             key={category.id}
             action={updateCategory.bind(null, category.id)}
-            className="grid gap-3 rounded-lg border border-slate-100 p-3 md:grid-cols-[1fr_1.4fr_auto_auto] md:items-end hover:bg-slate-50/30 transition-colors"
+            className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-[1fr_1.4fr_auto_auto] md:items-end hover:bg-muted/40 transition-colors"
           >
             <TextInput name="name" label="ชื่อหมวดหมู่" defaultValue={category.name} required />
             <TextInput name="description" label="คำอธิบายเพิ่มเติม" defaultValue={category.description} />
@@ -221,7 +221,7 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
       description="สถานที่ ห้อง แผนก หรืออาคารจัดตั้งที่ระบุในรายการพัสดุครุภัณฑ์สำนักงาน"
       icon={<Building2 className="h-5 w-5" />}
     >
-      <form action={createLocation} className="grid gap-3 rounded-lg border border-dashed border-slate-200 p-3 md:grid-cols-3 lg:grid-cols-[1fr_1fr_0.7fr_0.7fr_1fr_auto_auto] md:items-end">
+      <form action={createLocation} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-3 lg:grid-cols-[1fr_1fr_0.7fr_0.7fr_1fr_auto_auto] md:items-end bg-card/50">
         <TextInput name="name" label="ชื่อห้อง/สถานที่ใหม่" required />
         <TextInput name="building" label="อาคาร" />
         <TextInput name="floor" label="ชั้น" />
@@ -238,7 +238,7 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
           <form
             key={location.id}
             action={updateLocation.bind(null, location.id)}
-            className="grid gap-3 rounded-lg border border-slate-100 p-3 md:grid-cols-3 lg:grid-cols-[1fr_1fr_0.7fr_0.7fr_1fr_auto_auto] md:items-end hover:bg-slate-50/30 transition-colors"
+            className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-3 lg:grid-cols-[1fr_1fr_0.7fr_0.7fr_1fr_auto_auto] md:items-end hover:bg-muted/40 transition-colors"
           >
             <TextInput name="name" label="ชื่อห้อง/สถานที่" defaultValue={location.name} required />
             <TextInput name="building" label="อาคาร" defaultValue={location.building} />
@@ -303,7 +303,7 @@ export function UnitSection({ units }: { units: UnitRow[] }) {
       description="หน่วยนับในการตรวจนับปริมาณสิ่งของเพื่อการจัดระเบียบคลัง เช่น ชิ้น, เครื่อง, ตัว, กล่อง"
       icon={<Box className="h-5 w-5" />}
     >
-      <form action={createUnit} className="grid gap-3 rounded-lg border border-dashed border-slate-200 p-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+      <form action={createUnit} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_auto_auto] md:items-end bg-card/50">
         <TextInput name="name" label="ชื่อหน่วยนับใหม่" required />
         <div className="pb-2">
           <ActiveCheckbox defaultChecked />
@@ -316,7 +316,7 @@ export function UnitSection({ units }: { units: UnitRow[] }) {
           <form
             key={unit.id}
             action={updateUnit.bind(null, unit.id)}
-            className="grid gap-3 rounded-lg border border-slate-100 p-3 md:grid-cols-[1fr_auto_auto] md:items-end hover:bg-slate-50/30 transition-colors"
+            className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-[1fr_auto_auto] md:items-end hover:bg-muted/40 transition-colors"
           >
             <TextInput name="name" label="ชื่อหน่วยนับ" defaultValue={unit.name} required />
             <div className="flex items-center gap-3 pb-2.5">
@@ -371,22 +371,22 @@ export function ProfileSection({ profiles }: { profiles: ProfileRow[] }) {
             <form
               key={profile.id}
               action={updateProfileWithId}
-              className="grid gap-3 rounded-lg border border-slate-100 p-4 bg-white shadow-sm md:grid-cols-[1.5fr_1.2fr_1fr_auto] md:items-center hover:bg-slate-50/30 transition-colors"
+              className="grid gap-3 rounded-lg border border-border p-4 bg-card shadow-2xs md:grid-cols-[1.5fr_1.2fr_1fr_auto] md:items-center hover:bg-muted/40 transition-colors"
             >
               <div>
-                <div className="font-bold text-slate-800">{profile.full_name}</div>
-                <div className={isInternalEmail(profile.email) ? 'text-xs text-slate-500 mt-0.5' : 'text-xs text-slate-400 font-mono mt-0.5 break-all'}>
+                <div className="font-bold text-card-foreground">{profile.full_name}</div>
+                <div className={isInternalEmail(profile.email) ? 'text-xs text-muted-foreground mt-0.5' : 'text-xs text-muted-foreground/80 font-mono mt-0.5 break-all'}>
                   {formatDisplayEmail(profile.email)}
                 </div>
               </div>
 
               <div>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-semibold text-slate-500 block">บทบาทสิทธิ์</span>
+                  <span className="text-xs font-semibold text-muted-foreground block">บทบาทสิทธิ์</span>
                   <select
                     name="role"
                     defaultValue={profile.role}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs focus:outline-none focus:border-primary focus:bg-white cursor-pointer"
+                    className="h-9 w-full rounded-lg border border-input bg-card text-card-foreground px-3 text-xs focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="admin">ผู้ดูแลระบบ (Admin)</option>
                     <option value="staff">เจ้าหน้าที่ (Staff)</option>
@@ -400,9 +400,9 @@ export function ProfileSection({ profiles }: { profiles: ProfileRow[] }) {
                   name="is_active"
                   type="checkbox"
                   defaultChecked={profile.is_active}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-input text-primary accent-primary cursor-pointer"
                 />
-                <span className="text-xs font-bold text-slate-500 cursor-pointer">เปิดสิทธิ์ใช้งานบัญชี</span>
+                <span className="text-xs font-bold text-muted-foreground cursor-pointer">เปิดสิทธิ์ใช้งานบัญชี</span>
               </div>
 
               <div className="text-right">
@@ -617,31 +617,31 @@ export function ImportSection() {
     >
       <div className="space-y-6">
         {/* Upload Zone */}
-        <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-8 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center text-center space-y-4">
+        <div className="relative border-2 border-dashed border-border rounded-2xl p-8 bg-muted/30 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center text-center space-y-4">
           {isUploading ? (
             <div className="flex flex-col items-center space-y-2 animate-pulse">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-              <span className="text-xs font-bold text-slate-500">กำลังนำเข้าและบันทึกข้อมูลพัสดุ...</span>
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
+              <span className="text-xs font-bold text-muted-foreground">กำลังนำเข้าและบันทึกข้อมูลพัสดุ...</span>
             </div>
           ) : (
             <>
-              <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+              <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shadow-2xs">
                 <span className="material-symbols-outlined text-[28px]">upload_file</span>
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-800">เลือกไฟล์ Excel (.xlsx) หรือ CSV เพื่อนำเข้าข้อมูล</h4>
-                <p className="text-xs text-slate-400">ขนาดไฟล์ไม่เกิน 10MB และควรจัดรูปแบบคอลัมน์ให้ตรงตามรูปแบบเทมเพลต</p>
+                <h4 className="text-sm font-bold text-card-foreground">เลือกไฟล์ Excel (.xlsx) หรือ CSV เพื่อนำเข้าข้อมูล</h4>
+                <p className="text-xs text-muted-foreground">ขนาดไฟล์ไม่เกิน 10MB และควรจัดรูปแบบคอลัมน์ให้ตรงตามรูปแบบเทมเพลต</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={downloadTemplate}
-                  className="h-9 px-4 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  className="h-9 px-4 rounded-lg border border-input hover:bg-muted bg-card text-card-foreground text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">download</span>
                   <span>ดาวน์โหลดเทมเพลต (Excel)</span>
                 </button>
-                <label className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                <label className="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
                   <Upload className="h-3.5 w-3.5" />
                   <span>เลือกไฟล์เพื่ออัปโหลด</span>
                   <input
@@ -660,13 +660,13 @@ export function ImportSection() {
         {result && (
           <div className={`rounded-xl border p-4 flex items-start gap-3 animate-in fade-in duration-200 ${
             result.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-red-200 bg-red-50 text-red-700'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'border-destructive/20 bg-destructive/10 text-destructive'
           }`}>
             {result.type === 'success' ? (
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
             ) : (
-              <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+              <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
             )}
             <div className="space-y-1">
               <h5 className="text-xs font-bold">{result.type === 'success' ? 'การนำเข้าสำเร็จ' : 'เกิดข้อผิดพลาดในการนำเข้า'}</h5>
@@ -676,68 +676,68 @@ export function ImportSection() {
         )}
 
         {/* CSV Format Guide */}
-        <div className="rounded-xl border border-slate-100 p-6 bg-white space-y-3 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-700">
-            <FileText className="h-4 w-4 text-blue-600" />
+        <div className="rounded-xl border border-border p-6 bg-card space-y-3 shadow-2xs text-card-foreground">
+          <div className="flex items-center gap-2 text-card-foreground">
+            <FileText className="h-4 w-4 text-primary" />
             <h4 className="text-xs font-bold">โครงสร้างไฟล์ CSV ที่ระบบแนะนำ (CSV Column Schema)</h4>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
             แถวแรกของไฟล์ CSV (Header Row) จะต้องประกอบด้วยชื่อหัวข้อคอลัมน์ต่อไปนี้ (พิมพ์ภาษาอังกฤษพิมพ์เล็ก):
           </p>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-100 mt-2">
-            <table className="w-full text-left text-[11px] border-collapse bg-slate-50/30">
+          <div className="overflow-x-auto rounded-lg border border-border mt-2">
+            <table className="w-full text-left text-[11px] border-collapse bg-card">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 font-bold">
-                  <th className="p-2 border-r border-slate-100">หัวข้อคอลัมน์ (Header)</th>
-                  <th className="p-2 border-r border-slate-100">ข้อมูลที่รองรับ</th>
+                <tr className="border-b border-border bg-muted/50 text-muted-foreground font-bold">
+                  <th className="p-2 border-r border-border">หัวข้อคอลัมน์ (Header)</th>
+                  <th className="p-2 border-r border-border">ข้อมูลที่รองรับ</th>
                   <th className="p-2">ตัวอย่างข้อมูล</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">item_name</td>
-                  <td className="p-2 border-r border-slate-100">ชื่อสิ่งของ/พัสดุครุภัณฑ์ (จำเป็น)</td>
+              <tbody className="divide-y divide-border text-card-foreground font-medium">
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_name</td>
+                  <td className="p-2 border-r border-border">ชื่อสิ่งของ/พัสดุครุภัณฑ์ (จำเป็น)</td>
                   <td className="p-2">เครื่องคอมพิวเตอร์พกพา MacBook Air</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">item_type</td>
-                  <td className="p-2 border-r border-slate-100">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (วัสดุสิ้นเปลือง)</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_type</td>
+                  <td className="p-2 border-r border-border">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (วัสดุสิ้นเปลือง)</td>
                   <td className="p-2">asset</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">quantity</td>
-                  <td className="p-2 border-r border-slate-100">จำนวนพัสดุครุภัณฑ์ (ตัวเลขจำนวนเต็ม)</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">quantity</td>
+                  <td className="p-2 border-r border-border">จำนวนพัสดุครุภัณฑ์ (ตัวเลขจำนวนเต็ม)</td>
                   <td className="p-2">1</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">unit_price</td>
-                  <td className="p-2 border-r border-slate-100">ราคาต่อหน่วย ใช้คำนวณมูลค่าในรายงาน (ไม่บังคับ)</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">unit_price</td>
+                  <td className="p-2 border-r border-border">ราคาต่อหน่วย ใช้คำนวณมูลค่าในรายงาน (ไม่บังคับ)</td>
                   <td className="p-2">35900</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">brand</td>
-                  <td className="p-2 border-r border-slate-100">ยี่ห้อ/แบรนด์</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">brand</td>
+                  <td className="p-2 border-r border-border">ยี่ห้อ/แบรนด์</td>
                   <td className="p-2">Apple</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">model</td>
-                  <td className="p-2 border-r border-slate-100">รุ่นสินค้า</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">model</td>
+                  <td className="p-2 border-r border-border">รุ่นสินค้า</td>
                   <td className="p-2">M2 (2022)</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">asset_no</td>
-                  <td className="p-2 border-r border-slate-100">รหัสเลขครุภัณฑ์ (เฉพาะครุภัณฑ์)</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">asset_no</td>
+                  <td className="p-2 border-r border-border">รหัสเลขครุภัณฑ์ (เฉพาะครุภัณฑ์)</td>
                   <td className="p-2">CAMMS-AS-9872</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">serial_no</td>
-                  <td className="p-2 border-r border-slate-100">รหัสซีเรียลนัมเบอร์สินค้า (SN)</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">serial_no</td>
+                  <td className="p-2 border-r border-border">รหัสซีเรียลนัมเบอร์สินค้า (SN)</td>
                   <td className="p-2">C02H20YQ088G</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-blue-600">status</td>
-                  <td className="p-2 border-r border-slate-100">สถานะ: active / spare / damaged / waiting_repair / inactive / disposed</td>
+                <tr className="hover:bg-muted/40">
+                  <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">status</td>
+                  <td className="p-2 border-r border-border">สถานะ: active / spare / damaged / waiting_repair / inactive / disposed</td>
                   <td className="p-2">active</td>
                 </tr>
               </tbody>

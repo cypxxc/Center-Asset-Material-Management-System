@@ -61,72 +61,72 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       />
 
       {params.message && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 animate-in fade-in duration-200">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-200">
           {params.message}
         </div>
       )}
 
-        {params.error && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                  <span className="material-symbols-outlined text-[28px]">error</span>
-                </div>
-                <div className="space-y-1.5">
-                  <h3 className="text-base font-bold text-slate-950">เกิดข้อผิดพลาดในการตั้งค่า</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">{params.error}</p>
-                </div>
-                <Link
-                  href={`/settings?tab=${activeTab}`}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center"
-                >
-                  ตกลง (เข้าใจแล้ว)
-                </Link>
+      {params.error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl text-card-foreground animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <span className="material-symbols-outlined text-[28px]">error</span>
               </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-card-foreground">เกิดข้อผิดพลาดในการตั้งค่า</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{params.error}</p>
+              </div>
+              <Link
+                href={`/settings?tab=${activeTab}`}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center"
+              >
+                ตกลง (เข้าใจแล้ว)
+              </Link>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tabbed Navigation */}
+      <div className="flex flex-wrap gap-2 border-b border-border pb-px">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <Link
+              key={tab.id}
+              href={`/settings?tab=${tab.id}`}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs border-b-2 transition-all cursor-pointer ${
+                isActive
+                  ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-lg'
+                  : 'border-transparent text-muted-foreground hover:text-card-foreground hover:bg-muted/40 font-semibold rounded-t-lg'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Tab Contents */}
+      <div className="mt-4 animate-in fade-in duration-200">
+        {activeTab === 'categories' && (
+          <CategorySection categories={data.categories} />
         )}
-
-        {/* Tabbed Navigation */}
-        <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-px">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id
-            return (
-              <Link
-                key={tab.id}
-                href={`/settings?tab=${tab.id}`}
-                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-                  isActive
-                    ? 'border-blue-600 text-blue-600 bg-white/50 rounded-t-xl'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Tab Contents */}
-        <div className="mt-4 animate-in fade-in duration-200">
-          {activeTab === 'categories' && (
-            <CategorySection categories={data.categories} />
-          )}
-          {activeTab === 'locations' && (
-            <LocationSection locations={data.locations} />
-          )}
-          {activeTab === 'units' && (
-            <UnitSection units={data.units} />
-          )}
-          {activeTab === 'users' && isAdmin && (
-            <ProfileSection profiles={profiles} />
-          )}
-          {activeTab === 'import' && (
-            <ImportSection />
-          )}
-        </div>
+        {activeTab === 'locations' && (
+          <LocationSection locations={data.locations} />
+        )}
+        {activeTab === 'units' && (
+          <UnitSection units={data.units} />
+        )}
+        {activeTab === 'users' && isAdmin && (
+          <ProfileSection profiles={profiles} />
+        )}
+        {activeTab === 'import' && (
+          <ImportSection />
+        )}
+      </div>
     </PageContainer>
   )
 }
