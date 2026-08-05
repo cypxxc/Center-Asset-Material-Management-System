@@ -15,6 +15,7 @@ import {
   List,
   MapPin,
   Package,
+  QrCode,
   StickyNote,
   User,
   ArrowUpDown,
@@ -40,6 +41,10 @@ import { DeleteItemButton } from '@/features/items/components/delete-item-button
 
 const NewItemSheet = dynamic(
   () => import('@/features/items/components/new-item-sheet').then((mod) => mod.NewItemSheet),
+  { ssr: false }
+)
+const QrScannerModal = dynamic(
+  () => import('@/components/ui/qr-scanner-modal').then((mod) => mod.QrScannerModal),
   { ssr: false }
 )
 import { SearchInput } from '@/components/ui/search-input'
@@ -111,6 +116,7 @@ export function ItemsExplorerClient({
   const [isPending, startTransition] = useTransition()
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
   const [inspectorWidth, setInspectorWidth] = useState(360)
   const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false)
@@ -413,16 +419,27 @@ export function ItemsExplorerClient({
                   className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto flex-1 min-w-0"
                 >
                   {/* Search Box */}
-                  <SearchInput
-                    value={searchVal}
-                    onChange={(val) => {
-                      setSearchVal(val)
-                      handleFilterChange({ q: val.trim() })
-                    }}
-                    onClear={() => handleFilterChange({ q: '' })}
-                    placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
-                    className="w-full sm:w-80"
-                  />
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-1 min-w-0">
+                    <SearchInput
+                      value={searchVal}
+                      onChange={(val) => {
+                        setSearchVal(val)
+                        handleFilterChange({ q: val.trim() })
+                      }}
+                      onClear={() => handleFilterChange({ q: '' })}
+                      placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
+                      className="w-full sm:w-80"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsQrScannerOpen(true)}
+                      className="h-9 shrink-0 rounded-lg border-input bg-card hover:bg-accent text-card-foreground text-xs font-semibold px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <QrCode className="h-4 w-4 text-muted-foreground" />
+                      <span>สแกน QR / บาร์โค้ด</span>
+                    </Button>
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Category Filter */}
@@ -705,6 +722,16 @@ export function ItemsExplorerClient({
         categories={categories}
         locations={locations}
         units={units}
+      />
+
+      {/* QR Scanner Modal */}
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScanSuccess={(scannedText) => {
+          setSearchVal(scannedText)
+          handleFilterChange({ q: scannedText.trim() })
+        }}
       />
     </div>
   )
