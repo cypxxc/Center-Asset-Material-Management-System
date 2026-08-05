@@ -17,6 +17,7 @@ import {
   FormSelect,
   FormTextarea
 } from '@/components/ui/form'
+import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 import { getTransformedImageUrl } from '@/lib/supabase/image'
@@ -164,11 +165,10 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
 
           <FormField>
             <FormLabel htmlFor="quantity" required>จำนวน</FormLabel>
-            <FormInput
+            <FormattedNumberInput
               id="quantity"
               name="quantity"
-              type="number"
-              min="1"
+              allowDecimals={false}
               defaultValue={item?.quantity ?? 1}
               required
               aria-invalid={!!state?.fieldErrors?.quantity}
@@ -178,12 +178,10 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
 
           <FormField>
             <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
-            <FormInput
+            <FormattedNumberInput
               id="unit_price"
               name="unit_price"
-              type="number"
-              min="0"
-              step="0.01"
+              allowDecimals={true}
               defaultValue={item?.unit_price ?? ''}
               aria-invalid={!!state?.fieldErrors?.unit_price}
             />
