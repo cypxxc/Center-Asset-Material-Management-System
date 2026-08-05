@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getTransformedImageUrl } from '@/lib/supabase/image'
 
 interface ZoomableImageProps {
   src: string
@@ -42,7 +43,7 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={src}
+          src={getTransformedImageUrl(src)}
           alt={alt}
           loading="lazy"
           decoding="async"
@@ -79,7 +80,7 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={src}
+              src={getTransformedImageUrl(src, { width: 1200 })}
               alt={alt}
               loading="lazy"
               decoding="async"

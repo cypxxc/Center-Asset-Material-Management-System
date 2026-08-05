@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/form'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
+import { getTransformedImageUrl } from '@/lib/supabase/image'
 
 interface ItemFormProps {
   action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
@@ -409,7 +410,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
           <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] max-h-[180px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={preview}
+              src={getTransformedImageUrl(preview)}
               alt="Item preview"
               loading="lazy"
               decoding="async"
