@@ -41,7 +41,6 @@ export interface StatusResult {
   }
   hostname: string
   timestamp: string
-  featureFlags?: Record<string, unknown>
 }
 
 function publicCheck(check: DependencyCheck): DependencyCheck {
@@ -120,7 +119,7 @@ export function checkLiveness(): LivenessResult {
   }
 }
 
-export function getStatusSnapshot(includeFlags = false): StatusResult {
+export function getStatusSnapshot(): StatusResult {
   const mem = process.memoryUsage()
   return {
     version: config.app.version,
@@ -139,7 +138,6 @@ export function getStatusSnapshot(includeFlags = false): StatusResult {
     },
     hostname: process.env.HOSTNAME ?? process.env.VERCEL_URL ?? 'localhost',
     timestamp: new Date().toISOString(),
-    ...(includeFlags ? { featureFlags: {} } : {}),
   }
 }
 
