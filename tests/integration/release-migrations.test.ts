@@ -5,6 +5,7 @@ import test from 'node:test'
 const migration29 = readFileSync('db/migrations/00029_harden_profile_role_defaults.sql', 'utf8')
 const migration30 = readFileSync('db/migrations/00030_revoke_anon_admin_sql.sql', 'utf8')
 const migration31 = readFileSync('db/migrations/00031_lock_down_public_report_rpcs.sql', 'utf8')
+const migration32 = readFileSync('db/migrations/00032_public_storage_read_policy.sql', 'utf8')
 const restoreMigration = readFileSync('db/migrations/00026_atomic_database_restore.sql', 'utf8')
 const importMigration = readFileSync('db/migrations/00024_remove_archive_and_add_unit_price.sql', 'utf8')
 
@@ -20,6 +21,13 @@ test('report RPCs use invoker security and explicitly reject public execution', 
     assert.match(migration31, new RegExp(`ALTER FUNCTION public\\.${name}\\([^;]*SECURITY INVOKER`, 'is'))
     assert.match(migration31, new RegExp(`REVOKE EXECUTE ON FUNCTION public\\.${name}`))
   }
+})
+
+test('migration 00032 grants public read policy for item-images storage bucket', () => {
+  assert.match(migration32, /create policy "Allow public to read item images"/i)
+  assert.match(migration32, /on storage\.objects for select/i)
+  assert.match(migration32, /to public/i)
+  assert.match(migration32, /bucket_id = 'item-images'/i)
 })
 
 test('privileged mutating RPCs retain internal authorization and minimum grants', () => {
