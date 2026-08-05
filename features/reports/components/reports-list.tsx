@@ -2,13 +2,15 @@
 
 import { useTransition, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Download, Printer, FileText, AlertTriangle, CheckCircle, Award } from 'lucide-react'
+import { Download, Printer, FileText, AlertTriangle, CheckCircle, Award, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { ReportItemRow } from '../queries'
+import { recordReportExportAudit, getExportReportItems } from '../actions'
+import { generateReportPdf } from '@/lib/reports-pdf-generator'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import {
@@ -69,11 +71,35 @@ export function ReportsList({
   const [isPending, startTransition] = useTransition()
   const [searchVal, setSearchVal] = useState(searchParams.q ?? '')
   const [prevQ, setPrevQ] = useState(searchParams.q ?? '')
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const currentQ = searchParams.q ?? ''
   if (currentQ !== prevQ) {
     setPrevQ(currentQ)
     setSearchVal(currentQ)
+  }
+
+  const buildFilterSummary = () => {
+    const parts: string[] = []
+    if (searchParams.q) parts.push(`ค้นหา: "${searchParams.q}"`)
+    if (searchParams.category_id) {
+      const cat = categories.find((c) => c.id === searchParams.category_id)
+      if (cat) parts.push(`หมวดหมู่: ${cat.name}`)
+    }
+    if (searchParams.location_id) {
+      const loc = locations.find((l) => l.id === searchParams.location_id)
+      if (loc) parts.push(`สถานที่: ${loc.name}`)
+    }
+    if (searchParams.type) {
+      const typeLabel = ITEM_TYPE_LABELS[searchParams.type as keyof typeof ITEM_TYPE_LABELS] || searchParams.type
+      parts.push(`ประเภท: ${typeLabel}`)
+    }
+    if (searchParams.status) {
+      const statusLabel = ITEM_STATUS_LABELS[searchParams.status as keyof typeof ITEM_STATUS_LABELS] || searchParams.status
+      parts.push(`สถานะ: ${statusLabel}`)
+    }
+    return parts.length > 0 ? parts.join(', ') : 'ทั้งหมด'
   }
 
   const handleFilterChange = (updates: {
@@ -106,60 +132,182 @@ export function ReportsList({
   }
 
   const exportToExcel = async () => {
-    const ExcelJS = await import('exceljs')
-    const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Office Items')
+    setIsExportingExcel(true)
+    try {
+      const filterSummary = buildFilterSummary()
+      const { items: exportItems, totalQuantity: exportQty, totalValue: exportVal } =
+        await getExportReportItems(searchParams)
 
-    worksheet.columns = [
-      { header: 'ชื่อสิ่งของ', key: 'item_name', width: 25 },
-      { header: 'ประเภท', key: 'item_type', width: 15 },
-      { header: 'หมวดหมู่', key: 'category_name', width: 15 },
-      { header: 'จำนวน', key: 'quantity', width: 10 },
-      { header: 'ราคาต่อหน่วย', key: 'unit_price', width: 14 },
-      { header: 'หน่วยนับ', key: 'unit_name', width: 10 },
-      { header: 'เลขครุภัณฑ์', key: 'asset_no', width: 20 },
-      { header: 'Serial Number', key: 'serial_no', width: 20 },
-      { header: 'ยี่ห้อ', key: 'brand', width: 15 },
-      { header: 'รุ่น', key: 'model', width: 15 },
-      { header: 'สถานที่', key: 'location_name', width: 20 },
-      { header: 'ผู้รับผิดชอบ', key: 'responsible_person', width: 20 },
-      { header: 'สถานะ', key: 'status', width: 15 },
-    ]
+      const ExcelJS = await import('exceljs')
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Office Items')
 
-    items.forEach((item) => {
-      worksheet.addRow({
-        item_name: item.item_name,
-        item_type: ITEM_TYPE_LABELS[item.item_type as keyof typeof ITEM_TYPE_LABELS] || item.item_type,
-        category_name: item.category?.name || '-',
-        quantity: item.quantity,
-        unit_price: item.unit_price ?? 0,
-        unit_name: item.unit?.name || '-',
-        asset_no: item.asset_no || '-',
-        serial_no: item.serial_no || '-',
-        brand: item.brand || '-',
-        model: item.model || '-',
-        location_name: item.location?.name || '-',
-        responsible_person: item.responsible_person || '-',
-        status: ITEM_STATUS_LABELS[item.status as keyof typeof ITEM_STATUS_LABELS] || item.status,
+      // Title row
+      const titleRow = worksheet.addRow(['รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS)'])
+      titleRow.font = { bold: true, size: 16 }
+      worksheet.addRow([])
+
+      // Subtitle / Filter summary
+      const filterRow = worksheet.addRow([
+        `ตัวกรอง: ${filterSummary}`,
+        `วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH')}`
+      ])
+      filterRow.font = { italic: true, size: 11, color: { argb: 'FF475569' } }
+      worksheet.addRow([])
+
+      // Table Header
+      const headers = [
+        'ลำดับ',
+        'ชื่อสิ่งของ',
+        'ประเภท',
+        'หมวดหมู่',
+        'สถานที่',
+        'จำนวน',
+        'หน่วยนับ',
+        'ราคาต่อหน่วย (บาท)',
+        'ราคารวม (บาท)',
+        'เลขครุภัณฑ์',
+        'Serial Number',
+        'ยี่ห้อ',
+        'รุ่น',
+        'ผู้รับผิดชอบ',
+        'สถานะ'
+      ]
+
+      const headerRow = worksheet.addRow(headers)
+      headerRow.font = { bold: true }
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE2E8F0' },
+        }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        }
       })
-    })
 
-    // Format headers
-    worksheet.getRow(1).font = { bold: true }
-    worksheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE2E8F0' },
+      // Data rows
+      exportItems.forEach((item, index) => {
+        const unitPrice = item.unit_price ?? 0
+        const totalRowVal = unitPrice * item.quantity
+        const row = worksheet.addRow([
+          index + 1,
+          item.item_name,
+          ITEM_TYPE_LABELS[item.item_type as keyof typeof ITEM_TYPE_LABELS] || item.item_type,
+          item.category?.name || '-',
+          item.location?.name || '-',
+          item.quantity,
+          item.unit?.name || '-',
+          unitPrice,
+          totalRowVal,
+          item.asset_no || '-',
+          item.serial_no || '-',
+          item.brand || '-',
+          item.model || '-',
+          item.responsible_person || '-',
+          ITEM_STATUS_LABELS[item.status as keyof typeof ITEM_STATUS_LABELS] || item.status,
+        ])
+
+        // Format currency cells
+        const unitPriceCell = row.getCell(8)
+        unitPriceCell.numFmt = '#,##0.00'
+
+        const totalValCell = row.getCell(9)
+        totalValCell.numFmt = '#,##0.00'
+
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          }
+        })
+      })
+
+      // Summary row
+      const summaryRow = worksheet.addRow([
+        'รวมทั้งสิ้น',
+        '',
+        '',
+        '',
+        '',
+        exportQty,
+        '',
+        '',
+        exportVal,
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ])
+      summaryRow.font = { bold: true }
+      const summaryTotalCell = summaryRow.getCell(9)
+      summaryTotalCell.numFmt = '#,##0.00'
+      summaryRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF1F5F9' },
+        }
+        cell.border = {
+          top: { style: 'double', color: { argb: 'FF0F172A' } },
+          bottom: { style: 'double', color: { argb: 'FF0F172A' } },
+        }
+      })
+
+      // Auto column widths
+      worksheet.columns.forEach((column) => {
+        let maxLen = 12
+        column.eachCell?.({ includeEmpty: true }, (cell) => {
+          const val = cell.value ? cell.value.toString() : ''
+          if (val.length > maxLen) {
+            maxLen = Math.min(val.length + 4, 40)
+          }
+        })
+        column.width = maxLen
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `office-items-report-${new Date().toISOString().split('T')[0]}.xlsx`
+      a.click()
+      window.URL.revokeObjectURL(url)
+
+      await recordReportExportAudit('excel', filterSummary)
+    } catch (error) {
+      console.error('Failed to export Excel:', error)
+    } finally {
+      setIsExportingExcel(false)
     }
+  }
 
-    const buffer = await workbook.xlsx.writeBuffer()
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `office-items-report-${new Date().toISOString().split('T')[0]}.xlsx`
-    a.click()
-    window.URL.revokeObjectURL(url)
+  const exportToPdf = async () => {
+    setIsExportingPdf(true)
+    try {
+      const filterSummary = buildFilterSummary()
+      const { items: exportItems, totalQuantity: exportQty, totalValue: exportVal } =
+        await getExportReportItems(searchParams)
+
+      generateReportPdf(exportItems, filterSummary, exportQty, exportVal)
+
+      await recordReportExportAudit('pdf', filterSummary)
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+    } finally {
+      setIsExportingPdf(false)
+    }
   }
 
   const handlePrint = () => {
@@ -203,19 +351,37 @@ export function ReportsList({
               aria-label="ดาวน์โหลดรายงาน Excel"
               className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
               variant="outline"
-              disabled={items.length === 0}
+              disabled={items.length === 0 || isExportingExcel}
             >
-              <Download className="w-4 h-4" />
+              {isExportingExcel ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
               <span>ดาวน์โหลด Excel</span>
             </Button>
             <Button
+              onClick={exportToPdf}
+              aria-label="ส่งออกรายงาน PDF"
+              className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
+              variant="outline"
+              disabled={items.length === 0 || isExportingPdf}
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              <span>ส่งออก PDF</span>
+            </Button>
+            <Button
               onClick={handlePrint}
-              aria-label="พิมพ์หรือบันทึกเป็น PDF"
+              aria-label="พิมพ์รายงาน"
               className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs h-9 cursor-pointer"
               disabled={items.length === 0}
             >
               <Printer className="w-4 h-4" />
-              <span>พิมพ์รายงาน (Print / PDF)</span>
+              <span>พิมพ์รายงาน (Print)</span>
             </Button>
           </>
         }

@@ -4,6 +4,18 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { writeAuditLog } from '@/lib/audit'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 
+import { ItemListSearchParams } from '@/features/items/types'
+import { getExportReportItems as queryExportReportItems, ReportItemRow } from './queries'
+
+export async function getExportReportItems(params: ItemListSearchParams): Promise<{
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+}> {
+  return await queryExportReportItems(params)
+}
+
 export async function recordReportExportAudit(
   format: 'excel' | 'pdf',
   filterSummary: string
@@ -33,3 +45,4 @@ export async function recordReportExportAudit(
     return errorResponse('ไม่สามารถบันทึกประวัติการส่งออกได้')
   }
 }
+

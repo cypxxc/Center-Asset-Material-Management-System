@@ -55,7 +55,7 @@ test('ItemForm revokes old local image previews when replacing files', async () 
       }
     }
   }
-  global.FileReader = MockFileReader as any;
+  global.FileReader = MockFileReader as unknown as typeof FileReader;
 
   URL.createObjectURL = () => {
     counter += 1;
