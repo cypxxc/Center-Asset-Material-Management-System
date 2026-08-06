@@ -36,14 +36,14 @@ test('AssetTagModal renders title, item info, and barcode when open', () => {
   )
 
   assert.ok(screen.getByText('พิมพ์ลาเบลติดครุภัณฑ์'))
-  assert.ok(screen.getByText('เก้าอี้สำนักงานเพื่อสุขภาพ'))
-  assert.ok(screen.getByText('AST-2026-008'))
-  assert.ok(screen.getByText('Ergonomic Pro 2026'))
-  assert.ok(screen.getByText('สถานที่: ห้องทำงาน 302'))
+  assert.ok(screen.getAllByText('เก้าอี้สำนักงานเพื่อสุขภาพ').length >= 1)
+  assert.ok(screen.getAllByText('AST-2026-008').length >= 1)
+  assert.ok(screen.getAllByText('Ergonomic Pro 2026').length >= 1)
+  assert.ok(screen.getAllByText('สถานที่: ห้องทำงาน 302').length >= 1)
 
   // Verify barcode SVG is rendered
-  const barcodeSvg = screen.getByRole('img', { name: 'บาร์โค้ด AST-2026-008' })
-  assert.ok(barcodeSvg)
+  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด AST-2026-008' })
+  assert.ok(barcodeSvgs.length >= 1)
 })
 
 test('AssetTagModal switches sticker size presets', () => {
@@ -60,15 +60,16 @@ test('AssetTagModal switches sticker size presets', () => {
 
   // Click small preset
   fireEvent.click(smallPresetBtn)
-  const stickerBox = document.getElementById('printable-asset-tag')
-  assert.ok(stickerBox)
-  assert.equal(stickerBox.style.width, '50mm')
-  assert.equal(stickerBox.style.height, '25mm')
+  const stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  assert.ok(stickerBoxes.length >= 1)
+  const firstBox = stickerBoxes[0] as HTMLElement
+  assert.equal(firstBox.style.width, '50mm')
+  assert.equal(firstBox.style.height, '25mm')
 
   // Click compact preset
   fireEvent.click(compactPresetBtn)
-  assert.equal(stickerBox.style.width, '40mm')
-  assert.equal(stickerBox.style.height, '20mm')
+  assert.equal(firstBox.style.width, '40mm')
+  assert.equal(firstBox.style.height, '20mm')
 })
 
 test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
@@ -86,9 +87,9 @@ test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
     })
   )
 
-  assert.ok(screen.getByText('SN-MONITOR-99'))
-  const barcodeSvg = screen.getByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' })
-  assert.ok(barcodeSvg)
+  assert.ok(screen.getAllByText('SN-MONITOR-99').length >= 1)
+  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' })
+  assert.ok(barcodeSvgs.length >= 1)
 })
 
 test('AssetTagModal triggers onClose callback when clicking close button or cancel button', () => {
@@ -145,4 +146,32 @@ test('AssetTagModal calls window.print on print button click', () => {
   } finally {
     window.print = originalPrint
   }
+})
+
+test('AssetTagModal renders multiple items in batch mode', () => {
+  const items = [
+    mockItem,
+    {
+      item_name: 'โน้ตบุ๊กทำงาน',
+      asset_no: 'AST-2026-009',
+      serial_no: 'SN-LAPTOP-123',
+    },
+  ]
+
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      items: items,
+    })
+  )
+
+  assert.ok(screen.getByText('พิมพ์ลาเบลติดครุภัณฑ์ (2 รายการ)'))
+  assert.ok(screen.getByText('1 / 2'))
+
+  const nextBtn = screen.getByRole('button', { name: 'รายการถัดไป' })
+  fireEvent.click(nextBtn)
+
+  assert.ok(screen.getByText('2 / 2'))
+  assert.ok(screen.getAllByText('โน้ตบุ๊กทำงาน').length >= 1)
 })

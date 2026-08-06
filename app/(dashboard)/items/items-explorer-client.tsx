@@ -18,6 +18,7 @@ import {
   QrCode,
   StickyNote,
   User,
+  Tag,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -45,6 +46,10 @@ const NewItemSheet = dynamic(
 )
 const QrScannerModal = dynamic(
   () => import('@/components/ui/qr-scanner-modal').then((mod) => mod.QrScannerModal),
+  { ssr: false }
+)
+const AssetTagModal = dynamic(
+  () => import('@/components/ui/asset-tag-modal').then((mod) => mod.AssetTagModal),
   { ssr: false }
 )
 import { SearchInput } from '@/components/ui/search-input'
@@ -117,9 +122,23 @@ export function ItemsExplorerClient({
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
+  const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
   const [inspectorWidth, setInspectorWidth] = useState(360)
   const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false)
+
+  const selectedItemsData = useMemo(() => {
+    return localItems
+      .filter((item) => selectedItemIds.includes(item.id))
+      .map((item) => ({
+        item_name: item.item_name,
+        asset_no: item.asset_no,
+        serial_no: item.serial_no,
+        brand: item.brand,
+        model: item.model,
+        location_name: item.location?.name,
+      }))
+  }, [localItems, selectedItemIds])
 
   // Reactively open sheet when URL query param changes during render
   if (newParam !== lastNewParam) {
@@ -647,6 +666,16 @@ export function ItemsExplorerClient({
             </select>
           )}
 
+          {/* Bulk Print Asset Tag */}
+          <Button
+            onClick={() => setIsBatchPrintOpen(true)}
+            variant="outline"
+            className="h-8 rounded-lg px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            <span>พิมพ์ลาเบล ({selectedItemIds.length})</span>
+          </Button>
+
           {/* Bulk Delete - Admin Only */}
           {userCanDelete && (
             <Button
@@ -685,6 +714,12 @@ export function ItemsExplorerClient({
           </button>
         </div>
       )}
+
+      <AssetTagModal
+        isOpen={isBatchPrintOpen}
+        onClose={() => setIsBatchPrintOpen(false)}
+        items={selectedItemsData}
+      />
 
       {/* Blocking Error Modal */}
       {blockingError && (

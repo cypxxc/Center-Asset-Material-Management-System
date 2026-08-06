@@ -12,6 +12,7 @@ import { canWrite, canDelete } from '@/lib/permissions'
 
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
+import { ItemDetailActions } from './item-detail-actions'
 
 interface ItemDetailPageProps {
   params: Promise<{
@@ -60,6 +61,16 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <ItemDetailActions
+              item={{
+                item_name: item.item_name,
+                asset_no: item.asset_no,
+                serial_no: item.serial_no,
+                brand: item.brand,
+                model: item.model,
+                location_name: item.location?.name,
+              }}
+            />
             {userCanWrite && (
               <Link href={`/items/${item.id}/edit`}>
                 <Button variant="outline" className="font-semibold flex items-center gap-1.5 h-10 px-4">
