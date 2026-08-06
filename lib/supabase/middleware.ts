@@ -49,13 +49,14 @@ export async function updateSession(request: NextRequest) {
         await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
       ).result.data.user
 
-  // Auth pages logic
+  // Auth pages & public item scan logic
   const isLoginPage = pathname === '/login'
   const isInactiveNotice = isLoginPage && request.nextUrl.searchParams.get('error') === 'inactive'
+  const isPublicItemPage = pathname.startsWith('/items/') && pathname !== '/items/new' && !pathname.endsWith('/edit')
 
   if (!user) {
     // If not logged in and trying to access protected page
-    if (!isLoginPage) {
+    if (!isLoginPage && !isPublicItemPage) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
