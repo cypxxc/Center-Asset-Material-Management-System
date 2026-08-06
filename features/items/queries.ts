@@ -260,7 +260,7 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
 }
 
 export async function getItemById(id: string): Promise<ItemDetail | null> {
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   const {
     result: { data, error },
   } = await measureQuery('items.getItemById', () =>
