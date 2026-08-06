@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { checkLiveness } from '@/lib/health/checks'
+import { checkLiveness } from '@/lib/health'
 
 export const dynamic = 'force-dynamic'
 

@@ -1,7 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { MemoryRateLimiter } from '@/lib/rate-limit/memory-rate-limiter'
-import { getRateLimiter, checkRateLimit } from '@/lib/rate-limit'
+import { MemoryRateLimiter, getRateLimiter, checkRateLimit } from '@/lib/rate-limit'
 
 test('MemoryRateLimiter enforces sliding window limits', async () => {
   const limiter = new MemoryRateLimiter()

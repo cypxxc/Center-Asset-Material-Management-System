@@ -41,13 +41,6 @@ export async function measureExecution<T>(
   return { result, durationMs }
 }
 
-export function measureExecutionSync<T>(fn: () => T): { result: T; durationMs: number } {
-  const timer = startTimer()
-  const result = fn()
-  const durationMs = timer.stop()
-  return { result, durationMs }
-}
-
 /** Measure a Supabase/query call and record query.latency metric. */
 export async function measureQuery<T>(
   operation: string,

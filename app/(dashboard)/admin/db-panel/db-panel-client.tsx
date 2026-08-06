@@ -33,7 +33,7 @@ import {
   updateUserEmail,
 } from '@/features/admin/actions'
 import { cn } from '@/lib/utils'
-import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
+import { formatDisplayEmail, isInternalEmail } from '@/lib/display-email'
 import {
   buildAuditDiff,
   formatJsonForDisplay,

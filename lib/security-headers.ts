@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   ensureTraceHeaders,
   setTraceResponseHeaders,
-} from '@/lib/tracing/headers'
+} from '@/lib/tracing'
 
 export const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' blob: data: https://*.supabase.co https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' data: https://fonts.gstatic.com;",

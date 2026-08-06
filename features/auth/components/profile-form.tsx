@@ -6,7 +6,7 @@ import {
   formatDisplayEmail,
   getInternalAccountHint,
   isInternalEmail,
-} from '@/lib/auth/display-email'
+} from '@/lib/display-email'
 import { updatePersonalProfile, updatePersonalPassword } from '../actions'
 
 interface ProfileFormProps {

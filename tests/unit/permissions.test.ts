@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isAdmin, isStaff, isViewer, canWrite, canDelete, canManageSettings, canManageTrash } from '../../lib/permissions';
+import { isAdmin, canWrite, canDelete, canManageSettings, canManageTrash } from '../../lib/permissions';
 
 test('permissions helper identify correct roles', () => {
   assert.equal(isAdmin('admin'), true);
@@ -8,12 +8,6 @@ test('permissions helper identify correct roles', () => {
   assert.equal(isAdmin('viewer'), false);
   assert.equal(isAdmin(null), false);
   assert.equal(isAdmin(undefined), false);
-
-  assert.equal(isStaff('staff'), true);
-  assert.equal(isStaff('admin'), false);
-
-  assert.equal(isViewer('viewer'), true);
-  assert.equal(isViewer('admin'), false);
 });
 
 test('permissions helper determine correct write rights', () => {

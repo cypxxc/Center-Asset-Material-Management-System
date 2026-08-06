@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { checkReadiness, toPublicReadiness } from '@/lib/health/checks'
+import { checkReadiness, toPublicReadiness } from '@/lib/health'
 import { logger } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'

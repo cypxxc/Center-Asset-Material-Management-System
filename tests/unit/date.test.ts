@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatDateTime } from '../../lib/date/format-date-time';
+import { formatDateTime } from '../../lib/date';
 
 test('formatDateTime converts date to Thai locale date time string', () => {
   assert.equal(formatDateTime(''), '');

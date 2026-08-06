@@ -1,8 +1,7 @@
 // tests/unit/logging.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { formatLog } from '@/lib/logging/formatter'
-import { logger } from '@/lib/logging/logger'
+import { formatLog, logger } from '@/lib/logging'
 
 test('formatLog sanitizes sensitive fields and keys', () => {
   const payload = {

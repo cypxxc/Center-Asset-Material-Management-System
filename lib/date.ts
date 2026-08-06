@@ -1,4 +1,5 @@
-import { THAI_LOCALE, THAI_TIMEZONE } from './thai-date'
+const THAI_LOCALE = 'th-TH' as const
+const THAI_TIMEZONE = 'Asia/Bangkok' as const
 
 export function formatDateTime(dateInput: string | Date | number): string {
   if (!dateInput) return ''

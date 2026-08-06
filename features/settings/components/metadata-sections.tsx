@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 import { Box, Building2, Save, Tag, Users, Upload, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react'
-import { formatDisplayEmail, isInternalEmail } from '@/lib/auth/display-email'
+import { formatDisplayEmail, isInternalEmail } from '@/lib/display-email'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import dynamic from 'next/dynamic'

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { getStatusSnapshot } from '@/lib/health/checks'
+import { getStatusSnapshot } from '@/lib/health'
 
 export const dynamic = 'force-dynamic'
 

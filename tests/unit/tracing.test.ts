@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ensureTraceHeaders, generateId } from '@/lib/tracing/headers'
-import { isInternalEmail } from '@/lib/auth/display-email'
+import { ensureTraceHeaders, generateId } from '@/lib/tracing'
+import { isInternalEmail } from '@/lib/display-email'
 
 test('generateId returns non-empty string', () => {
   assert.ok(generateId().length > 8)
