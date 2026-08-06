@@ -15,7 +15,6 @@ import {
   List,
   MapPin,
   Package,
-  QrCode,
   StickyNote,
   User,
   Tag,
@@ -44,10 +43,7 @@ const NewItemSheet = dynamic(
   () => import('@/features/items/components/new-item-sheet').then((mod) => mod.NewItemSheet),
   { ssr: false }
 )
-const QrScannerModal = dynamic(
-  () => import('@/components/ui/qr-scanner-modal').then((mod) => mod.QrScannerModal),
-  { ssr: false }
-)
+
 const AssetTagModal = dynamic(
   () => import('@/components/ui/asset-tag-modal').then((mod) => mod.AssetTagModal),
   { ssr: false }
@@ -121,7 +117,6 @@ export function ItemsExplorerClient({
   const [isPending, startTransition] = useTransition()
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
-  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
   const [inspectorWidth, setInspectorWidth] = useState(360)
@@ -450,15 +445,6 @@ export function ItemsExplorerClient({
                       placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
                       className="w-full sm:w-80"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsQrScannerOpen(true)}
-                      className="h-9 shrink-0 rounded-lg border-input bg-card hover:bg-accent text-card-foreground text-xs font-semibold px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <QrCode className="h-4 w-4 text-muted-foreground" />
-                      <span>สแกน QR / บาร์โค้ด</span>
-                    </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -758,16 +744,6 @@ export function ItemsExplorerClient({
         categories={categories}
         locations={locations}
         units={units}
-      />
-
-      {/* QR Scanner Modal */}
-      <QrScannerModal
-        isOpen={isQrScannerOpen}
-        onClose={() => setIsQrScannerOpen(false)}
-        onScanSuccess={(scannedText) => {
-          setSearchVal(scannedText)
-          handleFilterChange({ q: scannedText.trim() })
-        }}
       />
     </div>
   )
