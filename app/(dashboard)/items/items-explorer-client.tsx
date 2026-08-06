@@ -131,6 +131,7 @@ export function ItemsExplorerClient({
     return localItems
       .filter((item) => selectedItemIds.includes(item.id))
       .map((item) => ({
+        id: item.id,
         item_name: item.item_name,
         asset_no: item.asset_no,
         serial_no: item.serial_no,

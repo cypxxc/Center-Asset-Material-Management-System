@@ -175,3 +175,22 @@ test('AssetTagModal renders multiple items in batch mode', () => {
   assert.ok(screen.getByText('2 / 2'))
   assert.ok(screen.getAllByText('โน้ตบุ๊กทำงาน').length >= 1)
 })
+
+test('AssetTagModal renders Direct Link QR Code SVG element for mobile phone scanning', () => {
+  const itemWithId = {
+    ...mockItem,
+    id: 'item-uuid-12345',
+  }
+
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: itemWithId,
+    })
+  )
+
+  const qrSvgs = screen.getAllByRole('img', { name: /QR Code ลิงก์/ })
+  assert.ok(qrSvgs.length >= 1)
+  assert.ok(screen.getAllByText('มือถือสแกน').length >= 1)
+})

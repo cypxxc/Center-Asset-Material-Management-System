@@ -4,8 +4,10 @@ import * as React from "react"
 import { Printer, X, Tag, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { generateCode128Bars } from "@/lib/barcode"
+import { generateQrCodeSvgPath } from "@/lib/qr-code"
 
 export interface ItemStickerData {
+  id?: string | null
   item_name: string
   asset_no?: string | null
   serial_no?: string | null
@@ -34,6 +36,7 @@ interface PresetConfig {
   metaSize: string
   barcodeHeight: string
   codeSize: string
+  qrSize: string
 }
 
 const PRESETS: Record<StickerSizePreset, PresetConfig> = {
@@ -42,36 +45,39 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
     label: "Standard (70×35mm)",
     width: "70mm",
     height: "35mm",
-    padding: "p-3",
-    titleSize: "text-[10px]",
-    nameSize: "text-xs font-bold",
-    metaSize: "text-[10px]",
-    barcodeHeight: "h-8",
-    codeSize: "text-[11px]",
+    padding: "p-2.5",
+    titleSize: "text-[9px]",
+    nameSize: "text-[11px] font-bold",
+    metaSize: "text-[9px]",
+    barcodeHeight: "h-6",
+    codeSize: "text-[10px]",
+    qrSize: "h-14 w-14",
   },
   small: {
     id: "small",
     label: "Small (50×25mm)",
     width: "50mm",
     height: "25mm",
-    padding: "p-2",
-    titleSize: "text-[8px]",
-    nameSize: "text-[10px] font-bold",
-    metaSize: "text-[8px]",
-    barcodeHeight: "h-6",
-    codeSize: "text-[9px]",
+    padding: "p-1.5",
+    titleSize: "text-[7.5px]",
+    nameSize: "text-[9.5px] font-bold",
+    metaSize: "text-[7.5px]",
+    barcodeHeight: "h-4.5",
+    codeSize: "text-[8px]",
+    qrSize: "h-9 w-9",
   },
   compact: {
     id: "compact",
     label: "Compact (40×20mm)",
     width: "40mm",
     height: "20mm",
-    padding: "p-1.5",
-    titleSize: "text-[7px]",
-    nameSize: "text-[9px] font-bold",
-    metaSize: "text-[7px]",
-    barcodeHeight: "h-5",
-    codeSize: "text-[8px]",
+    padding: "p-1",
+    titleSize: "text-[6.5px]",
+    nameSize: "text-[8.5px] font-bold",
+    metaSize: "text-[6.5px]",
+    barcodeHeight: "h-3.5",
+    codeSize: "text-[7px]",
+    qrSize: "h-7 w-7",
   },
 }
 
@@ -83,6 +89,10 @@ function SingleStickerItem({
   presetConfig: PresetConfig
 }) {
   const barcodeText = itemData.asset_no || itemData.serial_no || ""
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+  const itemUrl = itemData.id
+    ? `${baseUrl}/items/${itemData.id}`
+    : (itemData.asset_no || itemData.serial_no || "")
 
   let barcodeData = null
   if (barcodeText) {
@@ -90,6 +100,15 @@ function SingleStickerItem({
       barcodeData = generateCode128Bars(barcodeText)
     } catch {
       barcodeData = null
+    }
+  }
+
+  let qrCodeData = null
+  if (itemUrl) {
+    try {
+      qrCodeData = generateQrCodeSvgPath(itemUrl)
+    } catch {
+      qrCodeData = null
     }
   }
 
@@ -110,58 +129,78 @@ function SingleStickerItem({
         </div>
       </div>
 
-      {/* Sticker Content */}
-      <div className="flex-1 flex flex-col justify-between min-h-0">
-        <div className="space-y-0.5">
-          <div className={`truncate ${presetConfig.nameSize}`} title={itemData.item_name}>
-            {itemData.item_name}
+      {/* Sticker Content Area: Dual Column (Left Details + Barcode, Right QR Code) */}
+      <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0">
+        {/* Left Column: Details & Code 128 Barcode */}
+        <div className="flex-1 flex flex-col justify-between min-w-0">
+          <div className="space-y-0.5">
+            <div className={`truncate ${presetConfig.nameSize}`} title={itemData.item_name}>
+              {itemData.item_name}
+            </div>
+            {brandModel && (
+              <div className={`truncate text-slate-700 ${presetConfig.metaSize}`}>
+                {brandModel}
+              </div>
+            )}
+            {itemData.location_name && (
+              <div className={`truncate text-slate-600 ${presetConfig.metaSize}`}>
+                สถานที่: {itemData.location_name}
+              </div>
+            )}
           </div>
-          {brandModel && (
-            <div className={`truncate text-slate-700 ${presetConfig.metaSize}`}>
-              {brandModel}
-            </div>
-          )}
-          {itemData.location_name && (
-            <div className={`truncate text-slate-600 ${presetConfig.metaSize}`}>
-              สถานที่: {itemData.location_name}
-            </div>
-          )}
+
+          {/* Barcode SVG section */}
+          <div className="mt-0.5 flex flex-col items-start justify-center w-full">
+            {barcodeData && barcodeData.bars.length > 0 ? (
+              <>
+                <svg
+                  viewBox={`0 0 ${barcodeData.totalWidth} 40`}
+                  className={`w-full ${presetConfig.barcodeHeight}`}
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label={`บาร์โค้ด ${barcodeText}`}
+                >
+                  {barcodeData.bars.map((bar, i) => (
+                    <rect
+                      key={i}
+                      x={bar.x}
+                      y={0}
+                      width={bar.width}
+                      height={40}
+                      fill="black"
+                    />
+                  ))}
+                </svg>
+                <div
+                  className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider`}
+                >
+                  {barcodeText}
+                </div>
+              </>
+            ) : (
+              <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
+                ไม่มีรหัสบาร์โค้ด
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Barcode SVG section */}
-        <div className="mt-1 flex flex-col items-center justify-center">
-          {barcodeData && barcodeData.bars.length > 0 ? (
-            <>
-              <svg
-                viewBox={`0 0 ${barcodeData.totalWidth} 40`}
-                className={`w-full ${presetConfig.barcodeHeight}`}
-                preserveAspectRatio="none"
-                role="img"
-                aria-label={`บาร์โค้ด ${barcodeText}`}
-              >
-                {barcodeData.bars.map((bar, i) => (
-                  <rect
-                    key={i}
-                    x={bar.x}
-                    y={0}
-                    width={bar.width}
-                    height={40}
-                    fill="black"
-                  />
-                ))}
-              </svg>
-              <div
-                className={`font-mono font-bold text-slate-900 leading-tight ${presetConfig.codeSize} tracking-wider`}
-              >
-                {barcodeText}
-              </div>
-            </>
-          ) : (
-            <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
-              ไม่มีรหัสบาร์โค้ด
-            </div>
-          )}
-        </div>
+        {/* Right Column: Direct Link QR Code for Mobile Phones */}
+        {qrCodeData && (
+          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
+            <svg
+              viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
+              className={presetConfig.qrSize}
+              role="img"
+              aria-label={`QR Code ลิงก์ ${itemUrl}`}
+            >
+              <path d={qrCodeData.path} fill="black" />
+            </svg>
+            <span className={`text-[6px] font-bold text-slate-500 tracking-tighter leading-none mt-0.5 uppercase`}>
+              มือถือสแกน
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -312,7 +351,7 @@ export function AssetTagModal({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700">
-                ตัวอย่างสติกเกอร์ (Preview)
+                ตัวอย่างสติกเกอร์ (Preview — Dual Code)
               </label>
               {isMultiItem && (
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">

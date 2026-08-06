@@ -63,6 +63,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           <div className="flex items-center gap-2">
             <ItemDetailActions
               item={{
+                id: item.id,
                 item_name: item.item_name,
                 asset_no: item.asset_no,
                 serial_no: item.serial_no,

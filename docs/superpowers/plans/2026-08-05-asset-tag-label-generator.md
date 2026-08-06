@@ -1,83 +1,60 @@
-# Printable Asset Tag & Barcode Label Generator Implementation Plan
+# Direct Mobile Link QR Code & Dual Barcode Asset Tag Generator Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Create a printable asset tag sticker generator with Code 128 / QR Code SVG rendering, 3 standard sticker size presets (Standard 70x35mm, Small 50x25mm, Compact 40x20mm), `@media print` layout, and integration into both Item Detail page and Items Explorer batch selection.
+**Goal:** Add Direct Web Link QR Code generation (`https://<domain>/items/<item_id>`) alongside Code 128 Barcodes on asset sticker tags so mobile phone camera apps scan physical tags and immediately open item details in the browser.
 
-**Architecture:** 
-1. SVG Barcode generator in `lib/barcode.ts` with unit tests in `lib/barcode.test.ts`.
-2. Printable Modal component in `components/ui/asset-tag-modal.tsx` supporting single and batch sticker printing, 3 presets, CAMMS official header, and `@media print` isolation.
-3. Single item print action in `app/(dashboard)/items/[id]/page.tsx` & `item-detail-actions.tsx`.
-4. Multi-item batch print action in `app/(dashboard)/items/items-explorer-client.tsx`.
-
-**Tech Stack:** Next.js 16 (App Router), React 19, SVG, CSS `@media print`, TypeScript.
-
----
-
-### Task 1: SVG Barcode & QR Code Utility Helper
-
-**Files:**
-- `lib/barcode.ts`
-- `lib/barcode.test.ts`
-
-- [ ] **Step 1: Verify and complete Code 128 & SVG helper in `lib/barcode.ts`**
-- [ ] **Step 2: Run unit test `lib/barcode.test.ts`**
-  Run: `npm test -- lib/barcode.test.ts`
-- [ ] **Step 3: Commit**
+**Architecture:**
+1. Pure SVG QR Code generator helper in `lib/qr-code.ts` with unit tests in `lib/qr-code.test.ts`.
+2. Update `ItemStickerData` to include item `id` for direct URL resolution (`/items/[id]`).
+3. Update `components/ui/asset-tag-modal.tsx` to render Dual Codes (Code 128 Barcode + Direct Link QR Code SVG) across all 3 sticker presets.
+4. Pass item `id` from Item Detail page (`app/(dashboard)/items/[id]/page.tsx`) and Items Explorer batch bar (`app/(dashboard)/items/items-explorer-client.tsx`).
+5. Verify via component tests and test suite (`npm test`, `npm run typecheck`, `npm run lint`, `npm run build`).
 
 ---
 
-### Task 2: Enhance Asset Tag Modal Component
+### Task 1: Create SVG QR Code Generator Utility
 
 **Files:**
-- `components/ui/asset-tag-modal.tsx`
-- `tests/component/asset-tag-modal.test.tsx`
+- Create: `lib/qr-code.ts`
+- Create: `lib/qr-code.test.ts`
 
-- [ ] **Step 1: Update `components/ui/asset-tag-modal.tsx`**
-  - Add official CAMMS header ("CAMMS — ระบบบริหารจัดการทรัพย์สิน").
-  - Support single item or array of items (`items: ItemStickerData[]`).
-  - Render 3 size presets: Standard (70x35mm), Small (50x25mm), Compact (40x20mm).
-  - Include fields: `item_name`, `asset_no`, `serial_no`, `location_name`.
-  - Provide crisp `@media print` rules for thermal sticker printers and standard paper.
-- [ ] **Step 2: Add component tests in `tests/component/asset-tag-modal.test.tsx`**
-- [ ] **Step 3: Run component tests**
+- [ ] **Step 1: Write unit tests in `lib/qr-code.test.ts`**
+  Test QR matrix generation for web URLs (e.g. `https://camms.app/items/123-abc`).
+- [ ] **Step 2: Implement QR Code SVG generator in `lib/qr-code.ts`**
+  Pure SVG path generator producing clean scalable QR Code modules.
+- [ ] **Step 3: Run unit tests**
+  Run: `npm test -- lib/qr-code.test.ts`
+- [ ] **Step 4: Commit**
+
+---
+
+### Task 2: Integrate QR Code & Item ID into AssetTagModal
+
+**Files:**
+- Modify: `components/ui/asset-tag-modal.tsx`
+- Modify: `tests/component/asset-tag-modal.test.tsx`
+
+- [ ] **Step 1: Update `ItemStickerData` interface to include `id?: string`**
+- [ ] **Step 2: Add Direct Link QR Code rendering in `SingleStickerItem`**
+  Construct URL `https://<domain>/items/<id>` and render SVG QR Code alongside Code 128 Barcode.
+- [ ] **Step 3: Update component tests in `tests/component/asset-tag-modal.test.tsx`**
+  Verify QR Code SVG element rendering and URL fallback.
+- [ ] **Step 4: Run component tests**
   Run: `npm test -- tests/component/asset-tag-modal.test.tsx`
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ---
 
-### Task 3: Item Detail Page Integration
+### Task 3: Pass Item ID from Detail Page & Items Explorer
 
 **Files:**
-- `app/(dashboard)/items/[id]/item-detail-actions.tsx`
-- `app/(dashboard)/items/[id]/page.tsx`
+- Modify: `app/(dashboard)/items/[id]/page.tsx`
+- Modify: `app/(dashboard)/items/[id]/item-detail-actions.tsx`
+- Modify: `app/(dashboard)/items/items-explorer-client.tsx`
 
-- [ ] **Step 1: Add "พิมพ์ลาเบลติดครุภัณฑ์" button to Item Detail action toolbar**
-- [ ] **Step 2: Connect `AssetTagModal` in detail page**
-- [ ] **Step 3: Verify detail page rendering and modal trigger**
+- [ ] **Step 1: Pass item `id` in `ItemDetailActions` on detail page**
+- [ ] **Step 2: Pass item `id` in `selectedItemsData` on Items Explorer page**
+- [ ] **Step 3: Run full verification suite**
+  Run: `npm test && npm run typecheck && npm run lint && npm run build`
 - [ ] **Step 4: Commit**
-
----
-
-### Task 4: Items Explorer Multi-Item Selection & Batch Print Integration
-
-**Files:**
-- `app/(dashboard)/items/items-explorer-client.tsx`
-
-- [ ] **Step 1: Add batch "พิมพ์ลาเบลติดครุภัณฑ์" action button to items selection bar**
-- [ ] **Step 2: Connect selected items array to `AssetTagModal`**
-- [ ] **Step 3: Verify batch modal trigger and grid print layout**
-- [ ] **Step 4: Commit**
-
----
-
-### Task 5: Full Verification & Code Quality Audit
-
-- [ ] **Step 1: Run unit and component test suite**
-  Run: `npm test`
-- [ ] **Step 2: Run strict TypeScript check**
-  Run: `npm run typecheck`
-- [ ] **Step 3: Run ESLint**
-  Run: `npm run lint`
-- [ ] **Step 4: Run production build**
-  Run: `npm run build`
