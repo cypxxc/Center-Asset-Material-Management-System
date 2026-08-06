@@ -13,6 +13,7 @@ import { canWrite, canDelete } from '@/lib/permissions'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
 import { ItemDetailActions } from './item-detail-actions'
+import { PublicItemView } from './public-item-view'
 
 interface ItemDetailPageProps {
   params: Promise<{
@@ -40,6 +41,11 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
   const auditLogs = auditLogResults as ItemAuditLog[]
 
   if (!item) notFound()
+
+  // Unauthenticated Guest / Public QR Scan view
+  if (!profile) {
+    return <PublicItemView item={item} />
+  }
 
   const userCanWrite = canWrite(profile?.role)
   const userCanDelete = canDelete(profile?.role)

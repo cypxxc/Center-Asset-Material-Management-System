@@ -19,6 +19,10 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
     params.deleted === 'true' ? getDeletedItems(params) : getItems(params)
   ])
 
+  if (!profile) {
+    redirect('/login')
+  }
+
   const userCanWrite = canWrite(profile?.role)
   const userCanDelete = canDelete(profile?.role)
   const userCanManageTrash = canManageTrash(profile?.role)

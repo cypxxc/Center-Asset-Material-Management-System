@@ -14,6 +14,7 @@ import { getReportStats } from '@/features/reports/queries'
 import type { ReportCountBucket } from '@/features/reports/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
 import { StatusDonutChart, type StatusItemData } from '@/components/dashboard/status-donut-chart'
@@ -39,6 +40,10 @@ export default async function DashboardPage() {
       .order('quantity', { ascending: true })
       .limit(5),
   ])
+
+  if (!profile) {
+    redirect('/login')
+  }
 
   const userCanWrite = canWrite(profile?.role)
 

@@ -1,60 +1,49 @@
-# Direct Mobile Link QR Code & Dual Barcode Asset Tag Generator Plan
+# Public Read-Only Asset Scanning & QR Code Generator Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add Direct Web Link QR Code generation (`https://<domain>/items/<item_id>`) alongside Code 128 Barcodes on asset sticker tags so mobile phone camera apps scan physical tags and immediately open item details in the browser.
+**Goal:** Enable public, unauthenticated read-only viewing of asset details when scanning physical QR codes on mobile phones. Scanning opens a clean public asset card without login. Editing/managing requires staff login.
 
 **Architecture:**
-1. Pure SVG QR Code generator helper in `lib/qr-code.ts` with unit tests in `lib/qr-code.test.ts`.
-2. Update `ItemStickerData` to include item `id` for direct URL resolution (`/items/[id]`).
-3. Update `components/ui/asset-tag-modal.tsx` to render Dual Codes (Code 128 Barcode + Direct Link QR Code SVG) across all 3 sticker presets.
-4. Pass item `id` from Item Detail page (`app/(dashboard)/items/[id]/page.tsx`) and Items Explorer batch bar (`app/(dashboard)/items/items-explorer-client.tsx`).
-5. Verify via component tests and test suite (`npm test`, `npm run typecheck`, `npm run lint`, `npm run build`).
+1. Update `app/(dashboard)/layout.tsx` to permit unauthenticated rendering specifically on `/items/[id]` routes with a standalone public header layout.
+2. Update `app/(dashboard)/items/[id]/page.tsx` to conditionally render a read-only Public Asset Card when `!profile` (hiding edit/delete/audit actions, adding "เข้าสู่ระบบเพื่อจัดการ" button).
+3. Verify public read capability in `getItemById(id)` query using RLS-respecting client.
+4. Verify using test suite (`npm test`, `npm run typecheck`, `npm run lint`, `npm run build`).
 
 ---
 
-### Task 1: Create SVG QR Code Generator Utility
+### Task 1: Public Route Handling in Dashboard Layout
 
 **Files:**
-- Create: `lib/qr-code.ts`
-- Create: `lib/qr-code.test.ts`
+- `app/(dashboard)/layout.tsx`
 
-- [ ] **Step 1: Write unit tests in `lib/qr-code.test.ts`**
-  Test QR matrix generation for web URLs (e.g. `https://camms.app/items/123-abc`).
-- [ ] **Step 2: Implement QR Code SVG generator in `lib/qr-code.ts`**
-  Pure SVG path generator producing clean scalable QR Code modules.
-- [ ] **Step 3: Run unit tests**
-  Run: `npm test -- lib/qr-code.test.ts`
-- [ ] **Step 4: Commit**
+- [ ] **Step 1: Update `DashboardLayout` to check if request is for public route `/items/[id]`**
+  If `!profile` and the user is visiting an item detail page, bypass login redirect and render children with a public header shell.
+- [ ] **Step 2: Verify other routes (`/dashboard`, `/items`, `/settings`) remain strictly guarded**
 
 ---
 
-### Task 2: Integrate QR Code & Item ID into AssetTagModal
+### Task 2: Public Read-Only View in Item Detail Page
 
 **Files:**
-- Modify: `components/ui/asset-tag-modal.tsx`
-- Modify: `tests/component/asset-tag-modal.test.tsx`
+- `app/(dashboard)/items/[id]/page.tsx`
+- Create/Modify: `app/(dashboard)/items/[id]/public-item-view.tsx`
 
-- [ ] **Step 1: Update `ItemStickerData` interface to include `id?: string`**
-- [ ] **Step 2: Add Direct Link QR Code rendering in `SingleStickerItem`**
-  Construct URL `https://<domain>/items/<id>` and render SVG QR Code alongside Code 128 Barcode.
-- [ ] **Step 3: Update component tests in `tests/component/asset-tag-modal.test.tsx`**
-  Verify QR Code SVG element rendering and URL fallback.
-- [ ] **Step 4: Run component tests**
-  Run: `npm test -- tests/component/asset-tag-modal.test.tsx`
-- [ ] **Step 5: Commit**
+- [ ] **Step 1: Create `PublicItemView` component**
+  Clean mobile-optimized read-only card displaying item details, location, status badge, image, and "เข้าสู่ระบบเพื่อจัดการ (สำหรับเจ้าหน้าที่)" button.
+- [ ] **Step 2: Integrate into `app/(dashboard)/items/[id]/page.tsx`**
+  When `!profile`, render `PublicItemView`. When `profile`, render full management view.
+- [ ] **Step 3: Test guest and authenticated rendering**
 
 ---
 
-### Task 3: Pass Item ID from Detail Page & Items Explorer
+### Task 3: Full Verification & Code Quality Audit
 
-**Files:**
-- Modify: `app/(dashboard)/items/[id]/page.tsx`
-- Modify: `app/(dashboard)/items/[id]/item-detail-actions.tsx`
-- Modify: `app/(dashboard)/items/items-explorer-client.tsx`
-
-- [ ] **Step 1: Pass item `id` in `ItemDetailActions` on detail page**
-- [ ] **Step 2: Pass item `id` in `selectedItemsData` on Items Explorer page**
-- [ ] **Step 3: Run full verification suite**
-  Run: `npm test && npm run typecheck && npm run lint && npm run build`
-- [ ] **Step 4: Commit**
+- [ ] **Step 1: Run unit and component test suite**
+  Run: `npm test`
+- [ ] **Step 2: Run strict TypeScript check**
+  Run: `npm run typecheck`
+- [ ] **Step 3: Run ESLint**
+  Run: `npm run lint`
+- [ ] **Step 4: Run production build**
+  Run: `npm run build`
