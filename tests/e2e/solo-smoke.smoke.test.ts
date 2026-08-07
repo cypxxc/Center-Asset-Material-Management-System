@@ -38,7 +38,7 @@ test.describe('Solo developer browser smoke tests', () => {
     await itemName.fill(draftName);
     await page.waitForFunction(
       (expected) => {
-        const raw = window.localStorage.getItem('registry-s:new-item-draft');
+        const raw = window.localStorage.getItem('omni-asset:new-item-draft');
         return raw ? JSON.parse(raw).item_name === expected : false;
       },
       draftName

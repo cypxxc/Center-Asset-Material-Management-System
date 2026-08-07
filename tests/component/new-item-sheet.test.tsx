@@ -74,7 +74,7 @@ test('NewItemSheet uses a standard centered dialog without sheet animation CSS',
 
 test('NewItemSheet restores a saved draft when opened', () => {
   mockDialogMethods();
-  window.localStorage.setItem('registry-s:new-item-draft', JSON.stringify({ item_name: 'Draft Chair' }));
+  window.localStorage.setItem('omni-asset:new-item-draft', JSON.stringify({ item_name: 'Draft Chair' }));
 
   render(
     React.createElement(NewItemSheet, {
@@ -93,7 +93,7 @@ test('NewItemSheet restores a saved draft when opened', () => {
 
 test('NewItemSheet saves draft field changes', () => {
   mockDialogMethods();
-  window.localStorage.removeItem('registry-s:new-item-draft');
+  window.localStorage.removeItem('omni-asset:new-item-draft');
 
   render(
     React.createElement(NewItemSheet, {
@@ -109,6 +109,6 @@ test('NewItemSheet saves draft field changes', () => {
   const input = document.querySelector('input[name="item_name"]') as HTMLInputElement;
   fireEvent.change(input, { target: { value: 'Draft Desk' } });
 
-  const draft = JSON.parse(window.localStorage.getItem('registry-s:new-item-draft') ?? '{}') as { item_name?: string };
+  const draft = JSON.parse(window.localStorage.getItem('omni-asset:new-item-draft') ?? '{}') as { item_name?: string };
   assert.equal(draft.item_name, 'Draft Desk');
 });

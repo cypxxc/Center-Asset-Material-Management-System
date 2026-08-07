@@ -6,7 +6,7 @@ import { ItemForm } from './item-form'
 import { createItemInline } from '../actions'
 import { ReferenceOption } from '../types'
 
-const NEW_ITEM_DRAFT_KEY = 'registry-s:new-item-draft'
+const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
 
 interface NewItemSheetProps {
   open: boolean
