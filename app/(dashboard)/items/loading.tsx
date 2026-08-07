@@ -1,54 +1,63 @@
+import { PageContainer } from '@/components/ui/page-container'
+
 export default function ItemsLoading() {
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
-      <main className="flex min-w-0 flex-1 flex-col">
-        {/* Integrated Header Placeholder */}
-        <div className="shrink-0 border-b border-border bg-card px-6 py-5 md:px-8">
-          {/* Title & View Mode Toggle */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="h-7 w-48 animate-pulse rounded-lg bg-muted/60" />
-            <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
-              <div className="h-9 w-9 animate-pulse rounded-md bg-muted/80" />
-              <div className="h-9 w-9 animate-pulse rounded-md bg-muted/40" />
-            </div>
-          </div>
-
-          {/* Action & Filter Bar */}
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <div className="h-9 w-full rounded-lg border border-input bg-muted/40 animate-pulse sm:w-80" />
-              <div className="h-9 w-36 rounded-lg border border-input bg-muted/40 animate-pulse" />
-              <div className="h-9 w-32 rounded-lg border border-input bg-muted/40 animate-pulse" />
-            </div>
-            <div className="h-9 w-32 shrink-0 rounded-lg bg-muted/60 animate-pulse" />
+    <PageContainer maxWidth="full">
+      {/* Search and Filters Header Skeleton */}
+      <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-4 animate-pulse">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="h-6 w-48 rounded bg-muted/60" />
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-28 rounded-lg bg-muted/60" />
+            <div className="h-9 w-28 rounded-lg bg-muted/40" />
           </div>
         </div>
 
-        {/* 8 Card Grid Skeleton */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex flex-col rounded-xl border border-border bg-card p-4 shadow-2xs animate-pulse"
-              >
-                <div className="aspect-video w-full rounded-lg bg-muted/40" />
-                <div className="mt-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-4 w-3/4 rounded bg-muted/60" />
-                    <div className="h-4 w-12 rounded bg-muted/40" />
-                  </div>
-                  <div className="h-3 w-1/2 rounded bg-muted/40" />
-                  <div className="mt-2 flex items-center justify-between pt-2 border-t border-border">
-                    <div className="h-3 w-1/3 rounded bg-muted/40" />
-                    <div className="h-5 w-16 rounded-full bg-muted/60" />
-                  </div>
-                </div>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="h-9 w-full sm:w-80 rounded-lg bg-muted/40" />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="h-9 w-32 rounded-lg bg-muted/40" />
+            <div className="h-9 w-32 rounded-lg bg-muted/40" />
+            <div className="h-9 w-32 rounded-lg bg-muted/40" />
+          </div>
+        </div>
+      </div>
+
+      {/* Table Skeleton Container */}
+      <div className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
+        {/* Table Header Skeleton */}
+        <div className="border-b border-border bg-muted/40 px-4 py-3 grid grid-cols-12 gap-4 items-center animate-pulse">
+          <div className="col-span-1 h-4 rounded bg-muted/60" />
+          <div className="col-span-3 h-4 rounded bg-muted/60" />
+          <div className="col-span-2 h-4 rounded bg-muted/60" />
+          <div className="col-span-2 h-4 rounded bg-muted/60" />
+          <div className="col-span-2 h-4 rounded bg-muted/60" />
+          <div className="col-span-2 h-4 rounded bg-muted/60 text-right" />
+        </div>
+
+        {/* Table Row Skeletons */}
+        <div className="divide-y divide-border">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="px-4 py-3.5 grid grid-cols-12 gap-4 items-center animate-pulse hover:bg-muted/20"
+            >
+              <div className="col-span-1 h-8 w-8 rounded-lg bg-muted/40" />
+              <div className="col-span-3 space-y-1.5">
+                <div className="h-4 w-3/4 rounded bg-muted/60" />
+                <div className="h-3 w-1/2 rounded bg-muted/40" />
               </div>
-            ))}
-          </div>
+              <div className="col-span-2 h-4 w-20 rounded bg-muted/40" />
+              <div className="col-span-2 h-4 w-24 rounded bg-muted/40" />
+              <div className="col-span-2 h-5 w-16 rounded-full bg-muted/50" />
+              <div className="col-span-2 flex justify-end gap-2">
+                <div className="h-8 w-8 rounded-lg bg-muted/40" />
+                <div className="h-8 w-8 rounded-lg bg-muted/40" />
+              </div>
+            </div>
+          ))}
         </div>
-      </main>
-    </div>
+      </div>
+    </PageContainer>
   )
 }
