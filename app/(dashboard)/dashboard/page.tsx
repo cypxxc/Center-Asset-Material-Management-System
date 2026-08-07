@@ -22,7 +22,7 @@ import type { StatusItemData } from '@/components/dashboard/status-donut-chart'
 
 const StatusDonutChart = dynamic(
   () => import('@/components/dashboard/status-donut-chart').then(mod => mod.StatusDonutChart),
-  { ssr: false, loading: () => <div className="h-64 animate-pulse bg-muted rounded-xl" /> }
+  { loading: () => <div className="h-64 animate-pulse bg-muted rounded-xl" /> }
 )
 
 type LowStockItem = {
