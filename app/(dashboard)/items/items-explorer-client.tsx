@@ -44,10 +44,8 @@ const NewItemSheet = dynamic(
   { ssr: false }
 )
 
-const AssetTagModal = dynamic(
-  () => import('@/components/ui/asset-tag-modal').then((mod) => mod.AssetTagModal),
-  { ssr: false }
-)
+import { AssetTagModal } from '@/features/items/components/item-list-client'
+
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'

@@ -17,7 +17,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
-import { StatusDonutChart, type StatusItemData } from '@/components/dashboard/status-donut-chart'
+import dynamic from 'next/dynamic'
+import type { StatusItemData } from '@/components/dashboard/status-donut-chart'
+
+const StatusDonutChart = dynamic(
+  () => import('@/components/dashboard/status-donut-chart').then(mod => mod.StatusDonutChart),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse bg-muted rounded-xl" /> }
+)
 
 type LowStockItem = {
   id: string
