@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
@@ -50,6 +50,27 @@ const MIN_WIDTH = 200
 const MAX_WIDTH = 450
 const STORAGE_KEY = 'camms_sidebar_width'
 
+function subscribeSidebarWidth(callback: () => void) {
+  window.addEventListener('storage', callback)
+  return () => window.removeEventListener('storage', callback)
+}
+
+function getSidebarWidthSnapshot(): number {
+  if (typeof window === 'undefined') return DEFAULT_WIDTH
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved) {
+    const parsed = parseInt(saved, 10)
+    if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
+      return parsed
+    }
+  }
+  return DEFAULT_WIDTH
+}
+
+function getSidebarWidthServerSnapshot(): number {
+  return DEFAULT_WIDTH
+}
+
 const roleLabels: Record<string, string> = {
   admin: 'ผู้ดูแลระบบ',
   staff: 'เจ้าหน้าที่',
@@ -89,17 +110,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const currentLocation = searchParams.get('location_id')
   const currentDeleted = searchParams.get('deleted')
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === 'undefined') return DEFAULT_WIDTH
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const parsed = parseInt(saved, 10)
-      if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
-        return parsed
-      }
-    }
-    return DEFAULT_WIDTH
-  })
+  const storedWidth = useSyncExternalStore(
+    subscribeSidebarWidth,
+    getSidebarWidthSnapshot,
+    getSidebarWidthServerSnapshot
+  )
+  const [activeWidth, setActiveWidth] = useState<number | null>(null)
+  const sidebarWidth = activeWidth ?? storedWidth
   const [isResizing, setIsResizing] = useState(false)
   const sidebarWidthRef = useRef(sidebarWidth)
 
@@ -108,7 +125,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH)
-      setSidebarWidth(newWidth)
+      setActiveWidth(newWidth)
       sidebarWidthRef.current = newWidth
     }
 
@@ -132,7 +149,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   }
 
   const handleDoubleClick = () => {
-    setSidebarWidth(DEFAULT_WIDTH)
+    setActiveWidth(DEFAULT_WIDTH)
     sidebarWidthRef.current = DEFAULT_WIDTH
     localStorage.setItem(STORAGE_KEY, DEFAULT_WIDTH.toString())
   }

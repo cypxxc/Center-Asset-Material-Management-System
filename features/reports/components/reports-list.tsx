@@ -11,6 +11,7 @@ import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { ReportItemRow } from '../queries'
 import { recordReportExportAudit, getExportReportItems } from '../actions'
 import { generateReportPdf } from '@/lib/reports-pdf-generator'
+import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import {
@@ -150,7 +151,7 @@ export function ReportsList({
       // Subtitle / Filter summary
       const filterRow = worksheet.addRow([
         `ตัวกรอง: ${filterSummary}`,
-        `วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH')}`
+        `วันที่พิมพ์: ${formatDate()}`
       ])
       filterRow.font = { italic: true, size: 11, color: { argb: 'FF475569' } }
       worksheet.addRow([])
@@ -325,7 +326,7 @@ export function ReportsList({
           <div>
             <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานครุภัณฑ์สํานักงานประจําปี</h1>
             <p className="text-xs text-muted-foreground print:text-slate-500 mt-1">สำนักงานใหญ่ แผนกเทคโนโลยีสารสนเทศและบริหารจัดการทั่วไป</p>
-            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {new Date().toLocaleDateString('th-TH')} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
+            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
           </div>
           <div className="text-right">
             <h2 className="text-xl font-bold text-primary print:text-blue-600">Registry-S</h2>

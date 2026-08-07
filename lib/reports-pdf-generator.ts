@@ -1,5 +1,6 @@
 import { ReportItemRow } from '@/features/reports/queries'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
+import { formatDate } from '@/lib/date'
 
 export function generateReportPdf(
   items: ReportItemRow[],
@@ -15,11 +16,7 @@ export function generateReportPdf(
     return
   }
 
-  const currentDate = new Date().toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  const currentDate = formatDate()
 
   const formatCurrency = (val: number) =>
     val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
