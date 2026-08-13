@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
 import { normalizeForSearch } from '@/lib/unicode'
@@ -24,7 +25,7 @@ export interface ReportStats {
  * Uses the optimized `get_report_stats` RPC to perform aggregations server-side in a single query
  * with efficient column projection, bypassing client payload overhead.
  */
-export async function getReportStats(): Promise<ReportStats> {
+export const getReportStats = cache(async function getReportStats(): Promise<ReportStats> {
   const supabase = await createClient()
   const {
     result: { data, error },
@@ -65,7 +66,7 @@ export async function getReportStats(): Promise<ReportStats> {
     categoryCounts: res.category_counts,
     locationCount: res.location_count,
   }
-}
+})
 
 function firstRelation<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) return value[0] ?? null
