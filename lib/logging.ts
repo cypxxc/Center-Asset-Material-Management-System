@@ -13,6 +13,10 @@ export interface LogPayload {
   hostname?: string
   duration?: number
   details?: unknown
+  audit_failure?: boolean
+  targetTable?: string
+  targetId?: string
+  [key: string]: unknown
 }
 
 function sanitizeValue(value: unknown): unknown {

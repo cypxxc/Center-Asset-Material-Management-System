@@ -89,7 +89,7 @@ export async function writeAuditLog(payload: AuditLogPayload) {
         ? { values: payload.newValues, ip, requestId, correlationId, traceId, timestamp }
         : { ip, requestId, correlationId, traceId, timestamp }
 
-      await supabase.from('audit_logs').insert({
+      const { error } = await supabase.from('audit_logs').insert({
         user_id: payload.userId,
         action: payload.operation,
         target_table: payload.targetType,
@@ -97,12 +97,16 @@ export async function writeAuditLog(payload: AuditLogPayload) {
         old_data,
         new_data,
       })
+      if (error) throw error
     } catch (error) {
       logger.error(
         {
           operation: 'writeAuditLogDb',
           feature: 'audit',
+          audit_failure: true,
           userId: payload.userId || undefined,
+          targetTable: payload.targetType,
+          targetId: payload.targetId,
           requestId,
         },
         error
