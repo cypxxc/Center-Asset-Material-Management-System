@@ -19,6 +19,11 @@ export interface ReportStats {
   locationCount: number
 }
 
+/**
+ * Fetches summary statistics for reports dashboard.
+ * Uses the optimized `get_report_stats` RPC to perform aggregations server-side in a single query
+ * with efficient column projection, bypassing client payload overhead.
+ */
 export async function getReportStats(): Promise<ReportStats> {
   const supabase = await createClient()
   const {

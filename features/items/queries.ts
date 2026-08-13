@@ -24,10 +24,15 @@ const PAGE_SIZE = 10
 
 /**
  * Fetches item reference options (categories, locations, units) concurrently via Promise.all
+ * using explicit column projections (`id, name`) to minimize network payload size,
  * and caches the result using Next.js unstable_cache.
  */
 const getCachedItemReferences = unstable_cache(
-  async () => {
+  async (): Promise<{
+    categories: ReferenceOption[]
+    locations: ReferenceOption[]
+    units: ReferenceOption[]
+  }> => {
     const supabase = createServiceRoleClient()
 
     const [categories, locations, units] = await Promise.all([
@@ -114,7 +119,14 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
   }
 }
 
-export async function getItemReferences() {
+/**
+ * Returns active item reference options (categories, locations, units) with trimmed `id, name` projections.
+ */
+export async function getItemReferences(): Promise<{
+  categories: ReferenceOption[]
+  locations: ReferenceOption[]
+  units: ReferenceOption[]
+}> {
   return getCachedItemReferences()
 }
 

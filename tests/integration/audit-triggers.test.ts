@@ -154,10 +154,10 @@ describe('Audit System Hardening & Immutability Integration Tests', () => {
         assert.ok(insertData)
 
         mockSupabaseRegistry.setTableResponse('audit_logs', null, { message: 'Audit logs are immutable. UPDATE and DELETE operations are forbidden.' })
-        const { error: updateError } = await supabase
+        const { error: updateError } = (await supabase
           .from('audit_logs')
           .update({ action: 'hacked-operation' })
-          .eq('id', insertData.id)
+          .eq('id', (insertData as { id: string }).id)) as { error: { message: string } | null }
 
         assert.ok(updateError, 'Expected UPDATE to be rejected')
         assert.match(updateError.message, /Audit logs are immutable/i)
@@ -210,10 +210,10 @@ describe('Audit System Hardening & Immutability Integration Tests', () => {
         assert.ok(insertData)
 
         mockSupabaseRegistry.setTableResponse('audit_logs', null, { message: 'Audit logs are immutable. UPDATE and DELETE operations are forbidden.' })
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = (await supabase
           .from('audit_logs')
           .delete()
-          .eq('id', insertData.id)
+          .eq('id', (insertData as { id: string }).id)) as { error: { message: string } | null }
 
         assert.ok(deleteError, 'Expected DELETE to be rejected')
         assert.match(deleteError.message, /Audit logs are immutable/i)
@@ -253,12 +253,13 @@ describe('Audit System Hardening & Immutability Integration Tests', () => {
         
         mockSupabaseRegistry.setTableResponse('items', [{ id: 'item-123', item_name: testItemName, status: 'active' }], null)
         
-        const { data: insertedItem, error: insertError } = await supabase
+        const { data: insertedItemData, error: insertError } = await supabase
           .from('items')
           .insert({ item_name: testItemName })
           .select()
           .single()
         
+        const insertedItem = insertedItemData as { id: string; item_name: string }
         assert.ifError(insertError)
         assert.ok(insertedItem)
 
@@ -269,12 +270,13 @@ describe('Audit System Hardening & Immutability Integration Tests', () => {
           target_id: insertedItem.id
         }], null)
         
-        const { data: logs, error: logsError } = await supabase
+        const { data: logsData, error: logsError } = await supabase
           .from('audit_logs')
           .select('*')
           .eq('target_table', 'items')
           .eq('target_id', insertedItem.id)
 
+        const logs = logsData as Array<{ action: string; target_table: string; target_id: string }> | null
         assert.ifError(logsError)
         assert.ok(logs && logs.length > 0)
         assert.equal(logs[0].action, 'INSERT')
