@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
+import { deleteItemStorageImage } from '@/lib/supabase/storage'
 import { itemFormSchema } from './schema'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
@@ -89,23 +90,6 @@ function friendlyDatabaseError(message: string) {
   return 'ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบข้อมูลอีกครั้ง'
 }
 
-async function deleteOldImage(url: string | null) {
-  if (!url) return
-  try {
-    const bucketMarker = '/storage/v1/object/public/item-images/'
-    const markerIndex = url.indexOf(bucketMarker)
-    if (markerIndex !== -1) {
-      const filename = url.substring(markerIndex + bucketMarker.length)
-      const supabase = await createClient()
-      await retryStorage(async () => {
-        const { error } = await supabase.storage.from('item-images').remove([filename])
-        if (error) throw error
-      })
-    }
-  } catch (error) {
-    logger.error({ operation: 'deleteImage', feature: 'items', details: 'Failed to delete old image from storage' }, error)
-  }
-}
 
 async function handleImageUpload(
   formData: FormData,
@@ -213,7 +197,7 @@ async function createItemCore(
   async function deleteUploadedImage() {
     if (!uploadResult.imageUrl || uploadedImageDeleted) return
     uploadedImageDeleted = true
-    await deleteOldImage(uploadResult.imageUrl)
+    await deleteItemStorageImage(uploadResult.imageUrl)
   }
 
   const parsed = parseFormData(formData)
@@ -375,7 +359,7 @@ export async function updateItem(
   const parsed = parseFormData(formData)
   if (!parsed.success) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl)
     }
     return {
       message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
@@ -396,7 +380,7 @@ export async function updateItem(
 
     if (error) {
       if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-        await deleteOldImage(uploadResult.imageUrl)
+        await deleteItemStorageImage(uploadResult.imageUrl)
       }
       return { message: friendlyDatabaseError(error.message) }
     }
@@ -432,7 +416,7 @@ export async function updateItem(
     })
   } catch (err) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteOldImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl)
     }
     const errRes = await handleActionError(err, 'updateItem', 'items', auth.profile.id)
     return { message: errRes.message! }
@@ -440,7 +424,7 @@ export async function updateItem(
 
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
     // Non-blocking image deletion
-    setImmediate(() => deleteOldImage(uploadResult.oldImageUrlToDelete!))
+    setImmediate(() => deleteItemStorageImage(uploadResult.oldImageUrlToDelete!))
   }
 
   revalidatePath('/items')
@@ -752,7 +736,7 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 
   // ลบรูปออกจาก Storage (best effort)
   if (item?.image_url) {
-    await deleteOldImage(item.image_url)
+    await deleteItemStorageImage(item.image_url)
   }
 
   logger.info({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } })
@@ -807,7 +791,7 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
 
   // ลบรูปออกจาก Storage (best effort)
   if (items) {
-    await Promise.allSettled(items.map((item) => deleteOldImage(item.image_url)))
+    await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url)))
   }
 
   logger.info({ operation: 'bulkHardDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
