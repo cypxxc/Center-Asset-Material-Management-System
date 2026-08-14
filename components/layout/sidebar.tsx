@@ -20,6 +20,7 @@ import {
   Settings,
   Trash,
   User,
+  UserCog,
   Database,
   GripVertical,
 } from 'lucide-react'
@@ -515,6 +516,22 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           >
             <Settings className="w-4 h-4 mr-2.5 text-slate-400" />
             <span>ตั้งค่าระบบหลัก</span>
+          </Link>
+        )}
+
+        {/* User Management - Admin Only */}
+        {isAdmin && (
+          <Link
+            href="/admin/users"
+            className={cn(
+              'flex items-center px-2.5 py-2 rounded-lg transition-all',
+              pathname.startsWith('/admin/users')
+                ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            )}
+          >
+            <UserCog className="w-4 h-4 mr-2.5 text-slate-400" />
+            <span>จัดการผู้ใช้งาน</span>
           </Link>
         )}
 

@@ -54,6 +54,7 @@ export function Header({ profile }: HeaderProps) {
       dashboard: 'แผงควบคุม',
       admin: 'ผู้ดูแลระบบ',
       'db-panel': 'จัดการฐานข้อมูล',
+      users: 'จัดการผู้ใช้งาน',
     }
 
     segments.forEach((segment, index) => {
@@ -307,17 +308,31 @@ export function Header({ profile }: HeaderProps) {
               </Link>
 
               {profile?.role === 'admin' && (
-                <Link
-                  href="/admin/db-panel"
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                    pathname.startsWith('/admin') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
-                  )}
-                >
-                  <Database className="h-4 w-4 text-slate-500" />
-                  <span>จัดการฐานข้อมูล (DB Panel)</span>
-                </Link>
+                <>
+                  <Link
+                    href="/admin/users"
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      pathname.startsWith('/admin/users') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                    )}
+                  >
+                    <UserCog className="h-4 w-4 text-slate-500" />
+                    <span>จัดการผู้ใช้งาน (Users)</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/db-panel"
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      pathname.startsWith('/admin/db-panel') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                    )}
+                  >
+                    <Database className="h-4 w-4 text-slate-500" />
+                    <span>จัดการฐานข้อมูล (DB Panel)</span>
+                  </Link>
+                </>
               )}
             </nav>
 

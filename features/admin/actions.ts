@@ -519,3 +519,111 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     return { error: 'เกิดข้อผิดพลาดขณะเปลี่ยนอีเมล: ' + errMsg }
   }
 }
+
+// ============================================================
+// Update Profile Role and Active Status (admin)
+// ============================================================
+
+export async function updateUserProfileRoleAndStatus(
+  userId: string,
+  payload: {
+    role?: 'admin' | 'staff' | 'viewer'
+    is_active?: boolean
+    full_name?: string
+  }
+) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!userId) {
+    return { error: 'ไม่พบรหัสผู้ใช้งาน' }
+  }
+
+  // Prevent admin from deactivating themselves or changing their own role away from admin
+  if (userId === auth.profile.id) {
+    if (payload.is_active === false) {
+      return { error: 'ไม่สามารถปิดการใช้งานบัญชีของตนเองได้' }
+    }
+    if (payload.role && payload.role !== 'admin') {
+      return { error: 'ไม่สามารถเปลี่ยนบทบาทของตนเองได้' }
+    }
+  }
+
+  if (payload.role && !['admin', 'staff', 'viewer'].includes(payload.role)) {
+    return { error: 'บทบาทไม่ถูกต้อง' }
+  }
+
+  const supabase = await getSupabaseClient()
+
+  // Fetch old data for audit log
+  const { data: oldProfile } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, is_active')
+    .eq('id', userId)
+    .single()
+
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if (payload.role !== undefined) {
+    updateData.role = payload.role
+  }
+  if (payload.is_active !== undefined) {
+    updateData.is_active = payload.is_active
+  }
+  if (payload.full_name !== undefined) {
+    updateData.full_name = normalizeForStorage(payload.full_name.trim())
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updateData)
+    .eq('id', userId)
+    .select()
+
+  if (error) {
+    logger.error({ operation: 'updateUserProfileRoleAndStatus', feature: 'admin', details: error.message }, error)
+    return { error: error.message }
+  }
+
+  // Update Supabase Auth user metadata if service role is available
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    try {
+      const adminClient = await createAdminClient()
+      const authMetadataUpdates: Record<string, unknown> = {}
+      if (payload.role !== undefined) authMetadataUpdates.role = payload.role
+      if (payload.is_active !== undefined) authMetadataUpdates.is_active = payload.is_active
+      if (payload.full_name !== undefined) authMetadataUpdates.full_name = payload.full_name
+
+      if (Object.keys(authMetadataUpdates).length > 0) {
+        await adminClient.auth.admin.updateUserById(userId, {
+          user_metadata: authMetadataUpdates,
+        })
+      }
+    } catch (authErr) {
+      logger.warn({
+        operation: 'updateUserProfileRoleAndStatus',
+        feature: 'admin',
+        details: `Auth metadata update warning: ${authErr instanceof Error ? authErr.message : String(authErr)}`,
+      })
+    }
+  }
+
+  // Record in audit_logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'UPDATE_PROFILE',
+    target_table: 'profiles',
+    target_id: userId,
+    old_data: oldProfile || null,
+    new_data: updateData,
+  })
+
+  revalidatePath('/admin/users')
+  revalidatePath('/admin/db-panel')
+  revalidatePath('/', 'layout')
+
+  return { success: true, profile: data?.[0] }
+}
+
