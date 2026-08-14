@@ -13,6 +13,7 @@ import {
   Package,
   Settings,
   Database,
+  History,
   Menu,
   LogOut,
   Trash2
@@ -55,6 +56,7 @@ export function Header({ profile }: HeaderProps) {
       admin: 'ผู้ดูแลระบบ',
       'db-panel': 'จัดการฐานข้อมูล',
       users: 'จัดการผู้ใช้งาน',
+      'audit-logs': 'ประวัติการทำรายการ',
     }
 
     segments.forEach((segment, index) => {
@@ -319,6 +321,18 @@ export function Header({ profile }: HeaderProps) {
                   >
                     <UserCog className="h-4 w-4 text-slate-500" />
                     <span>จัดการผู้ใช้งาน (Users)</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/audit-logs"
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      pathname.startsWith('/admin/audit-logs') ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
+                    )}
+                  >
+                    <History className="h-4 w-4 text-slate-500" />
+                    <span>ประวัติการทำรายการ (Audit Logs)</span>
                   </Link>
 
                   <Link

@@ -18,6 +18,18 @@ const ACTION_LABELS: Record<string, string> = {
   update_user: 'แก้ไขผู้ใช้',
   delete_user: 'ลบผู้ใช้',
   reset_password: 'รีเซ็ตรหัสผ่าน',
+  update_role_status: 'เปลี่ยนบทบาท/สถานะ',
+  create_table_row: 'สร้างแถวข้อมูล',
+  update_table_row: 'แก้ไขแถวข้อมูล',
+  delete_table_row: 'ลบแถวข้อมูล',
+  INSERT: 'สร้างข้อมูล (INSERT)',
+  UPDATE: 'แก้ไขข้อมูล (UPDATE)',
+  DELETE: 'ลบข้อมูล (DELETE)',
+  EXPORT_REPORT: 'ส่งออกรายงาน',
+  export_report: 'ส่งออกรายงาน',
+  EXPORT_EXCEL: 'ส่งออก Excel',
+  EXPORT_CSV: 'ส่งออก CSV',
+  EXPORT_PDF: 'ส่งออก PDF',
 }
 
 const TABLE_LABELS: Record<string, string> = {

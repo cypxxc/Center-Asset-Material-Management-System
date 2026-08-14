@@ -22,6 +22,7 @@ import {
   User,
   UserCog,
   Database,
+  History,
   GripVertical,
 } from 'lucide-react'
 import { signOut, updateSidebarOrder } from '@/features/auth/actions'
@@ -532,6 +533,22 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           >
             <UserCog className="w-4 h-4 mr-2.5 text-slate-400" />
             <span>จัดการผู้ใช้งาน</span>
+          </Link>
+        )}
+
+        {/* Audit Logs Explorer - Admin Only */}
+        {isAdmin && (
+          <Link
+            href="/admin/audit-logs"
+            className={cn(
+              'flex items-center px-2.5 py-2 rounded-lg transition-all',
+              pathname.startsWith('/admin/audit-logs')
+                ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            )}
+          >
+            <History className="w-4 h-4 mr-2.5 text-slate-400" />
+            <span>ประวัติการทำรายการ (Audit Logs)</span>
           </Link>
         )}
 
