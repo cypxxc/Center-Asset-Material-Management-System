@@ -5,24 +5,31 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LoginPage from '../../app/(auth)/login/page'
 
-test('LoginPage renders Swiss Editorial layout and CAMMS branding', () => {
+test('LoginPage renders Curved Split-Screen Dark Editorial layout and CAMMS branding', () => {
   render(React.createElement(LoginPage))
 
   // Branding & Title
   assert.ok(screen.getByText('CAMMS'), 'Must render system acronym')
   assert.ok(
-    screen.getByText('Center Asset Material Management System'),
+    screen.getByText(/Center Asset Material Management System/),
     'Must render full system title'
   )
-  assert.ok(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' }), 'Must render sign in heading')
   assert.ok(
-    screen.getByText(/กรอกข้อมูลบัญชีเพื่อเข้าใช้งานระบบ|ระบุรหัสผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ/),
+    screen.getByRole('heading', { name: /เข้าสู่ระบบจัดการพัสดุและครุภัณฑ์/ }),
+    'Must render headline'
+  )
+  assert.ok(
+    screen.getByText(/ยินดีต้อนรับเข้าสู่ระบบ • OFFICIAL PORTAL/),
+    'Must render official portal kicker'
+  )
+  assert.ok(
+    screen.getByText(/กรอกข้อมูลบัญชีเพื่อเข้าใช้งานระบบ/),
     'Must render sign in description'
   )
 
   // Security indicator
   assert.ok(
-    screen.getByText(/ระบบความปลอดภัยพร้อมใช้งาน \(Security Verified\)/),
+    screen.getByText(/ระบบความปลอดภัยพร้อมใช้งาน \(256-bit Encrypted Session\)/),
     'Must render security verified status indicator'
   )
 
