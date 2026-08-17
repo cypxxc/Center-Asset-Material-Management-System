@@ -1,4 +1,4 @@
-# Center Asset & Material Management System (Registry-S)
+# Center Asset & Material Management System (CAMMS)
 
 A production-ready, Next.js 16 + Supabase internal web application designed for tracking office assets, supplies, materials, and equipment. Built with a Thai-first UI, strict role-based access control, dark mode support, and comprehensive audit logging.
 
@@ -120,7 +120,7 @@ Migration execution is tracked atomically in the `public.app_migrations` databas
 ## 📄 License & Documentation
 
 For detailed architectural decisions, operations, and recovery guides, see:
-- [AGENTS.md](file:///D:/registry-s/AGENTS.md) — Developer & agent guidelines
-- [DEPLOYMENT.md](file:///D:/registry-s/DEPLOYMENT.md) — Deployment & migration instructions
-- [PRODUCT.md](file:///D:/registry-s/PRODUCT.md) — Functional requirements & scope
-- [SECURITY.md](file:///D:/registry-s/SECURITY.md) — Security policies & environment governance
+- [AGENTS.md](file:///D:/omni-asset/AGENTS.md) — Developer & agent guidelines
+- [DEPLOYMENT.md](file:///D:/omni-asset/DEPLOYMENT.md) — Deployment & migration instructions
+- [PRODUCT.md](file:///D:/omni-asset/PRODUCT.md) — Functional requirements & scope
+- [SECURITY.md](file:///D:/omni-asset/SECURITY.md) — Security policies & environment governance

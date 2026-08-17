@@ -54,8 +54,8 @@ export async function buildReportExcelWorkbook(
     items.reduce((sum, item) => sum + ((item.unit_price ?? 0) * (item.quantity || 0)), 0)
 
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Registry-S'
-  workbook.lastModifiedBy = 'Registry-S'
+  workbook.creator = 'CAMMS'
+  workbook.lastModifiedBy = 'CAMMS'
   workbook.created = new Date()
   workbook.modified = new Date()
 

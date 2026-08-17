@@ -76,7 +76,7 @@ export function generateReportPdf(
         color: #64748b;
       }
       @bottom-left {
-        content: "Registry-S — ระบบควบคุมทรัพย์สินส่วนกลาง";
+        content: "CAMMS — Center Asset & Material Management System";
         font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
@@ -248,8 +248,8 @@ export function generateReportPdf(
       <p class="subtitle">วันที่พิมพ์รายงาน: ${currentDate} | ตัวกรอง: ${escapeHtml(filterSummary)}</p>
     </div>
     <div class="logo-text">
-      <h2>Registry-S</h2>
-      <p>ระบบควบคุมทรัพย์สินส่วนกลาง</p>
+      <h2>CAMMS</h2>
+      <p>Center Asset & Material Management System</p>
     </div>
   </div>
 

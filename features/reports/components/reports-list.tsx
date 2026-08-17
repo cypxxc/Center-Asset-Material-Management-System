@@ -199,8 +199,10 @@ export function ReportsList({
             <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold text-primary print:text-blue-600">Registry-S</h2>
-            <p className="text-xs text-muted-foreground print:text-slate-400">ระบบควบคุมทรัพย์สินส่วนกลาง</p>
+            <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS</h2>
+            <p className="text-xs text-muted-foreground print:text-slate-500">
+              Center Asset Material Management System — ทะเบียนสิ่งของและครุภัณฑ์ส่วนกลาง
+            </p>
           </div>
         </div>
       </div>

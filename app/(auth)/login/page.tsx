@@ -233,8 +233,8 @@ function LoginForm() {
 
           {/* Footer copyright */}
           <div className="text-center pt-2">
-            <p className="text-[11px] text-slate-400">
-              © {new Date().getFullYear()} CAMMS Registry-S. สงวนลิขสิทธิ์ทั้งหมด
+            <p className="text-[11px] text-slate-500 font-medium">
+              © {new Date().getFullYear()} CAMMS — Center Asset Material Management System. สงวนลิขสิทธิ์ทั้งหมด
             </p>
           </div>
         </div>
