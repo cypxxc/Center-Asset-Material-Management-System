@@ -131,6 +131,9 @@ export function ItemsExplorerClient({
         brand: item.brand,
         model: item.model,
         location_name: item.location?.name,
+        category_name: item.category?.name,
+        responsible_person: item.responsible_person,
+        unit_price: item.unit_price,
       }))
   }, [localItems, selectedItemIds])
 

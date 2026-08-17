@@ -3,15 +3,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { AssetTagModal } from '../../components/ui/asset-tag-modal'
+import { AssetTagModal, PRESETS } from '../../components/ui/asset-tag-modal'
+import type { ItemStickerData } from '../../components/ui/asset-tag-modal'
 
-const mockItem = {
+const mockItem: ItemStickerData = {
+  id: 'item-uuid-123',
   item_name: 'เก้าอี้สำนักงานเพื่อสุขภาพ',
   asset_no: 'AST-2026-008',
   serial_no: 'SN-776655',
   brand: 'Ergonomic',
   model: 'Pro 2026',
   location_name: 'ห้องทำงาน 302',
+  category_name: 'ครุภัณฑ์สำนักงาน',
+  responsible_person: 'สมชาย ใจดี',
+  unit_price: 15500,
 }
 
 test('AssetTagModal renders null when isOpen is false', () => {
@@ -46,7 +51,7 @@ test('AssetTagModal renders title, item info, and barcode when open', () => {
   assert.ok(barcodeSvgs.length >= 1)
 })
 
-test('AssetTagModal switches sticker size presets', () => {
+test('AssetTagModal supports A4 sheet presets and thermal presets', () => {
   render(
     React.createElement(AssetTagModal, {
       isOpen: true,
@@ -55,25 +60,109 @@ test('AssetTagModal switches sticker size presets', () => {
     })
   )
 
-  const smallPresetBtn = screen.getByRole('button', { name: 'Small (50×25mm)' })
-  const compactPresetBtn = screen.getByRole('button', { name: 'Compact (40×20mm)' })
+  // Verify all 5 presets are listed
+  const a4_3x8_Btn = screen.getByRole('button', { name: /A4 3×8/ })
+  const a4_2x7_Btn = screen.getByRole('button', { name: /A4 2×7/ })
+  const standardBtn = screen.getByRole('button', { name: /Standard \(70×35mm\)/ })
+  const smallBtn = screen.getByRole('button', { name: /Small \(50×25mm\)/ })
+  const compactBtn = screen.getByRole('button', { name: /Compact \(40×20mm\)/ })
 
-  // Click small preset
-  fireEvent.click(smallPresetBtn)
+  assert.ok(a4_3x8_Btn)
+  assert.ok(a4_2x7_Btn)
+  assert.ok(standardBtn)
+  assert.ok(smallBtn)
+  assert.ok(compactBtn)
+
+  // Click A4 3x8 preset
+  fireEvent.click(a4_3x8_Btn)
+  const printableContainer = document.querySelector('#printable-asset-tag') as HTMLElement
+  assert.ok(printableContainer.className.includes('print-sheet-grid'))
+
   const stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
   assert.ok(stickerBoxes.length >= 1)
   const firstBox = stickerBoxes[0] as HTMLElement
+  assert.equal(firstBox.style.width, PRESETS.a4_3x8.width)
+  assert.equal(firstBox.style.height, PRESETS.a4_3x8.height)
+
+  // Click A4 2x7 preset
+  fireEvent.click(a4_2x7_Btn)
+  assert.equal(firstBox.style.width, PRESETS.a4_2x7.width)
+  assert.equal(firstBox.style.height, PRESETS.a4_2x7.height)
+
+  // Click small thermal preset
+  fireEvent.click(smallBtn)
+  assert.ok(printableContainer.className.includes('print-thermal-roll'))
   assert.equal(firstBox.style.width, '50mm')
   assert.equal(firstBox.style.height, '25mm')
+})
 
-  // Click compact preset
-  fireEvent.click(compactPresetBtn)
-  assert.equal(firstBox.style.width, '40mm')
-  assert.equal(firstBox.style.height, '20mm')
+test('AssetTagModal expands items according to copy multiplier', () => {
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: mockItem,
+    })
+  )
+
+  // Default is 1 copy
+  let stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  assert.equal(stickerBoxes.length, 1)
+
+  // Increment copy count with + button
+  const plusBtn = screen.getByRole('button', { name: 'เพิ่มจำนวนสำเนา' })
+  fireEvent.click(plusBtn) // copy count = 2
+  fireEvent.click(plusBtn) // copy count = 3
+
+  stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  assert.equal(stickerBoxes.length, 3)
+
+  // Change input directly
+  const copyInput = screen.getByRole('spinbutton', { name: 'จำนวนสำเนาลาเบล' })
+  fireEvent.change(copyInput, { target: { value: '5' } })
+
+  stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  assert.equal(stickerBoxes.length, 5)
+  assert.ok(screen.getAllByText(/5 ดวง/).length >= 1)
+})
+
+test('AssetTagModal toggles field visibility (price, responsible person, organization)', () => {
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: mockItem,
+    })
+  )
+
+  // Open field visibility customize panel
+  const customizeBtn = screen.getByRole('button', { name: /ปรับแต่งฟิลด์/ })
+  fireEvent.click(customizeBtn)
+
+  // Responsible person is default OFF
+  assert.equal(screen.queryByText('ผู้รับผิดชอบ: สมชาย ใจดี'), null)
+
+  // Toggle Responsible Person checkbox to ON
+  const responsibleCheckbox = screen.getByLabelText('ผู้รับผิดชอบ')
+  fireEvent.click(responsibleCheckbox)
+  assert.ok(screen.getAllByText('ผู้รับผิดชอบ: สมชาย ใจดี').length >= 1)
+
+  // Price is default OFF
+  assert.equal(screen.queryByText(/ราคา: 15,500 บาท/), null)
+
+  // Toggle Price checkbox to ON
+  const priceCheckbox = screen.getByLabelText('ราคาทรัพย์สิน')
+  fireEvent.click(priceCheckbox)
+  assert.ok(screen.getAllByText(/ราคา: 15,500 บาท/).length >= 1)
+
+  // Toggle Org Header to OFF
+  const orgCheckbox = screen.getByLabelText('ชื่อระบบ / CAMMS')
+  fireEvent.click(orgCheckbox)
+  assert.equal(screen.queryByText('CAMMS — ระบบบริหารจัดการทรัพย์สิน'), null)
 })
 
 test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
-  const itemWithoutAssetNo = {
+  const itemWithoutAssetNo: ItemStickerData = {
     item_name: 'จอภาพ 27 นิ้ว',
     asset_no: null,
     serial_no: 'SN-MONITOR-99',
@@ -140,7 +229,7 @@ test('AssetTagModal calls window.print on print button click', () => {
       })
     )
 
-    const printBtn = screen.getByRole('button', { name: /พิมพ์สติกเกอร์/ })
+    const printBtn = screen.getByRole('button', { name: /พิมพ์ลาเบล/ })
     fireEvent.click(printBtn)
     assert.equal(printCalled, true)
   } finally {
@@ -149,7 +238,7 @@ test('AssetTagModal calls window.print on print button click', () => {
 })
 
 test('AssetTagModal renders multiple items in batch mode', () => {
-  const items = [
+  const items: ItemStickerData[] = [
     mockItem,
     {
       item_name: 'โน้ตบุ๊กทำงาน',
@@ -177,16 +266,11 @@ test('AssetTagModal renders multiple items in batch mode', () => {
 })
 
 test('AssetTagModal renders Direct Link QR Code SVG element for mobile phone scanning', () => {
-  const itemWithId = {
-    ...mockItem,
-    id: 'item-uuid-12345',
-  }
-
   render(
     React.createElement(AssetTagModal, {
       isOpen: true,
       onClose: () => {},
-      item: itemWithId,
+      item: mockItem,
     })
   )
 

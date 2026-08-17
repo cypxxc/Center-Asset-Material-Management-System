@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react"
-import { Printer, X, Tag, ChevronLeft, ChevronRight } from "lucide-react"
+import { Printer, X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { generateCode128Bars } from "@/lib/barcode"
 import { generateQrCodeSvgPath } from "@/lib/qr-code"
@@ -14,6 +14,9 @@ export interface ItemStickerData {
   brand?: string | null
   model?: string | null
   location_name?: string | null
+  category_name?: string | null
+  responsible_person?: string | null
+  unit_price?: number | null
 }
 
 export interface AssetTagModalProps {
@@ -23,11 +26,18 @@ export interface AssetTagModalProps {
   items?: ItemStickerData[]
 }
 
-export type StickerSizePreset = "standard" | "small" | "compact"
+export type StickerSizePreset = "a4_3x8" | "a4_2x7" | "standard" | "small" | "compact"
 
-interface PresetConfig {
+export interface PresetConfig {
   id: StickerSizePreset
   label: string
+  isSheet: boolean
+  sheetGrid?: {
+    cols: number
+    rows: number
+    labelWidth: string
+    labelHeight: string
+  }
   width: string
   height: string
   padding: string
@@ -39,10 +49,60 @@ interface PresetConfig {
   qrSize: string
 }
 
-const PRESETS: Record<StickerSizePreset, PresetConfig> = {
+export interface FieldVisibilityConfig {
+  showOrg: boolean
+  showResponsible: boolean
+  showLocation: boolean
+  showPrice: boolean
+  showBarcode: boolean
+  showQr: boolean
+}
+
+export const PRESETS: Record<StickerSizePreset, PresetConfig> = {
+  a4_3x8: {
+    id: "a4_3x8",
+    label: "A4 3×8 (24 ป้าย/แผ่น)",
+    isSheet: true,
+    sheetGrid: {
+      cols: 3,
+      rows: 8,
+      labelWidth: "68mm",
+      labelHeight: "35mm",
+    },
+    width: "68mm",
+    height: "35mm",
+    padding: "p-2",
+    titleSize: "text-[8.5px]",
+    nameSize: "text-[10.5px] font-bold",
+    metaSize: "text-[8.5px]",
+    barcodeHeight: "h-5",
+    codeSize: "text-[9px]",
+    qrSize: "h-11 w-11",
+  },
+  a4_2x7: {
+    id: "a4_2x7",
+    label: "A4 2×7 (14 ป้าย/แผ่น)",
+    isSheet: true,
+    sheetGrid: {
+      cols: 2,
+      rows: 7,
+      labelWidth: "100mm",
+      labelHeight: "40mm",
+    },
+    width: "100mm",
+    height: "40mm",
+    padding: "p-2.5",
+    titleSize: "text-[9.5px]",
+    nameSize: "text-[11.5px] font-bold",
+    metaSize: "text-[9px]",
+    barcodeHeight: "h-6",
+    codeSize: "text-[10px]",
+    qrSize: "h-13 w-13",
+  },
   standard: {
     id: "standard",
     label: "Standard (70×35mm)",
+    isSheet: false,
     width: "70mm",
     height: "35mm",
     padding: "p-2.5",
@@ -56,6 +116,7 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
   small: {
     id: "small",
     label: "Small (50×25mm)",
+    isSheet: false,
     width: "50mm",
     height: "25mm",
     padding: "p-1.5",
@@ -69,6 +130,7 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
   compact: {
     id: "compact",
     label: "Compact (40×20mm)",
+    isSheet: false,
     width: "40mm",
     height: "20mm",
     padding: "p-1",
@@ -84,9 +146,11 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
 function SingleStickerItem({
   itemData,
   presetConfig,
+  visibility,
 }: {
   itemData: ItemStickerData
   presetConfig: PresetConfig
+  visibility: FieldVisibilityConfig
 }) {
   const barcodeText = itemData.asset_no || itemData.serial_no || ""
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
@@ -95,7 +159,7 @@ function SingleStickerItem({
     : (itemData.asset_no || itemData.serial_no || "")
 
   let barcodeData = null
-  if (barcodeText) {
+  if (visibility.showBarcode && barcodeText) {
     try {
       barcodeData = generateCode128Bars(barcodeText)
     } catch {
@@ -104,7 +168,7 @@ function SingleStickerItem({
   }
 
   let qrCodeData = null
-  if (itemUrl) {
+  if (visibility.showQr && itemUrl) {
     try {
       qrCodeData = generateQrCodeSvgPath(itemUrl)
     } catch {
@@ -120,73 +184,87 @@ function SingleStickerItem({
         width: presetConfig.width,
         height: presetConfig.height,
       }}
-      className={`bg-white text-slate-900 border border-slate-900 shadow-md flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid ${presetConfig.padding}`}
+      className={`print-tag-card bg-white text-slate-900 border border-slate-900 shadow-xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid ${presetConfig.padding}`}
     >
       {/* Sticker Header */}
-      <div className="border-b border-slate-900 pb-0.5 mb-1 text-center">
-        <div className={`font-bold tracking-tight text-slate-900 ${presetConfig.titleSize}`}>
-          CAMMS — ระบบบริหารจัดการทรัพย์สิน
+      {visibility.showOrg && (
+        <div className="border-b border-slate-900 pb-0.5 mb-1 text-center shrink-0">
+          <div className={`font-bold tracking-tight text-slate-900 ${presetConfig.titleSize}`}>
+            CAMMS — ระบบบริหารจัดการทรัพย์สิน
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sticker Content Area: Dual Column (Left Details + Barcode, Right QR Code) */}
       <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0">
         {/* Left Column: Details & Code 128 Barcode */}
         <div className="flex-1 flex flex-col justify-between min-w-0">
           <div className="space-y-0.5">
-            <div className={`truncate ${presetConfig.nameSize}`} title={itemData.item_name}>
+            <div className={`truncate leading-tight ${presetConfig.nameSize}`} title={itemData.item_name}>
               {itemData.item_name}
             </div>
             {brandModel && (
-              <div className={`truncate text-slate-700 ${presetConfig.metaSize}`}>
+              <div className={`truncate text-slate-700 leading-tight ${presetConfig.metaSize}`}>
                 {brandModel}
               </div>
             )}
-            {itemData.location_name && (
-              <div className={`truncate text-slate-600 ${presetConfig.metaSize}`}>
+            {visibility.showLocation && itemData.location_name && (
+              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
                 สถานที่: {itemData.location_name}
+              </div>
+            )}
+            {visibility.showResponsible && itemData.responsible_person && (
+              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
+                ผู้รับผิดชอบ: {itemData.responsible_person}
+              </div>
+            )}
+            {visibility.showPrice && itemData.unit_price != null && (
+              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
+                ราคา: {Number(itemData.unit_price).toLocaleString('th-TH')} บาท
               </div>
             )}
           </div>
 
           {/* Barcode SVG section */}
-          <div className="mt-0.5 flex flex-col items-start justify-center w-full">
-            {barcodeData && barcodeData.bars.length > 0 ? (
-              <>
-                <svg
-                  viewBox={`0 0 ${barcodeData.totalWidth} 40`}
-                  className={`w-full ${presetConfig.barcodeHeight}`}
-                  preserveAspectRatio="none"
-                  role="img"
-                  aria-label={`บาร์โค้ด ${barcodeText}`}
-                >
-                  {barcodeData.bars.map((bar, i) => (
-                    <rect
-                      key={i}
-                      x={bar.x}
-                      y={0}
-                      width={bar.width}
-                      height={40}
-                      fill="black"
-                    />
-                  ))}
-                </svg>
-                <div
-                  className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider`}
-                >
-                  {barcodeText}
+          {visibility.showBarcode && (
+            <div className="mt-0.5 flex flex-col items-start justify-center w-full">
+              {barcodeData && barcodeData.bars.length > 0 ? (
+                <>
+                  <svg
+                    viewBox={`0 0 ${barcodeData.totalWidth} 40`}
+                    className={`w-full ${presetConfig.barcodeHeight}`}
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label={`บาร์โค้ด ${barcodeText}`}
+                  >
+                    {barcodeData.bars.map((bar, i) => (
+                      <rect
+                        key={i}
+                        x={bar.x}
+                        y={0}
+                        width={bar.width}
+                        height={40}
+                        fill="black"
+                      />
+                    ))}
+                  </svg>
+                  <div
+                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider`}
+                  >
+                    {barcodeText}
+                  </div>
+                </>
+              ) : (
+                <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
+                  ไม่มีรหัสบาร์โค้ด
                 </div>
-              </>
-            ) : (
-              <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
-                ไม่มีรหัสบาร์โค้ด
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Direct Link QR Code for Mobile Phones */}
-        {qrCodeData && (
+        {visibility.showQr && qrCodeData && (
           <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
             <svg
               viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
@@ -196,7 +274,7 @@ function SingleStickerItem({
             >
               <path d={qrCodeData.path} fill="black" />
             </svg>
-            <span className={`text-[6px] font-bold text-slate-500 tracking-tighter leading-none mt-0.5 uppercase`}>
+            <span className="text-[6px] font-bold text-slate-500 tracking-tighter leading-none mt-0.5 uppercase">
               มือถือสแกน
             </span>
           </div>
@@ -214,12 +292,35 @@ export function AssetTagModal({
 }: AssetTagModalProps) {
   const [selectedPreset, setSelectedPreset] = React.useState<StickerSizePreset>("standard")
   const [currentIndex, setCurrentIndex] = React.useState(0)
+  const [copyCount, setCopyCount] = React.useState<number>(1)
+  const [showAdvancedToggles, setShowAdvancedToggles] = React.useState(false)
 
-  const itemList: ItemStickerData[] = React.useMemo(() => {
+  const [fieldVisibility, setFieldVisibility] = React.useState<FieldVisibilityConfig>({
+    showOrg: true,
+    showResponsible: false,
+    showLocation: true,
+    showPrice: false,
+    showBarcode: true,
+    showQr: true,
+  })
+
+  const rawItemList: ItemStickerData[] = React.useMemo(() => {
     if (items && items.length > 0) return items
     if (item) return [item]
     return []
   }, [item, items])
+
+  // Multiply items by copyCount
+  const expandedPrintList: ItemStickerData[] = React.useMemo(() => {
+    const validMultiplier = Math.max(1, Math.min(50, copyCount || 1))
+    const list: ItemStickerData[] = []
+    for (const itm of rawItemList) {
+      for (let i = 0; i < validMultiplier; i++) {
+        list.push(itm)
+      }
+    }
+    return list
+  }, [rawItemList, copyCount])
 
   const [prevIsOpen, setPrevIsOpen] = React.useState(isOpen)
   if (isOpen !== prevIsOpen) {
@@ -241,16 +342,23 @@ export function AssetTagModal({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isOpen, onClose])
 
-  if (!isOpen || itemList.length === 0) return null
+  if (!isOpen || rawItemList.length === 0) return null
 
   const presetConfig = PRESETS[selectedPreset]
-  const isMultiItem = itemList.length > 1
-  const currentItem = itemList[currentIndex] || itemList[0]
+  const isMultiItem = rawItemList.length > 1
+  const currentItem = rawItemList[currentIndex] || rawItemList[0]
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
       window.print()
     }
+  }
+
+  const toggleField = (key: keyof FieldVisibilityConfig) => {
+    setFieldVisibility((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
   }
 
   return (
@@ -272,21 +380,47 @@ export function AssetTagModal({
             top: 0 !important;
             width: 100% !important;
             margin: 0 !important;
-            padding: 10px !important;
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 12px !important;
-            justify-content: flex-start !important;
           }
+          .print-tag-card {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          ${
+            presetConfig.isSheet
+              ? `
+          @page {
+            size: A4 portrait;
+            margin: 5mm;
+          }
+          .print-sheet-grid {
+            display: grid !important;
+            grid-template-columns: repeat(${presetConfig.sheetGrid?.cols || 3}, 1fr) !important;
+            gap: 2.5mm !important;
+            justify-items: center !important;
+            align-items: start !important;
+            width: 100% !important;
+          }
+          `
+              : `
           @page {
             size: auto;
-            margin: 10mm;
+            margin: 0;
+          }
+          .print-thermal-roll {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2mm !important;
+            padding: 2mm !important;
+            align-items: flex-start !important;
+          }
+          `
           }
         }
       `}</style>
@@ -295,7 +429,7 @@ export function AssetTagModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="asset-tag-modal-title"
-        className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[90vh]"
+        className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -305,7 +439,7 @@ export function AssetTagModal({
               <Tag className="h-4 w-4" />
             </div>
             <span id="asset-tag-modal-title">
-              พิมพ์ลาเบลติดครุภัณฑ์ {isMultiItem && `(${itemList.length} รายการ)`}
+              พิมพ์ลาเบลติดครุภัณฑ์ {isMultiItem && `(${rawItemList.length} รายการ)`}
             </span>
           </div>
           <button
@@ -319,13 +453,18 @@ export function AssetTagModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 space-y-5 bg-slate-50/50 overflow-y-auto">
+        <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
           {/* Preset Selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700">
-              ขนาดสติกเกอร์ (Sticker Size)
-            </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700">
+                รูปแบบและขนาดลาเบล (Label Preset)
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {presetConfig.isSheet ? "กระดาษ A4 สติกเกอร์" : "ม้วนสติกเกอร์ความร้อน (Thermal)"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {(Object.keys(PRESETS) as StickerSizePreset[]).map((key) => {
                 const p = PRESETS[key]
                 const isSelected = selectedPreset === key
@@ -334,83 +473,243 @@ export function AssetTagModal({
                     key={key}
                     type="button"
                     onClick={() => setSelectedPreset(key)}
-                    className={`py-2 px-2 rounded-xl border text-xs font-medium transition-all text-center cursor-pointer ${
+                    className={`py-2 px-2.5 rounded-xl border text-xs font-medium transition-all text-left flex flex-col justify-center cursor-pointer ${
                       isSelected
-                        ? "border-slate-900 bg-slate-900 text-white shadow-sm font-semibold"
+                        ? "border-slate-900 bg-slate-900 text-white shadow-xs font-semibold"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    {p.label}
+                    <span className="truncate">{p.label}</span>
+                    <span className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
+                      {p.isSheet ? "A4 Sheet Grid" : `${p.width} × ${p.height}`}
+                    </span>
                   </button>
                 )
               })}
             </div>
           </div>
 
+          {/* Copy Multiplier & Toggle Settings Header */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {/* Copy Multiplier */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-slate-800">จำนวนดวงต่อรายการ</div>
+                <div className="text-[11px] text-slate-500">สำเนาลาเบล (Copies)</div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
+                  className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                  disabled={copyCount <= 1}
+                  aria-label="ลดจำนวนสำเนา"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={copyCount}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
+                  }}
+                  className="w-12 h-7 rounded-lg border border-slate-300 text-center font-bold text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                  aria-label="จำนวนสำเนาลาเบล"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
+                  className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                  disabled={copyCount >= 50}
+                  aria-label="เพิ่มจำนวนสำเนา"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Field Visibility Config Toggle Button */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-slate-800">ข้อมูลบนลาเบล</div>
+                <div className="text-[11px] text-slate-500">เลือกฟิลด์ที่ต้องการแสดง</div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdvancedToggles((prev) => !prev)}
+                className={`h-7 px-2.5 text-xs font-semibold rounded-lg cursor-pointer ${
+                  showAdvancedToggles ? "bg-slate-100 text-slate-900" : ""
+                }`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                {showAdvancedToggles ? "ซ่อนตัวเลือก" : "ปรับแต่งฟิลด์"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Collapsible Field Toggles */}
+          {showAdvancedToggles && (
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                ตัวเลือกการแสดงผลข้อมูล (Field Visibility)
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showOrg}
+                    onChange={() => toggleField("showOrg")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>ชื่อระบบ / CAMMS</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showLocation}
+                    onChange={() => toggleField("showLocation")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>สถานที่จัดเก็บ</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showResponsible}
+                    onChange={() => toggleField("showResponsible")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>ผู้รับผิดชอบ</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showPrice}
+                    onChange={() => toggleField("showPrice")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>ราคาทรัพย์สิน</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showBarcode}
+                    onChange={() => toggleField("showBarcode")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>Barcode (Code128)</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fieldVisibility.showQr}
+                    onChange={() => toggleField("showQr")}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                  />
+                  <span>QR Code ลิงก์</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Sticker Preview Container */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700">
-                ตัวอย่างสติกเกอร์ (Preview — Dual Code)
+                ตัวอย่างสติกเกอร์ (Live Preview)
               </label>
-              {isMultiItem && (
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <button
-                    type="button"
-                    disabled={currentIndex === 0}
-                    onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                    className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                    aria-label="รายการก่อนหน้า"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span>
-                    {currentIndex + 1} / {itemList.length}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={currentIndex === itemList.length - 1}
-                    onClick={() => setCurrentIndex((prev) => Math.min(itemList.length - 1, prev + 1))}
-                    className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                    aria-label="รายการถัดไป"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  รวมพิมพ์ทั้งหมด {expandedPrintList.length} ดวง
+                </span>
+                {isMultiItem && (
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      disabled={currentIndex === 0}
+                      onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="รายการก่อนหน้า"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span>
+                      {currentIndex + 1} / {rawItemList.length}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentIndex === rawItemList.length - 1}
+                      onClick={() => setCurrentIndex((prev) => Math.min(rawItemList.length - 1, prev + 1))}
+                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="รายการถัดไป"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[200px] border border-slate-300/60 shadow-inner overflow-x-auto">
-              <SingleStickerItem itemData={currentItem} presetConfig={presetConfig} />
+            <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[190px] border border-slate-300/60 shadow-inner overflow-x-auto">
+              <SingleStickerItem
+                itemData={currentItem}
+                presetConfig={presetConfig}
+                visibility={fieldVisibility}
+              />
             </div>
           </div>
         </div>
 
         {/* Hidden printable container for window.print() */}
-        <div id="printable-asset-tag" className="hidden">
-          {itemList.map((itm, idx) => (
-            <SingleStickerItem key={idx} itemData={itm} presetConfig={presetConfig} />
+        <div
+          id="printable-asset-tag"
+          className={presetConfig.isSheet ? "print-sheet-grid hidden" : "print-thermal-roll hidden"}
+        >
+          {expandedPrintList.map((itm, idx) => (
+            <SingleStickerItem
+              key={idx}
+              itemData={itm}
+              presetConfig={presetConfig}
+              visibility={fieldVisibility}
+            />
           ))}
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="h-9 px-4 text-xs font-semibold cursor-pointer"
-          >
-            ยกเลิก
-          </Button>
-          <Button
-            type="button"
-            onClick={handlePrint}
-            className="h-9 px-4 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
-          >
-            <Printer className="h-3.5 w-3.5 mr-1.5" />
-            พิมพ์สติกเกอร์ {isMultiItem && `(${itemList.length})`}
-          </Button>
+        <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
+          <div className="text-xs text-slate-500 font-medium hidden sm:block">
+            {presetConfig.isSheet
+              ? `แผ่น A4 (${Math.ceil(expandedPrintList.length / ((presetConfig.sheetGrid?.cols || 1) * (presetConfig.sheetGrid?.rows || 1)))} แผ่น)`
+              : `ขนาดกระดาษ ${presetConfig.width} × ${presetConfig.height}`}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="h-9 px-4 text-xs font-semibold cursor-pointer"
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              type="button"
+              onClick={handlePrint}
+              className="h-9 px-4 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+            >
+              <Printer className="h-3.5 w-3.5 mr-1.5" />
+              พิมพ์ลาเบล ({expandedPrintList.length} ดวง)
+            </Button>
+          </div>
         </div>
       </div>
     </div>
