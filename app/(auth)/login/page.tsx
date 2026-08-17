@@ -28,30 +28,31 @@ function LoginForm() {
       {/* Background: Subtle architectural depth with ultra-light ambient lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
+      {/* Brand Header Above Card */}
+      <div className="flex flex-col items-center text-center gap-3 mb-6 relative z-10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-md border border-slate-800">
+          <Package className="h-6 w-6 text-white" />
+        </div>
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            CAMMS
+          </h1>
+          <p className="text-xs text-slate-500 font-medium tracking-wide">
+            Center Asset Material Management System
+          </p>
+        </div>
+      </div>
+
       {/* Main Card */}
       <div className="w-full max-w-[420px] bg-white border border-slate-200/90 rounded-2xl p-8 sm:p-10 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.05)] flex flex-col gap-6 relative z-10">
-        {/* Header / Brand */}
-        <div className="flex flex-col items-center text-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm border border-slate-800">
-            <Package className="h-6 w-6 text-white" />
-          </div>
-          <div className="space-y-0.5">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              CAMMS
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Center Asset Material Management System
-            </p>
-          </div>
-          <div className="w-full border-t border-slate-100 mt-1" />
-          <div className="space-y-0.5 pt-1">
-            <h2 className="text-base font-semibold text-slate-800">
-              เข้าสู่ระบบ
-            </h2>
-            <p className="text-xs text-slate-500">
-              ระบุรหัสผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ
-            </p>
-          </div>
+        {/* Card Form Header */}
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">
+            เข้าสู่ระบบ
+          </h2>
+          <p className="text-xs text-slate-500">
+            กรอกข้อมูลบัญชีเพื่อเข้าใช้งานระบบ
+          </p>
         </div>
 
         {/* Inactive account alert banner */}

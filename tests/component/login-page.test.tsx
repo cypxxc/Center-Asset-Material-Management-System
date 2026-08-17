@@ -16,7 +16,7 @@ test('LoginPage renders Swiss Editorial layout and CAMMS branding', () => {
   )
   assert.ok(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' }), 'Must render sign in heading')
   assert.ok(
-    screen.getByText(/ระบุรหัสผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ/),
+    screen.getByText(/กรอกข้อมูลบัญชีเพื่อเข้าใช้งานระบบ|ระบุรหัสผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ/),
     'Must render sign in description'
   )
 
