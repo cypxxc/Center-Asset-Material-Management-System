@@ -5,28 +5,26 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LoginPage from '../../app/(auth)/login/page'
 
-test('LoginPage renders split-screen enterprise layout and branding', () => {
+test('LoginPage renders Swiss Editorial layout and CAMMS branding', () => {
   render(React.createElement(LoginPage))
 
-  // Branding & Mission
+  // Branding & Title
   assert.ok(screen.getByText('CAMMS'), 'Must render system acronym')
   assert.ok(
-    screen.getByText('Center Asset Material Management System') ||
-    screen.getByText(/Center Asset & Material Management System/i),
+    screen.getByText('Center Asset Material Management System'),
     'Must render full system title'
   )
+  assert.ok(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' }), 'Must render sign in heading')
   assert.ok(
-    screen.getByText(/ระบบทะเบียนสิ่งของและครุภัณฑ์สำนักงานสำหรับการจัดเก็บ ตรวจสอบ และบริหารจัดการพัสดุอย่างเป็นระเบียบ/),
-    'Must render mission statement'
+    screen.getByText(/ระบุรหัสผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ/),
+    'Must render sign in description'
   )
 
-  // Capability Highlights
-  assert.ok(screen.getByText(/ทะเบียนครุภัณฑ์และวัสดุสำนักงานครบวงจร/), 'Must render highlight 1')
-  assert.ok(screen.getByText(/ควบคุมสิทธิ์การเข้าถึงตามระดับบทบาท/), 'Must render highlight 2')
-  assert.ok(screen.getByText(/พิมพ์ป้ายสติกเกอร์รหัสทรัพย์สินและ QR Code/), 'Must render highlight 3')
-
-  // Live status badge
-  assert.ok(screen.getByText(/สถานะระบบ:\s*พร้อมใช้งานปกติ/), 'Must render operational status indicator')
+  // Security indicator
+  assert.ok(
+    screen.getByText(/ระบบความปลอดภัยพร้อมใช้งาน \(Security Verified\)/),
+    'Must render security verified status indicator'
+  )
 
   // Form Fields & Labels
   assert.ok(screen.getByLabelText(/รหัสผู้ใช้/), 'Must render identifier field')
