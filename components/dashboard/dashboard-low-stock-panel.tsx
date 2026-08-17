@@ -1,37 +1,8 @@
 import { Package, CheckCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
-
-type LowStockItem = {
-  id: string
-  item_name: string
-  quantity: number
-  location: { name: string } | { name: string }[] | null
-}
+import { getLowStockItems } from '@/features/items/queries'
 
 export async function DashboardLowStockPanel() {
-  const supabase = await createClient()
-  const lowStockResult = await supabase
-    .from('items')
-    .select('id, item_name, quantity, location:locations(name)')
-    .eq('item_type', 'material')
-    .lte('quantity', 5)
-    .is('deleted_at', null)
-    .order('quantity', { ascending: true })
-    .limit(5)
-
-  const lowStockItems = (lowStockResult.data ?? []) as LowStockItem[]
-  const formattedLowStock = (lowStockItems ?? []).map((item) => {
-    const locObj = item.location
-    const locationName = Array.isArray(locObj) 
-      ? locObj[0]?.name 
-      : locObj?.name
-    return {
-      id: item.id,
-      item_name: item.item_name,
-      quantity: item.quantity,
-      locationName: locationName || 'ไม่มีระบุสถานที่',
-    }
-  })
+  const formattedLowStock = await getLowStockItems(5)
 
   return (
     <div className="bg-card text-card-foreground p-5 rounded-xl border border-border shadow-2xs flex flex-col justify-between">
@@ -59,7 +30,7 @@ export async function DashboardLowStockPanel() {
           </div>
         ))}
 
-        {(!lowStockItems || lowStockItems.length === 0) && (
+        {formattedLowStock.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground space-y-2">
             <CheckCircle className="w-8 h-8 text-emerald-500" />
             <p className="text-xs text-muted-foreground">ระดับสินค้าพัสดุทั้งหมดในคลังอยู่ในเกณฑ์ปกติ</p>

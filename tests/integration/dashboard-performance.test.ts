@@ -49,3 +49,9 @@ test('dashboard components and page are configured for React Suspense streaming'
   assert.match(pageContent, /fallback=\{<CategoryListSkeleton \/>\}/)
   assert.match(pageContent, /fallback=\{<LowStockSkeleton \/>\}/)
 })
+
+test('getLowStockItems is exported as a function in features/items/queries', async () => {
+  const { getLowStockItems } = await import('../../features/items/queries')
+  assert.equal(typeof getLowStockItems, 'function')
+})
+

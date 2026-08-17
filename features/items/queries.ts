@@ -494,3 +494,54 @@ export async function getDeletedItems(params: ItemListSearchParams): Promise<Del
     totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
   }
 }
+
+export interface LowStockDashboardItem {
+  id: string
+  item_name: string
+  quantity: number
+  locationName: string
+}
+
+export const getLowStockItems = cache(async function getLowStockItems(
+  limit = 5
+): Promise<LowStockDashboardItem[]> {
+  const supabase = await createClient()
+  const {
+    result: { data, error },
+  } = await measureQuery('items.getLowStockItems', () =>
+    supabase
+      .from('items')
+      .select('id, item_name, quantity, location:locations(name)')
+      .eq('item_type', 'material')
+      .lte('quantity', 5)
+      .is('deleted_at', null)
+      .order('quantity', { ascending: true })
+      .limit(limit)
+  )
+
+  if (error || !data) {
+    if (error) {
+      logger.error({ operation: 'getLowStockItems', feature: 'items' }, error)
+    }
+    return []
+  }
+
+  type RawItem = {
+    id: string
+    item_name: string
+    quantity: number
+    location: { name: string } | { name: string }[] | null
+  }
+
+  return (data as unknown as RawItem[]).map((item) => {
+    const locObj = item.location
+    const locationName = Array.isArray(locObj) ? locObj[0]?.name : locObj?.name
+    return {
+      id: item.id,
+      item_name: item.item_name,
+      quantity: item.quantity,
+      locationName: locationName || 'ไม่มีระบุสถานที่',
+    }
+  })
+})
+
