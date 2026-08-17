@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useTransition } from 'react'
+import React, { useMemo, useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -10,7 +10,6 @@ import {
   Edit,
   ExternalLink,
   FileText,
-  Folder,
   LayoutGrid,
   List,
   MapPin,
@@ -21,9 +20,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ChevronLeft,
-  ChevronRight,
-  GripVertical,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -45,6 +42,7 @@ const NewItemSheet = dynamic(
 )
 
 import { AssetTagModal } from '@/features/items/components/item-list-client'
+import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -106,7 +104,8 @@ export function ItemsExplorerClient({
   const newParam = searchParams.get('new')
 
   const { toast } = useToast()
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(items[0]?.id || null)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [blockingError, setBlockingError] = useState<string | null>(null)
@@ -116,9 +115,8 @@ export function ItemsExplorerClient({
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
+  const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
-  const [inspectorWidth, setInspectorWidth] = useState(360)
-  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false)
 
   const selectedItemsData = useMemo(() => {
     return localItems
@@ -352,23 +350,13 @@ export function ItemsExplorerClient({
     }
   }
 
-  const handleInspectorResizeStart = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    const startX = event.clientX
-    const startWidth = inspectorWidth
+  const handleSelectItem = (item: ItemListRow) => {
+    setSelectedItemId(item.id)
+    setIsInspectorOpen(true)
+  }
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const nextWidth = startWidth + (startX - moveEvent.clientX)
-      setInspectorWidth(Math.min(520, Math.max(280, nextWidth)))
-    }
-
-    const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
+  const handleDoubleClickItem = (item: ItemListRow) => {
+    router.push(`/items/${item.id}`)
   }
 
   return (
@@ -376,7 +364,7 @@ export function ItemsExplorerClient({
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Main Content Area */}
-        <main className="flex min-w-0 flex-1 flex-col bg-background">
+        <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-border bg-card px-6 py-5 md:px-8">
             {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
@@ -510,10 +498,8 @@ export function ItemsExplorerClient({
                   items={localItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
-                  onSelect={(item) => {
-                    setSelectedItemId(item.id)
-                    if (window.innerWidth < 1024) router.push(`/items/${item.id}`)
-                  }}
+                  onSelect={handleSelectItem}
+                  onDoubleClick={handleDoubleClickItem}
                   onToggleSelectItem={handleToggleSelectItem}
                   onToggleSelectAll={handleToggleSelectAll}
                   params={params}
@@ -524,10 +510,8 @@ export function ItemsExplorerClient({
                   items={localItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
-                  onSelect={(item) => {
-                    setSelectedItemId(item.id)
-                    if (window.innerWidth < 1024) router.push(`/items/${item.id}`)
-                  }}
+                  onSelect={handleSelectItem}
+                  onDoubleClick={handleDoubleClickItem}
                   onToggleSelectItem={handleToggleSelectItem}
                 />
               )}
@@ -563,18 +547,18 @@ export function ItemsExplorerClient({
             </div>
           </footer>
         </main>
-
-        <Inspector
-          item={selectedItem}
-          userCanWrite={userCanWrite}
-          userCanDelete={userCanDelete}
-          onCopy={copyReference}
-          width={inspectorWidth}
-          collapsed={isInspectorCollapsed}
-          onToggleCollapsed={() => setIsInspectorCollapsed((collapsed) => !collapsed)}
-          onResizeStart={handleInspectorResizeStart}
-        />
       </div>
+
+      {/* Slide-Over Detail Drawer (Inspector Sheet) */}
+      <Inspector
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        item={selectedItem}
+        userCanWrite={userCanWrite}
+        userCanDelete={userCanDelete}
+        onCopy={copyReference}
+        onPrint={(itemData) => setSinglePrintItem(itemData)}
+      />
 
       {selectedItemIds.length > 0 && (
         <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
@@ -704,9 +688,13 @@ export function ItemsExplorerClient({
       )}
 
       <AssetTagModal
-        isOpen={isBatchPrintOpen}
-        onClose={() => setIsBatchPrintOpen(false)}
-        items={selectedItemsData}
+        isOpen={isBatchPrintOpen || Boolean(singlePrintItem)}
+        onClose={() => {
+          setIsBatchPrintOpen(false)
+          setSinglePrintItem(null)
+        }}
+        item={singlePrintItem ?? undefined}
+        items={isBatchPrintOpen ? selectedItemsData : undefined}
       />
 
       {/* Blocking Error Modal */}
@@ -755,6 +743,7 @@ interface ItemsListProps {
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
+  onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
   onToggleSelectAll: () => void
   params: ItemListSearchParams
@@ -766,6 +755,7 @@ function ItemsList({
   selectedItemId,
   selectedItemIds,
   onSelect,
+  onDoubleClick,
   onToggleSelectItem,
   onToggleSelectAll,
   params,
@@ -833,8 +823,9 @@ function ItemsList({
               <DataTableRow
                 key={item.id}
                 onClick={() => onSelect(item)}
+                onDoubleClick={() => onDoubleClick?.(item)}
                 className={cn(
-                  'cursor-pointer',
+                  'cursor-pointer transition-colors',
                   isSelected
                     ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
                     : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
@@ -881,6 +872,7 @@ interface ItemsGridProps {
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
+  onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
 }
 
@@ -889,6 +881,7 @@ function ItemsGrid({
   selectedItemId,
   selectedItemIds,
   onSelect,
+  onDoubleClick,
   onToggleSelectItem,
 }: ItemsGridProps) {
   return (
@@ -902,6 +895,7 @@ function ItemsGrid({
               <div
                 key={item.id}
                 onClick={() => onSelect(item)}
+                onDoubleClick={() => onDoubleClick?.(item)}
                 className={cn(
                   'group relative flex min-h-40 flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
                   isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
@@ -979,198 +973,264 @@ function EmptyRows() {
 }
 
 function Inspector({
+  isOpen,
+  onClose,
   item,
   userCanWrite,
   userCanDelete,
   onCopy,
-  width,
-  collapsed,
-  onToggleCollapsed,
-  onResizeStart,
+  onPrint,
 }: {
+  isOpen: boolean
+  onClose: () => void
   item: ItemListRow | null
   userCanWrite: boolean
   userCanDelete: boolean
   onCopy: (value: string | null | undefined) => void
-  width: number
-  collapsed: boolean
-  onToggleCollapsed: () => void
-  onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
+  onPrint: (item: ItemStickerData) => void
 }) {
-  if (!item) {
-    return (
-      <aside
-        style={{ width: collapsed ? 44 : width }}
-        className="relative hidden h-full shrink-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-card p-6 text-center text-muted-foreground transition-[width] duration-200 lg:flex"
-      >
-        <InspectorControls item={null} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
-        {!collapsed && (
-          <>
-            <Folder className="h-10 w-10 text-muted-foreground/40" />
-            <p className="mt-2 text-xs font-bold text-card-foreground">เลือกสิ่งของเพื่อดูรายละเอียด</p>
-            <p className="mt-1 max-w-[220px] text-xs leading-relaxed text-muted-foreground">
-              เลือกรายการในตารางหรือมุมมองแบบตารางเพื่อดูรายละเอียดด้านขวา
-            </p>
-          </>
-        )}
-      </aside>
-    )
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen || !item) {
+    return null
   }
 
-  const reference = item.serial_no || item.asset_no
+  const stickerData: ItemStickerData = {
+    id: item.id,
+    item_name: item.item_name,
+    asset_no: item.asset_no,
+    serial_no: item.serial_no,
+    brand: item.brand,
+    model: item.model,
+    location_name: item.location?.name,
+    category_name: item.category?.name,
+    responsible_person: item.responsible_person,
+    unit_price: item.unit_price,
+  }
 
   return (
-    <aside
-      style={{ width: collapsed ? 44 : width }}
-      className={cn(
-        'relative hidden h-full shrink-0 flex-col border-l border-border bg-card shadow-2xs transition-[width] duration-200 lg:flex',
-        collapsed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
-      )}
-      aria-label="รายละเอียดรายการ"
-    >
-      <InspectorControls item={item} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onResizeStart={onResizeStart} />
-      <div className={cn('flex min-w-0 flex-1 flex-col', collapsed && 'pointer-events-none opacity-0')}>
-        <div className="relative h-48 shrink-0 overflow-hidden border-b border-border bg-muted">
-          {item.image_url ? (
-            <ZoomableImage
-              src={item.image_url}
-              alt={item.item_name}
-              className="h-full w-full"
-              imgClassName="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
-              <Package className="h-12 w-12 stroke-[1.25]" />
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">No Image Available</span>
-            </div>
-          )}
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
+        onClick={onClose}
+        aria-hidden="true"
+        data-testid="inspector-backdrop"
+      />
 
-          <Link
-            href={`/items/${item.id}`}
-            className="absolute right-3 top-3 rounded-full bg-card/95 p-2 text-primary shadow-md transition-transform hover:scale-105 hover:bg-card animate-fade-in"
-            title="เปิดหน้ารายละเอียดเต็ม"
+      {/* Drawer Panel */}
+      <aside
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col border-l border-border bg-card shadow-2xl overflow-hidden animate-in slide-in-from-right duration-250"
+        aria-label="รายละเอียดรายการ"
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-5 py-4">
+          <div className="flex flex-col min-w-0 pr-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">รายละเอียดสิ่งของ</span>
+            <h3 className="truncate text-base font-extrabold text-card-foreground">{item.item_name}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-card-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="ปิดแถบรายละเอียด"
           >
-            <ExternalLink className="h-4 w-4" />
-          </Link>
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-4 bg-card p-4">
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-base font-extrabold leading-tight text-card-foreground">{item.item_name}</h3>
-              <StatusBadge status={item.status} />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
-                {item.category?.name || 'หมวดหมู่ทั่วไป'}
-              </span>
-              <span className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                {ITEM_TYPE_LABELS[item.item_type]}
-              </span>
-            </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+          {/* Image preview */}
+          <div className="relative h-52 shrink-0 overflow-hidden border-b border-border bg-muted">
+            {item.image_url ? (
+              <ZoomableImage
+                src={item.image_url}
+                alt={item.item_name}
+                className="h-full w-full"
+                imgClassName="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
+                <Package className="h-12 w-12 stroke-[1.25] text-muted-foreground/50" />
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">No Image Available</span>
+              </div>
+            )}
+
+            <Link
+              href={`/items/${item.id}`}
+              className="absolute right-3 top-3 rounded-full bg-card/95 p-2 text-primary shadow-md transition-transform hover:scale-105 hover:bg-card"
+              title="เปิดหน้ารายละเอียดเต็ม"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Link>
           </div>
 
-          <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-primary">tag</span>} label="Serial Number / เลขครุภัณฑ์">
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
-                {reference || '-'}
-              </p>
-              <button
-                type="button"
-                onClick={() => onCopy(reference)}
-                disabled={!reference}
-                className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:opacity-40 cursor-pointer"
-                title="คัดลอกเลขอ้างอิง"
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </InspectorBox>
-
-          <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary" />} label="สถานที่จัดเก็บ">
-            <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
-              {item.location?.name || 'ไม่ได้ระบุ'}
-            </div>
-          </InspectorBox>
-
-          <InspectorBox icon={<User className="h-3.5 w-3.5 text-primary" />} label="ผู้รับผิดชอบ">
-            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
-              <div className="mr-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
-                {(item.responsible_person || 'U').charAt(0).toUpperCase()}
+          <div className="flex flex-col gap-4 p-5">
+            {/* Title card */}
+            <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="text-base font-extrabold leading-tight text-card-foreground">{item.item_name}</h4>
+                <StatusBadge status={item.status} />
               </div>
-              <span className="font-bold text-card-foreground">{item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}</span>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-border bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
+                  {item.category?.name || 'หมวดหมู่ทั่วไป'}
+                </span>
+                <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                  {ITEM_TYPE_LABELS[item.item_type]}
+                </span>
+              </div>
             </div>
-          </InspectorBox>
 
-          <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-primary" />} label="หมายเหตุ">
-            <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2.5 text-xs leading-relaxed text-muted-foreground">
-              {item.note || '- ไม่มีหมายเหตุ -'}
-            </p>
-          </InspectorBox>
+            {/* Asset No / Serial Number */}
+            {item.asset_no && (
+              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="เลขครุภัณฑ์">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
+                    {item.asset_no}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onCopy(item.asset_no)}
+                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary cursor-pointer"
+                    title="คัดลอกเลขครุภัณฑ์"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </InspectorBox>
+            )}
 
-          <div className="mt-auto border-t border-border pt-4">
-            {(userCanWrite || userCanDelete) && (
-              <div className="flex flex-col gap-2 w-full">
-                {userCanWrite && (
-                  <Link href={`/items/${item.id}/edit`} className="w-full">
-                    <Button variant="outline" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer">
-                      <Edit className="h-4 w-4" />
-                      แก้ไขข้อมูล
-                    </Button>
-                  </Link>
-                )}
-                {userCanDelete && (
-                  <div className="w-full">
-                    <DeleteItemButton id={item.id} />
-                  </div>
-                )}
+            {item.serial_no && (
+              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="Serial Number">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
+                    {item.serial_no}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onCopy(item.serial_no)}
+                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary cursor-pointer"
+                    title="คัดลอก Serial Number"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </InspectorBox>
+            )}
+
+            {!item.asset_no && !item.serial_no && (
+              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="เลขอ้างอิง">
+                <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
+                  - ไม่มีเลขอ้างอิง -
+                </p>
+              </InspectorBox>
+            )}
+
+            {/* Quantity & Unit Price */}
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary" />} label="จำนวนคงเหลือ">
+                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-bold text-card-foreground">
+                  {item.quantity} {item.unit?.name ?? ''}
+                </div>
+              </InspectorBox>
+
+              <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-primary">payments</span>} label="ราคาต่อหน่วย">
+                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-bold text-card-foreground">
+                  {item.unit_price !== null && item.unit_price !== undefined ? `฿${item.unit_price.toLocaleString()}` : '-'}
+                </div>
+              </InspectorBox>
+            </div>
+
+            {/* Location */}
+            <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary" />} label="สถานที่จัดเก็บ">
+              <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
+                {item.location?.name || 'ไม่ได้ระบุ'}
+              </div>
+            </InspectorBox>
+
+            {/* Responsible Person */}
+            <InspectorBox icon={<User className="h-3.5 w-3.5 text-primary" />} label="ผู้รับผิดชอบ">
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
+                <div className="mr-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
+                  {(item.responsible_person || 'U').charAt(0).toUpperCase()}
+                </div>
+                <span className="font-bold text-card-foreground">{item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}</span>
+              </div>
+            </InspectorBox>
+
+            {/* Brand / Model */}
+            {(item.brand || item.model) && (
+              <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary" />} label="ยี่ห้อ / รุ่น">
+                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
+                  {[item.brand, item.model].filter(Boolean).join(' - ') || '-'}
+                </div>
+              </InspectorBox>
+            )}
+
+            {/* Note */}
+            <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-primary" />} label="หมายเหตุ">
+              <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2.5 text-xs leading-relaxed text-muted-foreground">
+                {item.note || '- ไม่มีหมายเหตุ -'}
+              </p>
+            </InspectorBox>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="shrink-0 border-t border-border bg-card p-4">
+          <div className="flex flex-col gap-2 w-full">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onPrint(stickerData)}
+                className="h-10 rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Tag className="h-4 w-4" />
+                <span>พิมพ์ป้ายบาร์โค้ด</span>
+              </Button>
+              <Link href={`/items/${item.id}`} className="w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>ดูหน้ารายละเอียดเต็ม</span>
+                </Button>
+              </Link>
+            </div>
+
+            {userCanWrite && (
+              <Link href={`/items/${item.id}/edit`} className="w-full">
+                <Button variant="default" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5">
+                  <Edit className="h-4 w-4" />
+                  <span>แก้ไขข้อมูล</span>
+                </Button>
+              </Link>
+            )}
+
+            {userCanDelete && (
+              <div className="w-full">
+                <DeleteItemButton id={item.id} />
               </div>
             )}
           </div>
         </div>
-      </div>
-    </aside>
-  )
-}
-
-function InspectorControls({
-  item,
-  collapsed,
-  onToggleCollapsed,
-  onResizeStart,
-}: {
-  item?: ItemListRow | null
-  collapsed: boolean
-  onToggleCollapsed: () => void
-  onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        onClick={onToggleCollapsed}
-        className="absolute left-1 top-3 z-20 flex h-8 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-2xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={collapsed ? 'ขยายรายละเอียดรายการ' : 'ย่อรายละเอียดรายการ'}
-        title={collapsed ? 'ขยายแถบรายละเอียด' : 'ย่อแถบรายละเอียด'}
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-      </button>
-      {collapsed && item && (
-        <div className="mt-14 flex flex-col items-center gap-2">
-          {typeIcons[item.item_type]}
-        </div>
-      )}
-      {!collapsed && (
-        <button
-          type="button"
-          onPointerDown={onResizeStart}
-          className="absolute left-0 top-1/2 z-10 flex h-16 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center rounded-r-md border border-l-0 border-border bg-card/95 text-muted-foreground/40 shadow-2xs hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="ปรับความกว้างแถบรายละเอียด"
-          title="ลากเพื่อปรับความกว้าง"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-      )}
+      </aside>
     </>
   )
 }
