@@ -12,6 +12,8 @@ import { writeAuditLog } from '@/lib/audit'
 import { handleActionError } from '@/lib/error-handler'
 import { logger } from '@/lib/logging'
 
+import { canManageSettings, isAdmin } from '@/lib/permissions'
+
 type MetadataKind = 'category' | 'location' | 'unit'
 
 const itemReferenceColumn: Record<MetadataKind, 'category_id' | 'location_id' | 'unit_id'> = {
@@ -30,7 +32,7 @@ async function requireAdmin() {
     redirect('/settings?error=กรุณาเข้าสู่ระบบก่อนจัดการตั้งค่า')
   }
 
-  if (profile.role !== 'admin') {
+  if (!isAdmin(profile.role)) {
     redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
 }
@@ -42,7 +44,7 @@ async function requireSettingsManager() {
     redirect('/settings?error=กรุณาเข้าสู่ระบบก่อนจัดการตั้งค่า')
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
+  if (!canManageSettings(profile.role)) {
     redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
 }

@@ -11,6 +11,8 @@ import { retrySupabase } from '@/lib/retry'
 import { assertAdminTable } from '@/features/admin/table-policy'
 
 
+import { isAdmin } from '@/lib/permissions'
+
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
     return createAdminClient()
@@ -20,7 +22,7 @@ async function getSupabaseClient() {
 
 export async function requireAdmin() {
   const profile = await getCurrentProfile()
-  if (!profile || profile.role !== 'admin' || !profile.is_active) {
+  if (!profile || !isAdmin(profile.role) || !profile.is_active) {
     logger.warn({ operation: 'requireAdmin', feature: 'admin', details: 'Access denied: admin required or inactive profile' })
     return { error: 'Access Denied: Admin role required and profile must be active' }
   }
