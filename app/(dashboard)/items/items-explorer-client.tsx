@@ -236,9 +236,10 @@ export function ItemsExplorerClient({
   const exportToExcel = async () => {
     if (isExporting) return
     setIsExporting(true)
-    triggerToast('กำลังจัดเตรียมไฟล์ Export...')
+    triggerToast('กำลังเตรียมข้อมูลสำหรับส่งออก...', 'info')
     try {
       const { default: ExcelJS } = await import('exceljs')
+      triggerToast('กำลังดึงข้อมูลพัสดุจากระบบ...', 'info')
       const allItems = await getItemsForExport(params)
       if (!allItems || allItems.length === 0) {
         setBlockingError('ไม่พบข้อมูลที่จะส่งออก')
@@ -246,6 +247,7 @@ export function ItemsExplorerClient({
         return
       }
 
+      triggerToast(`กำลังจัดทำไฟล์ Excel (${allItems.length.toLocaleString()} รายการ)...`, 'info')
       const workbook = new ExcelJS.Workbook()
       const worksheet = workbook.addWorksheet('ทะเบียนสิ่งของ')
 
