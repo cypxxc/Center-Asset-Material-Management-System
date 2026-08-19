@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { AssetTagModal, PRESETS, calculateCustomGridDimensions, getTypographyForHeight } from '../../components/ui/asset-tag-modal'
+import { AssetTagModal, calculateCustomGridDimensions, getTypographyForHeight } from '../../components/ui/asset-tag-modal'
 import type { ItemStickerData } from '../../components/ui/asset-tag-modal'
 
 const mockItem: ItemStickerData = {
@@ -77,25 +77,50 @@ test('AssetTagModal supports A4 sheet presets and thermal presets', () => {
 
   // Click A4 3x8 preset
   fireEvent.click(a4_3x8_Btn)
-  const printableContainer = document.querySelector('#printable-asset-tag') as HTMLElement
-  assert.ok(printableContainer.className.includes('print-sheet-grid'))
+  
+  const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
+  assert.equal(pages.length, 1)
 
-  const stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  const stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.ok(stickerBoxes.length >= 1)
   const firstBox = stickerBoxes[0] as HTMLElement
-  assert.equal(firstBox.style.width, PRESETS.a4_3x8.width)
-  assert.equal(firstBox.style.height, PRESETS.a4_3x8.height)
+  assert.equal(firstBox.style.width, '100%')
+  assert.equal(firstBox.style.height, '100%')
 
   // Click A4 2x7 preset
   fireEvent.click(a4_2x7_Btn)
-  assert.equal(firstBox.style.width, PRESETS.a4_2x7.width)
-  assert.equal(firstBox.style.height, PRESETS.a4_2x7.height)
-
+  const updatedPages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
+  assert.equal(updatedPages.length, 1)
+  
   // Click small thermal preset
   fireEvent.click(smallBtn)
-  assert.ok(printableContainer.className.includes('print-thermal-roll'))
-  assert.equal(firstBox.style.width, '50mm')
-  assert.equal(firstBox.style.height, '25mm')
+  const printableContainer = document.querySelector('#printable-asset-tag') as HTMLElement
+  assert.ok(printableContainer.querySelector('.print-thermal-roll'))
+  const thermalBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
+  assert.equal((thermalBoxes[0] as HTMLElement).style.width, '50mm')
+  assert.equal((thermalBoxes[0] as HTMLElement).style.height, '25mm')
+})
+
+test('AssetTagModal chunks expandedPrintList into multiple pages for A4 sheet', () => {
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: mockItem,
+    })
+  )
+  
+  // Select A4 3x8 preset (24 per page)
+  const a4_3x8_Btn = screen.getByRole('button', { name: /A4 3×8/ })
+  fireEvent.click(a4_3x8_Btn)
+  
+  // Set 25 copies
+  const copyInput = screen.getByRole('spinbutton', { name: 'จำนวนสำเนาลาเบล' })
+  fireEvent.change(copyInput, { target: { value: '25' } })
+  
+  // Should yield 2 .print-page-a4 elements
+  const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
+  assert.equal(pages.length, 2)
 })
 
 test('AssetTagModal expands items according to copy multiplier', () => {
@@ -108,7 +133,7 @@ test('AssetTagModal expands items according to copy multiplier', () => {
   )
 
   // Default is 1 copy
-  let stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  let stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.equal(stickerBoxes.length, 1)
 
   // Increment copy count with + button
@@ -116,14 +141,14 @@ test('AssetTagModal expands items according to copy multiplier', () => {
   fireEvent.click(plusBtn) // copy count = 2
   fireEvent.click(plusBtn) // copy count = 3
 
-  stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.equal(stickerBoxes.length, 3)
 
   // Change input directly
   const copyInput = screen.getByRole('spinbutton', { name: 'จำนวนสำเนาลาเบล' })
   fireEvent.change(copyInput, { target: { value: '5' } })
 
-  stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.equal(stickerBoxes.length, 5)
   assert.ok(screen.getAllByText(/5 ดวง/).length >= 1)
 })
@@ -313,13 +338,13 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   assert.ok(screen.getAllByText(/รวม 12 ป้าย\/แผ่น/).length >= 1)
 
   // Verify printable asset tag updates with computed styles
-  const printableContainer = document.querySelector('#printable-asset-tag') as HTMLElement
-  assert.ok(printableContainer.className.includes('print-sheet-grid'))
+  const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
+  assert.equal(pages.length, 1)
 
-  const stickerBoxes = document.querySelectorAll('#printable-asset-tag > div')
+  const stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   const firstBox = stickerBoxes[0] as HTMLElement
-  assert.equal(firstBox.style.width, '98.8mm')
-  assert.equal(firstBox.style.height, '45.8mm')
+  assert.equal(firstBox.style.width, '100%')
+  assert.equal(firstBox.style.height, '100%')
 
   // Adjust margin and gap
   const gapInput = screen.getByRole('spinbutton', { name: 'ช่องกรอกระยะห่างระหว่างป้าย' })
@@ -331,8 +356,6 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   // width = (210 - 10 - 1 * 5) / 2 = 195 / 2 = 97.5 mm
   // height = (297 - 15 - 5 * 5) / 6 = 257 / 6 = 42.833 -> 42.8 mm
   assert.ok(screen.getAllByText(/97.5 × 42.8 mm/).length >= 1)
-  assert.equal(firstBox.style.width, '97.5mm')
-  assert.equal(firstBox.style.height, '42.8mm')
 })
 
 test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {

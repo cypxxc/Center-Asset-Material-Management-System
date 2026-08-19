@@ -258,10 +258,12 @@ function SingleStickerItem({
   itemData,
   presetConfig,
   visibility,
+  isSheetCell = false,
 }: {
   itemData: ItemStickerData
   presetConfig: PresetConfig
   visibility: FieldVisibilityConfig
+  isSheetCell?: boolean
 }) {
   const barcodeText = itemData.asset_no || itemData.serial_no || ""
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
@@ -292,8 +294,8 @@ function SingleStickerItem({
   return (
     <div
       style={{
-        width: presetConfig.width,
-        height: presetConfig.height,
+        width: isSheetCell ? "100%" : presetConfig.width,
+        height: isSheetCell ? "100%" : presetConfig.height,
       }}
       className={`print-tag-card bg-white text-slate-900 border border-slate-900 shadow-xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid ${presetConfig.padding}`}
     >
@@ -310,7 +312,7 @@ function SingleStickerItem({
       <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0">
         {/* Left Column: Details & Code 128 Barcode */}
         <div className="flex-1 flex flex-col justify-between min-w-0">
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 min-h-0 min-w-0">
             <div className={`truncate leading-tight ${presetConfig.nameSize}`} title={itemData.item_name}>
               {itemData.item_name}
             </div>
@@ -593,10 +595,6 @@ export function AssetTagModal({
   const totalPages = Math.max(1, Math.ceil(expandedPrintList.length / labelsPerPage))
   const safeSheetPageIndex = Math.min(sheetPageIndex, totalPages - 1)
 
-  const printMargin = selectedPreset === "custom_grid"
-    ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
-    : "5mm"
-
   const printGap = selectedPreset === "custom_grid"
     ? `${customGrid.gap}mm`
     : (activeConfig.sheetGrid?.gap || "2.5mm")
@@ -621,6 +619,15 @@ export function AssetTagModal({
     >
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0 !important;
+          }
+          body, html {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
           body * {
             visibility: hidden !important;
           }
@@ -628,10 +635,9 @@ export function AssetTagModal({
             visibility: visible !important;
           }
           #printable-asset-tag {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+            display: block !important;
+            position: static !important;
+            width: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
@@ -642,24 +648,41 @@ export function AssetTagModal({
             print-color-adjust: exact !important;
           }
           .print-tag-card {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            box-sizing: border-box !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            box-sizing: border-box !important;
+            overflow: hidden !important;
           }
           ${
             activeConfig.isSheet
               ? `
           @page {
             size: A4 portrait;
-            margin: ${printMargin};
+            margin: 0 !important;
           }
-          .print-sheet-grid {
+          .print-page-a4 {
+            display: block !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            box-sizing: border-box !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            overflow: hidden !important;
+            background: white !important;
+          }
+          .print-page-a4:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          .print-page-grid {
             display: grid !important;
-            grid-template-columns: repeat(${sheetCols}, 1fr) !important;
-            gap: ${printGap} !important;
-            justify-items: center !important;
-            align-items: start !important;
             width: 100% !important;
+            height: 100% !important;
             box-sizing: border-box !important;
           }
           `
@@ -668,12 +691,23 @@ export function AssetTagModal({
             size: auto;
             margin: 0;
           }
+          #printable-asset-tag {
+            width: auto !important;
+          }
           .print-thermal-roll {
             display: flex !important;
             flex-direction: column !important;
             gap: 2mm !important;
             padding: 2mm !important;
             align-items: flex-start !important;
+          }
+          .print-tag-card {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+          .print-tag-card:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
           `
           }
@@ -1244,18 +1278,65 @@ export function AssetTagModal({
         </div>
 
         {/* Hidden printable container for window.print() */}
-        <div
-          id="printable-asset-tag"
-          className={activeConfig.isSheet ? "print-sheet-grid hidden" : "print-thermal-roll hidden"}
-        >
-          {expandedPrintList.map((itm, idx) => (
-            <SingleStickerItem
-              key={idx}
-              itemData={itm}
-              presetConfig={activeConfig}
-              visibility={fieldVisibility}
-            />
-          ))}
+        <div id="printable-asset-tag" className="hidden">
+          {activeConfig.isSheet ? (
+            Array.from({ length: totalPages }).map((_, pageIdx) => {
+              const pageItems = expandedPrintList.slice(
+                pageIdx * labelsPerPage,
+                (pageIdx + 1) * labelsPerPage
+              )
+              return (
+                <div
+                  key={pageIdx}
+                  className="print-page-a4"
+                  style={{
+                    width: "210mm",
+                    height: "297mm",
+                    paddingTop: `${selectedPreset === "custom_grid" ? customGrid.marginTop : activeConfig.sheetGrid?.marginTop}mm`,
+                    paddingBottom: `${selectedPreset === "custom_grid" ? customGrid.marginBottom : activeConfig.sheetGrid?.marginBottom}mm`,
+                    paddingLeft: `${selectedPreset === "custom_grid" ? customGrid.marginLeft : activeConfig.sheetGrid?.marginLeft}mm`,
+                    paddingRight: `${selectedPreset === "custom_grid" ? customGrid.marginRight : activeConfig.sheetGrid?.marginRight}mm`,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
+                    className="print-page-grid"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${sheetCols}, 1fr)`,
+                      gridTemplateRows: `repeat(${sheetRows}, 1fr)`,
+                      gap: printGap,
+                      width: "100%",
+                      height: "100%",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {pageItems.map((itm, idx) => (
+                      <SingleStickerItem
+                        key={idx}
+                        itemData={itm}
+                        presetConfig={activeConfig}
+                        visibility={fieldVisibility}
+                        isSheetCell={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="print-thermal-roll">
+              {expandedPrintList.map((itm, idx) => (
+                <SingleStickerItem
+                  key={idx}
+                  itemData={itm}
+                  presetConfig={activeConfig}
+                  visibility={fieldVisibility}
+                  isSheetCell={false}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
