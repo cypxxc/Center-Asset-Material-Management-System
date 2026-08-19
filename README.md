@@ -1,4 +1,4 @@
-# Center Asset & Material Management System (CAMMS)
+# CAMMS Portal — Center Asset & Material Management System
 
 A production-ready, Next.js 16 + Supabase internal web application designed for tracking office assets, supplies, materials, and equipment. Built with a Thai-first UI, strict role-based access control, dark mode support, and comprehensive audit logging.
 

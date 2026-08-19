@@ -18,8 +18,10 @@ interface RateLimitBucket {
 
 export class MemoryRateLimiter implements RateLimiter {
   private cache = new Map<string, RateLimitBucket>()
+  private maxKeys = 10000
 
-  constructor() {
+  constructor(maxKeys = 10000) {
+    this.maxKeys = maxKeys
     // Automatically prune old entries from memory every 1 minute
     if (typeof global !== 'undefined') {
       const interval = setInterval(() => {
@@ -42,6 +44,13 @@ export class MemoryRateLimiter implements RateLimiter {
 
   async limit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
     const now = Date.now()
+
+    // Evict oldest entries if capacity exceeded
+    if (this.cache.size >= this.maxKeys && !this.cache.has(key)) {
+      const firstKey = this.cache.keys().next().value
+      if (firstKey) this.cache.delete(firstKey)
+    }
+
     let bucket = this.cache.get(key)
     if (!bucket) {
       bucket = { timestamps: [] }

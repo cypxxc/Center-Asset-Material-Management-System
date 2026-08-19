@@ -64,7 +64,7 @@ export function generateReportPdf(
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS)</title>
+  <title>รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS Portal)</title>
   <style>
     @page {
       size: A4 landscape;
@@ -76,7 +76,7 @@ export function generateReportPdf(
         color: #64748b;
       }
       @bottom-left {
-        content: "CAMMS — Center Asset & Material Management System";
+        content: "CAMMS Portal — Center Asset & Material Management System";
         font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
@@ -244,11 +244,11 @@ export function generateReportPdf(
 <body>
   <div class="header">
     <div>
-      <h1 class="title">รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS)</h1>
+      <h1 class="title">รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS Portal)</h1>
       <p class="subtitle">วันที่พิมพ์รายงาน: ${currentDate} | ตัวกรอง: ${escapeHtml(filterSummary)}</p>
     </div>
     <div class="logo-text">
-      <h2>CAMMS</h2>
+      <h2>CAMMS Portal</h2>
       <p>Center Asset & Material Management System</p>
     </div>
   </div>

@@ -199,9 +199,9 @@ export function ReportsList({
             <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS</h2>
+            <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS Portal</h2>
             <p className="text-xs text-muted-foreground print:text-slate-500">
-              Center Asset Material Management System — ทะเบียนสิ่งของและครุภัณฑ์ส่วนกลาง
+              Center Asset & Material Management System
             </p>
           </div>
         </div>

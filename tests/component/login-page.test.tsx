@@ -9,9 +9,9 @@ test('LoginPage renders Curved Split-Screen Dark Editorial layout and CAMMS bran
   render(React.createElement(LoginPage))
 
   // Branding & Title
-  assert.ok(screen.getByText('CAMMS'), 'Must render system acronym')
+  assert.ok(screen.getByText('CAMMS Portal'), 'Must render system acronym')
   assert.ok(
-    screen.getByText(/Center Asset Material Management System/),
+    screen.getByText(/Center Asset & Material Management System/),
     'Must render full system title'
   )
   assert.ok(

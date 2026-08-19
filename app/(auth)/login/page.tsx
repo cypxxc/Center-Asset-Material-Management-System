@@ -42,10 +42,10 @@ function LoginForm() {
           </div>
           <div>
             <span className="text-sm font-bold tracking-tight text-slate-900 block leading-none">
-              CAMMS
+              CAMMS Portal
             </span>
             <span className="text-[10px] text-slate-700 font-medium leading-none">
-              Center Asset Material Management System
+              Center Asset & Material Management System
             </span>
           </div>
         </div>
@@ -180,7 +180,7 @@ function LoginForm() {
 
       {/* Footer */}
       <footer className="w-full max-w-[400px] flex items-center justify-between text-[11px] text-slate-700 font-medium">
-        <span>© 2026 CAMMS. สงวนลิขสิทธิ์ทั้งหมด</span>
+        <span>© 2026 CAMMS Portal. สงวนลิขสิทธิ์ทั้งหมด</span>
         <span className="hidden">ระบบความปลอดภัยพร้อมใช้งาน (256-bit Encrypted Session)</span>
         <span className="font-mono text-slate-600">v1.0.0</span>
       </footer>

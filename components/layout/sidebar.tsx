@@ -419,7 +419,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <Package className="h-4 w-4" />
           </div>
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-extrabold text-slate-800">CAMMS</div>
+            <div className="truncate text-sm font-extrabold text-slate-800">CAMMS Portal</div>
             <div className="truncate text-[9px] font-semibold text-slate-600">Asset & Material Management</div>
           </div>
         </Link>

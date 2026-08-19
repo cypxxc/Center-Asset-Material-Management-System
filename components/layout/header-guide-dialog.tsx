@@ -38,7 +38,7 @@ export function HeaderGuideDialog({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wide">ภาพรวมระบบ</h3>
             <p className="text-[11px] md:text-xs text-slate-500">
-              ระบบ Center Asset Material Management System (CAMMS) เป็นระบบสำหรับลงทะเบียน ตรวจสอบ และบริหารจัดการทะเบียนพัสดุ วัสดุสิ้นเปลือง และครุภัณฑ์ภายในสำนักงานอย่างมีประสิทธิภาพ
+              CAMMS Portal (Center Asset & Material Management System) — ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลาง เป็นระบบสำหรับลงทะเบียน ตรวจสอบ และบริหารจัดการทะเบียนพัสดุ วัสดุสิ้นเปลือง และครุภัณฑ์ภายในสำนักงานอย่างมีประสิทธิภาพ
             </p>
           </div>
     

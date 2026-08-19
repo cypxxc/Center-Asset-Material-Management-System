@@ -233,10 +233,33 @@ export async function getReportItemsList(
     query = query.eq('location_id', params.location_id)
   }
 
+  let orderColumn = 'updated_at'
+  let ascending = false
+
+  if (params.sort_by) {
+    if (params.sort_by === 'item_name') {
+      orderColumn = 'item_name'
+    } else if (params.sort_by === 'quantity') {
+      orderColumn = 'quantity'
+    } else if (params.sort_by === 'unit_price') {
+      orderColumn = 'unit_price'
+    } else if (params.sort_by === 'status') {
+      orderColumn = 'status'
+    }
+  }
+
+  if (params.sort_dir === 'asc') {
+    ascending = true
+  } else if (params.sort_dir === 'desc') {
+    ascending = false
+  } else {
+    ascending = params.sort_by === 'item_name'
+  }
+
   const {
     result: { data, error },
   } = await measureQuery('reports.getReportItemsList', () =>
-    query.order('updated_at', { ascending: false })
+    query.order(orderColumn, { ascending })
   )
 
   if (error) throw new Error('Unable to load report data')
@@ -244,45 +267,34 @@ export async function getReportItemsList(
   const rawRows = data ?? []
   const allItems = rawRows.map(toReportItemRow)
 
-  // Sort allItems in JS before pagination and aggregation slices
+  // Secondary JS sort only when complex relation/formula sorting is needed
   const sortBy = params.sort_by || 'updated_at'
   const sortDir = params.sort_dir === 'asc' ? 'asc' : 'desc'
 
-  allItems.sort((a, b) => {
-    let valA: string | number = ''
-    let valB: string | number = ''
+  if (sortBy === 'category' || sortBy === 'total_price') {
+    allItems.sort((a, b) => {
+      let valA: string | number = ''
+      let valB: string | number = ''
 
-    if (sortBy === 'item_name') {
-      valA = a.item_name || ''
-      valB = b.item_name || ''
-    } else if (sortBy === 'category') {
-      valA = a.category?.name || ''
-      valB = b.category?.name || ''
-    } else if (sortBy === 'quantity') {
-      valA = a.quantity || 0
-      valB = b.quantity || 0
-    } else if (sortBy === 'unit_price') {
-      valA = a.unit_price ?? 0
-      valB = b.unit_price ?? 0
-    } else if (sortBy === 'total_price') {
-      valA = (a.unit_price ?? 0) * a.quantity
-      valB = (b.unit_price ?? 0) * b.quantity
-    } else {
-      // Default: updated_at
-      valA = new Date(a.updated_at).getTime()
-      valB = new Date(b.updated_at).getTime()
-    }
+      if (sortBy === 'category') {
+        valA = a.category?.name || ''
+        valB = b.category?.name || ''
+      } else if (sortBy === 'total_price') {
+        valA = (a.unit_price ?? 0) * a.quantity
+        valB = (b.unit_price ?? 0) * b.quantity
+      }
 
-    if (typeof valA === 'string' && typeof valB === 'string') {
-      return sortDir === 'asc' 
-        ? valA.localeCompare(valB, 'th-TH') 
-        : valB.localeCompare(valA, 'th-TH')
-    } else {
-      return sortDir === 'asc'
-        ? (valA > valB ? 1 : valA < valB ? -1 : 0)
-        : (valA < valB ? 1 : valA > valB ? -1 : 0)
-    }
-  })
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDir === 'asc' 
+          ? valA.localeCompare(valB, 'th-TH') 
+          : valB.localeCompare(valA, 'th-TH')
+      } else {
+        return sortDir === 'asc'
+          ? (valA > valB ? 1 : valA < valB ? -1 : 0)
+          : (valA < valB ? 1 : valA > valB ? -1 : 0)
+      }
+    })
+  }
 
   // Aggregations over the FULL matching list (un-paginated)
   const totalCount = allItems.length
