@@ -297,7 +297,7 @@ function SingleStickerItem({
         width: isSheetCell ? "100%" : presetConfig.width,
         height: isSheetCell ? "100%" : presetConfig.height,
       }}
-      className={`print-tag-card bg-white text-slate-900 border border-slate-900 shadow-xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid ${presetConfig.padding}`}
+      className={`print-tag-card bg-white text-slate-900 border border-slate-900 shadow-xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
     >
       {/* Sticker Header */}
       {visibility.showOrg && (
@@ -309,7 +309,7 @@ function SingleStickerItem({
       )}
 
       {/* Sticker Content Area: Dual Column (Left Details + Barcode, Right QR Code) */}
-      <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0">
+      <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0 min-w-0 w-full">
         {/* Left Column: Details & Code 128 Barcode */}
         <div className="flex-1 flex flex-col justify-between min-w-0">
           <div className="space-y-0.5 min-h-0 min-w-0">
@@ -345,7 +345,7 @@ function SingleStickerItem({
                 <>
                   <svg
                     viewBox={`0 0 ${barcodeData.totalWidth} 40`}
-                    className={`w-full ${presetConfig.barcodeHeight}`}
+                    className={`w-full max-w-full overflow-hidden shrink-0 ${presetConfig.barcodeHeight}`}
                     preserveAspectRatio="none"
                     role="img"
                     aria-label={`บาร์โค้ด ${barcodeText}`}
@@ -362,7 +362,7 @@ function SingleStickerItem({
                     ))}
                   </svg>
                   <div
-                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider`}
+                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider truncate min-w-0 max-w-full`}
                   >
                     {barcodeText}
                   </div>
@@ -623,10 +623,32 @@ export function AssetTagModal({
             size: A4 portrait;
             margin: 0 !important;
           }
-          body, html {
+          html, body {
             margin: 0 !important;
             padding: 0 !important;
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: auto !important;
             background: white !important;
+            color: black !important;
+            overflow: visible !important;
+          }
+          /* Ensure parent modal wrappers do not clip or offset print output */
+          div[role="dialog"],
+          .fixed.inset-0 {
+            position: static !important;
+            display: block !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            max-width: none !important;
+            width: auto !important;
+            height: auto !important;
+            overflow: visible !important;
+            transform: none !important;
           }
           body * {
             visibility: hidden !important;
@@ -636,12 +658,15 @@ export function AssetTagModal({
           }
           #printable-asset-tag {
             display: block !important;
-            position: static !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 210mm !important;
+            max-width: 210mm !important;
+            min-width: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
+            box-sizing: border-box !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
@@ -666,13 +691,17 @@ export function AssetTagModal({
           }
           .print-page-a4 {
             display: block !important;
+            position: relative !important;
             width: 210mm !important;
+            max-width: 210mm !important;
+            min-width: 210mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
+            min-height: 297mm !important;
             box-sizing: border-box !important;
+            overflow: hidden !important;
             page-break-after: always !important;
             break-after: page !important;
-            overflow: hidden !important;
             background: white !important;
           }
           .print-page-a4:last-child {
@@ -684,6 +713,7 @@ export function AssetTagModal({
             width: 100% !important;
             height: 100% !important;
             box-sizing: border-box !important;
+            overflow: hidden !important;
           }
           `
               : `
