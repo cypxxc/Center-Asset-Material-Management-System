@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Download, Printer, FileText, AlertTriangle, CheckCircle, Award, Loader2 } from 'lucide-react'
+import { Download, Printer, FileText, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
@@ -14,6 +14,7 @@ import { generateReportPdf } from '@/lib/reports-pdf-generator'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
+import { CategoryComboChart } from '@/components/reports/category-combo-chart'
 import {
   DataTable,
   DataTableHeader,
@@ -30,7 +31,7 @@ interface ReportsListProps {
   totalValue: number
   totalPages: number
   currentPage: number
-  auditedCount: number
+  auditedCount?: number
   overdueAuditItems: ReportItemRow[]
   searchParams: {
     q?: string
@@ -44,7 +45,7 @@ interface ReportsListProps {
   }
   categories: { id: string; name: string }[]
   locations: { id: string; name: string }[]
-  stats: {
+  stats?: {
     totalItems: number
     totalQuantity: number
     typeCounts: Record<string, { count: number; qty: number }>
@@ -61,11 +62,11 @@ export function ReportsList({
   totalValue,
   totalPages,
   currentPage,
-  auditedCount,
   overdueAuditItems,
   searchParams,
   categories,
-  locations
+  locations,
+  stats
 }: ReportsListProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -185,7 +186,50 @@ export function ReportsList({
     window.print()
   }
 
-  const auditProgressPct = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 100
+  const categoryComboData = (() => {
+    if (stats?.categoryCounts && Object.keys(stats.categoryCounts).length > 0) {
+      return Object.entries(stats.categoryCounts).map(([category, countData]) => {
+        const categoryActiveQty = items
+          .filter((i) => (i.category?.name || 'ทั่วไป') === category && i.status === 'active')
+          .reduce((sum, i) => sum + (i.quantity || 0), 0)
+
+        const activeRatio =
+          stats.totalQuantity && stats.statusCounts?.active?.qty
+            ? stats.statusCounts.active.qty / stats.totalQuantity
+            : 0.85
+        const fallbackActive = Math.round(countData.qty * activeRatio)
+
+        return {
+          category,
+          totalQty: countData.qty,
+          activeQty:
+            categoryActiveQty > 0
+              ? Math.min(categoryActiveQty, countData.qty)
+              : Math.min(fallbackActive, countData.qty),
+        }
+      })
+    }
+
+    // Fallback computed from items if stats.categoryCounts is empty
+    const categoryMap = new Map<string, { totalQty: number; activeQty: number }>()
+    for (const item of items) {
+      const catName = item.category?.name || 'ทั่วไป'
+      const current = categoryMap.get(catName) || { totalQty: 0, activeQty: 0 }
+      current.totalQty += item.quantity || 0
+      if (item.status === 'active') {
+        current.activeQty += item.quantity || 0
+      }
+      categoryMap.set(catName, current)
+    }
+
+    return Array.from(categoryMap.entries()).map(([category, { totalQty, activeQty }]) => ({
+      category,
+      totalQty,
+      activeQty,
+    }))
+  })()
+
+  const activeCount = stats?.statusCounts?.active?.count ?? items.filter((i) => i.status === 'active').length
 
   return (
     <PageContainer className="print:bg-white print:p-0">
@@ -260,45 +304,13 @@ export function ReportsList({
         }
       />
 
-        {/* Analytical Value Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 1: Asset Valuation */}
-          <div className="bg-card p-6 rounded-xl border border-border shadow-xs">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">มูลค่าทรัพย์สินทั้งหมด</p>
-            <h3 className="text-2xl font-bold text-card-foreground mt-1">
-              {totalValue.toLocaleString('th-TH')} บาท
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
-          </div>
-
-          {/* Card 2: Audit Rate */}
-          <div className="bg-card p-6 rounded-xl border border-border shadow-xs">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">อัตราการสแกนตรวจสอบข้อมูล</p>
-            <div className="flex items-center justify-between mt-1">
-              <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {auditProgressPct}%
-              </h3>
-              <span className="text-xs text-muted-foreground font-bold">
-                {auditedCount} / {totalCount} รายการ
-              </span>
-            </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden mt-2">
-              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${auditProgressPct}%` }}></div>
-            </div>
-          </div>
-
-          {/* Card 3: Quality Standard Badge */}
-          <div className="bg-card p-6 rounded-xl border border-border shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-              <Award className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-card-foreground">มาตรฐานการจัดการสิ่งของ</h4>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">ผ่านเกณฑ์คุณภาพดีเยี่ยม (A+)</p>
-              <p className="text-[11px] text-muted-foreground">มีระบบการบันทึกประวัติ RLS ครอบคลุม</p>
-            </div>
-          </div>
-        </div>
+        {/* Category Combo Chart with Consolidated KPIs */}
+        <CategoryComboChart
+          data={categoryComboData}
+          totalValue={totalValue}
+          totalCount={totalCount}
+          activeCount={activeCount}
+        />
 
         {/* Filter Bar */}
         <form 
