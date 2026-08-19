@@ -86,8 +86,6 @@ export interface ReportListResult {
   totalValue: number
   totalPages: number
   page: number
-  auditedCount: number
-  overdueAuditItems: ReportItemRow[]
 }
 
 interface ReportItemsPageRpcResponse {
@@ -97,8 +95,6 @@ interface ReportItemsPageRpcResponse {
   total_value?: number
   total_pages?: number
   page?: number
-  audited_count?: number
-  overdue_audit_items?: unknown[]
 }
 
 function toReportItemRow(row: unknown): ReportItemRow {
@@ -170,8 +166,6 @@ async function getReportItemsPageViaRpc(
     totalValue: payload.total_value ?? 0,
     totalPages: payload.total_pages ?? Math.max(1, Math.ceil(totalCount / pageSize)),
     page: payload.page ?? page,
-    auditedCount: payload.audited_count ?? 0,
-    overdueAuditItems: (payload.overdue_audit_items ?? []).map(toReportItemRow),
   }
 }
 
@@ -301,20 +295,6 @@ export async function getReportItemsList(
   const totalQuantity = allItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
   const totalValue = allItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
 
-  // Audited count: items updated within past month (simulated as audited)
-  const auditedCount = allItems.filter(item => {
-    const updated = new Date(item.updated_at)
-    const now = new Date()
-    const diff = Math.abs(now.getTime() - updated.getTime())
-    const diffDays = Math.ceil(diff / (1000 * 60 * 60 * 24))
-    return diffDays <= 30
-  }).length
-
-  // Overdue audits: items marked damaged or waiting repair
-  const overdueAuditItems = allItems.filter(item => {
-    return item.status === 'damaged' || item.status === 'waiting_repair'
-  })
-
   if (noPagination) {
     return {
       items: allItems,
@@ -323,8 +303,6 @@ export async function getReportItemsList(
       totalValue,
       totalPages: 1,
       page: 1,
-      auditedCount,
-      overdueAuditItems
     }
   }
 
@@ -343,8 +321,6 @@ export async function getReportItemsList(
     totalValue,
     totalPages,
     page,
-    auditedCount,
-    overdueAuditItems
   }
 }
 

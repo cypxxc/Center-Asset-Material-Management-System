@@ -140,22 +140,3 @@ export function getStatusSnapshot(): StatusResult {
     timestamp: new Date().toISOString(),
   }
 }
-
-/** Backward-compatible aggregate used by legacy /api/health */
-export async function checkLegacyHealth() {
-  const readiness = await checkReadiness()
-  const liveness = checkLiveness()
-  const status = getStatusSnapshot()
-
-  const isHealthy = readiness.ready && liveness.alive
-
-  return {
-    status: isHealthy ? 'healthy' : 'unhealthy',
-    version: status.version,
-    environment: status.environment,
-    database: readiness.checks.database.status,
-    storage: readiness.checks.storage.status,
-    uptime: liveness.uptime,
-    timestamp: status.timestamp,
-  }
-}

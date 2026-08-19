@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import { CategoryComboChart, ComboCategoryItem } from '../../components/reports/category-combo-chart';
+import { CategoryComboChart, ComboCategoryItem } from '../../features/reports/components/category-combo-chart';
 
 const mockComboData: ComboCategoryItem[] = [
   { category: 'คอมพิวเตอร์และอุปกรณ์', totalQty: 50, activeQty: 45 },

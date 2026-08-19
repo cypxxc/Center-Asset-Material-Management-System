@@ -14,7 +14,7 @@ import { generateReportPdf } from '@/lib/reports-pdf-generator'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
-import { CategoryComboChart } from '@/components/reports/category-combo-chart'
+import { CategoryComboChart } from '@/features/reports/components/category-combo-chart'
 import {
   DataTable,
   DataTableHeader,
@@ -31,8 +31,6 @@ interface ReportsListProps {
   totalValue: number
   totalPages: number
   currentPage: number
-  auditedCount?: number
-  overdueAuditItems: ReportItemRow[]
   searchParams: {
     q?: string
     type?: string
@@ -62,7 +60,6 @@ export function ReportsList({
   totalValue,
   totalPages,
   currentPage,
-  overdueAuditItems,
   searchParams,
   categories,
   locations,
@@ -193,19 +190,10 @@ export function ReportsList({
           .filter((i) => (i.category?.name || 'ทั่วไป') === category && i.status === 'active')
           .reduce((sum, i) => sum + (i.quantity || 0), 0)
 
-        const activeRatio =
-          stats.totalQuantity && stats.statusCounts?.active?.qty
-            ? stats.statusCounts.active.qty / stats.totalQuantity
-            : 0.85
-        const fallbackActive = Math.round(countData.qty * activeRatio)
-
         return {
           category,
           totalQty: countData.qty,
-          activeQty:
-            categoryActiveQty > 0
-              ? Math.min(categoryActiveQty, countData.qty)
-              : Math.min(fallbackActive, countData.qty),
+          activeQty: Math.min(categoryActiveQty, countData.qty),
         }
       })
     }
@@ -230,6 +218,9 @@ export function ReportsList({
   })()
 
   const activeCount = stats?.statusCounts?.active?.count ?? items.filter((i) => i.status === 'active').length
+  const overdueAuditItems = items.filter(
+    (item) => item.status === 'damaged' || item.status === 'waiting_repair'
+  )
 
   return (
     <PageContainer className="print:bg-white print:p-0">

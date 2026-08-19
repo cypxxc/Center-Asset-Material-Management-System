@@ -63,25 +63,6 @@ test('getReportItemsList sends filters, Thai sort and pagination to paginated re
     total_value: 120000,
     total_pages: 3,
     page: 2,
-    audited_count: 4,
-    overdue_audit_items: [
-      {
-        id: 'overdue-1',
-        item_name: 'เครื่องพิมพ์ชำรุด',
-        item_type: 'asset',
-        quantity: 1,
-        asset_no: null,
-        serial_no: null,
-        brand: null,
-        model: null,
-        responsible_person: null,
-        status: 'damaged',
-        updated_at: '2026-01-02T00:00:00.000Z',
-        category: null,
-        unit: null,
-        location: null,
-      },
-    ],
   });
 
   const result = await getReportItemsList({
@@ -102,9 +83,6 @@ test('getReportItemsList sends filters, Thai sort and pagination to paginated re
   assert.equal(result.page, 2);
   assert.equal(result.totalQuantity, 80);
   assert.equal(result.totalValue, 120000);
-  assert.equal(result.auditedCount, 4);
-  assert.equal(result.overdueAuditItems.length, 1);
-  assert.equal(result.overdueAuditItems[0].id, 'overdue-1');
   assert.deepEqual(mockSupabaseRegistry.getQueryLog().map((entry) => entry.table), []);
   assert.deepEqual(mockSupabaseRegistry.getRpcLog(), [
     {

@@ -31,8 +31,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       totalValue={reportData.totalValue}
       totalPages={reportData.totalPages}
       currentPage={reportData.page}
-      auditedCount={reportData.auditedCount}
-      overdueAuditItems={reportData.overdueAuditItems}
       searchParams={params}
       categories={references.categories}
       locations={references.locations}
