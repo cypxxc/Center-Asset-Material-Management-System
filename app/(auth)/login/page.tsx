@@ -73,17 +73,39 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Inactive account alert */}
-          {errorParam === 'inactive' && (
+          {/* SSO / Account Error alerts */}
+          {errorParam && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-2xl bg-amber-50/90 border border-amber-200 p-3.5 text-xs text-amber-900 animate-in fade-in"
+              className={`flex items-start gap-2.5 rounded-2xl border p-3.5 text-xs animate-in fade-in ${
+                errorParam === 'inactive'
+                  ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+                  : 'bg-rose-50/90 border-rose-200 text-rose-900'
+              }`}
             >
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <AlertCircle
+                className={`h-4 w-4 shrink-0 mt-0.5 ${
+                  errorParam === 'inactive' ? 'text-amber-600' : 'text-rose-600'
+                }`}
+              />
               <div className="space-y-0.5">
-                <p className="font-semibold text-amber-950">บัญชีของคุณไม่พร้อมใช้งาน</p>
-                <p className="text-amber-800 leading-relaxed">
-                  บัญชีผู้ใช้นี้ถูกระงับการใช้งาน หรือไม่มีสิทธิ์เข้าใช้ระบบ กรุณาติดต่อผู้ดูแลระบบ
+                <p className="font-semibold text-slate-950">
+                  {errorParam === 'inactive'
+                    ? 'บัญชีของคุณไม่พร้อมใช้งาน'
+                    : 'การเข้าสู่ระบบผ่าน SSO ขัดข้อง'}
+                </p>
+                <p className="leading-relaxed">
+                  {errorParam === 'inactive'
+                    ? 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน หรือไม่มีสิทธิ์เข้าใช้ระบบ กรุณาติดต่อผู้ดูแลระบบ'
+                    : errorParam === 'missing_token'
+                    ? 'ไม่พบข้อมูล SSO Token จากระบบต้นทาง'
+                    : errorParam === 'SSO Token expired'
+                    ? 'โทเค็นยืนยันตัวตน SSO หมดอายุแล้ว กรุณากลับไปกดเข้าสู่ระบบใหม่อีกครั้ง'
+                    : errorParam === 'Invalid token signature'
+                    ? 'ลายเซ็นดิจิทัลของ SSO ไม่ถูกต้อง กรุณาตรวจสอบ Secret Key'
+                    : errorParam === 'Invalid audience'
+                    ? 'โทเค็น SSO ไม่ได้รับอนุญาตสำหรับระบบนี้ (Invalid Audience)'
+                    : `เกิดข้อผิดพลาดในการเชื่อมต่อ SSO: ${errorParam}`}
                 </p>
               </div>
             </div>
