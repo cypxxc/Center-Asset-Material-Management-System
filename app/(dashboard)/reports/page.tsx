@@ -5,6 +5,8 @@ import { getItemReferences } from '@/features/items/queries'
 
 import { getCurrentProfile } from '@/features/auth/queries'
 import { redirect } from 'next/navigation'
+import { getDepreciationReport } from '@/features/depreciation/queries'
+import { DepreciationReport } from '@/features/depreciation/components/depreciation-report'
 
 interface ReportsPageProps {
   searchParams: Promise<ItemListSearchParams>
@@ -17,14 +19,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   const params = await searchParams
-  const [references, stats, reportData] = await Promise.all([
+  const [references, stats, reportData, depreciationReport] = await Promise.all([
     getItemReferences(),
     getReportStats(),
-    getReportItemsList(params)
+    getReportItemsList(params),
+    getDepreciationReport(),
   ])
 
   return (
-    <ReportsList
+    <><ReportsList
       items={reportData.items}
       totalCount={reportData.totalCount}
       totalQuantity={reportData.totalQuantity}
@@ -35,6 +38,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       categories={references.categories}
       locations={references.locations}
       stats={stats}
-    />
+    /><DepreciationReport {...depreciationReport} /></>
   )
 }

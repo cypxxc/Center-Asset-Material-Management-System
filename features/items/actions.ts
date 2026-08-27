@@ -75,6 +75,11 @@ function parseFormData(formData: FormData) {
     status: formData.get('status'),
     note: formData.get('note'),
     image_url: formData.get('image_url'),
+    depreciation_enabled: formData.get('depreciation_enabled'),
+    depreciation_cost: formData.get('depreciation_cost'),
+    depreciation_useful_life_years: formData.get('depreciation_useful_life_years'),
+    depreciation_start_basis: formData.get('depreciation_start_basis'),
+    depreciation_start_date: formData.get('depreciation_start_date'),
   })
 }
 
@@ -241,6 +246,8 @@ async function createItemCore(
           : null,
         asset_number_template_id: assetNumberMode === 'template' && typeof templateId === 'string' && templateId ? templateId : null,
         asset_number_payload: assetNumberMode === 'template' ? payload : null,
+        depreciation_method: parsed.data.depreciation_enabled ? 'straight_line' : null,
+        depreciation_residual_value: 1,
       })
       .select('id')
       .single()
@@ -395,6 +402,8 @@ export async function updateItem(
       .from('items')
       .update({
         ...parsed.data,
+        depreciation_method: parsed.data.depreciation_enabled ? 'straight_line' : null,
+        depreciation_residual_value: 1,
         updated_by: auth.profile.id,
         updated_at: new Date().toISOString(),
       })

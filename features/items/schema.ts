@@ -47,6 +47,16 @@ const optionalUnitPrice = z.preprocess(
     .nullable()
 )
 
+const optionalPositiveNumber = z.preprocess(
+  (val) => typeof val === 'string' ? (stripCommas(normalizeForStorage(val)) || null) : val ?? null,
+  z.coerce.number('กรุณากรอกเป็นตัวเลข').positive('ต้องมากกว่า 0').nullable()
+)
+
+const optionalDate = z.preprocess(
+  (val) => typeof val === 'string' ? (normalizeForStorage(val) || null) : val ?? null,
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'รูปแบบวันที่ไม่ถูกต้อง').nullable()
+)
+
 export const itemTypeSchema = z.enum(['material', 'asset'])
 
 export const itemStatusSchema = z.enum([
@@ -83,4 +93,22 @@ export const itemFormSchema = z.object({
   status: itemStatusSchema,
   note: optionalTextLimit(2000),
   image_url: optionalUrl,
+  depreciation_enabled: z.preprocess((val) => val === true || val === 'true', z.boolean()),
+  depreciation_cost: optionalPositiveNumber,
+  depreciation_useful_life_years: z.preprocess(
+    (val) => typeof val === 'string' ? (stripCommas(val) || null) : val ?? null,
+    z.coerce.number().int('อายุใช้งานต้องเป็นจำนวนเต็ม').positive('อายุใช้งานต้องมากกว่า 0').nullable()
+  ),
+  depreciation_start_basis: z.preprocess(
+    (val) => val === '' || val == null ? null : val,
+    z.enum(['acquired', 'available', 'manual']).nullable()
+  ),
+  depreciation_start_date: optionalDate,
+}).superRefine((data, ctx) => {
+  if (!data.depreciation_enabled) return
+  if (data.item_type !== 'asset') ctx.addIssue({ code: 'custom', path: ['depreciation_enabled'], message: 'คิดค่าเสื่อมได้เฉพาะครุภัณฑ์' })
+  if (!data.depreciation_cost || data.depreciation_cost <= 1) ctx.addIssue({ code: 'custom', path: ['depreciation_cost'], message: 'มูลค่าพร้อมใช้งานต้องมากกว่า 1 บาท' })
+  if (!data.depreciation_useful_life_years) ctx.addIssue({ code: 'custom', path: ['depreciation_useful_life_years'], message: 'กรุณาระบุอายุการใช้งาน' })
+  if (!data.depreciation_start_basis) ctx.addIssue({ code: 'custom', path: ['depreciation_start_basis'], message: 'กรุณาเลือกรูปแบบวันเริ่มคิด' })
+  if (!data.depreciation_start_date) ctx.addIssue({ code: 'custom', path: ['depreciation_start_date'], message: 'กรุณาระบุวันเริ่มคิดค่าเสื่อม' })
 })

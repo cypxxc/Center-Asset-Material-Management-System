@@ -14,6 +14,7 @@ import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
 import { ItemDetailActions } from './item-detail-actions'
 import { PublicItemView } from './public-item-view'
+import { calculateStraightLineDepreciation } from '@/features/depreciation/calculation'
 
 interface ItemDetailPageProps {
   params: Promise<{
@@ -49,6 +50,13 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
 
   const userCanWrite = canWrite(profile?.role)
   const userCanDelete = canDelete(profile?.role)
+  const depreciation = calculateStraightLineDepreciation({
+    enabled: item.depreciation_enabled ?? false,
+    cost: item.depreciation_cost ?? null,
+    usefulLifeYears: item.depreciation_useful_life_years ?? null,
+    startDate: item.depreciation_start_date ?? null,
+    residualValue: item.depreciation_residual_value ?? 1,
+  })
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50 p-6 md:p-8">
@@ -109,6 +117,20 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
               <DetailRow label="สถานที่" value={item.location?.name} />
               <DetailRow label="ผู้รับผิดชอบ" value={item.responsible_person} />
             </section>
+
+            {depreciation && <section className="rounded-lg border border-border bg-muted/20 p-4">
+              <h3 className="text-sm font-bold text-foreground">การคิดค่าเสื่อมราคา</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <DetailRow label="วิธีคิด" value="เส้นตรง (Straight-line)" />
+                <DetailRow label="วันเริ่มคิด" value={item.depreciation_start_date} />
+                <DetailRow label="มูลค่าพร้อมใช้งาน" value={`${(item.depreciation_cost ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
+                <DetailRow label="อายุการใช้งาน" value={`${item.depreciation_useful_life_years} ปี`} />
+                <DetailRow label="ค่าเสื่อมต่อปี" value={`${depreciation.annualDepreciation.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
+                <DetailRow label="ค่าเสื่อมสะสม ณ วันนี้" value={`${depreciation.accumulatedDepreciation.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
+                <DetailRow label="มูลค่าสุทธิ ณ วันนี้" value={`${depreciation.netBookValue.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
+                <DetailRow label="มูลค่าคงเหลือ" value="1.00 บาท" />
+              </div>
+            </section>}
 
             <section className="rounded-lg border border-border bg-muted/20 p-4">
               <h3 className="text-sm font-bold text-foreground">หมายเหตุ</h3>

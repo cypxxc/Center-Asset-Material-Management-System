@@ -31,6 +31,13 @@ export interface ItemListRow {
   model?: string | null
   note?: string | null
   image_url?: string | null
+  depreciation_enabled?: boolean
+  depreciation_method?: 'straight_line' | null
+  depreciation_cost?: number | null
+  depreciation_useful_life_years?: number | null
+  depreciation_start_basis?: 'acquired' | 'available' | 'manual' | null
+  depreciation_start_date?: string | null
+  depreciation_residual_value?: number | null
 }
 
 

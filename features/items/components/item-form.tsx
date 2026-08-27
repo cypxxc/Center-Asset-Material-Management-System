@@ -23,6 +23,7 @@ import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 import { getTransformedImageUrl } from '@/lib/supabase/image'
 import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 import { AssetNumberFields } from '@/features/asset-numbers/components/asset-number-fields'
+import { DepreciationFields } from '@/features/depreciation/components/depreciation-fields'
 
 interface ItemFormProps {
   action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
@@ -220,6 +221,7 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
             <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
           </FormGrid>
         </FormSection>
+        <DepreciationFields item={item} />
         </div>
       ) : (
         <div id="material-details" role="tabpanel">
@@ -227,6 +229,11 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
           <input type="hidden" name="serial_no" value="" />
           <input type="hidden" name="brand" value="" />
           <input type="hidden" name="model" value="" />
+          <input type="hidden" name="depreciation_enabled" value="false" />
+          <input type="hidden" name="depreciation_cost" value="" />
+          <input type="hidden" name="depreciation_useful_life_years" value="" />
+          <input type="hidden" name="depreciation_start_basis" value="" />
+          <input type="hidden" name="depreciation_start_date" value="" />
         </div>
       )}
 
