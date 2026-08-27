@@ -84,7 +84,7 @@ export function HeaderGuideDialog({ onClose }: { onClose: () => void }) {
                     <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
                   </tr>
                   <tr className="hover:bg-slate-50/50">
-                    <td className="p-2.5">จัดการรายการที่ลบและกู้คืนข้อมูล</td>
+                    <td className="p-2.5">ลบรายการถาวร</td>
                     <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                     <td className="p-2.5 text-center text-emerald-600 font-bold">✔</td>
                     <td className="p-2.5 text-center text-rose-500 font-bold">✘</td>
@@ -142,12 +142,10 @@ export function HeaderGuideDialog({ onClose }: { onClose: () => void }) {
           <div className="space-y-3">
             <h3 className="text-xs md:text-sm font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
               <AlertTriangle className="h-4 w-4 text-blue-600" />
-              ระบบถังขยะและการกู้คืนข้อมูล (Trash & Recovery)
+              การลบรายการถาวร
             </h3>
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] md:text-xs text-amber-900 space-y-2">
-              <p><strong>การลบชั่วคราว:</strong> เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถนำรายการไปยังถังขยะได้ รายการจะยังสามารถกู้คืนได้</p>
-              <p><strong>การกู้คืนรายการ:</strong> ผู้ดูแลระบบและเจ้าหน้าที่สามารถกู้คืนรายการจากถังขยะกลับเข้าสู่ระบบได้</p>
-              <p><strong>การลบถาวร:</strong> เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบรายการออกจากฐานข้อมูลและพื้นที่จัดเก็บรูปภาพอย่างถาวรได้</p>
+              <p><strong>การลบรายการ:</strong> ผู้ดูแลระบบและเจ้าหน้าที่ที่มีสิทธิ์สามารถลบรายการและรูปภาพที่เกี่ยวข้องออกจากระบบอย่างถาวรได้</p>
             </div>
           </div>
     

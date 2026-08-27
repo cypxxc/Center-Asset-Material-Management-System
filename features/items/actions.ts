@@ -468,83 +468,6 @@ export async function updateItem(
   redirect(`/items/${id}`)
 }
 
-export async function softDeleteItem(id: string) {
-  const timer = startTimer()
-  const profile = await getCurrentProfile()
-
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
-    return { message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้' }
-  }
-
-  // Rate Limiter
-  const rateLimitCheck = await checkRateLimit('softDeleteItem', 30, 60000)
-  if (!rateLimitCheck.success) {
-    return { message: rateLimitCheck.error! }
-  }
-
-  const supabase = await createClient()
-  try {
-    const { error, data } = await supabase
-      .from('items')
-      .update({
-        deleted_at: new Date().toISOString(),
-        deleted_by: profile.id,
-        updated_by: profile.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id')
-
-    if (error) {
-      logger.error({ operation: 'softDeleteItem', feature: 'items', userId: profile.id, details: { id } }, error)
-      return { message: 'ไม่สามารถลบรายการได้: ' + error.message }
-    }
-
-    // RLS block จะ return error=null แต่ data=[]
-    if (!data || data.length === 0) {
-      logger.warn({ operation: 'softDeleteItem', feature: 'items', userId: profile.id, details: { note: '0 rows updated - possible RLS block or item not found', id } })
-      return { message: 'ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)' }
-    }
-
-    const timestamp = new Date().toISOString()
-    const { data: oldItem } = await supabase
-      .from('items')
-      .select('item_name, asset_no, serial_no')
-      .eq('id', id)
-      .single()
-
-    await writeAuditLog({
-      operation: 'delete',
-      feature: 'items',
-      userId: profile.id,
-      targetType: 'items',
-      targetId: id,
-      oldValues: oldItem || null,
-      newValues: { deleted_at: timestamp },
-    })
-
-    const durationMs = timer.stop()
-    const ctx = await getRequestContext(profile.id)
-    metrics.itemDeleted()
-    logger.info(withTraceContext(ctx, {
-      operation: 'softDeleteItem',
-      feature: 'items',
-      action: 'softDeleteItem',
-      userId: profile.id,
-      latency: durationMs,
-      status: 'success',
-    }))
-  } catch (err) {
-    const errRes = await handleActionError(err, 'softDeleteItem', 'items', profile.id)
-    return { message: errRes.message! }
-  }
-
-  revalidatePath('/items')
-  revalidateSidebarCache()
-  redirect('/items')
-}
-
 export async function bulkUpdateItems(ids: string[], updates: { location_id?: string; status?: string }): Promise<ActionResponse> {
   const auth = await requireEditor()
   if (auth.error || !auth.profile) {
@@ -606,12 +529,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   const supabase = await createClient()
   const { error, data } = await supabase
     .from('items')
-    .update({
-      deleted_at: new Date().toISOString(),
-      deleted_by: profile.id,
-      updated_by: profile.id,
-      updated_at: new Date().toISOString(),
-    })
+    .delete()
     .in('id', ids)
     .is('deleted_at', null)
     .select('id')
@@ -632,7 +550,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     action: 'delete',
     target_table: 'items',
     target_id: id,
-    new_data: { deleted_at: new Date().toISOString() }
+    new_data: { permanently_deleted: true }
   }))
   await supabase.from('audit_logs').insert(auditLogs)
 
@@ -641,95 +559,6 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   revalidatePath('/items')
   revalidateSidebarCache()
   return successResponse(`ลบเรียบร้อย ${ids.length} รายการ`)
-}
-
-// ============================================================
-// Trash: Restore & Hard Delete
-// ============================================================
-
-export async function restoreItem(id: string): Promise<ActionResponse> {
-  const auth = await requireDeletePermission()
-  if (auth.error || !auth.profile) {
-    logger.warn({ operation: 'restoreItem', feature: 'items', details: 'Unauthorized restore attempt' })
-    return errorResponse(auth.error ?? 'Unauthorized')
-  }
-
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('items')
-    .update({
-      deleted_at: null,
-      deleted_by: null,
-      updated_by: auth.profile.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .not('deleted_at', 'is', null)
-
-  if (error) {
-    logger.error({ operation: 'restoreItem', feature: 'items', userId: auth.profile.id, details: { id } }, error)
-    return errorResponse('ไม่สามารถกู้คืนรายการได้ กรุณาลองใหม่อีกครั้ง')
-  }
-
-  // Log in audit logs
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'restore',
-    target_table: 'items',
-    target_id: id,
-    new_data: { deleted_at: null }
-  })
-
-  logger.info({ operation: 'restoreItem', feature: 'items', userId: auth.profile.id, details: { id } })
-
-  revalidatePath('/items')
-  revalidateSidebarCache()
-  return successResponse('กู้คืนรายการเรียบร้อยแล้ว')
-}
-
-export async function bulkRestoreItems(ids: string[]): Promise<ActionResponse> {
-  const auth = await requireDeletePermission()
-  if (auth.error || !auth.profile) {
-    logger.warn({ operation: 'bulkRestoreItems', feature: 'items', details: 'Unauthorized bulk restore attempt' })
-    return errorResponse(auth.error ?? 'Unauthorized')
-  }
-
-  if (!ids.length) {
-    return errorResponse('กรุณาเลือกรายการที่ต้องการกู้คืน')
-  }
-
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('items')
-    .update({
-      deleted_at: null,
-      deleted_by: null,
-      updated_by: auth.profile.id,
-      updated_at: new Date().toISOString(),
-    })
-    .in('id', ids)
-    .not('deleted_at', 'is', null)
-
-  if (error) {
-    logger.error({ operation: 'bulkRestoreItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
-    return errorResponse('ไม่สามารถกู้คืนรายการได้: ' + error.message)
-  }
-
-  // Log in audit logs
-  const auditLogs = ids.map(id => ({
-    user_id: auth.profile!.id,
-    action: 'restore',
-    target_table: 'items',
-    target_id: id,
-    new_data: { deleted_at: null }
-  }))
-  await supabase.from('audit_logs').insert(auditLogs)
-
-  logger.info({ operation: 'bulkRestoreItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
-
-  revalidatePath('/items')
-  revalidateSidebarCache()
-  return successResponse(`กู้คืนเรียบร้อย ${ids.length} รายการ`)
 }
 
 export async function hardDeleteItem(id: string): Promise<ActionResponse> {
