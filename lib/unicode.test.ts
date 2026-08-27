@@ -79,7 +79,7 @@ test('normalizeForCompare normalizes and strips invisible characters for strict 
 test('normalizeFilename cleans filenames while preserving Unicode', () => {
   assert.equal(normalizeFilename('ภาษาไทย.PNG'), 'ภาษาไทย.png')
   assert.equal(normalizeFilename('😀.jpg'), '😀.jpg')
-  assert.equal(normalizeFilename('../../etc/passwd.txt'), '.._.._etc_passwd.txt')
+  assert.equal(normalizeFilename('../../etc/passwd.txt'), '____etc_passwd.txt')
   assert.equal(normalizeFilename('bad:name*.txt'), 'bad_name_.txt')
   assert.equal(normalizeFilename('   '), 'unnamed_file')
   assert.equal(normalizeFilename(''), '')

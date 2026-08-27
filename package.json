@@ -22,6 +22,7 @@
     "verify-env": "tsx scripts/verify-env.ts",
     "verify-db-release": "tsx scripts/verify-database-readiness.ts",
     "audit:release": "npm audit --omit=dev --audit-level=high",
+    "audit:security": "tsx scripts/verify-security.ts",
     "mcp": "tsx scripts/mcp-server.ts"
   },
   "dependencies": {

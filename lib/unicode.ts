@@ -98,9 +98,10 @@ export function normalizeFilename(filename: string): string {
     ext = clean.slice(dotIndex) // includes the dot
   }
   
-  // Replace unsafe path control characters: / \ : * ? " < > |
+  // Replace unsafe path control characters: / \ : * ? " < > | and path traversal sequences (..)
   const safeBase = base
     .replace(/[\\\/:*?"<>|]/g, '_')
+    .replace(/\.{2,}/g, '_')
     .replace(/\s+/g, ' ')
     .trim()
     
