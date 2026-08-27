@@ -33,6 +33,7 @@ import {
   updateUserEmail,
 } from '@/features/admin/actions'
 import { cn } from '@/lib/utils'
+import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { formatDisplayEmail, isInternalEmail } from '@/lib/display-email'
 import {
   buildAuditDiff,
@@ -156,6 +157,7 @@ function formatCellValue(row: Record<string, unknown>, colName: string, selected
 }
 
 export default function DBPanelClient() {
+  useRealtimeRefresh(['items', 'categories', 'locations', 'units', 'audit_logs'])
   const [activeTab, setActiveTab] = useState<TabId>('browser')
   
   // Tab 1: Tables Browser states

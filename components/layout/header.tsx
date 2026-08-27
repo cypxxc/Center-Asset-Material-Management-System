@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { 
   ChevronRight, 
-  HelpCircle, 
-  Home, 
+  Home,
   UserCog,
   X,
   Package,
@@ -16,16 +14,10 @@ import {
   History,
   Menu,
   LogOut,
-  Trash2
 } from 'lucide-react'
 import { ITEM_TYPE_LABELS, ITEM_STATUS_LABELS, ItemType, ItemStatus } from '@/features/items/types'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
-
-const HeaderGuideDialog = dynamic(
-  () => import('./header-guide-dialog').then((module) => module.HeaderGuideDialog),
-  { ssr: false },
-)
 
 interface HeaderProps {
   title?: string
@@ -38,7 +30,6 @@ interface HeaderProps {
 export function Header({ profile }: HeaderProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [showGuide, setShowGuide] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const initials = profile?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'R'
 
@@ -115,7 +106,6 @@ export function Header({ profile }: HeaderProps) {
     if (pathname === '/items') {
       const type = searchParams.get('type')
       const status = searchParams.get('status')
-      const q = searchParams.get('q')
 
       if (type) {
         breadcrumbs.push(
@@ -143,19 +133,6 @@ export function Header({ profile }: HeaderProps) {
           </span>
         )
       }
-      if (q) {
-        breadcrumbs.push(
-          <ChevronRight key="sep-q" className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-        )
-        breadcrumbs.push(
-          <span
-            key="q"
-            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 shrink-0 uppercase"
-          >
-            search:{q.toLowerCase()}
-          </span>
-        )
-      }
     }
 
     return breadcrumbs
@@ -174,49 +151,9 @@ export function Header({ profile }: HeaderProps) {
           <Menu className="h-5 w-5 text-slate-700" />
         </button>
 
-        <Link
-          href="/dashboard"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-transparent bg-slate-50 px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-200 hover:bg-slate-100 shrink-0"
-        >
-          <Home className="h-3.5 w-3.5 text-blue-600" />
-          <span className="hidden sm:inline">หน้าหลัก</span>
-        </Link>
-
         {renderBreadcrumbs()}
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <Link
-          href="/profile"
-          aria-label="การตั้งค่าบัญชีส่วนตัว"
-          className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:inline-flex"
-          title="การตั้งค่าบัญชีส่วนตัว"
-        >
-          <UserCog className="h-4 w-4" />
-        </Link>
-
-        <button
-          onClick={() => setShowGuide(true)}
-          aria-label="เปิดคู่มือการใช้งาน"
-          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
-          title="คู่มือการใช้งาน"
-          type="button"
-        >
-          <HelpCircle className="h-4 w-4" />
-        </button>
-
-        <Link
-          href="/profile"
-          aria-label="ส่วนตัว — การตั้งค่าบัญชี"
-          className="ml-1 flex h-7 w-7 items-center justify-center rounded-full border border-white bg-gradient-to-br from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-sm hover:scale-105 active:scale-95 transition-transform"
-          title="การตั้งค่าบัญชีส่วนตัว"
-        >
-          {initials}
-        </Link>
-      </div>
-
-      {/* User Guide Modal Overlay */}
-      {showGuide && <HeaderGuideDialog onClose={() => setShowGuide(false)} />}
       {/* Mobile Navigation Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -282,20 +219,6 @@ export function Header({ profile }: HeaderProps) {
                 <Package className="h-4 w-4 text-slate-500" />
                 <span>วัสดุสิ้นเปลือง (Supplies)</span>
               </Link>
-
-              {profile?.role && ['admin', 'staff'].includes(profile.role) && (
-                <Link
-                  href="/items?deleted=true"
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                    searchParams.get('deleted') === 'true' ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"
-                  )}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                  <span>ถังขยะ (Trash)</span>
-                </Link>
-              )}
 
               <Link
                 href="/settings"

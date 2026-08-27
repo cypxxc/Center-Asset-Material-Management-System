@@ -23,6 +23,7 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import {
   buildAuditDiff,
   getAuditActionLabel,
@@ -140,6 +141,7 @@ export default function AuditLogsClient({
   initialTotalCount,
   initialSearchParams,
 }: AuditLogsClientProps) {
+  useRealtimeRefresh(['audit_logs'])
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()

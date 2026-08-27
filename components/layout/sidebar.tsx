@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
@@ -18,14 +18,12 @@ import {
   Package,
   Plus,
   Settings,
-  Trash,
   User,
   UserCog,
   Database,
   History,
-  GripVertical,
 } from 'lucide-react'
-import { signOut, updateSidebarOrder } from '@/features/auth/actions'
+import { signOut } from '@/features/auth/actions'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -45,32 +43,6 @@ interface SidebarProps {
       trash_count: number
     }
   }
-}
-
-const DEFAULT_WIDTH = 260
-const MIN_WIDTH = 200
-const MAX_WIDTH = 450
-const STORAGE_KEY = 'camms_sidebar_width'
-
-function subscribeSidebarWidth(callback: () => void) {
-  window.addEventListener('storage', callback)
-  return () => window.removeEventListener('storage', callback)
-}
-
-function getSidebarWidthSnapshot(): number {
-  if (typeof window === 'undefined') return DEFAULT_WIDTH
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved) {
-    const parsed = parseInt(saved, 10)
-    if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
-      return parsed
-    }
-  }
-  return DEFAULT_WIDTH
-}
-
-function getSidebarWidthServerSnapshot(): number {
-  return DEFAULT_WIDTH
 }
 
 const roleLabels: Record<string, string> = {
@@ -110,54 +82,9 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const currentType = searchParams.get('type')
   const currentCategory = searchParams.get('category_id')
   const currentLocation = searchParams.get('location_id')
-  const currentDeleted = searchParams.get('deleted')
 
-  const storedWidth = useSyncExternalStore(
-    subscribeSidebarWidth,
-    getSidebarWidthSnapshot,
-    getSidebarWidthServerSnapshot
-  )
-  const [activeWidth, setActiveWidth] = useState<number | null>(null)
-  const sidebarWidth = activeWidth ?? storedWidth
-  const [isResizing, setIsResizing] = useState(false)
-  const sidebarWidthRef = useRef(sidebarWidth)
-
-  useEffect(() => {
-    if (!isResizing) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH)
-      setActiveWidth(newWidth)
-      sidebarWidthRef.current = newWidth
-    }
-
-    const handleMouseUp = () => {
-      setIsResizing(false)
-      localStorage.setItem(STORAGE_KEY, sidebarWidthRef.current.toString())
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isResizing])
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsResizing(true)
-  }
-
-  const handleDoubleClick = () => {
-    setActiveWidth(DEFAULT_WIDTH)
-    sidebarWidthRef.current = DEFAULT_WIDTH
-    localStorage.setItem(STORAGE_KEY, DEFAULT_WIDTH.toString())
-  }
-
-  const [assetsFolderExpanded, setAssetsFolderExpanded] = useState(true)
-  const [locationsFolderExpanded, setLocationsFolderExpanded] = useState(true)
+  const [assetsFolderExpanded, setAssetsFolderExpanded] = useState(false)
+  const [locationsFolderExpanded, setLocationsFolderExpanded] = useState(false)
 
   const categories = sidebarData?.categories ?? []
   const locations = sidebarData?.locations ?? []
@@ -170,7 +97,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const totalAssetsCount = counts.total_assets
   const totalSuppliesCount = counts.total_supplies
-  const trashCount = counts.trash_count
 
   const getCategoryCount = (catId: string) => {
     return categories.find((c) => c.id === catId)?.count ?? 0
@@ -184,58 +110,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const isStaff = profile?.role === 'staff'
   const canWrite = isAdmin || isStaff
 
-  const [itemsOrder, setItemsOrder] = useState<string[]>(() => {
-    if (profile?.sidebar_order && Array.isArray(profile.sidebar_order) && profile.sidebar_order.length === 5) {
-      return profile.sidebar_order
-    }
-    return ['overview', 'supplies', 'assets', 'locations', 'reports']
-  })
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index)
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/plain', index.toString())
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    if (draggedIndex === null || draggedIndex === index) return
-    setDragOverIndex(index)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    if (draggedIndex === null || dragOverIndex === null || draggedIndex === dragOverIndex) {
-      handleDragEnd()
-      return
-    }
-
-    const newOrder = [...itemsOrder]
-    const [draggedItem] = newOrder.splice(draggedIndex, 1)
-    newOrder.splice(dragOverIndex, 0, draggedItem)
-
-    // Optimistic state update
-    setItemsOrder(newOrder)
-    handleDragEnd()
-
-    try {
-      const res = await updateSidebarOrder(newOrder)
-      if (res.error) {
-        // Order save failed — UI reverts on next navigation refresh
-      }
-    } catch {
-      // Non-blocking: sidebar order persists locally until next successful save
-    }
-  }
+  const itemsOrder = ['overview', 'all-items', 'assets', 'supplies', 'locations', 'reports']
 
   const renderMenuItem = (key: string) => {
     switch (key) {
@@ -251,7 +126,14 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             )}
           >
             <Grid className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
-            <span className="truncate">Overview Console</span>
+            <span className="truncate">แผงควบคุม</span>
+          </Link>
+        )
+      case 'all-items':
+        return (
+          <Link href="/items" className={cn('flex items-center px-2.5 py-2 rounded-lg transition-all', pathname === '/items' && !currentType && !currentCategory && !currentLocation ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50' : 'hover:bg-slate-50 hover:text-slate-800')}>
+            <Package className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
+            <span className="truncate">รายการทั้งหมด</span>
           </Link>
         )
       case 'supplies':
@@ -267,7 +149,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           >
             <div className="flex items-center min-w-0 flex-1">
               <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
-              <span className="truncate">Supplies (วัสดุสิ้นเปลือง)</span>
+              <span className="truncate">วัสดุสิ้นเปลือง</span>
             </div>
             <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               {totalSuppliesCount}
@@ -285,8 +167,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   : 'hover:bg-slate-50 hover:text-slate-800'
               )}
             >
-              <Link href="/items?type=asset" className="flex items-center min-w-0 flex-1">
-                <span
+              <button
+                  type="button"
+                  aria-label="แสดงหรือซ่อนหมวดหมู่ครุภัณฑ์"
+                  aria-expanded={assetsFolderExpanded}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -295,9 +179,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   className="p-0.5 hover:bg-slate-200/50 rounded mr-1 transition-colors flex items-center"
                 >
                   {assetsFolderExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                </span>
+                </button>
+              <Link href="/items?type=asset" className="flex items-center min-w-0 flex-1">
                 <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
-                <span className="truncate">Assets (ครุภัณฑ์)</span>
+                <span className="truncate">ครุภัณฑ์</span>
               </Link>
               <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {totalAssetsCount}
@@ -343,8 +228,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   : 'hover:bg-slate-50 hover:text-slate-800'
               )}
             >
-              <Link href="/locations" className="flex items-center min-w-0 flex-1">
-                <span
+              <button
+                  type="button"
+                  aria-label="แสดงหรือซ่อนรายการสถานที่"
+                  aria-expanded={locationsFolderExpanded}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -353,9 +240,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   className="p-0.5 hover:bg-slate-200/50 rounded mr-1 transition-colors flex items-center"
                 >
                   {locationsFolderExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                </span>
+                </button>
+              <Link href="/locations" className="flex items-center min-w-0 flex-1">
                 <MapPin className="w-4 h-4 mr-2 text-rose-500 flex-shrink-0" />
-                <span className="truncate">Locations (สถานที่ตั้ง)</span>
+                <span className="truncate">สถานที่</span>
               </Link>
               <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {locations.length}
@@ -399,7 +287,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             )}
           >
             <BarChart2 className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
-            <span className="truncate">Reports & Analytics</span>
+            <span className="truncate">รายงาน</span>
           </Link>
         )
       default:
@@ -408,10 +296,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   }
 
   return (
-    <aside
-      style={{ width: `${sidebarWidth}px` }}
-      className="relative z-30 hidden h-full shrink-0 select-none flex-col border-r border-slate-200 bg-white md:flex"
-    >
+    <aside className="relative z-30 hidden h-full w-[256px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
       {/* Brand Header */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-slate-200 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
@@ -425,13 +310,11 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Directory tree explorer view */}
       <div className="px-4 py-3 border-b border-slate-100">
-        <h2 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+        <h2 className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
           <FolderOpen className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-          <span>Directory Tree</span>
+          <span>งานหลัก</span>
         </h2>
-        <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">Inventory File System</p>
         
         {canWrite && (
           <Link
@@ -445,34 +328,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 text-xs font-medium text-slate-600 space-y-1">
-        {itemsOrder.map((key, index) => {
-          const isDragged = draggedIndex === index
-          const isOver = dragOverIndex === index
+        {itemsOrder.map((key) => {
 
           return (
-            <div
-              key={key}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={() => setDragOverIndex(null)}
-              onDragEnd={handleDragEnd}
-              onDrop={handleDrop}
-              className={cn(
-                'group relative flex items-start gap-1 rounded-lg transition-all duration-200 border border-transparent',
-                isDragged && 'opacity-40 border-dashed border-slate-300 bg-slate-50',
-                isOver && 'border-blue-400 bg-blue-50/30 scale-[1.01] shadow-sm',
-                !isDragged && !isOver && 'hover:bg-slate-50/50'
-              )}
-            >
-              {/* Drag Handle - Grip icon visible on hover */}
-              <div 
-                className="flex items-center justify-center self-center cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 shrink-0 select-none"
-                title="ลากเพื่อย้ายตำแหน่ง"
-              >
-                <GripVertical className="w-3.5 h-3.5" />
-              </div>
-
+            <div key={key} className="min-w-0">
               <div className="flex-1 min-w-0">
                 {renderMenuItem(key)}
               </div>
@@ -483,26 +342,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
       {/* Footer Area: Settings, Trash, Profile, Logout */}
       <div className="px-2.5 pt-3 border-t border-slate-200 bg-slate-50/30 text-xs">
-        {/* Trash Link (Soft-deleted items) - Visible for Admins and Staff */}
-        {canWrite && (
-          <Link
-            href="/items?deleted=true"
-            className={cn(
-              'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all',
-              pathname === '/items' && currentDeleted === 'true'
-                ? 'bg-red-50 text-red-700 font-bold'
-                : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
-            )}
-          >
-            <div className="flex items-center">
-              <Trash className="w-4 h-4 mr-2.5 text-red-400" />
-              <span>Trash (ถังขยะ)</span>
-            </div>
-            <span className="text-[10px] font-bold bg-red-100 px-1.5 py-0.5 rounded text-red-500">
-              {trashCount}
-            </span>
-          </Link>
-        )}
 
         {/* System Settings - Admin & Staff */}
         {canWrite && (
@@ -595,23 +434,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         </form>
       </div>
 
-      {/* Resizable Drag Handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        onDoubleClick={handleDoubleClick}
-        title="ลากเพื่อปรับขนาดแถบข้าง (ดับเบิ้ลคลิกเพื่อรีเซ็ต)"
-        className={cn(
-          'absolute top-0 right-0 bottom-0 w-1.5 cursor-col-resize z-40 transition-colors group',
-          isResizing ? 'bg-blue-500/50' : 'hover:bg-blue-500/30'
-        )}
-      >
-        <div
-          className={cn(
-            'absolute top-1/2 right-0 -translate-y-1/2 w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-500 transition-colors opacity-0 group-hover:opacity-100',
-            isResizing && 'opacity-100 bg-blue-500'
-          )}
-        />
-      </div>
     </aside>
   )
 }

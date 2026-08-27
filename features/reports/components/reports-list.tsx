@@ -14,6 +14,7 @@ import { generateReportPdf } from '@/lib/reports-pdf-generator'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
+import { RealtimeRefreshBridge } from '@/components/realtime-refresh-bridge'
 import { CategoryComboChart } from '@/features/reports/components/category-combo-chart'
 import {
   DataTable,
@@ -223,6 +224,8 @@ export function ReportsList({
   )
 
   return (
+    <>
+      <RealtimeRefreshBridge tables={['items', 'categories', 'locations', 'units']} />
     <PageContainer className="print:bg-white print:p-0">
       
       {/* Printable Report Header */}
@@ -507,5 +510,6 @@ export function ReportsList({
         </div>
 
     </PageContainer>
+    </>
   )
 }

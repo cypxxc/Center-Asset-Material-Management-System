@@ -30,7 +30,6 @@ test('AssetTagModal renders null when isOpen is false', () => {
 
   assert.equal(container.innerHTML, '')
 })
-
 test('AssetTagModal renders title, item info, and barcode when open', () => {
   render(
     React.createElement(AssetTagModal, {
@@ -51,7 +50,7 @@ test('AssetTagModal renders title, item info, and barcode when open', () => {
   assert.ok(barcodeSvgs.length >= 1)
 })
 
-test('AssetTagModal supports A4 sheet presets and thermal presets', () => {
+test('AssetTagModal supports standard and custom presets', () => {
   render(
     React.createElement(AssetTagModal, {
       isOpen: true,
@@ -60,23 +59,15 @@ test('AssetTagModal supports A4 sheet presets and thermal presets', () => {
     })
   )
 
-  // Verify all 6 presets are listed
-  const a4_3x8_Btn = screen.getByRole('button', { name: /A4 3×8/ })
-  const a4_2x7_Btn = screen.getByRole('button', { name: /A4 2×7/ })
-  const customGridBtn = screen.getByRole('button', { name: /A4 กำหนดเอง/ })
-  const standardBtn = screen.getByRole('button', { name: /Standard \(70×35mm\)/ })
-  const smallBtn = screen.getByRole('button', { name: /Small \(50×25mm\)/ })
-  const compactBtn = screen.getByRole('button', { name: /Compact \(40×20mm\)/ })
+  // Verify 2 presets are listed
+  const standardBtn = screen.getByRole('button', { name: /แบบมาตรฐาน/ })
+  const customGridBtn = screen.getByRole('button', { name: /แบบกำหนดเอง/ })
 
-  assert.ok(a4_3x8_Btn)
-  assert.ok(a4_2x7_Btn)
-  assert.ok(customGridBtn)
   assert.ok(standardBtn)
-  assert.ok(smallBtn)
-  assert.ok(compactBtn)
+  assert.ok(customGridBtn)
 
-  // Click A4 3x8 preset
-  fireEvent.click(a4_3x8_Btn)
+  // Click Standard preset (16 per page)
+  fireEvent.click(standardBtn)
   
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
   assert.equal(pages.length, 1)
@@ -87,18 +78,10 @@ test('AssetTagModal supports A4 sheet presets and thermal presets', () => {
   assert.equal(firstBox.style.width, '100%')
   assert.equal(firstBox.style.height, '100%')
 
-  // Click A4 2x7 preset
-  fireEvent.click(a4_2x7_Btn)
+  // Click Custom Grid preset
+  fireEvent.click(customGridBtn)
   const updatedPages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
   assert.equal(updatedPages.length, 1)
-  
-  // Click small thermal preset
-  fireEvent.click(smallBtn)
-  const printableContainer = document.querySelector('#printable-asset-tag') as HTMLElement
-  assert.ok(printableContainer.querySelector('.print-thermal-roll'))
-  const thermalBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
-  assert.equal((thermalBoxes[0] as HTMLElement).style.width, '50mm')
-  assert.equal((thermalBoxes[0] as HTMLElement).style.height, '25mm')
 })
 
 test('AssetTagModal chunks expandedPrintList into multiple pages for A4 sheet', () => {
@@ -110,13 +93,13 @@ test('AssetTagModal chunks expandedPrintList into multiple pages for A4 sheet', 
     })
   )
   
-  // Select A4 3x8 preset (24 per page)
-  const a4_3x8_Btn = screen.getByRole('button', { name: /A4 3×8/ })
-  fireEvent.click(a4_3x8_Btn)
+  // Select Standard preset (10 per page)
+  const standardBtn = screen.getByRole('button', { name: /แบบมาตรฐาน/ })
+  fireEvent.click(standardBtn)
   
-  // Set 25 copies
+  // Set 11 copies -> should yield 2 pages
   const copyInput = screen.getByRole('spinbutton', { name: 'จำนวนสำเนาลาเบล' })
-  fireEvent.change(copyInput, { target: { value: '25' } })
+  fireEvent.change(copyInput, { target: { value: '11' } })
   
   // Should yield 2 .print-page-a4 elements
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
@@ -303,7 +286,7 @@ test('AssetTagModal renders Direct Link QR Code SVG element for mobile phone sca
 
   const qrSvgs = screen.getAllByRole('img', { name: /QR Code ลิงก์/ })
   assert.ok(qrSvgs.length >= 1)
-  assert.ok(screen.getAllByText('มือถือสแกน').length >= 1)
+  assert.ok(screen.getAllByText('สแกนตรวจสอบ').length >= 1)
 })
 
 test('AssetTagModal supports custom grid preset, column/row adjustments, and margin/gap settings', () => {
@@ -316,12 +299,12 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   )
 
   // Select custom grid preset
-  const customGridBtn = screen.getByRole('button', { name: /A4 กำหนดเอง/ })
+  const customGridBtn = screen.getByRole('button', { name: /แบบกำหนดเอง/ })
   fireEvent.click(customGridBtn)
 
   // Verify custom grid settings control panel is visible
   assert.ok(screen.getByText('ตั้งค่าตาราง Grid (คอลัมน์ × แถว บน A4)'))
-  assert.ok(screen.getByText(/ขนาดป้ายต่อดวง:/))
+  assert.ok(screen.getByText(/ขนาดต่อดวง:/))
 
   // Find column number input and row number input
   const colInput = screen.getByRole('spinbutton', { name: 'ช่องกรอกจำนวนคอลัมน์' })
@@ -331,11 +314,11 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   fireEvent.change(colInput, { target: { value: '2' } })
   fireEvent.change(rowInput, { target: { value: '6' } })
 
-  // Default margins (top:5, bottom:5, left:5, right:5) and gap (2.5):
-  // width = (210 - 10 - 1 * 2.5) / 2 = 197.5 / 2 = 98.75 -> 98.8 mm
-  // height = (297 - 10 - 5 * 2.5) / 6 = 274.5 / 6 = 45.75 -> 45.8 mm
-  assert.ok(screen.getAllByText(/98.8 × 45.8 mm/).length >= 1)
-  assert.ok(screen.getAllByText(/รวม 12 ป้าย\/แผ่น/).length >= 1)
+  // Default margins (top:8, bottom:8, left:6, right:6) and gap (3):
+  // width = (210 - 12 - 1 * 3) / 2 = 195 / 2 = 97.5 mm
+  // height = (297 - 16 - 5 * 3) / 6 = 266 / 6 = 44.33 -> 44.3 mm
+  assert.ok(screen.getAllByText(/97.5 × 44.3 มม/).length >= 1)
+  assert.ok(screen.getAllByText(/รวม 12 ดวง\/แผ่น/).length >= 1)
 
   // Verify printable asset tag updates with computed styles
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
@@ -353,9 +336,9 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   const topMarginInput = screen.getByRole('spinbutton', { name: 'ระยะขอบบน (mm)' })
   fireEvent.change(topMarginInput, { target: { value: '10' } })
 
-  // width = (210 - 10 - 1 * 5) / 2 = 195 / 2 = 97.5 mm
-  // height = (297 - 15 - 5 * 5) / 6 = 257 / 6 = 42.833 -> 42.8 mm
-  assert.ok(screen.getAllByText(/97.5 × 42.8 mm/).length >= 1)
+  // width = (210 - 12 - 1 * 5) / 2 = 193 / 2 = 96.5 mm
+  // height = (297 - 18 - 5 * 5) / 6 = 254 / 6 = 42.33 -> 42.3 mm
+  assert.ok(screen.getAllByText(/96.5 × 42.3 มม/).length >= 1)
 })
 
 test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
@@ -367,10 +350,7 @@ test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
     })
   )
 
-  // Switch to an A4 Sheet preset (e.g. A4 3x8)
-  const a4_3x8_Btn = screen.getByRole('button', { name: /A4 3×8/ })
-  fireEvent.click(a4_3x8_Btn)
-
+  // Default is Standard preset (16 slots: 2 cols * 8 rows)
   // Verify Single vs Sheet preview toggle buttons exist
   const singleToggle = screen.getByRole('button', { name: 'ดูตัวอย่างแบบดวงเดี่ยว (Single)' })
   const sheetToggle = screen.getByRole('button', { name: 'ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)' })
@@ -385,9 +365,9 @@ test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
   const sheetPreview = document.querySelector('[data-testid="a4-sheet-preview"]')
   assert.ok(sheetPreview)
 
-  // A4 3x8 has 24 slots (3 cols * 8 rows)
+  // Standard preset has 10 slots (2 cols * 5 rows)
   const slots = sheetPreview.querySelectorAll('.grid > div')
-  assert.equal(slots.length, 24)
+  assert.equal(slots.length, 10)
 
   // First slot should display mockItem name
   assert.ok(slots[0].textContent?.includes('เก้าอี้สำนักงานเพื่อสุขภาพ'))
@@ -444,4 +424,38 @@ test('getTypographyForHeight returns scalable text styles and heights', () => {
   assert.equal(compact.barcodeHeight, 'h-3.5')
   assert.equal(compact.nameSize, 'text-[8.5px] font-bold')
 })
+
+test('AssetTagModal renders dashed cut guide lines by default and supports toggling off', () => {
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: mockItem,
+    })
+  )
+
+  // Verify printable tags have dashed cut guide class by default
+  const printableCard = document.querySelector('#printable-asset-tag .print-tag-card') as HTMLElement
+  assert.ok(printableCard)
+  assert.ok(printableCard.classList.contains('cut-guide-dashed'))
+  assert.ok(printableCard.classList.contains('border-dashed'))
+
+  // Open customize fields panel
+  const customizeBtn = screen.getByRole('button', { name: /ปรับแต่งฟิลด์/ })
+  fireEvent.click(customizeBtn)
+
+  // Find Cut Lines checkbox
+  const cutLinesCheckbox = screen.getByLabelText(/เส้นประสำหรับตัด/)
+  assert.ok(cutLinesCheckbox)
+  assert.equal((cutLinesCheckbox as HTMLInputElement).checked, true)
+
+  // Toggle Cut Lines checkbox to OFF
+  fireEvent.click(cutLinesCheckbox)
+  assert.equal((cutLinesCheckbox as HTMLInputElement).checked, false)
+
+  // Printable tag should now have solid border class
+  assert.ok(printableCard.classList.contains('cut-guide-solid'))
+  assert.ok(!printableCard.classList.contains('cut-guide-dashed'))
+})
+
 

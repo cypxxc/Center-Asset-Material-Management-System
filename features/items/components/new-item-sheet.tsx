@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { X, Plus, Info } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { ItemForm } from './item-form'
-import { createItemInline } from '../actions'
-import { ReferenceOption } from '../types'
+import { createItemInline, updateItem } from '../actions'
+import { ItemDetail, ReferenceOption } from '../types'
+import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 
 const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
 
@@ -15,6 +16,8 @@ interface NewItemSheetProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
+  assetNumberTemplates?: AssetNumberTemplate[]
+  item?: ItemDetail | null
 }
 
 function getDraftControls(root: ParentNode) {
@@ -55,6 +58,12 @@ function saveDraft(root: ParentNode) {
   window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
 }
 
+function formSignature(root: ParentNode) {
+  return getDraftControls(root)
+    .map((control) => `${control.name}\u0000${control.value}`)
+    .join('\u0001')
+}
+
 export function NewItemSheet({
   open,
   onClose,
@@ -62,8 +71,11 @@ export function NewItemSheet({
   categories,
   locations,
   units,
+  assetNumberTemplates = [],
+  item = null,
 }: NewItemSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const initialFormSignatureRef = useRef('')
   const [formVersion, setFormVersion] = useState(0)
 
   useEffect(() => {
@@ -83,6 +95,7 @@ export function NewItemSheet({
     const dialog = dialogRef.current
     if (!open || !dialog) return
     restoreDraft(dialog)
+    initialFormSignatureRef.current = formSignature(dialog)
   }, [open, formVersion])
 
   useEffect(() => {
@@ -102,23 +115,7 @@ export function NewItemSheet({
   const isFormDirty = useCallback(() => {
     const dialog = dialogRef.current
     if (!dialog) return false
-    const inputs = dialog.querySelectorAll('input, select, textarea')
-    for (let i = 0; i < inputs.length; i++) {
-      const input = inputs[i] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-      if (input.tagName === 'INPUT' && (input.type === 'text' || input.type === 'number')) {
-        if (input.value !== input.defaultValue) return true
-      }
-      if (input.tagName === 'TEXTAREA') {
-        const textarea = input as HTMLTextAreaElement
-        if (textarea.value !== textarea.defaultValue) return true
-      }
-      if (input.tagName === 'SELECT') {
-        const select = input as HTMLSelectElement
-        const selectedOption = select.options[select.selectedIndex]
-        if (!selectedOption?.defaultSelected) return true
-      }
-    }
-    return false
+    return formSignature(dialog) !== initialFormSignatureRef.current
   }, [])
 
   const handleSuccess = useCallback(() => {
@@ -129,7 +126,7 @@ export function NewItemSheet({
 
   const handleCloseAttempt = useCallback(() => {
     if (isFormDirty()) {
-      const confirmClose = window.confirm('คุณต้องการปิดโดยไม่บันทึกใช่หรือไม่? ข้อมูลพัสดุที่คุณพิมพ์ไว้จะสูญหาย')
+      const confirmClose = window.confirm('ปิดแบบฟอร์มหรือไม่? ระบบบันทึกร่างไว้แล้ว คุณกลับมากรอกต่อได้')
       if (!confirmClose) return
     }
     onClose()
@@ -179,11 +176,8 @@ export function NewItemSheet({
             </div>
             <div>
               <h2 className="text-base font-black tracking-tight text-slate-900">
-                เพิ่มรายการสิ่งของใหม่
+                {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
               </h2>
-              <p className="text-[11px] text-slate-500 leading-tight">
-                บันทึกสิ่งของ วัสดุ หรือครุภัณฑ์เข้าสู่ทะเบียน
-              </p>
             </div>
           </div>
           <button
@@ -196,23 +190,18 @@ export function NewItemSheet({
           </button>
         </div>
 
-        {/* Info banner */}
-        <div className="new-item-sheet-banner">
-          <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
-          <p className="text-[11px] text-blue-700 leading-relaxed">
-            เลือกประเภทให้ตรงกับการใช้งานจริง — ระบบนี้เป็นทะเบียนสิ่งของ
-            ไม่ใช่ระบบรับเข้า/เบิกออก
-          </p>
-        </div>
-
         {/* Scrollable form body */}
         <div className="new-item-sheet-body">
           <ItemForm
             key={formVersion}
-            action={createItemInline}
+            action={item ? updateItem.bind(null, item.id) : createItemInline}
             categories={categories}
             locations={locations}
             units={units}
+            assetNumberTemplates={assetNumberTemplates}
+            item={item ?? undefined}
+            inline
+            onCancel={handleCloseAttempt}
             onSuccess={handleSuccess}
           />
         </div>
@@ -268,18 +257,6 @@ export function NewItemSheet({
           background: #fff;
           flex-shrink: 0;
           z-index: 1;
-        }
-
-        .new-item-sheet-banner {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-          margin: 12px 20px 0;
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-radius: 10px;
-          padding: 10px 12px;
-          flex-shrink: 0;
         }
 
         .new-item-sheet-body {

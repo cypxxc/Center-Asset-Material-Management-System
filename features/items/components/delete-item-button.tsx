@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { softDeleteItem } from '../actions'
+import { hardDeleteItem } from '../actions'
 
 const ConfirmDialog = dynamic(
   () => import('@/components/ui/confirm-dialog').then((mod) => mod.ConfirmDialog),
@@ -17,7 +17,7 @@ export function DeleteItemButton({ id }: { id: string }) {
 
   const handleDelete = () => {
     startTransition(async () => {
-      const result = await softDeleteItem(id)
+      const result = await hardDeleteItem(id)
       if (result?.message) {
         alert(result.message)
         setShowConfirm(false)
@@ -41,7 +41,7 @@ export function DeleteItemButton({ id }: { id: string }) {
       <ConfirmDialog
         open={showConfirm}
         title="ยืนยันการลบพัสดุ"
-        description="คุณแน่ใจหรือไม่ว่าต้องการนำรายการนี้ไปยังถังขยะ?"
+        description="รายการและรูปภาพที่เกี่ยวข้องจะถูกลบถาวร และไม่สามารถกู้คืนจากระบบได้"
         confirmText="ลบรายการ"
         cancelText="ยกเลิก"
         variant="destructive"
@@ -52,4 +52,3 @@ export function DeleteItemButton({ id }: { id: string }) {
     </>
   )
 }
-

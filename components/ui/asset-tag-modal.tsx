@@ -18,7 +18,6 @@ export interface ItemStickerData {
   responsible_person?: string | null
   unit_price?: number | null
 }
-
 export interface AssetTagModalProps {
   isOpen: boolean
   onClose: () => void
@@ -26,7 +25,7 @@ export interface AssetTagModalProps {
   items?: ItemStickerData[]
 }
 
-export type StickerSizePreset = "a4_3x8" | "a4_2x7" | "standard" | "small" | "compact" | "custom_grid"
+export type StickerSizePreset = "standard" | "custom_grid"
 
 export interface CustomGridConfig {
   cols: number
@@ -71,6 +70,7 @@ export interface FieldVisibilityConfig {
   showPrice: boolean
   showBarcode: boolean
   showQr: boolean
+  showCutLines: boolean
 }
 
 export function calculateCustomGridDimensions(config: CustomGridConfig): { width: number; height: number } {
@@ -135,122 +135,55 @@ export function getTypographyForHeight(heightMm: number): {
 }
 
 export const PRESETS: Record<StickerSizePreset, PresetConfig> = {
-  a4_3x8: {
-    id: "a4_3x8",
-    label: "A4 3×8 (24 ป้าย/แผ่น)",
-    isSheet: true,
-    sheetGrid: {
-      cols: 3,
-      rows: 8,
-      labelWidth: "68mm",
-      labelHeight: "35mm",
-      gap: "2.5mm",
-      marginTop: 5,
-      marginBottom: 5,
-      marginLeft: 5,
-      marginRight: 5,
-    },
-    width: "68mm",
-    height: "35mm",
-    padding: "p-2",
-    titleSize: "text-[8.5px]",
-    nameSize: "text-[10.5px] font-bold",
-    metaSize: "text-[8.5px]",
-    barcodeHeight: "h-5",
-    codeSize: "text-[9px]",
-    qrSize: "h-11 w-11",
-  },
-  a4_2x7: {
-    id: "a4_2x7",
-    label: "A4 2×7 (14 ป้าย/แผ่น)",
+  standard: {
+    id: "standard",
+    label: "แบบมาตรฐาน (2×5 / 10 ป้ายต่อแผ่น)",
     isSheet: true,
     sheetGrid: {
       cols: 2,
-      rows: 7,
-      labelWidth: "100mm",
-      labelHeight: "40mm",
-      gap: "2.5mm",
-      marginTop: 5,
-      marginBottom: 5,
-      marginLeft: 5,
-      marginRight: 5,
+      rows: 5,
+      labelWidth: "96mm",
+      labelHeight: "54mm",
+      gap: "3mm 4mm",
+      marginTop: 8,
+      marginBottom: 8,
+      marginLeft: 6,
+      marginRight: 6,
     },
-    width: "100mm",
-    height: "40mm",
-    padding: "p-2.5",
-    titleSize: "text-[9.5px]",
-    nameSize: "text-[11.5px] font-bold",
-    metaSize: "text-[9px]",
-    barcodeHeight: "h-6",
-    codeSize: "text-[10px]",
-    qrSize: "h-13 w-13",
-  },
-  custom_grid: {
-    id: "custom_grid",
-    label: "A4 กำหนดเอง (Custom Grid)",
-    isSheet: true,
-    sheetGrid: {
-      cols: 3,
-      rows: 8,
-      labelWidth: "65.0mm",
-      labelHeight: "33.7mm",
-      gap: "2.5mm",
-      marginTop: 5,
-      marginBottom: 5,
-      marginLeft: 5,
-      marginRight: 5,
-    },
-    width: "65.0mm",
-    height: "33.7mm",
-    padding: "p-2",
-    titleSize: "text-[8.5px]",
-    nameSize: "text-[10.5px] font-bold",
-    metaSize: "text-[8.5px]",
-    barcodeHeight: "h-5",
-    codeSize: "text-[9px]",
-    qrSize: "h-11 w-11",
-  },
-  standard: {
-    id: "standard",
-    label: "Standard (70×35mm)",
-    isSheet: false,
-    width: "70mm",
-    height: "35mm",
-    padding: "p-2.5",
-    titleSize: "text-[9px]",
-    nameSize: "text-[11px] font-bold",
-    metaSize: "text-[9px]",
-    barcodeHeight: "h-6",
+    width: "96mm",
+    height: "54mm",
+    padding: "p-3",
+    titleSize: "text-[10px]",
+    nameSize: "text-xs font-bold",
+    metaSize: "text-[9.5px]",
+    barcodeHeight: "h-7",
     codeSize: "text-[10px]",
     qrSize: "h-14 w-14",
   },
-  small: {
-    id: "small",
-    label: "Small (50×25mm)",
-    isSheet: false,
-    width: "50mm",
-    height: "25mm",
-    padding: "p-1.5",
-    titleSize: "text-[7.5px]",
-    nameSize: "text-[9.5px] font-bold",
-    metaSize: "text-[7.5px]",
-    barcodeHeight: "h-4.5",
-    codeSize: "text-[8px]",
-    qrSize: "h-9 w-9",
-  },
-  compact: {
-    id: "compact",
-    label: "Compact (40×20mm)",
-    isSheet: false,
-    width: "40mm",
-    height: "20mm",
-    padding: "p-1",
-    titleSize: "text-[6.5px]",
-    nameSize: "text-[8.5px] font-bold",
-    metaSize: "text-[6.5px]",
-    barcodeHeight: "h-3.5",
-    codeSize: "text-[7px]",
-    qrSize: "h-7 w-7",
+  custom_grid: {
+    id: "custom_grid",
+    label: "แบบกำหนดเอง (Custom Preset)",
+    isSheet: true,
+    sheetGrid: {
+      cols: 2,
+      rows: 5,
+      labelWidth: "96.0mm",
+      labelHeight: "54.0mm",
+      gap: "3mm 4mm",
+      marginTop: 8,
+      marginBottom: 8,
+      marginLeft: 6,
+      marginRight: 6,
+    },
+    width: "96.0mm",
+    height: "54.0mm",
+    padding: "p-3",
+    titleSize: "text-[10px]",
+    nameSize: "text-xs font-bold",
+    metaSize: "text-[9.5px]",
+    barcodeHeight: "h-7",
+    codeSize: "text-[10px]",
+    qrSize: "h-14 w-14",
   },
 }
 
@@ -297,7 +230,11 @@ function SingleStickerItem({
         width: isSheetCell ? "100%" : presetConfig.width,
         height: isSheetCell ? "100%" : presetConfig.height,
       }}
-      className={`print-tag-card bg-white text-slate-900 border border-slate-900 shadow-xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
+      className={`print-tag-card label-card bg-white text-slate-900 ${
+        visibility.showCutLines
+          ? "border border-dashed border-slate-400 cut-guide-dashed"
+          : "border border-solid border-slate-900 cut-guide-solid"
+      } rounded-xs shadow-2xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
     >
       {/* Sticker Header */}
       {visibility.showOrg && (
@@ -308,10 +245,10 @@ function SingleStickerItem({
         </div>
       )}
 
-      {/* Sticker Content Area: Dual Column (Left Details + Barcode, Right QR Code) */}
+      {/* Sticker Content Area: Dual Column (Left 75-80% Details + Barcode, Right 20-25% QR Code) */}
       <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0 min-w-0 w-full">
-        {/* Left Column: Details & Code 128 Barcode */}
-        <div className="flex-1 flex flex-col justify-between min-w-0">
+        {/* Left Column (75-80%): Details & Code 128 Barcode with Bold Asset ID */}
+        <div className="flex-[4] flex flex-col justify-between min-w-0">
           <div className="space-y-0.5 min-h-0 min-w-0">
             <div className={`truncate leading-tight ${presetConfig.nameSize}`} title={itemData.item_name}>
               {itemData.item_name}
@@ -362,7 +299,7 @@ function SingleStickerItem({
                     ))}
                   </svg>
                   <div
-                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider truncate min-w-0 max-w-full`}
+                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider truncate min-w-0 max-w-full mt-0.5`}
                   >
                     {barcodeText}
                   </div>
@@ -376,9 +313,9 @@ function SingleStickerItem({
           )}
         </div>
 
-        {/* Right Column: Direct Link QR Code for Mobile Phones */}
+        {/* Right Column (20-25%): Direct Link QR Code with "สแกนตรวจสอบ" text */}
         {visibility.showQr && qrCodeData && (
-          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
+          <div className="flex-1 flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
             <svg
               viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
               className={presetConfig.qrSize}
@@ -387,8 +324,8 @@ function SingleStickerItem({
             >
               <path d={qrCodeData.path} fill="black" />
             </svg>
-            <span className="text-[6px] font-bold text-slate-500 tracking-tighter leading-none mt-0.5 uppercase">
-              มือถือสแกน
+            <span className="text-[6.5px] font-bold text-slate-600 tracking-tighter leading-none mt-0.5 whitespace-nowrap">
+              สแกนตรวจสอบ
             </span>
           </div>
         )}
@@ -402,11 +339,12 @@ function A4SheetPreview({
   cols,
   rows,
   pageIndex,
-  marginTop = 5,
-  marginBottom = 5,
-  marginLeft = 5,
-  marginRight = 5,
-  gap = 2.5,
+  marginTop = 8,
+  marginBottom = 8,
+  marginLeft = 6,
+  marginRight = 6,
+  gap = 3,
+  showCutLines = true,
 }: {
   items: ItemStickerData[]
   cols: number
@@ -417,6 +355,7 @@ function A4SheetPreview({
   marginLeft?: number
   marginRight?: number
   gap?: number
+  showCutLines?: boolean
 }) {
   const labelsPerPage = cols * rows
   const pageItems = items.slice(pageIndex * labelsPerPage, (pageIndex + 1) * labelsPerPage)
@@ -428,7 +367,7 @@ function A4SheetPreview({
   return (
     <div
       data-testid="a4-sheet-preview"
-      className="bg-white shadow-md border border-slate-300 rounded-sm overflow-hidden box-border mx-auto select-none transition-all flex flex-col justify-between"
+      className="bg-white shadow-md border border-slate-300 rounded-sm overflow-hidden box-border mx-auto select-none transition-all flex flex-col justify-start"
       style={{
         width: `${baseWidth}px`,
         height: `${baseHeight}px`,
@@ -436,6 +375,7 @@ function A4SheetPreview({
         paddingBottom: `${Math.max(1, marginBottom * scale)}px`,
         paddingLeft: `${Math.max(1, marginLeft * scale)}px`,
         paddingRight: `${Math.max(1, marginRight * scale)}px`,
+        boxSizing: "border-box",
       }}
     >
       <div
@@ -444,6 +384,8 @@ function A4SheetPreview({
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
           gap: `${Math.max(1, gap * scale)}px`,
+          alignContent: "start",
+          justifyContent: "center",
         }}
       >
         {Array.from({ length: labelsPerPage }).map((_, slotIdx) => {
@@ -452,7 +394,11 @@ function A4SheetPreview({
             return (
               <div
                 key={slotIdx}
-                className="border border-slate-800 bg-white rounded-[1px] p-0.5 flex flex-col justify-between overflow-hidden text-[5.5px] leading-tight box-border shadow-2xs min-w-0 min-h-0"
+                className={`${
+                  showCutLines
+                    ? "border border-dashed border-slate-600"
+                    : "border border-slate-800"
+                } bg-white rounded-[1px] p-0.5 flex flex-col justify-between overflow-hidden text-[5.5px] leading-tight box-border shadow-2xs min-w-0 min-h-0`}
                 title={`${item.item_name} (${item.asset_no || item.serial_no || ""})`}
               >
                 <div className="flex-1 min-h-0 overflow-hidden flex flex-col justify-start">
@@ -497,13 +443,13 @@ export function AssetTagModal({
   const [sheetPageIndex, setSheetPageIndex] = React.useState(0)
 
   const [customGrid, setCustomGrid] = React.useState<CustomGridConfig>({
-    cols: 3,
-    rows: 8,
-    marginTop: 5,
-    marginBottom: 5,
-    marginLeft: 5,
-    marginRight: 5,
-    gap: 2.5,
+    cols: 2,
+    rows: 5,
+    marginTop: 8,
+    marginBottom: 8,
+    marginLeft: 6,
+    marginRight: 6,
+    gap: 3,
   })
 
   const [fieldVisibility, setFieldVisibility] = React.useState<FieldVisibilityConfig>({
@@ -513,6 +459,7 @@ export function AssetTagModal({
     showPrice: false,
     showBarcode: true,
     showQr: true,
+    showCutLines: true,
   })
 
   const rawItemList: ItemStickerData[] = React.useMemo(() => {
@@ -564,7 +511,7 @@ export function AssetTagModal({
       const typography = getTypographyForHeight(height)
       return {
         id: "custom_grid",
-        label: "A4 กำหนดเอง (Custom Grid)",
+        label: "แบบกำหนดเอง (Custom Preset)",
         isSheet: true,
         sheetGrid: {
           cols: customGrid.cols,
@@ -595,10 +542,6 @@ export function AssetTagModal({
   const totalPages = Math.max(1, Math.ceil(expandedPrintList.length / labelsPerPage))
   const safeSheetPageIndex = Math.min(sheetPageIndex, totalPages - 1)
 
-  const printGap = selectedPreset === "custom_grid"
-    ? `${customGrid.gap}mm`
-    : (activeConfig.sheetGrid?.gap || "2.5mm")
-
   const handlePrint = () => {
     if (typeof window !== "undefined") {
       window.print()
@@ -613,47 +556,40 @@ export function AssetTagModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      onClick={onClose}
-    >
+    <>
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 0 !important;
+            margin: 0;
+          }
+          /* Hide EVERYTHING on the page: Navbar, Sidebar, Page Headers, Data Tables, Modals */
+          body * {
+            visibility: hidden !important;
           }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            width: 210mm !important;
-            min-width: 210mm !important;
-            max-width: 210mm !important;
             height: auto !important;
+            min-height: 0 !important;
             background: white !important;
             color: black !important;
             overflow: visible !important;
           }
-          /* Ensure parent modal wrappers do not clip or offset print output */
-          div[role="dialog"],
-          .fixed.inset-0 {
-            position: static !important;
-            display: block !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            border: none !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            max-width: none !important;
-            width: auto !important;
-            height: auto !important;
-            overflow: visible !important;
-            transform: none !important;
-          }
-          body * {
+          /* Completely hide modal overlays and interactive controls */
+          .asset-tag-modal-overlay,
+          .asset-tag-modal-overlay * {
+            display: none !important;
             visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
           }
-          #printable-asset-tag, #printable-asset-tag * {
+          /* Only make the printable labels area visible, pinned to top-left (0, 0) */
+          #printable-asset-tag,
+          #printable-asset-tag * {
             visibility: visible !important;
           }
           #printable-asset-tag {
@@ -661,741 +597,751 @@ export function AssetTagModal({
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 210mm !important;
-            max-width: 210mm !important;
-            min-width: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
-            box-sizing: border-box !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .print-tag-card {
-            width: 100% !important;
-            height: 100% !important;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            box-sizing: border-box !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            overflow: hidden !important;
-          }
-          ${
-            activeConfig.isSheet
-              ? `
-          @page {
-            size: A4 portrait;
-            margin: 0 !important;
-          }
+          .a4-sheet,
           .print-page-a4 {
-            display: block !important;
-            position: relative !important;
             width: 210mm !important;
-            max-width: 210mm !important;
-            min-width: 210mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
-            min-height: 297mm !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
+            padding: 8mm 6mm !important; /* Minimal top/bottom margin */
+            display: grid !important;
+            grid-template-columns: repeat(2, 96mm) !important;
+            grid-template-rows: repeat(5, 54mm) !important; /* Explicit row height to fill the page */
+            gap: 3mm 4mm !important;
+            justify-content: center !important;
+            align-content: start !important; /* Force content to start right at top padding */
             page-break-after: always !important;
             break-after: page !important;
+            overflow: hidden !important;
             background: white !important;
           }
+          .a4-sheet:last-child,
           .print-page-a4:last-child {
             page-break-after: avoid !important;
             break-after: avoid !important;
           }
-          .print-page-grid {
-            display: grid !important;
-            width: 100% !important;
-            height: 100% !important;
+          .label-card,
+          .print-tag-card {
+            width: 96mm !important;
+            height: 54mm !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
-          }
-          `
-              : `
-          @page {
-            size: auto;
-            margin: 0;
-          }
-          #printable-asset-tag {
-            width: auto !important;
-          }
-          .print-thermal-roll {
             display: flex !important;
             flex-direction: column !important;
-            gap: 2mm !important;
-            padding: 2mm !important;
-            align-items: flex-start !important;
+            justify-content: space-between !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            overflow: hidden !important;
           }
+          .cut-guide-dashed {
+            border: 1px dashed #64748b !important;
+          }
+          .cut-guide-solid {
+            border: 1px solid #0f172a !important;
+          }
+          ${
+            activeConfig.isSheet && selectedPreset === "custom_grid"
+              ? `
+          .a4-sheet,
+          .print-page-a4 {
+            padding: ${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm !important;
+            grid-template-columns: repeat(${sheetCols}, ${customDimensions.width}mm) !important;
+            grid-template-rows: repeat(${sheetRows}, ${customDimensions.height}mm) !important;
+            gap: ${customGrid.gap}mm !important;
+            justify-content: center !important;
+            align-content: start !important;
+          }
+          .label-card,
           .print-tag-card {
-            page-break-after: always !important;
-            break-after: page !important;
-          }
-          .print-tag-card:last-child {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
+            width: ${customDimensions.width}mm !important;
+            height: ${customDimensions.height}mm !important;
           }
           `
+              : ""
           }
         }
       `}</style>
 
+      {/* Modal Dialog for Screen */}
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="asset-tag-modal-title"
-        className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[92vh]"
-        onClick={(e) => e.stopPropagation()}
+        className="asset-tag-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+        onClick={onClose}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/80">
-          <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
-            <div className="p-1.5 bg-slate-900 text-white rounded-lg">
-              <Tag className="h-4 w-4" />
-            </div>
-            <span id="asset-tag-modal-title">
-              พิมพ์ลาเบลติดครุภัณฑ์ {isMultiItem && `(${rawItemList.length} รายการ)`}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
-            aria-label="ปิดหน้าต่าง"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
-          {/* Preset Selector */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700">
-                รูปแบบและขนาดลาเบล (Label Preset)
-              </label>
-              <span className="text-[11px] text-slate-500 font-medium">
-                {activeConfig.isSheet ? "กระดาษ A4 สติกเกอร์" : "ม้วนสติกเกอร์ความร้อน (Thermal)"}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="asset-tag-modal-title"
+          className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[92vh]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/80">
+            <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
+              <div className="p-1.5 bg-slate-900 text-white rounded-lg">
+                <Tag className="h-4 w-4" />
+              </div>
+              <span id="asset-tag-modal-title">
+                พิมพ์ลาเบลติดครุภัณฑ์ {isMultiItem && `(${rawItemList.length} รายการ)`}
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {(Object.keys(PRESETS) as StickerSizePreset[]).map((key) => {
-                const p = PRESETS[key]
-                const isSelected = selectedPreset === key
-                return (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+              aria-label="ปิดหน้าต่าง"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
+            {/* Preset Selector - 2 Presets */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700">
+                  รูปแบบและขนาดลาเบล (Label Preset)
+                </label>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  กระดาษ A4 สติกเกอร์
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(Object.keys(PRESETS) as StickerSizePreset[]).map((key) => {
+                  const p = PRESETS[key]
+                  const isSelected = selectedPreset === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedPreset(key)}
+                      className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all text-left flex flex-col justify-center cursor-pointer ${
+                        isSelected
+                          ? "border-slate-900 bg-slate-900 text-white shadow-xs font-semibold"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="truncate font-bold">{p.label}</span>
+                      <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
+                        {key === "custom_grid"
+                          ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม. (${customDimensions.width}×${customDimensions.height} มม.)`
+                          : "9.6 × 5.4 ซม. (10 ดวง/แผ่น)"}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Custom Grid Interactive Configuration Controls */}
+            {selectedPreset === "custom_grid" && (
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs space-y-3 animate-in fade-in-50 duration-150">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-slate-700" />
+                    ตั้งค่าตาราง Grid (คอลัมน์ × แถว บน A4)
+                  </span>
+                  <span className="text-[11px] font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70 inline-block self-start sm:self-auto">
+                    ขนาดต่อดวง: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม. ({customDimensions.width.toFixed(1)} × {customDimensions.height.toFixed(1)} มม.) | รวม {customGrid.cols * customGrid.rows} ดวง/แผ่น
+                  </span>
+                </div>
+
+                {/* Columns & Rows Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Columns (1 to 3) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label htmlFor="custom-grid-cols-range" className="font-semibold text-slate-700">
+                        จำนวนคอลัมน์ (Columns: 1–3)
+                      </label>
+                      <span className="font-bold text-slate-900">{customGrid.cols} คอลัมน์</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="custom-grid-cols-range"
+                        type="range"
+                        min="1"
+                        max="3"
+                        step="1"
+                        value={customGrid.cols}
+                        onChange={(e) =>
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            cols: parseInt(e.target.value, 10) || 1,
+                          }))
+                        }
+                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        aria-label="แถบเลื่อนจำนวนคอลัมน์ (1-3)"
+                      />
+                      <input
+                        id="custom-grid-cols-number"
+                        type="number"
+                        min="1"
+                        max="3"
+                        value={customGrid.cols}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10)
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            cols: isNaN(val) ? 1 : Math.max(1, Math.min(3, val)),
+                          }))
+                        }}
+                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        aria-label="ช่องกรอกจำนวนคอลัมน์"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Rows (2 to 10) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label htmlFor="custom-grid-rows-range" className="font-semibold text-slate-700">
+                        จำนวนแถว (Rows: 2–10)
+                      </label>
+                      <span className="font-bold text-slate-900">{customGrid.rows} แถว</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="custom-grid-rows-range"
+                        type="range"
+                        min="2"
+                        max="10"
+                        step="1"
+                        value={customGrid.rows}
+                        onChange={(e) =>
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            rows: parseInt(e.target.value, 10) || 2,
+                          }))
+                        }
+                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        aria-label="แถบเลื่อนจำนวนแถว (2-10)"
+                      />
+                      <input
+                        id="custom-grid-rows-number"
+                        type="number"
+                        min="2"
+                        max="10"
+                        value={customGrid.rows}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10)
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            rows: isNaN(val) ? 2 : Math.max(2, Math.min(10, val)),
+                          }))
+                        }}
+                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        aria-label="ช่องกรอกจำนวนแถว"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gap & Margins Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                  {/* Gap */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label htmlFor="custom-grid-gap-range" className="font-semibold text-slate-700">
+                        ระยะห่างระหว่างป้าย (Gap)
+                      </label>
+                      <span className="font-bold text-slate-900">{customGrid.gap} mm</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="custom-grid-gap-range"
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="0.5"
+                        value={customGrid.gap}
+                        onChange={(e) =>
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            gap: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        aria-label="แถบเลื่อนระยะห่างระหว่างป้าย (0-10 mm)"
+                      />
+                      <input
+                        id="custom-grid-gap-number"
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.5"
+                        value={customGrid.gap}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value)
+                          setCustomGrid((prev) => ({
+                            ...prev,
+                            gap: isNaN(val) ? 0 : Math.max(0, Math.min(10, val)),
+                          }))
+                        }}
+                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        aria-label="ช่องกรอกระยะห่างระหว่างป้าย"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Margins */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-700">
+                        ระยะขอบกระดาษ (Margins: 0-20mm)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 font-medium">บน</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.5"
+                          value={customGrid.marginTop}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            setCustomGrid((prev) => ({
+                              ...prev,
+                              marginTop: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
+                            }))
+                          }}
+                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          aria-label="ระยะขอบบน (mm)"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 font-medium">ล่าง</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.5"
+                          value={customGrid.marginBottom}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            setCustomGrid((prev) => ({
+                              ...prev,
+                              marginBottom: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
+                            }))
+                          }}
+                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          aria-label="ระยะขอบล่าง (mm)"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 font-medium">ซ้าย</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.5"
+                          value={customGrid.marginLeft}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            setCustomGrid((prev) => ({
+                              ...prev,
+                              marginLeft: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
+                            }))
+                          }}
+                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          aria-label="ระยะขอบซ้าย (mm)"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 font-medium">ขวา</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.5"
+                          value={customGrid.marginRight}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            setCustomGrid((prev) => ({
+                              ...prev,
+                              marginRight: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
+                            }))
+                          }}
+                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          aria-label="ระยะขอบขวา (mm)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Copy Multiplier & Toggle Settings Header */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Copy Multiplier */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-slate-800">จำนวนดวงต่อรายการ</div>
+                  <div className="text-[11px] text-slate-500">สำเนาลาเบล (Copies)</div>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <button
-                    key={key}
                     type="button"
-                    onClick={() => setSelectedPreset(key)}
-                    className={`py-2 px-2.5 rounded-xl border text-xs font-medium transition-all text-left flex flex-col justify-center cursor-pointer ${
-                      isSelected
-                        ? "border-slate-900 bg-slate-900 text-white shadow-xs font-semibold"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                    }`}
+                    onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
+                    className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                    disabled={copyCount <= 1}
+                    aria-label="ลดจำนวนสำเนา"
                   >
-                    <span className="truncate">{p.label}</span>
-                    <span className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
-                      {key === "custom_grid"
-                        ? `${customDimensions.width} × ${customDimensions.height} mm`
-                        : p.isSheet
-                        ? "A4 Sheet Grid"
-                        : `${p.width} × ${p.height}`}
-                    </span>
+                    -
                   </button>
-                )
-              })}
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={copyCount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10)
+                      setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
+                    }}
+                    className="w-12 h-7 rounded-lg border border-slate-300 text-center font-bold text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                    aria-label="จำนวนสำเนาลาเบล"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
+                    className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                    disabled={copyCount >= 50}
+                    aria-label="เพิ่มจำนวนสำเนา"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Field Visibility Config Toggle Button */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-slate-800">ข้อมูลบนลาเบล</div>
+                  <div className="text-[11px] text-slate-500">เลือกฟิลด์ที่ต้องการแสดง</div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvancedToggles((prev) => !prev)}
+                  className={`h-7 px-2.5 text-xs font-semibold rounded-lg cursor-pointer ${
+                    showAdvancedToggles ? "bg-slate-100 text-slate-900" : ""
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                  {showAdvancedToggles ? "ซ่อนตัวเลือก" : "ปรับแต่งฟิลด์"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Collapsible Field Toggles */}
+            {showAdvancedToggles && (
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  ตัวเลือกการแสดงผลข้อมูล (Field Visibility)
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showOrg}
+                      onChange={() => toggleField("showOrg")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>ชื่อระบบ / CAMMS</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showLocation}
+                      onChange={() => toggleField("showLocation")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>สถานที่จัดเก็บ</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showResponsible}
+                      onChange={() => toggleField("showResponsible")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>ผู้รับผิดชอบ</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showPrice}
+                      onChange={() => toggleField("showPrice")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>ราคาทรัพย์สิน</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showBarcode}
+                      onChange={() => toggleField("showBarcode")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>Barcode (Code128)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showQr}
+                      onChange={() => toggleField("showQr")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span>QR Code ลิงก์</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fieldVisibility.showCutLines}
+                      onChange={() => toggleField("showCutLines")}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                    />
+                    <span className="flex items-center gap-1">
+                      <span>เส้นประสำหรับตัด</span>
+                      <span className="text-[10px] text-slate-400 font-normal">(Cut lines)</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Sticker Preview Container */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="text-xs font-semibold text-slate-700">
+                  ตัวอย่างสติกเกอร์ (Live Preview)
+                </label>
+
+                <div className="flex items-center gap-2">
+                  {activeConfig.isSheet && (
+                    <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/80 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode("single")}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                          previewMode === "single"
+                            ? "bg-white text-slate-900 shadow-xs font-semibold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        aria-label="ดูตัวอย่างแบบดวงเดี่ยว (Single)"
+                      >
+                        <Square className="h-3 w-3" />
+                        <span>ดวงเดี่ยว (Single)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode("sheet")}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                          previewMode === "sheet"
+                            ? "bg-white text-slate-900 shadow-xs font-semibold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        aria-label="ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)"
+                      >
+                        <LayoutGrid className="h-3 w-3" />
+                        <span>ทั้งแผ่น A4 (Sheet)</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                    รวมพิมพ์ {expandedPrintList.length} ดวง
+                  </span>
+
+                  {previewMode === "single" && isMultiItem && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                      <button
+                        type="button"
+                        disabled={currentIndex === 0}
+                        onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        aria-label="รายการก่อนหน้า"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
+                      <span>
+                        {currentIndex + 1} / {rawItemList.length}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={currentIndex === rawItemList.length - 1}
+                        onClick={() => setCurrentIndex((prev) => Math.min(rawItemList.length - 1, prev + 1))}
+                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        aria-label="รายการถัดไป"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {previewMode === "sheet" && activeConfig.isSheet && totalPages > 1 && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                      <button
+                        type="button"
+                        disabled={safeSheetPageIndex === 0}
+                        onClick={() => setSheetPageIndex((prev) => Math.max(0, prev - 1))}
+                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        aria-label="แผ่นก่อนหน้า"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
+                      <span>
+                        แผ่นที่ {safeSheetPageIndex + 1} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={safeSheetPageIndex >= totalPages - 1}
+                        onClick={() => setSheetPageIndex((prev) => Math.min(totalPages - 1, prev + 1))}
+                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        aria-label="แผ่นถัดไป"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[220px] border border-slate-300/60 shadow-inner overflow-x-auto">
+                {previewMode === "sheet" && activeConfig.isSheet ? (
+                  <A4SheetPreview
+                    items={expandedPrintList}
+                    cols={sheetCols}
+                    rows={sheetRows}
+                    pageIndex={safeSheetPageIndex}
+                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 8}
+                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 8}
+                    marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 6}
+                    marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 6}
+                    gap={selectedPreset === "custom_grid" ? customGrid.gap : 3}
+                    showCutLines={fieldVisibility.showCutLines}
+                  />
+                ) : (
+                  <SingleStickerItem
+                    itemData={currentItem}
+                    presetConfig={activeConfig}
+                    visibility={fieldVisibility}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Custom Grid Interactive Configuration Controls */}
-          {selectedPreset === "custom_grid" && (
-            <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs space-y-3 animate-in fade-in-50 duration-150">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <SlidersHorizontal className="h-3.5 w-3.5 text-slate-700" />
-                  ตั้งค่าตาราง Grid (คอลัมน์ × แถว บน A4)
-                </span>
-                <span className="text-[11px] font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70 inline-block self-start sm:self-auto">
-                  ขนาดป้ายต่อดวง: {customDimensions.width.toFixed(1)} × {customDimensions.height.toFixed(1)} mm | รวม {customGrid.cols * customGrid.rows} ป้าย/แผ่น
-                </span>
-              </div>
-
-              {/* Columns & Rows Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Columns */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <label htmlFor="custom-grid-cols-range" className="font-semibold text-slate-700">
-                      จำนวนคอลัมน์ (Columns)
-                    </label>
-                    <span className="font-bold text-slate-900">{customGrid.cols} คอลัมน์</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="custom-grid-cols-range"
-                      type="range"
-                      min="1"
-                      max="5"
-                      step="1"
-                      value={customGrid.cols}
-                      onChange={(e) =>
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          cols: parseInt(e.target.value, 10) || 1,
-                        }))
-                      }
-                      className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
-                      aria-label="แถบเลื่อนจำนวนคอลัมน์ (1-5)"
-                    />
-                    <input
-                      id="custom-grid-cols-number"
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={customGrid.cols}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value, 10)
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          cols: isNaN(val) ? 1 : Math.max(1, Math.min(5, val)),
-                        }))
-                      }}
-                      className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                      aria-label="ช่องกรอกจำนวนคอลัมน์"
-                    />
-                  </div>
-                </div>
-
-                {/* Rows */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <label htmlFor="custom-grid-rows-range" className="font-semibold text-slate-700">
-                      จำนวนแถว (Rows)
-                    </label>
-                    <span className="font-bold text-slate-900">{customGrid.rows} แถว</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="custom-grid-rows-range"
-                      type="range"
-                      min="1"
-                      max="12"
-                      step="1"
-                      value={customGrid.rows}
-                      onChange={(e) =>
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          rows: parseInt(e.target.value, 10) || 1,
-                        }))
-                      }
-                      className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
-                      aria-label="แถบเลื่อนจำนวนแถว (1-12)"
-                    />
-                    <input
-                      id="custom-grid-rows-number"
-                      type="number"
-                      min="1"
-                      max="12"
-                      value={customGrid.rows}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value, 10)
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          rows: isNaN(val) ? 1 : Math.max(1, Math.min(12, val)),
-                        }))
-                      }}
-                      className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                      aria-label="ช่องกรอกจำนวนแถว"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Gap & Margins Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                {/* Gap */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <label htmlFor="custom-grid-gap-range" className="font-semibold text-slate-700">
-                      ระยะห่างระหว่างป้าย (Gap)
-                    </label>
-                    <span className="font-bold text-slate-900">{customGrid.gap} mm</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="custom-grid-gap-range"
-                      type="range"
-                      min="0"
-                      max="10"
-                      step="0.5"
-                      value={customGrid.gap}
-                      onChange={(e) =>
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          gap: parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
-                      aria-label="แถบเลื่อนระยะห่างระหว่างป้าย (0-10 mm)"
-                    />
-                    <input
-                      id="custom-grid-gap-number"
-                      type="number"
-                      min="0"
-                      max="10"
-                      step="0.5"
-                      value={customGrid.gap}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value)
-                        setCustomGrid((prev) => ({
-                          ...prev,
-                          gap: isNaN(val) ? 0 : Math.max(0, Math.min(10, val)),
-                        }))
-                      }}
-                      className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                      aria-label="ช่องกรอกระยะห่างระหว่างป้าย"
-                    />
-                  </div>
-                </div>
-
-                {/* Margins */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">
-                      ระยะขอบกระดาษ (Margins: 0-20mm)
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-slate-500 font-medium">บน</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        value={customGrid.marginTop}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value)
-                          setCustomGrid((prev) => ({
-                            ...prev,
-                            marginTop: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
-                          }))
-                        }}
-                        className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                        aria-label="ระยะขอบบน (mm)"
-                      />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-slate-500 font-medium">ล่าง</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        value={customGrid.marginBottom}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value)
-                          setCustomGrid((prev) => ({
-                            ...prev,
-                            marginBottom: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
-                          }))
-                        }}
-                        className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                        aria-label="ระยะขอบล่าง (mm)"
-                      />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-slate-500 font-medium">ซ้าย</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        value={customGrid.marginLeft}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value)
-                          setCustomGrid((prev) => ({
-                            ...prev,
-                            marginLeft: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
-                          }))
-                        }}
-                        className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                        aria-label="ระยะขอบซ้าย (mm)"
-                      />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] text-slate-500 font-medium">ขวา</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        value={customGrid.marginRight}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value)
-                          setCustomGrid((prev) => ({
-                            ...prev,
-                            marginRight: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
-                          }))
-                        }}
-                        className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                        aria-label="ระยะขอบขวา (mm)"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Footer Actions */}
+          <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 font-medium hidden sm:block">
+              {activeConfig.isSheet
+                ? `แผ่น A4 (${totalPages} แผ่น | ${labelsPerPage} ป้าย/แผ่น)`
+                : `ขนาดกระดาษ ${activeConfig.width} × ${activeConfig.height}`}
             </div>
-          )}
-
-          {/* Copy Multiplier & Toggle Settings Header */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            {/* Copy Multiplier */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-slate-800">จำนวนดวงต่อรายการ</div>
-                <div className="text-[11px] text-slate-500">สำเนาลาเบล (Copies)</div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
-                  className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
-                  disabled={copyCount <= 1}
-                  aria-label="ลดจำนวนสำเนา"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={copyCount}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10)
-                    setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
-                  }}
-                  className="w-12 h-7 rounded-lg border border-slate-300 text-center font-bold text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-900"
-                  aria-label="จำนวนสำเนาลาเบล"
-                />
-                <button
-                  type="button"
-                  onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
-                  className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
-                  disabled={copyCount >= 50}
-                  aria-label="เพิ่มจำนวนสำเนา"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Field Visibility Config Toggle Button */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-slate-800">ข้อมูลบนลาเบล</div>
-                <div className="text-[11px] text-slate-500">เลือกฟิลด์ที่ต้องการแสดง</div>
-              </div>
+            <div className="flex items-center gap-2 ml-auto">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setShowAdvancedToggles((prev) => !prev)}
-                className={`h-7 px-2.5 text-xs font-semibold rounded-lg cursor-pointer ${
-                  showAdvancedToggles ? "bg-slate-100 text-slate-900" : ""
-                }`}
+                onClick={onClose}
+                className="h-9 px-4 text-xs font-semibold cursor-pointer"
               >
-                <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
-                {showAdvancedToggles ? "ซ่อนตัวเลือก" : "ปรับแต่งฟิลด์"}
+                ยกเลิก
+              </Button>
+              <Button
+                type="button"
+                onClick={handlePrint}
+                className="h-9 px-4 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+              >
+                <Printer className="h-3.5 w-3.5 mr-1.5" />
+                พิมพ์ลาเบล ({expandedPrintList.length} ดวง)
               </Button>
             </div>
           </div>
-
-          {/* Collapsible Field Toggles */}
-          {showAdvancedToggles && (
-            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                ตัวเลือกการแสดงผลข้อมูล (Field Visibility)
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showOrg}
-                    onChange={() => toggleField("showOrg")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>ชื่อระบบ / CAMMS</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showLocation}
-                    onChange={() => toggleField("showLocation")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>สถานที่จัดเก็บ</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showResponsible}
-                    onChange={() => toggleField("showResponsible")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>ผู้รับผิดชอบ</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showPrice}
-                    onChange={() => toggleField("showPrice")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>ราคาทรัพย์สิน</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showBarcode}
-                    onChange={() => toggleField("showBarcode")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>Barcode (Code128)</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={fieldVisibility.showQr}
-                    onChange={() => toggleField("showQr")}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                  />
-                  <span>QR Code ลิงก์</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Sticker Preview Container */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <label className="text-xs font-semibold text-slate-700">
-                ตัวอย่างสติกเกอร์ (Live Preview)
-              </label>
-
-              <div className="flex items-center gap-2">
-                {activeConfig.isSheet && (
-                  <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/80 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode("single")}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                        previewMode === "single"
-                          ? "bg-white text-slate-900 shadow-xs font-semibold"
-                          : "text-slate-600 hover:text-slate-900"
-                      }`}
-                      aria-label="ดูตัวอย่างแบบดวงเดี่ยว (Single)"
-                    >
-                      <Square className="h-3 w-3" />
-                      <span>ดวงเดี่ยว (Single)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode("sheet")}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                        previewMode === "sheet"
-                          ? "bg-white text-slate-900 shadow-xs font-semibold"
-                          : "text-slate-600 hover:text-slate-900"
-                      }`}
-                      aria-label="ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)"
-                    >
-                      <LayoutGrid className="h-3 w-3" />
-                      <span>ทั้งแผ่น A4 (Sheet)</span>
-                    </button>
-                  </div>
-                )}
-
-                <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-                  รวมพิมพ์ {expandedPrintList.length} ดวง
-                </span>
-
-                {previewMode === "single" && isMultiItem && (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      disabled={currentIndex === 0}
-                      onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                      aria-label="รายการก่อนหน้า"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <span>
-                      {currentIndex + 1} / {rawItemList.length}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={currentIndex === rawItemList.length - 1}
-                      onClick={() => setCurrentIndex((prev) => Math.min(rawItemList.length - 1, prev + 1))}
-                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                      aria-label="รายการถัดไป"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {previewMode === "sheet" && activeConfig.isSheet && totalPages > 1 && (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      disabled={safeSheetPageIndex === 0}
-                      onClick={() => setSheetPageIndex((prev) => Math.max(0, prev - 1))}
-                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                      aria-label="แผ่นก่อนหน้า"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <span>
-                      แผ่นที่ {safeSheetPageIndex + 1} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={safeSheetPageIndex >= totalPages - 1}
-                      onClick={() => setSheetPageIndex((prev) => Math.min(totalPages - 1, prev + 1))}
-                      className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                      aria-label="แผ่นถัดไป"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[220px] border border-slate-300/60 shadow-inner overflow-x-auto">
-              {previewMode === "sheet" && activeConfig.isSheet ? (
-                <A4SheetPreview
-                  items={expandedPrintList}
-                  cols={sheetCols}
-                  rows={sheetRows}
-                  pageIndex={safeSheetPageIndex}
-                  marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 5}
-                  marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 5}
-                  marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 5}
-                  marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 5}
-                  gap={selectedPreset === "custom_grid" ? customGrid.gap : 2.5}
-                />
-              ) : (
-                <SingleStickerItem
-                  itemData={currentItem}
-                  presetConfig={activeConfig}
-                  visibility={fieldVisibility}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Hidden printable container for window.print() */}
-        <div id="printable-asset-tag" className="hidden">
-          {activeConfig.isSheet ? (
-            Array.from({ length: totalPages }).map((_, pageIdx) => {
-              const pageItems = expandedPrintList.slice(
-                pageIdx * labelsPerPage,
-                (pageIdx + 1) * labelsPerPage
-              )
-              return (
-                <div
-                  key={pageIdx}
-                  className="print-page-a4"
-                  style={{
-                    width: "210mm",
-                    height: "297mm",
-                    paddingTop: `${selectedPreset === "custom_grid" ? customGrid.marginTop : activeConfig.sheetGrid?.marginTop}mm`,
-                    paddingBottom: `${selectedPreset === "custom_grid" ? customGrid.marginBottom : activeConfig.sheetGrid?.marginBottom}mm`,
-                    paddingLeft: `${selectedPreset === "custom_grid" ? customGrid.marginLeft : activeConfig.sheetGrid?.marginLeft}mm`,
-                    paddingRight: `${selectedPreset === "custom_grid" ? customGrid.marginRight : activeConfig.sheetGrid?.marginRight}mm`,
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <div
-                    className="print-page-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: `repeat(${sheetCols}, 1fr)`,
-                      gridTemplateRows: `repeat(${sheetRows}, 1fr)`,
-                      gap: printGap,
-                      width: "100%",
-                      height: "100%",
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    {pageItems.map((itm, idx) => (
-                      <SingleStickerItem
-                        key={idx}
-                        itemData={itm}
-                        presetConfig={activeConfig}
-                        visibility={fieldVisibility}
-                        isSheetCell={true}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            })
-          ) : (
-            <div className="print-thermal-roll">
-              {expandedPrintList.map((itm, idx) => (
-                <SingleStickerItem
-                  key={idx}
-                  itemData={itm}
-                  presetConfig={activeConfig}
-                  visibility={fieldVisibility}
-                  isSheetCell={false}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
-          <div className="text-xs text-slate-500 font-medium hidden sm:block">
-            {activeConfig.isSheet
-              ? `แผ่น A4 (${totalPages} แผ่น | ${labelsPerPage} ป้าย/แผ่น)`
-              : `ขนาดกระดาษ ${activeConfig.width} × ${activeConfig.height}`}
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="h-9 px-4 text-xs font-semibold cursor-pointer"
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              type="button"
-              onClick={handlePrint}
-              className="h-9 px-4 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 mr-1.5" />
-              พิมพ์ลาเบล ({expandedPrintList.length} ดวง)
-            </Button>
-          </div>
         </div>
       </div>
-    </div>
+
+      {/* Hidden printable container for window.print() — Clean sibling element */}
+      <div id="printable-asset-tag" className="hidden">
+        {activeConfig.isSheet ? (
+          Array.from({ length: totalPages }).map((_, pageIdx) => {
+            const pageItems = expandedPrintList.slice(
+              pageIdx * labelsPerPage,
+              (pageIdx + 1) * labelsPerPage
+            )
+            return (
+              <div
+                key={pageIdx}
+                className="a4-sheet print-page-a4"
+                style={{
+                  width: "210mm",
+                  height: "297mm",
+                  maxHeight: "297mm",
+                  boxSizing: "border-box",
+                  padding: selectedPreset === "custom_grid"
+                    ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
+                    : "8mm 6mm",
+                  display: "grid",
+                  gridTemplateColumns: selectedPreset === "custom_grid"
+                    ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
+                    : `repeat(${sheetCols}, 96mm)`,
+                  gridTemplateRows: selectedPreset === "custom_grid"
+                    ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
+                    : `repeat(${sheetRows}, 54mm)`,
+                  gap: selectedPreset === "custom_grid"
+                    ? `${customGrid.gap}mm`
+                    : "3mm 4mm",
+                  justifyContent: "center",
+                  alignContent: "start",
+                  overflow: "hidden",
+                }}
+              >
+                {pageItems.map((itm, idx) => (
+                  <SingleStickerItem
+                    key={idx}
+                    itemData={itm}
+                    presetConfig={activeConfig}
+                    visibility={fieldVisibility}
+                    isSheetCell={true}
+                  />
+                ))}
+              </div>
+            )
+          })
+        ) : (
+          <div className="print-thermal-roll">
+            {expandedPrintList.map((itm, idx) => (
+              <SingleStickerItem
+                key={idx}
+                itemData={itm}
+                presetConfig={activeConfig}
+                visibility={fieldVisibility}
+                isSheetCell={false}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
+

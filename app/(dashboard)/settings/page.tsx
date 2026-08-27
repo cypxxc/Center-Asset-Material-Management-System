@@ -2,18 +2,20 @@ import {
   CategorySection,
   LocationSection,
   UnitSection,
-  ProfileSection,
   ImportSection,
 } from '@/features/settings/components/metadata-sections'
-import { getSettingsData, getAllProfiles } from '@/features/settings/queries'
+import { getSettingsData } from '@/features/settings/queries'
 import { canManageSettings } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { Tag, Building2, Box, Users, Upload } from 'lucide-react'
+import { Tag, Building2, Box, Upload } from 'lucide-react'
+import { Hash } from 'lucide-react'
 import Link from 'next/link'
 
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
+import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
+import { AssetNumberTemplateSection } from '@/features/asset-numbers/components/asset-number-template-section'
 
 interface SettingsPageProps {
   searchParams: Promise<{
@@ -28,19 +30,20 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   if (!canManageSettings(currentProfile?.role)) {
     redirect('/dashboard')
   }
-  const isAdmin = currentProfile?.role === 'admin'
   const params = await searchParams
-  const activeTab = params.tab || 'categories'
+  const activeTab = ['categories', 'locations', 'units', 'import', 'asset-numbers'].includes(params.tab ?? '')
+    ? params.tab!
+    : 'categories'
   const metadataSection =
     activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units'
       ? activeTab
       : 'all'
 
-  const [data, profiles] = await Promise.all([
-    activeTab === 'import' || activeTab === 'users'
+  const [data, assetNumberTemplates] = await Promise.all([
+    activeTab === 'import' || activeTab === 'asset-numbers'
       ? Promise.resolve({ categories: [], locations: [], units: [] })
       : getSettingsData(metadataSection),
-    activeTab === 'users' && isAdmin ? getAllProfiles() : Promise.resolve([]),
+    activeTab === 'asset-numbers' ? getAssetNumberTemplates() : Promise.resolve([]),
   ])
 
   const tabs = [
@@ -48,9 +51,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     { id: 'locations', label: 'สถานที่จัดตั้ง', icon: <Building2 className="h-4 w-4" /> },
     { id: 'units', label: 'หน่วยนับ', icon: <Box className="h-4 w-4" /> },
     { id: 'import', label: 'นำเข้าพัสดุ CSV/Excel', icon: <Upload className="h-4 w-4" /> },
-    ...(isAdmin ? [
-      { id: 'users', label: 'ผู้ใช้งานระบบ', icon: <Users className="h-4 w-4" /> }
-    ] : []),
+    { id: 'asset-numbers', label: 'เลขครุภัณฑ์', icon: <Hash className="h-4 w-4" /> },
   ]
 
   return (
@@ -120,11 +121,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {activeTab === 'units' && (
           <UnitSection units={data.units} />
         )}
-        {activeTab === 'users' && isAdmin && (
-          <ProfileSection profiles={profiles} />
-        )}
         {activeTab === 'import' && (
           <ImportSection />
+        )}
+        {activeTab === 'asset-numbers' && (
+          <AssetNumberTemplateSection templates={assetNumberTemplates} />
         )}
       </div>
     </PageContainer>

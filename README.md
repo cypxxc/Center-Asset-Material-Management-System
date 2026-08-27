@@ -11,6 +11,8 @@ A production-ready, Next.js 16 + Supabase internal web application designed for 
 - **Trash & Soft Delete**: Safe soft-deletion with dedicated Trash Explorer, restoration, and admin-only permanent deletion with audit logging.
 - **Reports & Export System**: Full dataset query engine with downloadable **Excel (.xlsx)** and **PDF** report generators.
 - **Settings & Metadata Control**: Dynamic management of categories, locations, units, and active profile roles (Admin, Staff, Viewer).
+- **Asset Number Templates**: Administrators can maintain reusable static asset-number templates. Staff select a template while registering an asset, review the generated preview, and edit the final number before saving; duplicate numbers are rejected.
+- **Realtime Updates**: Registry, dashboard, reports, audit-log, and database-management views refresh automatically when shared data changes.
 - **Dark Mode & Responsive UI**: Built with 100% semantic CSS theme tokens (`bg-card`, `border-border`, `text-primary`, etc.) for automatic light/dark mode transitions and route-level animated loading skeletons.
 - **Role-Based Access Control (RBAC)**:
   - **Admin**: Full access including user role assignment, settings management, and permanent item deletion.

@@ -7,6 +7,7 @@ import { ItemForm } from '@/features/items/components/item-form'
 import { getItemById, getItemReferences } from '@/features/items/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite } from '@/lib/permissions'
+import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
 
 interface EditItemPageProps {
   params: Promise<{
@@ -21,7 +22,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
   }
 
   const { id } = await params
-  const [item, references] = await Promise.all([getItemById(id), getItemReferences()])
+  const [item, references, assetNumberTemplates] = await Promise.all([getItemById(id), getItemReferences(), getAssetNumberTemplates(true)])
 
   if (!item) notFound()
 
@@ -49,6 +50,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
           categories={references.categories}
           locations={references.locations}
           units={references.units}
+          assetNumberTemplates={assetNumberTemplates}
         />
       </div>
     </div>

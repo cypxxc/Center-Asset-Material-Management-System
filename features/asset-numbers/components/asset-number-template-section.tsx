@@ -1,0 +1,13 @@
+import { AssetNumberTemplate } from '../types'
+import { createAssetNumberTemplate, updateAssetNumberTemplate } from '../actions'
+import { DeleteAssetNumberTemplateButton } from './delete-asset-number-template-button'
+
+export function AssetNumberTemplateSection({ templates }: { templates: AssetNumberTemplate[] }) {
+  return <section className="space-y-5"><div className="max-w-3xl"><h2 className="text-lg font-semibold text-foreground">แม่แบบเลขครุภัณฑ์</h2><p className="mt-1 text-sm text-muted-foreground">แม่แบบใช้เติมเลขตั้งต้นในหน้าขึ้นทะเบียน ผู้ใช้แก้ไขเลขจริงก่อนบันทึกได้ทุกครั้ง</p></div><TemplateForm action={createAssetNumberTemplate} submitLabel="สร้างแม่แบบ" />
+    <div className="space-y-3">{templates.length === 0 ? <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">ยังไม่มีแม่แบบ ผู้ใช้จะกรอกเลขครุภัณฑ์เอง</div> : templates.map((template) => <details key={template.id} className="rounded-lg border border-border bg-card"><summary className="cursor-pointer list-none px-4 py-3"><p className="font-semibold text-foreground">{template.name}</p><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{template.pattern}</p></summary><div className="space-y-4 border-t border-border p-4"><TemplateForm action={updateAssetNumberTemplate.bind(null, template.id)} submitLabel="บันทึกแม่แบบ" template={template} /><DeleteAssetNumberTemplateButton id={template.id} name={template.name} /></div></details>)}</div>
+  </section>
+}
+
+function TemplateForm({ action, submitLabel, template }: { action: (formData: FormData) => void | Promise<void>; submitLabel: string; template?: AssetNumberTemplate }) {
+  return <form action={action} className="grid max-w-3xl gap-3 md:grid-cols-2"><label className="grid gap-1 text-sm font-medium">ชื่อแม่แบบ<input name="name" defaultValue={template?.name} required maxLength={120} placeholder="เช่น ครุภัณฑ์สำนักงาน" className="h-9 rounded-md border border-input bg-background px-3" /></label><label className="grid gap-1 text-sm font-medium">รูปแบบเลข<input name="pattern" defaultValue={template?.pattern} required maxLength={150} placeholder="สขส7.7110-006-0001-11/58" className="h-9 rounded-md border border-input bg-background px-3 font-mono text-sm" /></label><div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" defaultChecked={template?.is_active ?? true} /> เปิดใช้แม่แบบ</label><button type="submit" className="h-9 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">{submitLabel}</button></div></form>
+}

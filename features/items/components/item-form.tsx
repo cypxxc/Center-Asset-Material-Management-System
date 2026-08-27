@@ -21,13 +21,18 @@ import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 import { getTransformedImageUrl } from '@/lib/supabase/image'
+import { AssetNumberTemplate } from '@/features/asset-numbers/types'
+import { AssetNumberFields } from '@/features/asset-numbers/components/asset-number-fields'
 
 interface ItemFormProps {
   action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
+  assetNumberTemplates?: AssetNumberTemplate[]
   item?: ItemDetail
+  inline?: boolean
+  onCancel?: () => void
   /** Called after a successful inline create (modal mode). Not called when redirect happens. */
   onSuccess?: () => void
 }
@@ -48,7 +53,7 @@ function SubmitButton() {
   )
 }
 
-export function ItemForm({ action, categories, locations, units, item, onSuccess }: ItemFormProps) {
+export function ItemForm({ action, categories, locations, units, assetNumberTemplates = [], item, inline = false, onCancel, onSuccess }: ItemFormProps) {
   const [state, formAction] = useActionState(action, null)
   // Track which error message version the user has dismissed.
   // Using a ref + state avoids a useEffect→setState cascade.
@@ -79,33 +84,29 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
       action={formAction}
       className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
     >
+      {inline && <input type="hidden" name="inline" value="true" />}
       {showError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                <span className="material-symbols-outlined text-[28px]">error</span>
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-slate-950">บันทึกข้อมูลไม่สำเร็จ</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{state.message}</p>
-              </div>
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="flex items-center justify-between gap-3">
+                <p>{state.message}</p>
               <button
                 type="button"
                 onClick={() => { dismissedRef.current = state; setDismissed(state) }}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center cursor-pointer"
+                className="shrink-0 font-semibold underline underline-offset-2"
               >
-                ย้อนกลับไปแก้ไข
+                ปิด
               </button>
             </div>
           </div>
-        </div>
       )}
 
       {/* Tabs Navigation */}
-      <div className="flex border-b border-slate-100 mb-2">
+      <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-slate-100 mb-2">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'asset'}
+          aria-controls="asset-details"
           onClick={() => setActiveTab('asset')}
           className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'asset'
@@ -118,6 +119,9 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'material'}
+          aria-controls="material-details"
           onClick={() => setActiveTab('material')}
           className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'material'
@@ -207,21 +211,23 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
       </FormSection>
 
       {activeTab === 'asset' ? (
-        <FormSection title="2. ข้อมูลครุภัณฑ์ / ซีเรียล">
+        <div id="asset-details" role="tabpanel">
+        <FormSection title="รายละเอียดครุภัณฑ์เพิ่มเติม">
           <FormGrid>
-            <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
+            <AssetNumberFields templates={assetNumberTemplates} defaultValue={item?.asset_no} />
             <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
             <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
             <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
           </FormGrid>
         </FormSection>
+        </div>
       ) : (
-        <>
+        <div id="material-details" role="tabpanel">
           <input type="hidden" name="asset_no" value="" />
           <input type="hidden" name="serial_no" value="" />
           <input type="hidden" name="brand" value="" />
           <input type="hidden" name="model" value="" />
-        </>
+        </div>
       )}
 
       <FormSection title="3. สถานที่ ผู้รับผิดชอบ และสถานะ">
@@ -276,9 +282,13 @@ export function ItemForm({ action, categories, locations, units, item, onSuccess
       </FormSection>
 
       <FormActions>
-        <Link href={item ? `/items/${item.id}` : '/items'}>
-          <Button type="button" variant="outline" className="h-10 px-4">ยกเลิก</Button>
-        </Link>
+        {onCancel ? (
+          <Button type="button" variant="outline" className="h-10 px-4" onClick={onCancel}>ยกเลิก</Button>
+        ) : (
+          <Link href={item ? `/items/${item.id}` : '/items'}>
+            <Button type="button" variant="outline" className="h-10 px-4">ยกเลิก</Button>
+          </Link>
+        )}
         <SubmitButton />
       </FormActions>
     </form>

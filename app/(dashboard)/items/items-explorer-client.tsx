@@ -32,6 +32,7 @@ import {
   ItemStatus,
   ItemType,
   ItemListSearchParams,
+  ItemDetail,
 } from '@/features/items/types'
 import dynamic from 'next/dynamic'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
@@ -55,8 +56,10 @@ import {
   DataTableRow,
   DataTableCell
 } from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkDeleteItems, getItemsForExport } from '@/features/items/actions'
+import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport } from '@/features/items/actions'
 import { cn } from '@/lib/utils'
+import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
+import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -69,6 +72,7 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
+  assetNumberTemplates?: AssetNumberTemplate[]
 }
 
 type ViewMode = 'list' | 'grid'
@@ -76,6 +80,17 @@ type ViewMode = 'list' | 'grid'
 const typeIcons: Record<ItemType, React.ReactNode> = {
   asset: <Package className="h-4 w-4 text-blue-600" />,
   material: <FileText className="h-4 w-4 text-emerald-600" />,
+}
+
+function toItemDetail(item: ItemListRow): ItemDetail {
+  return {
+    ...item,
+    brand: item.brand ?? null,
+    model: item.model ?? null,
+    note: item.note ?? null,
+    image_url: item.image_url ?? null,
+    created_at: item.updated_at,
+  }
 }
 
 export function ItemsExplorerClient({
@@ -89,7 +104,9 @@ export function ItemsExplorerClient({
   locations,
   categories,
   units,
+  assetNumberTemplates = [],
 }: ItemsExplorerClientProps) {
+  useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
   const [localItems, setLocalItems] = useState<ItemListRow[]>(items)
   const [prevItems, setPrevItems] = useState<ItemListRow[]>(items)
@@ -114,6 +131,7 @@ export function ItemsExplorerClient({
   const [isPending, startTransition] = useTransition()
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
   const [lastNewParam, setLastNewParam] = useState<string | null>(null)
@@ -560,6 +578,10 @@ export function ItemsExplorerClient({
         userCanDelete={userCanDelete}
         onCopy={copyReference}
         onPrint={(itemData) => setSinglePrintItem(itemData)}
+        onEdit={(itemToEdit) => {
+          setEditingItem(toItemDetail(itemToEdit))
+          setIsSheetOpen(true)
+        }}
       />
 
       {selectedItemIds.length > 0 && (
@@ -660,7 +682,7 @@ export function ItemsExplorerClient({
                 // Optimistically remove items from view
                 setLocalItems(prev => prev.filter(item => !selectedItemIds.includes(item.id)))
 
-                const res = await bulkDeleteItems(selectedItemIds)
+                const res = await bulkHardDeleteItems(selectedItemIds)
                 if (res.success) {
                   triggerToast(res.message || 'ลบเรียบร้อย')
                   setSelectedItemIds([])
@@ -726,15 +748,21 @@ export function ItemsExplorerClient({
       {/* New Item Sheet */}
       <NewItemSheet
         open={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
+        item={editingItem}
+        onClose={() => {
+          setIsSheetOpen(false)
+          setEditingItem(null)
+        }}
         onSuccess={() => {
           setIsSheetOpen(false)
-          triggerToast('เพิ่มสิ่งของเรียบร้อยแล้ว')
+          setEditingItem(null)
+          triggerToast(editingItem ? 'บันทึกการแก้ไขเรียบร้อยแล้ว' : 'เพิ่มสิ่งของเรียบร้อยแล้ว')
           router.refresh()
         }}
         categories={categories}
         locations={locations}
         units={units}
+        assetNumberTemplates={assetNumberTemplates}
       />
     </div>
   )
@@ -982,6 +1010,7 @@ function Inspector({
   userCanDelete,
   onCopy,
   onPrint,
+  onEdit,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -990,6 +1019,7 @@ function Inspector({
   userCanDelete: boolean
   onCopy: (value: string | null | undefined) => void
   onPrint: (item: ItemStickerData) => void
+  onEdit: (item: ItemListRow) => void
 }) {
   useEffect(() => {
     if (!isOpen) return
@@ -1217,12 +1247,15 @@ function Inspector({
             </div>
 
             {userCanWrite && (
-              <Link href={`/items/${item.id}/edit`} className="w-full">
-                <Button variant="default" className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5">
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => onEdit(item)}
+                className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+              >
                   <Edit className="h-4 w-4" />
                   <span>แก้ไขข้อมูล</span>
-                </Button>
-              </Link>
+              </Button>
             )}
 
             {userCanDelete && (

@@ -79,7 +79,7 @@ function parseFormData(formData: FormData) {
 }
 
 function friendlyDatabaseError(message: string) {
-  if (message.includes('unique_asset_no_not_deleted')) {
+  if (message.includes('unique_asset_no_not_deleted') || message.includes('unique_asset_no_active')) {
     return 'เลขครุภัณฑ์นี้มีอยู่ในระบบแล้ว'
   }
 
@@ -215,15 +215,37 @@ async function createItemCore(
   const supabase = await createClient()
   let committedResult: { itemId: string; userId: string }
   try {
-    const { data, error } = await supabase
+    const assetNumberMode = formData.get('asset_number_mode')
+    const templateId = formData.get('asset_number_template_id')
+    const payloadRaw = formData.get('asset_number_payload')
+    let payload: Record<string, string> = {}
+    if (typeof payloadRaw === 'string' && payloadRaw) {
+      try {
+        const candidate = JSON.parse(payloadRaw)
+        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+          payload = Object.fromEntries(Object.entries(candidate).map(([key, value]) => [key, String(value)]))
+        }
+      } catch {
+        return { ok: false, kind: 'validation', message: 'ข้อมูลแม่แบบเลขครุภัณฑ์ไม่ถูกต้อง', userId }
+      }
+    }
+
+    const result = await supabase
       .from('items')
       .insert({
         ...parsed.data,
         created_by: userId,
         updated_by: userId,
+        asset_number_source: parsed.data.item_type === 'asset' && (assetNumberMode === 'manual' || assetNumberMode === 'template')
+          ? assetNumberMode
+          : null,
+        asset_number_template_id: assetNumberMode === 'template' && typeof templateId === 'string' && templateId ? templateId : null,
+        asset_number_payload: assetNumberMode === 'template' ? payload : null,
       })
       .select('id')
       .single()
+
+    const { data, error } = result
 
     if (error || !data) {
       await deleteUploadedImage()
@@ -235,16 +257,17 @@ async function createItemCore(
       }
     }
 
+    const assetNumberSource = assetNumberMode === 'manual' || assetNumberMode === 'template' ? assetNumberMode : undefined
     await writeAuditLog({
       operation: 'create',
       feature: 'items',
       userId,
       targetType: 'items',
-      targetId: data.id,
-      newValues: parsed.data,
+      targetId: (data as { id: string }).id,
+      newValues: { ...parsed.data, ...(assetNumberSource ? { asset_number_source: assetNumberSource } : {}) },
     })
 
-    committedResult = { itemId: data.id, userId }
+    committedResult = { itemId: (data as { id: string }).id, userId }
     await options.onCommitted?.(committedResult)
   } catch (err) {
     await deleteUploadedImage()
@@ -430,6 +453,9 @@ export async function updateItem(
   revalidatePath('/items')
   revalidateSidebarCache()
   revalidatePath(`/items/${id}`)
+  if (formData.get('inline') === 'true') {
+    return successResponse('บันทึกการแก้ไขเรียบร้อยแล้ว')
+  }
   redirect(`/items/${id}`)
 }
 
@@ -711,14 +737,14 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
     .from('items')
     .select('image_url, item_name, asset_no, serial_no')
     .eq('id', id)
-    .not('deleted_at', 'is', null)
+    .is('deleted_at', null)
     .maybeSingle()
 
   const { error } = await supabase
     .from('items')
     .delete()
     .eq('id', id)
-    .not('deleted_at', 'is', null)
+    .is('deleted_at', null)
 
   if (error) {
     logger.error({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } }, error)
