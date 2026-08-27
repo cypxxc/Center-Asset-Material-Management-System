@@ -1,5 +1,15 @@
 import { headers } from 'next/headers'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { logSecurityEvent } from '@/lib/security-logger'
+
+export type RateLimitTier = 'auth' | 'mutation' | 'export' | 'read'
+
+export const RATE_LIMIT_TIERS: Record<RateLimitTier, { limit: number; windowMs: number }> = {
+  auth: { limit: 10, windowMs: 60000 },
+  mutation: { limit: 30, windowMs: 60000 },
+  export: { limit: 20, windowMs: 60000 },
+  read: { limit: 120, windowMs: 60000 },
+}
 
 export interface RateLimitResult {
   success: boolean
@@ -96,9 +106,22 @@ export interface CheckRateLimitResult {
 
 export async function checkRateLimit(
   actionName: string,
-  limitValue = 60,
-  windowMs = 60000
+  tierOrLimit?: RateLimitTier | number,
+  customWindowMs?: number
 ): Promise<CheckRateLimitResult> {
+  let limitValue = 60
+  let windowMs = 60000
+
+  if (typeof tierOrLimit === 'string' && tierOrLimit in RATE_LIMIT_TIERS) {
+    limitValue = RATE_LIMIT_TIERS[tierOrLimit].limit
+    windowMs = customWindowMs ?? RATE_LIMIT_TIERS[tierOrLimit].windowMs
+  } else if (typeof tierOrLimit === 'number') {
+    limitValue = tierOrLimit
+    windowMs = customWindowMs ?? 60000
+  } else if (customWindowMs !== undefined) {
+    windowMs = customWindowMs
+  }
+
   try {
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
@@ -118,6 +141,26 @@ export async function checkRateLimit(
     const result = await limiter.limit(key, limitValue, windowMs)
 
     if (!result.success) {
+      logSecurityEvent({
+        severity: tierOrLimit === 'auth' ? 'HIGH' : 'MEDIUM',
+        eventType: 'RATE_LIMIT_EXCEEDED',
+        threatVector: `Rate limit exceeded on action '${actionName}'`,
+        impactAnalysis: `Throttled requests from actor (limit: ${limitValue}, window: ${windowMs}ms)`,
+        automatedActionTaken: 'Blocked request and returned rate limit error message',
+        recommendedFollowUp: `Monitor IP ${ip} and user ${userId} for suspicious high-frequency activity`,
+        actor: {
+          userId,
+          ip,
+        },
+        metadata: {
+          actionName,
+          tier: typeof tierOrLimit === 'string' ? tierOrLimit : 'custom',
+          limit: limitValue,
+          windowMs,
+          resetAt: new Date(result.reset).toISOString(),
+        },
+      })
+
       const secondsLeft = Math.ceil((result.reset - Date.now()) / 1000)
       return {
         success: false,
