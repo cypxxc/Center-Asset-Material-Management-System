@@ -104,7 +104,7 @@ When a high or critical alert fires:
 
 - **Trigger:** An account with `profiles.is_active = false` attempts to log in, load pages, or call Server Actions.
 - **Severity:** `HIGH`.
-- **Automated Action Taken:** Edge middleware (`proxy.ts` / `lib/supabase/middleware.ts`) destroys session cookie, redirects to `/inactive`, and logs `INACTIVE_ACCOUNT_ACCESS`.
+- **Automated Action Taken:** Edge middleware (`proxy.ts` / `lib/supabase/middleware.ts`) destroys session cookie, redirects to `/login?error=inactive`, and logs `INACTIVE_ACCOUNT_ACCESS`.
 
 #### Investigation Steps:
 1. Query SIEM logs for `eventType: "INACTIVE_ACCOUNT_ACCESS"`.

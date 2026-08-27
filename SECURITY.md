@@ -112,7 +112,7 @@ Any unauthorized attempt is rejected with an `AuthorizationError` and triggers a
 
 #### 2.4 Inactive Account Gating
 - Account status (`is_active` boolean on `profiles`) is checked on every request via Edge middleware (`proxy.ts` / `lib/supabase/middleware.ts`).
-- If an account is deactivated, all active sessions are immediately invalidated and redirected to `/inactive`.
+- If an account is deactivated, all active sessions are immediately invalidated and redirected to `/login?error=inactive`.
 - Any attempt by a deactivated account to call server actions is blocked and emits an `INACTIVE_ACCOUNT_ACCESS` security event.
 
 ---
