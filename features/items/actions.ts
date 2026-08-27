@@ -527,6 +527,16 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   }
 
   const supabase = await createClient()
+  const { data: itemsToDelete, error: lookupError } = await supabase
+    .from('items')
+    .select('id, image_url')
+    .in('id', ids)
+    .is('deleted_at', null)
+
+  if (lookupError) {
+    return errorResponse('ไม่สามารถเตรียมลบรายการได้ กรุณาลองใหม่อีกครั้ง')
+  }
+
   const { error, data } = await supabase
     .from('items')
     .delete()
@@ -553,6 +563,8 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     new_data: { permanently_deleted: true }
   }))
   await supabase.from('audit_logs').insert(auditLogs)
+
+  await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url)))
 
   logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { count: ids.length } })
 
