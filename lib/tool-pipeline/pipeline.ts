@@ -6,6 +6,7 @@ import {
 } from './types'
 import { ToolPipelineError, formatZodRemediationHint } from './errors'
 import { logSecurityEvent } from '@/lib/security-logger'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export function defineTool<
   TInputSchema extends z.ZodTypeAny,
@@ -46,9 +47,41 @@ export async function runToolPipeline<
       })
     }
 
-    // 2. Stage 2: RBAC & Identity Policy Check
+    // 2. Stage 2: Rate Limiter Guard
+    if (tool.rateLimitTier) {
+      const rateLimitResult = await checkRateLimit(tool.name, tool.rateLimitTier)
+      if (!rateLimitResult.success) {
+        throw new ToolPipelineError({
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: rateLimitResult.error || `Rate limit exceeded for tool '${tool.name}'`,
+          remediationHint: 'Wait for the rate limit window to reset before retrying.',
+        })
+      }
+    }
+
+    // 3. Stage 3: RBAC & Identity Policy Check
     const actor = context.actor || {}
     if (actor.isActive === false) {
+      logSecurityEvent({
+        severity: 'MEDIUM',
+        eventType: 'INACTIVE_ACCOUNT_ACCESS',
+        threatVector: `Execution attempt on tool '${tool.name}' by inactive account`,
+        impactAnalysis: 'Blocked execution attempt by deactivated account',
+        automatedActionTaken: 'Rejected tool execution with UNAUTHORIZED_ERROR',
+        recommendedFollowUp: `Verify status of user ID '${actor.id || 'unknown'}'`,
+        actor: {
+          userId: actor.id,
+          role: actor.role,
+          ip: actor.ip,
+          userAgent: actor.userAgent,
+        },
+        metadata: {
+          toolName: tool.name,
+          category: tool.category,
+          ...context.metadata,
+        },
+      })
+
       throw new ToolPipelineError({
         code: 'UNAUTHORIZED_ERROR',
         message: `Deactivated account cannot execute tool '${tool.name}'`,
@@ -59,12 +92,52 @@ export async function runToolPipeline<
     if (tool.requiredRole) {
       const role = actor.role
       if (tool.requiredRole === 'admin' && role !== 'admin') {
+        logSecurityEvent({
+          severity: 'LOW',
+          eventType: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+          threatVector: `Insufficient privilege on tool '${tool.name}'`,
+          impactAnalysis: `Caller with role '${role || 'anonymous'}' attempted to invoke admin-only tool`,
+          automatedActionTaken: 'Rejected tool execution with UNAUTHORIZED_ERROR',
+          recommendedFollowUp: 'Verify caller identity and assigned role permissions',
+          actor: {
+            userId: actor.id,
+            role: actor.role,
+            ip: actor.ip,
+            userAgent: actor.userAgent,
+          },
+          metadata: {
+            toolName: tool.name,
+            requiredRole: tool.requiredRole,
+            ...context.metadata,
+          },
+        })
+
         throw new ToolPipelineError({
           code: 'UNAUTHORIZED_ERROR',
           message: `Tool '${tool.name}' requires 'admin' role. Current role is '${role || 'anonymous'}'.`,
           remediationHint: 'Execute this tool under an account with admin privileges.',
         })
       } else if (tool.requiredRole === 'staff' && role !== 'admin' && role !== 'staff') {
+        logSecurityEvent({
+          severity: 'LOW',
+          eventType: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+          threatVector: `Insufficient privilege on tool '${tool.name}'`,
+          impactAnalysis: `Caller with role '${role || 'anonymous'}' attempted to invoke staff tool`,
+          automatedActionTaken: 'Rejected tool execution with UNAUTHORIZED_ERROR',
+          recommendedFollowUp: 'Verify caller identity and assigned role permissions',
+          actor: {
+            userId: actor.id,
+            role: actor.role,
+            ip: actor.ip,
+            userAgent: actor.userAgent,
+          },
+          metadata: {
+            toolName: tool.name,
+            requiredRole: tool.requiredRole,
+            ...context.metadata,
+          },
+        })
+
         throw new ToolPipelineError({
           code: 'UNAUTHORIZED_ERROR',
           message: `Tool '${tool.name}' requires 'staff' or 'admin' role. Current role is '${role || 'anonymous'}'.`,
@@ -79,7 +152,7 @@ export async function runToolPipeline<
       }
     }
 
-    // 3. Stage 3: Sandboxed Execution & Timeout Guard
+    // 4. Stage 4: Sandboxed Execution & Timeout Guard
     const timeoutMs = tool.timeoutMs || 30000
     let timeoutId: NodeJS.Timeout | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -107,7 +180,7 @@ export async function runToolPipeline<
       }
     }
 
-    // 4. Stage 4: Strict Output Schema Enforcement
+    // 5. Stage 5: Strict Output Schema Enforcement
     const validatedOutput = tool.outputSchema.safeParse(rawResult)
     if (!validatedOutput.success) {
       logSecurityEvent({
@@ -117,6 +190,17 @@ export async function runToolPipeline<
         impactAnalysis: 'Tool produced response that violated declared output schema',
         automatedActionTaken: 'Blocked invalid output payload from reaching agent',
         recommendedFollowUp: 'Inspect tool handler implementation and output schema',
+        actor: {
+          userId: actor.id,
+          role: actor.role,
+          ip: actor.ip,
+          userAgent: actor.userAgent,
+        },
+        metadata: {
+          toolName: tool.name,
+          category: tool.category,
+          ...context.metadata,
+        },
       })
 
       throw new ToolPipelineError({

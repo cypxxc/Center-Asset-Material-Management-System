@@ -30,6 +30,25 @@ test('runToolPipeline executes valid tool successfully and validates output sche
   }
 })
 
+test('runToolPipeline executes tool with rateLimitTier successfully when within rate limits', async () => {
+  const limitedTool = defineTool({
+    name: 'test_rate_limited',
+    description: 'Rate limited tool',
+    category: 'inventory',
+    rateLimitTier: 'read',
+    inputSchema: z.object({ id: z.string() }),
+    outputSchema: z.object({ id: z.string(), ok: z.boolean() }),
+    handler: async (input) => ({ id: input.id, ok: true }),
+  })
+
+  const result = await runToolPipeline(limitedTool, { id: 'item-123' }, sampleContext)
+  assert.equal(result.success, true)
+  if (result.success) {
+    assert.equal(result.data.id, 'item-123')
+    assert.equal(result.data.ok, true)
+  }
+})
+
 test('runToolPipeline returns SCHEMA_VALIDATION_ERROR when input violates inputSchema', async () => {
   const mathTool = defineTool({
     name: 'test_math',
