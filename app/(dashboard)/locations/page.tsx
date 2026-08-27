@@ -14,21 +14,9 @@ export default async function LocationsPage() {
 
   const supabase = await createClient()
 
-  // Fetch locations
-  const { data: locations, error: locError } = await supabase
-    .from('locations')
-    .select('id, name, building, floor, room')
-    .eq('is_active', true)
-    .order('name')
-
-  if (locError) {
-    throw new Error(locError.message)
-  }
-
-  // Fetch items with location details
-  const { data: items, error: itemsError } = await supabase
-    .from('items')
-    .select(`
+  const [locationsResult, itemsResult] = await Promise.all([
+    supabase.from('locations').select('id, name, building, floor, room').eq('is_active', true).order('name'),
+    supabase.from('items').select(`
       id,
       item_name,
       item_type,
@@ -38,8 +26,12 @@ export default async function LocationsPage() {
       status,
       category:categories(name),
       location:locations(id, name)
-    `)
-    .is('deleted_at', null)
+    `).is('deleted_at', null),
+  ])
+  const { data: locations, error: locError } = locationsResult
+  const { data: items, error: itemsError } = itemsResult
+
+  if (locError) throw new Error(locError.message)
 
   if (itemsError) {
     throw new Error(itemsError.message)

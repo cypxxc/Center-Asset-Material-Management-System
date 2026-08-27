@@ -50,32 +50,38 @@ export async function GET(request: NextRequest) {
 
     const { email, full_name, role, department, photo_url, sub: rmuUid } = verification.payload
     const supabaseAdmin = getAdminClient()
+    const normalizedEmail = email.trim().toLowerCase()
 
-    // 2. Find existing user in auth.users
+    // 2. Look up the mirrored profile directly. Auth listUsers is paginated and
+    // must not be used as an email lookup during sign-in.
     let supabaseUserId: string
-    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-    if (listError) {
-      throw new Error(`Failed to query users: ${listError.message}`)
+    const { data: existingProfile, error: profileLookupError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+
+    if (profileLookupError) {
+      throw new Error(`Failed to query profile: ${profileLookupError.message}`)
     }
 
-    const existingUser = userList?.users?.find(
-      (u) => u.email?.trim().toLowerCase() === email.trim().toLowerCase()
-    )
-
-    if (existingUser) {
-      supabaseUserId = existingUser.id
+    if (existingProfile) {
+      supabaseUserId = existingProfile.id
       await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
         user_metadata: { full_name, role, rmu_uid: rmuUid, department, avatar_url: photo_url },
       })
     } else {
       // Auto-provision user in auth.users
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         email_confirm: true,
         user_metadata: { full_name, role, rmu_uid: rmuUid, department, avatar_url: photo_url },
       })
 
       if (createError || !newUser.user) {
+        if (createError?.message.toLowerCase().includes('already')) {
+          throw new Error('พบบัญชีผู้ใช้เดิมแต่ไม่มีข้อมูลโปรไฟล์ กรุณาให้ผู้ดูแลระบบกู้คืนโปรไฟล์ก่อนเข้าสู่ระบบ')
+        }
         throw new Error(createError?.message || 'Failed to auto-create user in Supabase')
       }
       supabaseUserId = newUser.user.id
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest) {
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
       {
         id: supabaseUserId,
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         full_name: full_name || email.split('@')[0],
         role: role || 'staff',
         department: department || null,
@@ -104,7 +110,7 @@ export async function GET(request: NextRequest) {
     const targetUrl = new URL(targetPath, request.url).toString()
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       options: {
         redirectTo: targetUrl,
       },
