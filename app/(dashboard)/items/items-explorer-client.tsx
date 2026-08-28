@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
   Check,
   Copy,
@@ -117,9 +117,6 @@ export function ItemsExplorerClient({
     setLocalItems(items)
   }
 
-  const searchParams = useSearchParams()
-  const newParam = searchParams.get('new')
-
   const { toast } = useToast()
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
@@ -134,7 +131,6 @@ export function ItemsExplorerClient({
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
-  const [lastNewParam, setLastNewParam] = useState<string | null>(null)
 
   const selectedItemsData = useMemo(() => {
     return localItems
@@ -152,28 +148,6 @@ export function ItemsExplorerClient({
         unit_price: item.unit_price,
       }))
   }, [localItems, selectedItemIds])
-
-  // Reactively open sheet when URL query param changes during render
-  if (newParam !== lastNewParam) {
-    setLastNewParam(newParam)
-    if (newParam === 'true') {
-      setIsSheetOpen(true)
-    }
-  }
-
-  // URL clean up side-effect (runs after render commit)
-  React.useEffect(() => {
-    if (newParam === 'true') {
-      const current = new URLSearchParams(window.location.search)
-      if (current.has('new')) {
-        current.delete('new')
-        const newSearch = current.toString()
-        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '')
-        window.history.replaceState(null, '', newUrl)
-      }
-    }
-  }, [newParam])
-
 
   const currentQ = params.q ?? ''
   if (currentQ !== prevQ) {

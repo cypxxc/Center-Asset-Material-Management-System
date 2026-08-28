@@ -10,6 +10,7 @@ import { MetricsGridSkeleton } from '@/components/dashboard/dashboard-metrics-gr
 import { CategoryListSkeleton } from '@/components/dashboard/dashboard-category-list'
 import { LowStockSkeleton } from '@/components/dashboard/dashboard-low-stock-panel'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
+import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 
 const DashboardMetricsGrid = dynamic(
   () => import('@/components/dashboard/dashboard-metrics-grid').then((mod) => mod.DashboardMetricsGrid)
@@ -49,10 +50,10 @@ export default async function DashboardPage() {
         </p>
         <div className="flex items-center gap-3 pt-1">
           {userCanWrite && (
-            <Link href="/items/new" className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs">
+            <NewItemDialogTrigger className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-2xs transition-all hover:bg-primary/90">
               <PlusCircle className="w-4 h-4" />
               ขึ้นทะเบียนสิ่งของใหม่
-            </Link>
+            </NewItemDialogTrigger>
           )}
           <Link href="/items" className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-semibold px-3.5 py-2 rounded-lg transition-all">
             ดูรายการทะเบียนทั้งหมด
