@@ -26,8 +26,7 @@ test('check-bundle-budget script executes successfully and outputs budget info',
   }
 })
 
-test('header guide is deferred from the initial dashboard client boundary', () => {
+test('header has no reference to the retired user guide', () => {
   const headerSource = readFileSync('components/layout/header.tsx', 'utf8')
-  assert.match(headerSource, /dynamic\(\s*\(\) => import\('\.\/header-guide-dialog'\)/)
-  assert.doesNotMatch(headerSource, /CAMMS User Guide/)
+  assert.doesNotMatch(headerSource, /header-guide-dialog|HeaderGuideDialog|CAMMS User Guide/)
 })

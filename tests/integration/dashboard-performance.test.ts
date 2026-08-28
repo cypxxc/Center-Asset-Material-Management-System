@@ -50,6 +50,21 @@ test('dashboard components and page are configured for React Suspense streaming'
   assert.match(pageContent, /fallback=\{<LowStockSkeleton \/>\}/)
 })
 
+test('dashboard defers the realtime subscription behind a client-only boundary', () => {
+  const pageSource = readFileSync('app/(dashboard)/dashboard/page.tsx', 'utf8')
+  const boundarySource = readFileSync('components/dashboard/dashboard-realtime-boundary.tsx', 'utf8')
+  const realtimeRefreshSource = readFileSync('hooks/use-realtime-refresh.ts', 'utf8')
+
+  assert.match(
+    pageSource,
+    /import \{ DashboardRealtimeBoundary \} from '@\/components\/dashboard\/dashboard-realtime-boundary'/,
+  )
+  assert.doesNotMatch(pageSource, /import \{ RealtimeRefreshBridge \} from '@\/components\/realtime-refresh-bridge'/)
+  assert.match(boundarySource, /dynamic\(\s*\(\) => import\('@\/components\/realtime-refresh-bridge'\)/)
+  assert.match(boundarySource, /ssr:\s*false/)
+  assert.match(realtimeRefreshSource, /router\.refresh\(\)\s+const supabase = createClient\(\)/)
+})
+
 test('getLowStockItems is exported as a function in features/items/queries', async () => {
   const { getLowStockItems } = await import('../../features/items/queries')
   assert.equal(typeof getLowStockItems, 'function')

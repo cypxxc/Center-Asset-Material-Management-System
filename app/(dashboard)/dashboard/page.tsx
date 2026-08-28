@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic'
 import { MetricsGridSkeleton } from '@/components/dashboard/dashboard-metrics-grid'
 import { CategoryListSkeleton } from '@/components/dashboard/dashboard-category-list'
 import { LowStockSkeleton } from '@/components/dashboard/dashboard-low-stock-panel'
-import { RealtimeRefreshBridge } from '@/components/realtime-refresh-bridge'
+import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
 
 const DashboardMetricsGrid = dynamic(
   () => import('@/components/dashboard/dashboard-metrics-grid').then((mod) => mod.DashboardMetricsGrid)
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
 
   return (
     <PageContainer maxWidth="full">
-      <RealtimeRefreshBridge tables={['items', 'categories', 'locations', 'units']} />
+      <DashboardRealtimeBoundary tables={['items', 'categories', 'locations', 'units']} />
       {/* Welcome Control Strip */}
       <div className="bg-card border border-border text-card-foreground rounded-xl p-6 shadow-2xs space-y-3">
         <div className="flex items-center gap-2">
