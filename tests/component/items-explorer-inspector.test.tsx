@@ -3,6 +3,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+
+// This component test exercises the inspector UI, not the live Supabase channel.
+// Disable the channel so placeholder CI credentials cannot leave a realtime socket open.
+process.env.NEXT_PUBLIC_SUPABASE_URL = ''
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
+
 import { ItemsExplorerClient } from '../../app/(dashboard)/items/items-explorer-client'
 import { ToastProvider } from '../../components/ui/toast'
 import type { ItemListRow } from '../../features/items/types'
