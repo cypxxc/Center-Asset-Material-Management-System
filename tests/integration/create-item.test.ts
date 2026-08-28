@@ -174,6 +174,11 @@ const expectedParsedValues = {
   status: 'active',
   note: 'Characterization fixture',
   image_url: null,
+  depreciation_enabled: false,
+  depreciation_cost: null,
+  depreciation_useful_life_years: null,
+  depreciation_start_basis: null,
+  depreciation_start_date: null,
 }
 
 function assertStableAuditInsert(audit: Record<string, unknown>) {
