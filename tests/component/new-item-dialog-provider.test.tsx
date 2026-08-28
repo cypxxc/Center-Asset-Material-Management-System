@@ -39,13 +39,37 @@ function mockSearchParams(search: string) {
   currentSearchParams = new URLSearchParams(search);
 }
 
-function renderProvider(children: React.ReactNode) {
+function renderProvider(children: React.ReactNode, synchronizeRouter = false) {
+  if (synchronizeRouter) {
+    return render(
+      <ToastProvider>
+        <RouterSynchronizedProvider>{children}</RouterSynchronizedProvider>
+      </ToastProvider>,
+    );
+  }
+
   return render(
     <ToastProvider>
       <NewItemDialogProvider categories={[]} locations={[]} units={[]}>
         {children}
       </NewItemDialogProvider>
     </ToastProvider>,
+  );
+}
+
+function RouterSynchronizedProvider({ children }: { children: React.ReactNode }) {
+  const [, rerender] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const synchronize = () => rerender((version) => version + 1);
+    window.addEventListener('next-search-params-synchronized', synchronize);
+
+    return () => window.removeEventListener('next-search-params-synchronized', synchronize);
+  }, []);
+
+  return (
+    <NewItemDialogProvider categories={[]} locations={[]} units={[]}>
+      {children}
+    </NewItemDialogProvider>
   );
 }
 
@@ -73,10 +97,15 @@ test('NewItemDialogTrigger opens the creation sheet without navigation', () => {
   assert.equal(routerPushCalls, 0);
 });
 
-test('provider removes only new=true from a compatibility URL', async () => {
+test('provider opens after Next synchronizes search params from a compatibility URL', async () => {
   mockSearchParams('type=asset&new=true');
+  window.history.replaceState = ((_state: unknown, _unused: string, url?: string | URL | null) => {
+    historyReplaceCalls.push(String(url));
+    mockSearchParams('type=asset');
+    queueMicrotask(() => window.dispatchEvent(new window.Event('next-search-params-synchronized')));
+  }) as History['replaceState'];
 
-  renderProvider('Page');
+  renderProvider('Page', true);
 
   await waitFor(() => assert.ok(screen.getByRole('dialog')));
   assert.equal(historyReplaceCalls.at(-1), '/items?type=asset');

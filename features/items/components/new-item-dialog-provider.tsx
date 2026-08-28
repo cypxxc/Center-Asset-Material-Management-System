@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, startTransition, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { AssetNumberTemplate } from '@/features/asset-numbers/types'
@@ -59,14 +59,12 @@ export function NewItemDialogProvider({
   useEffect(() => {
     if (searchParams.get('new') !== 'true') return
 
-    const openTimer = window.setTimeout(openNewItemSheet, 0)
+    startTransition(openNewItemSheet)
 
     const nextSearchParams = new URLSearchParams(searchParams.toString())
     nextSearchParams.delete('new')
     const search = nextSearchParams.toString()
     window.history.replaceState(null, '', `${pathname}${search ? `?${search}` : ''}`)
-
-    return () => window.clearTimeout(openTimer)
   }, [openNewItemSheet, pathname, searchParams])
 
   const handleSuccess = useCallback(() => {
