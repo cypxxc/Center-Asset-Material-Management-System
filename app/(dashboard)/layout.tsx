@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
-import { getSidebarData } from '@/features/items/queries'
+import { getItemReferences, getSidebarData } from '@/features/items/queries'
+import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
+import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
 
 interface DashboardLayoutProps {
@@ -27,7 +29,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect('/login?error=inactive')
   }
 
-  const sidebarData = await getSidebarData()
+  const [sidebarData, references, assetNumberTemplates] = await Promise.all([
+    getSidebarData(),
+    getItemReferences(),
+    getAssetNumberTemplates(true),
+  ])
 
   return (
     <ToastProvider>
@@ -38,13 +44,20 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         ข้ามไปเนื้อหาหลัก
       </a>
       <div className="flex h-screen w-screen overflow-hidden bg-background text-slate-900">
-        <Sidebar profile={profile} sidebarData={sidebarData} />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header profile={profile} />
-          <main id="main-content" className="flex-1 overflow-hidden">
-            {children}
-          </main>
-        </div>
+        <NewItemDialogProvider
+          categories={references.categories}
+          locations={references.locations}
+          units={references.units}
+          assetNumberTemplates={assetNumberTemplates}
+        >
+          <Sidebar profile={profile} sidebarData={sidebarData} />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header profile={profile} />
+            <main id="main-content" className="flex-1 overflow-hidden">
+              {children}
+            </main>
+          </div>
+        </NewItemDialogProvider>
       </div>
     </ToastProvider>
   )
