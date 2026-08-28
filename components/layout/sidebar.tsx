@@ -24,6 +24,7 @@ import {
   History,
 } from 'lucide-react'
 import { signOut } from '@/features/auth/actions'
+import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -317,13 +318,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         </h2>
         
         {canWrite && (
-          <Link
-            href="/items?new=true"
-            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 rounded-lg flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-blue-500/10"
-          >
+          <NewItemDialogTrigger className="mt-3 flex w-full items-center justify-center space-x-1.5 rounded-lg bg-blue-600 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/10 transition-all hover:bg-blue-700">
             <Plus className="w-3.5 h-3.5" />
             <span>ขึ้นทะเบียนใหม่</span>
-          </Link>
+          </NewItemDialogTrigger>
         )}
       </div>
 
