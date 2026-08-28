@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { useEffect, useRef, useCallback, useId, useState } from 'react'
+import { X, Plus, Save } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
 import { ItemDetail, ReferenceOption } from '../types'
 import { AssetNumberTemplate } from '@/features/asset-numbers/types'
+import { Button } from '@/components/ui/button'
 
 const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
 
@@ -77,6 +78,8 @@ export function NewItemSheet({
   const dialogRef = useRef<HTMLDialogElement>(null)
   const initialFormSignatureRef = useRef('')
   const [formVersion, setFormVersion] = useState(0)
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
+  const formId = useId()
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -85,6 +88,7 @@ export function NewItemSheet({
     if (open) {
       if (dialog.open) return
       dialog.showModal()
+      setCurrentStep(1)
       setFormVersion((version) => version + 1)
     } else if (dialog.open) {
       dialog.close()
@@ -123,6 +127,19 @@ export function NewItemSheet({
     setFormVersion((version) => version + 1)
     onSuccess()
   }, [onSuccess])
+
+  const goNext = useCallback(() => {
+    const form = dialogRef.current?.querySelector('form')
+    if (!form) return
+
+    if (!form.checkValidity()) {
+      form.reportValidity()
+      form.querySelector<HTMLElement>(':invalid')?.focus()
+      return
+    }
+
+    setCurrentStep(2)
+  }, [])
 
   const handleCloseAttempt = useCallback(() => {
     if (isFormDirty()) {
@@ -178,6 +195,12 @@ export function NewItemSheet({
               <h2 className="text-base font-black tracking-tight text-slate-900">
                 {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
               </h2>
+              <p className="mt-0.5 text-xs font-semibold text-slate-700">
+                {currentStep === 1 ? 'ข้อมูลหลัก' : 'รายละเอียดเพิ่มเติม'}
+              </p>
+              <p aria-live="polite" className="mt-0.5 text-xs font-medium text-slate-500">
+                {currentStep} จาก 2
+              </p>
             </div>
           </div>
           <button
@@ -203,7 +226,31 @@ export function NewItemSheet({
             inline
             onCancel={handleCloseAttempt}
             onSuccess={handleSuccess}
+            wizardStep={currentStep}
+            formId={formId}
+            showActions={false}
           />
+        </div>
+
+        <div className="new-item-sheet-footer">
+          {currentStep === 1 ? (
+            <>
+              <Button type="button" variant="outline" onClick={handleCloseAttempt}>ยกเลิก</Button>
+              <Button type="button" onClick={goNext}>ถัดไป</Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>ย้อนกลับ</Button>
+              <Button type="button" variant="outline" onClick={() => {
+                const dialog = dialogRef.current
+                if (dialog) saveDraft(dialog)
+              }}>บันทึกร่าง</Button>
+              <Button type="submit" form={formId} className="ml-auto gap-1.5 font-semibold">
+                <Save className="h-4 w-4" />
+                เพิ่มรายการ
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -262,8 +309,19 @@ export function NewItemSheet({
         .new-item-sheet-body {
           flex: 1;
           overflow-y: auto;
-          padding: 16px 20px 32px;
+          padding: 16px 20px;
           overscroll-behavior: contain;
+        }
+
+        .new-item-sheet-footer {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-shrink: 0;
+          padding: 14px 20px;
+          border-top: 1px solid #e2e8f0;
+          background: #fff;
         }
 
         /* Override ItemForm card styling inside sheet — remove double border */
@@ -273,6 +331,24 @@ export function NewItemSheet({
           padding: 0 !important;
           background: transparent !important;
           border-radius: 0 !important;
+        }
+
+        @media (max-width: 640px) {
+          .new-item-sheet-dialog {
+            padding: 8px;
+          }
+
+          .new-item-sheet-panel {
+            width: min(100%, 760px);
+            max-height: calc(100dvh - 16px);
+          }
+
+          .new-item-sheet-header,
+          .new-item-sheet-body,
+          .new-item-sheet-footer {
+            padding-left: 16px;
+            padding-right: 16px;
+          }
         }
       `}</style>
     </dialog>
