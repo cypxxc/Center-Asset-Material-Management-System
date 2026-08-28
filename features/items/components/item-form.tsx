@@ -36,6 +36,12 @@ interface ItemFormProps {
   onCancel?: () => void
   /** Called after a successful inline create (modal mode). Not called when redirect happens. */
   onSuccess?: () => void
+  /** Limits the visible fields to a wizard step while keeping the complete form mounted. */
+  wizardStep?: 1 | 2
+  /** Lets a submit button outside the form reference this form. */
+  formId?: string
+  /** Hides the standalone form actions when a parent owns wizard navigation. */
+  showActions?: boolean
 }
 
 function FieldError({ errors }: { errors?: string[] }) {
@@ -54,7 +60,20 @@ function SubmitButton() {
   )
 }
 
-export function ItemForm({ action, categories, locations, units, assetNumberTemplates = [], item, inline = false, onCancel, onSuccess }: ItemFormProps) {
+export function ItemForm({
+  action,
+  categories,
+  locations,
+  units,
+  assetNumberTemplates = [],
+  item,
+  inline = false,
+  onCancel,
+  onSuccess,
+  wizardStep,
+  formId,
+  showActions = true,
+}: ItemFormProps) {
   const [state, formAction] = useActionState(action, null)
   // Track which error message version the user has dismissed.
   // Using a ref + state avoids a useEffect→setState cascade.
@@ -82,6 +101,7 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
 
   return (
     <form
+      id={formId}
       action={formAction}
       className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
     >
@@ -101,6 +121,7 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
           </div>
       )}
 
+      <div hidden={wizardStep === 2} className="contents">
       {/* Tabs Navigation */}
       <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-slate-100 mb-2">
         <button
@@ -182,6 +203,45 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
           </FormField>
 
           <FormField>
+            <FormLabel htmlFor="unit_id" required>หน่วยนับ</FormLabel>
+            <FormSelect
+              id="unit_id"
+              name="unit_id"
+              defaultValue={item?.unit?.id ?? ''}
+              required
+              aria-invalid={!!state?.fieldErrors?.unit_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>{unit.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.unit_id} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
+            <FormSelect
+              id="location_id"
+              name="location_id"
+              defaultValue={item?.location?.id ?? ''}
+              aria-invalid={!!state?.fieldErrors?.location_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.location_id} />
+          </FormField>
+        </FormGrid>
+      </FormSection>
+      </div>
+
+      <div hidden={wizardStep === 1} className="contents">
+      <FormSection title="2. รายละเอียดและราคา">
+        <FormGrid>
+          <FormField>
             <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
             <FormattedNumberInput
               id="unit_price"
@@ -191,22 +251,6 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
               aria-invalid={!!state?.fieldErrors?.unit_price}
             />
             <FieldError errors={state?.fieldErrors?.unit_price} />
-          </FormField>
-
-          <FormField>
-            <FormLabel htmlFor="unit_id">หน่วยนับ</FormLabel>
-            <FormSelect
-              id="unit_id"
-              name="unit_id"
-              defaultValue={item?.unit?.id ?? ''}
-              aria-invalid={!!state?.fieldErrors?.unit_id}
-            >
-              <option value="">ไม่ระบุ</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>{unit.name}</option>
-              ))}
-            </FormSelect>
-            <FieldError errors={state?.fieldErrors?.unit_id} />
           </FormField>
         </FormGrid>
       </FormSection>
@@ -239,22 +283,6 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
 
       <FormSection title="3. สถานที่ ผู้รับผิดชอบ และสถานะ">
         <FormGrid>
-          <FormField>
-            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
-            <FormSelect
-              id="location_id"
-              name="location_id"
-              defaultValue={item?.location?.id ?? ''}
-              aria-invalid={!!state?.fieldErrors?.location_id}
-            >
-              <option value="">ไม่ระบุ</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>{location.name}</option>
-              ))}
-            </FormSelect>
-            <FieldError errors={state?.fieldErrors?.location_id} />
-          </FormField>
-
           <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
 
           <FormField>
@@ -287,8 +315,9 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
           </FormField>
         </FormGrid>
       </FormSection>
+      </div>
 
-      <FormActions>
+      {showActions && <FormActions>
         {onCancel ? (
           <Button type="button" variant="outline" className="h-10 px-4" onClick={onCancel}>ยกเลิก</Button>
         ) : (
@@ -297,7 +326,7 @@ export function ItemForm({ action, categories, locations, units, assetNumberTemp
           </Link>
         )}
         <SubmitButton />
-      </FormActions>
+      </FormActions>}
     </form>
   )
 }
