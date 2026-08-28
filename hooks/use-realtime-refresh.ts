@@ -15,6 +15,7 @@ export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true) {
     if (!enabled || !tableKey) return
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
 
+    router.refresh()
     const supabase = createClient()
     const tableList = tableKey.split(',') as RealtimeTable[]
     const channel = supabase
