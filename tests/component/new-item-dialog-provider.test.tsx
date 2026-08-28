@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ToastProvider } from '../../components/ui/toast';
 
 let routerPushCalls = 0;
@@ -24,7 +24,8 @@ nextNavigation.useRouter = () => ({
 nextNavigation.usePathname = () => currentPathname;
 nextNavigation.useSearchParams = () => currentSearchParams;
 
-const { NewItemDialogProvider, NewItemDialogTrigger } = require('../../features/items/components/new-item-dialog-provider') as typeof import('../../features/items/components/new-item-dialog-provider');
+let NewItemDialogProvider: typeof import('../../features/items/components/new-item-dialog-provider').NewItemDialogProvider;
+let NewItemDialogTrigger: typeof import('../../features/items/components/new-item-dialog-provider').NewItemDialogTrigger;
 
 function mockDialogMethods() {
   const htmlDialogProto = window.HTMLDialogElement?.prototype as HTMLDialogElement | undefined;
@@ -59,6 +60,10 @@ test.beforeEach(() => {
   }) as History['replaceState'];
 });
 
+test.before(async () => {
+  ({ NewItemDialogProvider, NewItemDialogTrigger } = await import('../../features/items/components/new-item-dialog-provider'));
+});
+
 test('NewItemDialogTrigger opens the creation sheet without navigation', () => {
   renderProvider(<NewItemDialogTrigger>ขึ้นทะเบียนใหม่</NewItemDialogTrigger>);
 
@@ -68,11 +73,11 @@ test('NewItemDialogTrigger opens the creation sheet without navigation', () => {
   assert.equal(routerPushCalls, 0);
 });
 
-test('provider removes only new=true from a compatibility URL', () => {
+test('provider removes only new=true from a compatibility URL', async () => {
   mockSearchParams('type=asset&new=true');
 
   renderProvider('Page');
 
-  assert.ok(screen.getByRole('dialog'));
+  await waitFor(() => assert.ok(screen.getByRole('dialog')));
   assert.equal(historyReplaceCalls.at(-1), '/items?type=asset');
 });

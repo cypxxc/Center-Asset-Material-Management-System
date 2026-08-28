@@ -59,12 +59,14 @@ export function NewItemDialogProvider({
   useEffect(() => {
     if (searchParams.get('new') !== 'true') return
 
-    openNewItemSheet()
+    const openTimer = window.setTimeout(openNewItemSheet, 0)
 
     const nextSearchParams = new URLSearchParams(searchParams.toString())
     nextSearchParams.delete('new')
     const search = nextSearchParams.toString()
     window.history.replaceState(null, '', `${pathname}${search ? `?${search}` : ''}`)
+
+    return () => window.clearTimeout(openTimer)
   }, [openNewItemSheet, pathname, searchParams])
 
   const handleSuccess = useCallback(() => {
