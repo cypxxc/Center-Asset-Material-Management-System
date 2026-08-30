@@ -70,16 +70,39 @@ async function main() {
   await writeFile(path.join(backupDir, 'database.json'), databaseJson, 'utf8')
   await writeFile(path.join(backupDir, 'auth-users.json'), authJson, 'utf8')
 
-  const { data: objects, error: listError } = await supabase.storage.from('item-images').list('', { limit: 1000 })
-  if (listError) throw new Error(`Unable to list item-images: ${listError.message}`)
   const storageFiles: Array<{ name: string; bytes: number; sha256: string }> = []
-  for (const object of objects ?? []) {
-    if (!object.name || object.id === null) continue
-    const { data, error } = await supabase.storage.from('item-images').download(object.name)
-    if (error) throw new Error(`Unable to download item-images/${object.name}: ${error.message}`)
-    const buffer = Buffer.from(await data.arrayBuffer())
-    await writeFile(path.join(storageDir, object.name), buffer)
-    storageFiles.push({ name: object.name, bytes: buffer.length, sha256: await sha256(buffer) })
+  const folders = ['']
+  const bucket = supabase.storage.from('item-images')
+  for (let index = 0; index < folders.length; index += 1) {
+    const prefix = folders[index]
+    for (let offset = 0; ; offset += 1000) {
+      const { data: objects, error: listError } = await bucket.list(prefix, {
+        limit: 1000,
+        offset,
+        sortBy: { column: 'name', order: 'asc' },
+      })
+      if (listError || !objects) throw new Error(`Unable to list item-images/${prefix}: ${listError?.message ?? 'Missing listing'}`)
+      for (const object of objects) {
+        // Storage names are remote input, not trusted local filesystem paths.
+        if (!object.name || object.name === '.' || object.name === '..' || /[\\/]/.test(object.name)) {
+          throw new Error(`Unsafe storage entry in item-images/${prefix}`)
+        }
+        const name = prefix ? `${prefix}/${object.name}` : object.name
+        if (object.id === null) {
+          folders.push(name)
+          continue
+        }
+        const { data, error } = await bucket.download(name)
+        if (error || !data) throw new Error(`Unable to download item-images/${name}: ${error?.message ?? 'Missing file'}`)
+        const buffer = Buffer.from(await data.arrayBuffer())
+        const destination = path.resolve(storageDir, ...name.split('/'))
+        if (!destination.startsWith(path.resolve(storageDir) + path.sep)) throw new Error('Unsafe storage destination')
+        await mkdir(path.dirname(destination), { recursive: true })
+        await writeFile(destination, buffer)
+        storageFiles.push({ name, bytes: buffer.length, sha256: await sha256(buffer) })
+      }
+      if (objects.length < 1000) break
+    }
   }
 
   const counts = Object.fromEntries(Object.entries(database).map(([table, rows]) => [table, rows.length]))

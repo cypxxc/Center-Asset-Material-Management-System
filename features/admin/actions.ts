@@ -219,7 +219,8 @@ export async function importDatabaseData(backupJsonStr: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
-  const supabase = await getSupabaseClient()
+  // This RPC authorizes with auth.uid(); keep the administrator's session.
+  const supabase = await createClient()
   try {
     if (backupJsonStr.length > 25 * 1024 * 1024) {
       return { error: 'Backup file is too large. Maximum size is 25 MB.' }
@@ -628,4 +629,3 @@ export async function updateUserProfileRoleAndStatus(
 
   return { success: true, profile: data?.[0] }
 }
-
