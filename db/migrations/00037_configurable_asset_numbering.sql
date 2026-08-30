@@ -97,7 +97,7 @@ BEGIN
       '{' || token_key || CASE WHEN token_width IS NULL THEN '' ELSE ':' || token_width::text END || '}',
       token_value
     );
-  END IF;
+  END LOOP;
 
   IF result ~ '\{[^}]+\}' THEN
     RAISE EXCEPTION 'Unknown or missing asset-number token';
