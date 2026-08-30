@@ -1,0 +1,87 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mockSupabaseRegistry } from '../mocks/supabase'
+import { GET as readiness } from '../../app/api/health/readiness/route'
+import { GET as liveness } from '../../app/api/health/liveness/route'
+import { GET as status } from '../../app/api/health/status/route'
+
+test('/api/health/readiness returns structured checks', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', [{ id: 'x' }])
+
+  const response = await readiness()
+  const body = await response.json()
+  assert.ok('checks' in body)
+  assert.ok('database' in body.checks)
+  assert.ok('storage' in body.checks)
+  assert.ok('environment' in body.checks)
+})
+
+test('/api/health/readiness uses service role for database check so RLS does not mark DB down', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', [{ id: 'x' }])
+  mockSupabaseRegistry.setAnonTableError('profiles', { message: 'RLS denied' })
+
+  const response = await readiness()
+  const body = await response.json()
+
+  assert.equal(response.status, 200)
+  assert.equal(body.ready, true)
+  assert.equal(body.checks.database.status, 'up')
+})
+
+test('/api/health/readiness checks database and storage concurrently', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponse('profiles', [{ id: 'x' }])
+  mockSupabaseRegistry.setTableDelay('profiles', 80)
+  mockSupabaseRegistry.setStorageDelay(80)
+
+  const start = performance.now()
+  const response = await readiness()
+  const elapsedMs = performance.now() - start
+
+  assert.equal(response.status, 200)
+  assert.ok(elapsedMs < 140, `expected concurrent checks below 140ms, got ${elapsedMs}`)
+})
+
+test('/api/health/readiness logs sanitized dependency diagnostics without exposing them publicly', async () => {
+  mockSupabaseRegistry.clear()
+  const secret = 'sbp_1234567890abcdef1234567890abcdef'
+  mockSupabaseRegistry.setTableResponse('profiles', null, {
+    message: `connection failed with ${secret}`,
+  })
+  const logLines: string[] = []
+  const originalConsoleError = console.error
+  console.error = (...args: unknown[]) => logLines.push(args.map(String).join(' '))
+
+  try {
+    const response = await readiness()
+    const body = await response.json()
+
+    assert.equal(response.status, 503)
+    assert.equal(body.checks.database.status, 'down')
+    assert.equal(body.checks.database.error, 'Dependency check failed')
+    assert.equal(JSON.stringify(body).includes(secret), false)
+    assert.equal(logLines.some((line) => line.includes('readinessCheck')), true)
+    assert.equal(logLines.some((line) => line.includes('database')), true)
+    assert.equal(logLines.some((line) => line.includes('[KEY_REDACTED]')), true)
+    assert.equal(logLines.some((line) => line.includes(secret)), false)
+  } finally {
+    console.error = originalConsoleError
+  }
+})
+
+test('/api/health/liveness returns alive', async () => {
+  const response = await liveness()
+  const body = await response.json()
+  assert.equal(body.alive, true)
+  assert.ok(typeof body.uptime === 'number')
+})
+
+test('/api/health/status returns runtime metadata', async () => {
+  const response = await status()
+  const body = await response.json()
+  assert.ok(body.version)
+  assert.ok(body.node?.version)
+  assert.ok(body.memory?.heapUsed)
+})

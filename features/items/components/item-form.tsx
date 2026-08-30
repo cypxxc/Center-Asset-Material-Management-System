@@ -1,0 +1,573 @@
+'use client'
+
+import { useActionState, useEffect, useRef, useState } from 'react'
+import { useFormStatus } from 'react-dom'
+import Link from 'next/link'
+import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ItemActionState } from '../actions'
+import {
+  FormField,
+  FormLabel,
+  FormError,
+  FormSection,
+  FormGrid,
+  FormActions,
+  FormInput,
+  FormSelect,
+  FormTextarea
+} from '@/components/ui/form'
+import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
+import { ItemDetail, ReferenceOption } from '../types'
+import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
+import { getTransformedImageUrl } from '@/lib/supabase/image'
+import { AssetNumberTemplate } from '@/features/asset-numbers/types'
+import { AssetNumberFields } from '@/features/asset-numbers/components/asset-number-fields'
+import { DepreciationFields } from '@/features/depreciation/components/depreciation-fields'
+
+interface ItemFormProps {
+  action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
+  categories: ReferenceOption[]
+  locations: ReferenceOption[]
+  units: ReferenceOption[]
+  assetNumberTemplates?: AssetNumberTemplate[]
+  item?: ItemDetail
+  inline?: boolean
+  onCancel?: () => void
+  /** Called after a successful inline create (modal mode). Not called when redirect happens. */
+  onSuccess?: () => void
+  /** Limits the visible fields to a wizard step while keeping the complete form mounted. */
+  wizardStep?: 1 | 2
+  /** Lets a submit button outside the form reference this form. */
+  formId?: string
+  /** Hides the standalone form actions when a parent owns wizard navigation. */
+  showActions?: boolean
+}
+
+function FieldError({ errors }: { errors?: string[] }) {
+  if (!errors?.length) return null
+  return <FormError>{errors[0]}</FormError>
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button type="submit" disabled={pending} className="h-10 px-4 font-semibold flex items-center gap-1.5">
+      <Save className="h-4 w-4" />
+      <span>{pending ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
+    </Button>
+  )
+}
+
+export function ItemForm({
+  action,
+  categories,
+  locations,
+  units,
+  assetNumberTemplates = [],
+  item,
+  inline = false,
+  onCancel,
+  onSuccess,
+  wizardStep,
+  formId,
+  showActions = true,
+}: ItemFormProps) {
+  const [state, formAction] = useActionState(action, null)
+  // Track which error message version the user has dismissed.
+  // Using a ref + state avoids a useEffect→setState cascade.
+  const dismissedRef = useRef<typeof state>(null)
+  const [dismissed, setDismissed] = useState<typeof state>(null)
+  const showError = !!state?.message && dismissed !== state
+
+  // Use a ref for onSuccess callback to avoid infinite loop when parent re-renders
+  const onSuccessRef = useRef(onSuccess)
+  useEffect(() => {
+    onSuccessRef.current = onSuccess
+  }, [onSuccess])
+
+  useEffect(() => {
+    if (state?.success) {
+      onSuccessRef.current?.()
+    }
+  }, [state])
+
+  const [activeTab, setActiveTab] = useState<'asset' | 'material'>(
+    item?.item_type === 'asset' || !item?.item_type ? 'asset' : 'material'
+  )
+
+  const itemType = activeTab
+
+  return (
+    <form
+      id={formId}
+      action={formAction}
+      className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
+    >
+      {inline && <input type="hidden" name="inline" value="true" />}
+      {showError && (
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="flex items-center justify-between gap-3">
+                <p>{state.message}</p>
+              <button
+                type="button"
+                onClick={() => { dismissedRef.current = state; setDismissed(state) }}
+                className="shrink-0 font-semibold underline underline-offset-2"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+      )}
+
+      <div hidden={wizardStep === 2} className="contents">
+      {/* Tabs Navigation */}
+      <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-slate-100 mb-2">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'asset'}
+          aria-controls="asset-details"
+          onClick={() => setActiveTab('asset')}
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+            activeTab === 'asset'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Package className="h-4 w-4" />
+          <span>ครุภัณฑ์</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'material'}
+          aria-controls="material-details"
+          onClick={() => setActiveTab('material')}
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+            activeTab === 'material'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <ClipboardList className="h-4 w-4" />
+          <span>วัสดุสิ้นเปลือง</span>
+        </button>
+      </div>
+
+      <input type="hidden" name="item_type" value={itemType} />
+
+      <FormSection title="1. ข้อมูลทั่วไป">
+        <FormGrid>
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
+            <FormInput
+              id="item_name"
+              name="item_name"
+              defaultValue={item?.item_name}
+              dir="auto"
+              required
+              aria-invalid={!!state?.fieldErrors?.item_name}
+            />
+            <FieldError errors={state?.fieldErrors?.item_name} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="category_id">หมวดหมู่</FormLabel>
+            <FormSelect
+              id="category_id"
+              name="category_id"
+              defaultValue={item?.category?.id ?? ''}
+              aria-invalid={!!state?.fieldErrors?.category_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.category_id} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="quantity" required>จำนวน</FormLabel>
+            <FormattedNumberInput
+              id="quantity"
+              name="quantity"
+              allowDecimals={false}
+              defaultValue={item?.quantity ?? 1}
+              required
+              aria-invalid={!!state?.fieldErrors?.quantity}
+            />
+            <FieldError errors={state?.fieldErrors?.quantity} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="unit_id" required>หน่วยนับ</FormLabel>
+            <FormSelect
+              id="unit_id"
+              name="unit_id"
+              defaultValue={item?.unit?.id ?? ''}
+              required
+              aria-invalid={!!state?.fieldErrors?.unit_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>{unit.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.unit_id} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
+            <FormSelect
+              id="location_id"
+              name="location_id"
+              defaultValue={item?.location?.id ?? ''}
+              aria-invalid={!!state?.fieldErrors?.location_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.location_id} />
+          </FormField>
+        </FormGrid>
+      </FormSection>
+      </div>
+
+      <div hidden={wizardStep === 1} className="contents">
+      <FormSection title="2. รายละเอียดและราคา">
+        <FormGrid>
+          <FormField>
+            <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
+            <FormattedNumberInput
+              id="unit_price"
+              name="unit_price"
+              allowDecimals={true}
+              defaultValue={item?.unit_price ?? ''}
+              aria-invalid={!!state?.fieldErrors?.unit_price}
+            />
+            <FieldError errors={state?.fieldErrors?.unit_price} />
+          </FormField>
+        </FormGrid>
+      </FormSection>
+
+      {activeTab === 'asset' ? (
+        <div id="asset-details" role="tabpanel">
+        <FormSection title="รายละเอียดครุภัณฑ์เพิ่มเติม">
+          <FormGrid>
+            <AssetNumberFields templates={assetNumberTemplates} defaultValue={item?.asset_no} />
+            <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
+            <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
+            <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
+          </FormGrid>
+        </FormSection>
+        <DepreciationFields item={item} />
+        </div>
+      ) : (
+        <div id="material-details" role="tabpanel">
+          <input type="hidden" name="asset_no" value="" />
+          <input type="hidden" name="serial_no" value="" />
+          <input type="hidden" name="brand" value="" />
+          <input type="hidden" name="model" value="" />
+          <input type="hidden" name="depreciation_enabled" value="false" />
+          <input type="hidden" name="depreciation_cost" value="" />
+          <input type="hidden" name="depreciation_useful_life_years" value="" />
+          <input type="hidden" name="depreciation_start_basis" value="" />
+          <input type="hidden" name="depreciation_start_date" value="" />
+        </div>
+      )}
+
+      <FormSection title="3. สถานที่ ผู้รับผิดชอบ และสถานะ">
+        <FormGrid>
+          <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
+
+          <FormField>
+            <FormLabel htmlFor="status" required>สถานะ</FormLabel>
+            <FormSelect
+              id="status"
+              name="status"
+              defaultValue={item?.status ?? 'active'}
+            >
+              <option value="active">ใช้งานอยู่</option>
+              <option value="spare">สำรอง</option>
+              <option value="damaged">ชำรุด</option>
+              <option value="waiting_repair">รอซ่อม</option>
+              <option value="inactive">ไม่ใช้งาน</option>
+              <option value="disposed">จำหน่ายแล้ว</option>
+            </FormSelect>
+          </FormField>
+
+          <ImageUploadInput defaultValue={item?.image_url} />
+
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="note">หมายเหตุ</FormLabel>
+            <FormTextarea
+              id="note"
+              name="note"
+              defaultValue={item?.note ?? ''}
+              rows={4}
+              dir="auto"
+            />
+          </FormField>
+        </FormGrid>
+      </FormSection>
+      </div>
+
+      {showActions && <FormActions>
+        {onCancel ? (
+          <Button type="button" variant="outline" className="h-10 px-4" onClick={onCancel}>ยกเลิก</Button>
+        ) : (
+          <Link href={item ? `/items/${item.id}` : '/items'}>
+            <Button type="button" variant="outline" className="h-10 px-4">ยกเลิก</Button>
+          </Link>
+        )}
+        <SubmitButton />
+      </FormActions>}
+    </form>
+  )
+}
+
+function TextInput({
+  name,
+  label,
+  defaultValue,
+  errors,
+  required,
+}: {
+  name: string
+  label: string
+  defaultValue?: string | null
+  errors?: string[]
+  required?: boolean
+}) {
+  return (
+    <FormField>
+      <FormLabel htmlFor={name} required={required}>{label}</FormLabel>
+      <FormInput
+        id={name}
+        name={name}
+        defaultValue={defaultValue ?? ''}
+        dir="auto"
+        aria-invalid={!!errors}
+      />
+      <FieldError errors={errors} />
+    </FormField>
+  )
+}
+
+function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
+  const [preview, setPreview] = useState<string | null>(defaultValue || null)
+  const [prevPreview, setPrevPreview] = useState<string | null>(preview)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(() => preview ? getTransformedImageUrl(preview) : null)
+  const [previewFailed, setPreviewFailed] = useState<boolean>(false)
+  const [removed, setRemoved] = useState<boolean>(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
+  const [isCropOpen, setIsCropOpen] = useState<boolean>(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
+
+  if (prevPreview !== preview) {
+    setPrevPreview(preview)
+    setPreviewSrc(preview ? getTransformedImageUrl(preview) : null)
+    setPreviewFailed(false)
+  }
+
+  const handlePreviewError = () => {
+    if (previewSrc && preview && previewSrc !== preview) {
+      setPreviewSrc(preview)
+    } else {
+      setPreviewFailed(true)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
+    }
+  }, [])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        setUploadError('กรุณาเลือกไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น')
+        e.target.value = ''
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB')
+        e.target.value = ''
+        return
+      }
+      const FR = typeof FileReader !== 'undefined' ? FileReader : (typeof window !== 'undefined' ? window.FileReader : null)
+      if (FR) {
+        const reader = new FR()
+        reader.onload = () => {
+          setRawImageSrc(reader.result as string)
+          setIsCropOpen(true)
+        }
+        reader.readAsDataURL(file)
+      } else if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        const localUrl = URL.createObjectURL(file)
+        setRawImageSrc(localUrl)
+        setIsCropOpen(true)
+      }
+    }
+  }
+
+  const handleCropConfirm = (croppedFile: File) => {
+    if (fileInputRef.current && typeof DataTransfer !== 'undefined') {
+      const dt = new DataTransfer()
+      dt.items.add(croppedFile)
+      fileInputRef.current.files = dt.files
+    }
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+    }
+    const url = URL.createObjectURL(croppedFile)
+    objectUrlRef.current = url
+    setPreview(url)
+    setRemoved(false)
+    setUploadError(null)
+    setIsCropOpen(false)
+    setRawImageSrc(null)
+  }
+
+  const handleCropCancel = () => {
+    setIsCropOpen(false)
+    setRawImageSrc(null)
+    if (!preview && fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleRemove = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+    setPreview(null)
+    setRemoved(true)
+    setUploadError(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <FormLabel>รูปภาพสิ่งของ</FormLabel>
+      
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border p-6 bg-muted/10">
+        {preview ? (
+          previewFailed ? (
+            <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] w-[240px] h-[180px] bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
+              <ImageIcon className="h-8 w-8 text-slate-400 mb-1" />
+              <span className="text-xs text-slate-400 font-medium text-center">ไม่สามารถโหลดรูปภาพได้</span>
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  title="เปลี่ยนรูปภาพ"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  title="ลบรูปภาพ"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] max-h-[180px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewSrc || ''}
+                alt="Item preview"
+                loading="lazy"
+                decoding="async"
+                onError={handlePreviewError}
+                className="object-cover w-full h-full max-w-[240px] max-h-[180px] rounded-lg"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  title="เปลี่ยนรูปภาพ"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  title="ลบรูปภาพ"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="text-center flex flex-col items-center justify-center gap-2">
+            <div className="rounded-full bg-muted p-3 text-muted-foreground">
+              <ImageIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">อัปโหลดรูปภาพ</p>
+              <p className="text-xs text-muted-foreground mt-0.5">JPEG, PNG หรือ WEBP ขนาดไม่เกิน 5MB</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-2"
+            >
+              เลือกไฟล์
+            </Button>
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          id="image_file"
+          name="image_file"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        <input
+          type="hidden"
+          name="remove_image"
+          value={removed ? 'true' : 'false'}
+        />
+        <FieldError errors={uploadError ? [uploadError] : undefined} />
+      </div>
+
+      <ImageCropDialog
+        isOpen={isCropOpen}
+        imageSrc={rawImageSrc}
+        onConfirm={handleCropConfirm}
+        onCancel={handleCropCancel}
+      />
+    </div>
+  )
+}
+

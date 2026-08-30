@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { isAdmin, canWrite, canDelete, canManageSettings } from '../../lib/permissions';
+
+test('permissions helper identify correct roles', () => {
+  assert.equal(isAdmin('admin'), true);
+  assert.equal(isAdmin('staff'), false);
+  assert.equal(isAdmin('viewer'), false);
+  assert.equal(isAdmin(null), false);
+  assert.equal(isAdmin(undefined), false);
+});
+
+test('permissions helper determine correct write rights', () => {
+  assert.equal(canWrite('admin'), true);
+  assert.equal(canWrite('staff'), true);
+  assert.equal(canWrite('viewer'), false);
+  assert.equal(canWrite(null), false);
+});
+
+test('permissions helper determine correct delete rights', () => {
+  assert.equal(canDelete('admin'), true);
+  assert.equal(canDelete('staff'), true);
+  assert.equal(canDelete('viewer'), false);
+});
+
+test('permissions helper determine correct settings management rights', () => {
+  assert.equal(canManageSettings('admin'), true);
+  assert.equal(canManageSettings('staff'), true);
+  assert.equal(canManageSettings('viewer'), false);
+});

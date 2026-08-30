@@ -1,0 +1,379 @@
+import 'server-only'
+
+import { cache } from 'react'
+import { createClient } from '@/lib/supabase/server'
+import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
+import { normalizeForSearch } from '@/lib/unicode'
+import { measureQuery } from '@/lib/performance'
+
+export interface ReportCountBucket {
+  count: number
+  qty: number
+}
+
+export interface ReportStats {
+  totalItems: number
+  totalQuantity: number
+  typeCounts: Record<string, ReportCountBucket>
+  statusCounts: Record<string, ReportCountBucket>
+  categoryCounts: Record<string, ReportCountBucket>
+  locationCount: number
+}
+
+/**
+ * Fetches summary statistics for reports dashboard.
+ * Uses the optimized `get_report_stats` RPC to perform aggregations server-side in a single query
+ * with efficient column projection, bypassing client payload overhead.
+ */
+export const getReportStats = cache(async function getReportStats(): Promise<ReportStats> {
+  const supabase = await createClient()
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportStats', () => supabase.rpc('get_report_stats'))
+
+  if (error || !data) {
+    if (error) throw new Error('Unable to load report data')
+    return {
+      totalItems: 0,
+      totalQuantity: 0,
+      typeCounts: {
+        asset: { count: 0, qty: 0 },
+        material: { count: 0, qty: 0 },
+      },
+      statusCounts: {},
+      categoryCounts: {},
+      locationCount: 0,
+    }
+  }
+
+  const res = data as {
+    total_items: number
+    total_quantity: number
+    type_counts: Record<string, { count: number; qty: number }>
+    status_counts: Record<string, { count: number; qty: number }>
+    category_counts: Record<string, { count: number; qty: number }>
+    location_count: number
+  }
+
+  return {
+    totalItems: res.total_items,
+    totalQuantity: res.total_quantity,
+    typeCounts: {
+      asset: res.type_counts.asset ?? { count: 0, qty: 0 },
+      material: res.type_counts.material ?? { count: 0, qty: 0 },
+    },
+    statusCounts: res.status_counts,
+    categoryCounts: res.category_counts,
+    locationCount: res.location_count,
+  }
+})
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value
+}
+
+export interface ReportItemRow extends ItemListRow {
+  brand: string | null
+  model: string | null
+  unit_price: number | null
+}
+
+export interface ReportListResult {
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+  totalPages: number
+  page: number
+}
+
+interface ReportItemsPageRpcResponse {
+  items?: unknown[]
+  total_count?: number
+  total_quantity?: number
+  total_value?: number
+  total_pages?: number
+  page?: number
+}
+
+function toReportItemRow(row: unknown): ReportItemRow {
+  const r = row as {
+    id: string
+    item_name: string
+    item_type: string
+    quantity: number
+    unit_price: number | null
+    asset_no: string | null
+    serial_no: string | null
+    brand: string | null
+    model: string | null
+    responsible_person: string | null
+    status: string
+    updated_at: string
+    category: unknown
+    unit: unknown
+    location: unknown
+  }
+
+  return {
+    ...r,
+    unit_price: r.unit_price ?? null,
+    category: firstRelation(r.category as Record<string, unknown> | Record<string, unknown>[] | null),
+    unit: firstRelation(r.unit as Record<string, unknown> | Record<string, unknown>[] | null),
+    location: firstRelation(r.location as Record<string, unknown> | Record<string, unknown>[] | null),
+  } as unknown as ReportItemRow
+}
+
+async function getReportItemsPageViaRpc(
+  params: ItemListSearchParams,
+): Promise<ReportListResult | null> {
+  const supabase = await createClient()
+  const page = Math.max(1, parseInt(params.page || '1') || 1)
+  const pageSize = 15
+  const q = normalizeForSearch(params.q || '')
+
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportItemsPage', () =>
+    supabase.rpc('get_report_items_page', {
+      p_q: q || null,
+      p_type: params.type || null,
+      p_status: params.status || null,
+      p_category_id: params.category_id || null,
+      p_location_id: params.location_id || null,
+      p_sort_by: params.sort_by || 'updated_at',
+      p_sort_dir: params.sort_dir === 'asc' ? 'asc' : 'desc',
+      p_page: page,
+      p_page_size: pageSize,
+    })
+  )
+
+  if (error || !data) {
+    return null
+  }
+
+  const payload = data as ReportItemsPageRpcResponse
+  if (!Array.isArray(payload.items)) {
+    return null
+  }
+  const totalCount = payload.total_count ?? 0
+
+  return {
+    items: (payload.items ?? []).map(toReportItemRow),
+    totalCount,
+    totalQuantity: payload.total_quantity ?? 0,
+    totalValue: payload.total_value ?? 0,
+    totalPages: payload.total_pages ?? Math.max(1, Math.ceil(totalCount / pageSize)),
+    page: payload.page ?? page,
+  }
+}
+
+export async function getReportItemsList(
+  params: ItemListSearchParams,
+  noPagination = false
+): Promise<ReportListResult> {
+  if (!noPagination) {
+    const rpcResult = await getReportItemsPageViaRpc(params)
+    if (rpcResult) return rpcResult
+  }
+
+  const supabase = await createClient()
+  const q = normalizeForSearch(params.q || '')
+
+  let query = supabase
+    .from('items')
+    .select(
+      `
+        id,
+        item_name,
+        item_type,
+        quantity,
+        unit_price,
+        asset_no,
+        serial_no,
+        brand,
+        model,
+        responsible_person,
+        status,
+        updated_at,
+        category:categories(id, name),
+        unit:units(id, name),
+        location:locations(id, name)
+      `
+    )
+    .is('deleted_at', null)
+
+  if (q) {
+    const safe = q.replaceAll(',', ' ')
+    query = query.or(
+      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%`
+    )
+  }
+
+  if (params.type) {
+    query = query.eq('item_type', params.type)
+  }
+
+  if (params.status) {
+    query = query.eq('status', params.status)
+  }
+
+  if (params.category_id) {
+    query = query.eq('category_id', params.category_id)
+  }
+
+  if (params.location_id) {
+    query = query.eq('location_id', params.location_id)
+  }
+
+  let orderColumn = 'updated_at'
+  let ascending = false
+
+  if (params.sort_by) {
+    if (params.sort_by === 'item_name') {
+      orderColumn = 'item_name'
+    } else if (params.sort_by === 'quantity') {
+      orderColumn = 'quantity'
+    } else if (params.sort_by === 'unit_price') {
+      orderColumn = 'unit_price'
+    } else if (params.sort_by === 'status') {
+      orderColumn = 'status'
+    }
+  }
+
+  if (params.sort_dir === 'asc') {
+    ascending = true
+  } else if (params.sort_dir === 'desc') {
+    ascending = false
+  } else {
+    ascending = params.sort_by === 'item_name'
+  }
+
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getReportItemsList', () =>
+    query.order(orderColumn, { ascending })
+  )
+
+  if (error) throw new Error('Unable to load report data')
+  
+  const rawRows = data ?? []
+  const allItems = rawRows.map(toReportItemRow)
+
+  // Secondary JS sort only when complex relation/formula sorting is needed
+  const sortBy = params.sort_by || 'updated_at'
+  const sortDir = params.sort_dir === 'asc' ? 'asc' : 'desc'
+
+  if (sortBy === 'category' || sortBy === 'total_price') {
+    allItems.sort((a, b) => {
+      let valA: string | number = ''
+      let valB: string | number = ''
+
+      if (sortBy === 'category') {
+        valA = a.category?.name || ''
+        valB = b.category?.name || ''
+      } else if (sortBy === 'total_price') {
+        valA = (a.unit_price ?? 0) * a.quantity
+        valB = (b.unit_price ?? 0) * b.quantity
+      }
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDir === 'asc' 
+          ? valA.localeCompare(valB, 'th-TH') 
+          : valB.localeCompare(valA, 'th-TH')
+      } else {
+        return sortDir === 'asc'
+          ? (valA > valB ? 1 : valA < valB ? -1 : 0)
+          : (valA < valB ? 1 : valA > valB ? -1 : 0)
+      }
+    })
+  }
+
+  // Aggregations over the FULL matching list (un-paginated)
+  const totalCount = allItems.length
+  const totalQuantity = allItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  const totalValue = allItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
+
+  if (noPagination) {
+    return {
+      items: allItems,
+      totalCount,
+      totalQuantity,
+      totalValue,
+      totalPages: 1,
+      page: 1,
+    }
+  }
+
+  // Pagination parameters
+  const page = Math.max(1, parseInt(params.page || '1') || 1)
+  const pageSize = 15 // Show 15 rows per page on reports ledger
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  // Slice for current page
+  const slicedItems = allItems.slice((page - 1) * pageSize, page * pageSize)
+
+  return {
+    items: slicedItems,
+    totalCount,
+    totalQuantity,
+    totalValue,
+    totalPages,
+    page,
+  }
+}
+
+export async function getExportReportItems(params: ItemListSearchParams): Promise<{
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+}> {
+  const supabase = await createClient()
+  const q = params.q ? normalizeForSearch(params.q) : null
+  const itemType = params.type || null
+  const status = params.status || null
+  const categoryId = params.category_id || null
+  const locationId = params.location_id || null
+
+  const {
+    result: { data, error },
+  } = await measureQuery('reports.getExportReportItems', () =>
+    supabase.rpc('get_report_items_page', {
+      p_q: q,
+      p_type: itemType,
+      p_status: status,
+      p_category_id: categoryId,
+      p_location_id: locationId,
+      p_page: 1,
+      p_page_size: 5000,
+      p_sort_by: params.sort_by || 'created_at',
+      p_sort_dir: params.sort_dir || 'desc',
+    })
+  )
+
+  if (error || !data) {
+    return { items: [], totalCount: 0, totalQuantity: 0, totalValue: 0 }
+  }
+
+  const res = data as {
+    items?: unknown[]
+    total_count?: number
+    total_quantity?: number
+    total_value?: number
+  }
+
+  const rawItems = res.items ?? []
+  const items = rawItems.map((r) => toReportItemRow(r))
+
+  return {
+    items,
+    totalCount: res.total_count ?? items.length,
+    totalQuantity: res.total_quantity ?? items.reduce((acc, i) => acc + i.quantity, 0),
+    totalValue: res.total_value ?? items.reduce((acc, i) => acc + i.quantity * (i.unit_price ?? 0), 0),
+  }
+}
+
+
+

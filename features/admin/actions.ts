@@ -1,0 +1,631 @@
+'use server'
+
+import { getCurrentProfile } from '@/features/auth/queries'
+import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { normalizeForStorage, stripBom } from '@/lib/unicode'
+import { logger } from '@/lib/logging'
+import { beginActionTrace } from '@/lib/tracing'
+import { handleActionError } from '@/lib/error-handler'
+import { retrySupabase } from '@/lib/retry'
+import { assertAdminTable } from '@/features/admin/table-policy'
+
+
+import { isAdmin } from '@/lib/permissions'
+
+async function getSupabaseClient() {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
+    return createAdminClient()
+  }
+  return createClient()
+}
+
+export async function requireAdmin() {
+  const profile = await getCurrentProfile()
+  if (!profile || !isAdmin(profile.role) || !profile.is_active) {
+    logger.warn({ operation: 'requireAdmin', feature: 'admin', details: 'Access denied: admin required or inactive profile' })
+    return { error: 'Access Denied: Admin role required and profile must be active' }
+  }
+  return { profile }
+}
+
+export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error, data: [], count: 0 }
+  const safeTable = assertAdminTable(tableName, 'read')
+
+  const supabase = await getSupabaseClient()
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  // Handle audit_logs sorting by created_at, others can sort by name or created_at if exists
+  const sortBy = safeTable === 'audit_logs' || safeTable === 'items' ? 'created_at' : 'id'
+
+  const { data, error, count } = await supabase
+    .from(safeTable)
+    .select('*', { count: 'exact' })
+    .order(sortBy, { ascending: false })
+    .range(from, to)
+
+  if (error) return { error: error.message, data: [], count: 0 }
+  return { data: data || [], count: count || 0 }
+}
+
+export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+  const safeTable = assertAdminTable(tableName, 'write')
+
+  const supabase = await getSupabaseClient()
+
+  // Clean up payload fields that are empty or shouldn't be edited directly
+  const cleanPayload = { ...payload }
+  delete cleanPayload.id
+  delete cleanPayload.created_at
+  delete cleanPayload.updated_at
+  delete cleanPayload.deleted_at
+
+  if (safeTable === 'profiles') {
+    delete cleanPayload.email
+  }
+
+  // Normalize empty strings to null for nullable database columns
+  for (const key in cleanPayload) {
+    if (cleanPayload[key] === '') {
+      cleanPayload[key] = null
+    }
+  }
+
+  if (rowId) {
+    // Update
+    const { data, error } = await supabase
+      .from(safeTable)
+      .update(cleanPayload)
+      .eq('id', rowId)
+      .select()
+
+    if (error) return { error: error.message }
+    
+    // Log in audit log
+    await supabase.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'UPDATE',
+      target_table: safeTable,
+      target_id: rowId,
+      new_data: cleanPayload
+    })
+
+    revalidatePath('/admin/db-panel')
+    return { success: true, data: data?.[0] }
+  } else {
+    // Insert
+    const { data, error } = await supabase
+      .from(safeTable)
+      .insert(cleanPayload)
+      .select()
+
+    if (error) return { error: error.message }
+
+    const newId = data?.[0]?.id
+
+    // Log in audit log
+    if (newId) {
+      await supabase.from('audit_logs').insert({
+        user_id: auth.profile.id,
+        action: 'INSERT',
+        target_table: safeTable,
+        target_id: newId,
+        new_data: cleanPayload
+      })
+    }
+
+    revalidatePath('/admin/db-panel')
+    return { success: true, data: data?.[0] }
+  }
+}
+
+export async function deleteTableRow(tableName: string, rowId: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+  const safeTable = assertAdminTable(tableName, 'delete')
+
+  const supabase = await getSupabaseClient()
+
+  // Fetch old data for audit log first
+  const { data: oldRow } = await supabase
+    .from(safeTable)
+    .select('*')
+    .eq('id', rowId)
+    .single()
+
+  const { error } = await supabase
+    .from(safeTable)
+    .delete()
+    .eq('id', rowId)
+
+  if (error) return { error: error.message }
+
+  // Log in audit log
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'DELETE',
+    target_table: safeTable,
+    target_id: rowId,
+    old_data: oldRow || null
+  })
+
+  revalidatePath('/admin/db-panel')
+  return { success: true }
+}
+
+export async function runAdminSql(sqlQuery: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (process.env.ADMIN_SQL_ENABLED !== 'true') {
+    return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
+  }
+
+  const supabase = createServiceRoleClient()
+  const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  // Log SQL execution in audit_logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'SQL_EXECUTE',
+    target_table: 'multiple/raw_sql',
+    new_data: { query_hash: await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex')) }
+  })
+
+  return data
+}
+
+export async function exportDatabaseData() {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error, backup: null }
+
+  const supabase = await getSupabaseClient()
+  const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
+  const backup: Record<string, Record<string, unknown>[]> = {}
+
+  const tableResults = await Promise.all(tables.map(async (table) => {
+    const { data, error } = await supabase.from(table).select('*')
+    return { table, data, error }
+  }))
+
+  const failed = tableResults.find((result) => result.error || !result.data)
+  if (failed) {
+    logger.error({ operation: 'exportDatabaseData', feature: 'admin', details: { table: failed.table } }, failed.error)
+    return { error: `ไม่สามารถส่งออกข้อมูลตาราง ${failed.table} ได้`, backup: null }
+  }
+
+  for (const result of tableResults) {
+    backup[result.table] = result.data as Record<string, unknown>[]
+  }
+
+  return {
+    backup: {
+      __meta: { version: 1, exportedAt: new Date().toISOString(), tables },
+      ...backup,
+    },
+  }
+}
+
+export async function importDatabaseData(backupJsonStr: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  const supabase = await getSupabaseClient()
+  try {
+    if (backupJsonStr.length > 25 * 1024 * 1024) {
+      return { error: 'Backup file is too large. Maximum size is 25 MB.' }
+    }
+
+    const cleanStr = stripBom(backupJsonStr)
+    const backup = JSON.parse(cleanStr)
+    const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
+
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup)) {
+      return { error: 'Invalid backup file format: expected an object.' }
+    }
+
+    for (const table of tables) {
+      const rows = backup[table]
+      if (!Array.isArray(rows)) {
+        return { error: `Invalid backup file format: ${table} must be an array.` }
+      }
+    }
+
+    if (backup.__meta?.version !== 1) {
+      return { error: 'Unsupported backup format version.' }
+    }
+
+    const { data, error } = await supabase.rpc('restore_database_backup', { backup })
+    if (error) return { error: 'ไม่สามารถกู้คืนฐานข้อมูลได้ กรุณาตรวจสอบ backup และลองใหม่อีกครั้ง' }
+    if (!data?.ok) return { error: data?.error || 'Database restore failed.' }
+
+    return { success: true, tablesRestored: data.tables_restored ?? [] }
+  } catch {
+    return { error: 'Invalid backup file format. กรุณาใช้ไฟล์ backup ที่สร้างจากระบบ' }
+  }
+}
+
+// ============================================================
+// Create Auth User + Profile in one atomic action
+// ============================================================
+
+export async function createAuthUser(payload: {
+  email?: string
+  password: string
+  full_name: string
+  role: 'admin' | 'staff' | 'viewer'
+  is_active: boolean
+}) {
+  const auth = await requireAdmin()
+  const trace = await beginActionTrace({
+    feature: 'admin',
+    action: 'createAuthUser',
+    userId: auth.profile?.id,
+  })
+  if (auth.error) {
+    trace.complete('failure', { reason: 'unauthorized' })
+    return { error: auth.error }
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    trace.complete('failure', { reason: 'missing_service_key' })
+    return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อสร้างผู้ใช้ใหม่' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  // Basic server-side validation
+  let email = normalizeForStorage(payload.email || '')
+  const password = payload.password || ''
+  const full_name = normalizeForStorage(payload.full_name || '')
+  const role = payload.role
+  const is_active = payload.is_active !== false
+
+  const emailRegex = /^\S+@\S+\.\S+$/
+  // If email not provided, generate a short internal placeholder (Supabase Auth requires an email)
+  if (!email) {
+    const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+    email = `internal+${shortId}@registry.internal`
+  } else if (!emailRegex.test(email)) {
+    return { error: 'อีเมลไม่ถูกต้อง' }
+  }
+  if (!full_name) {
+    return { error: 'กรุณากรอกชื่อ-นามสกุล' }
+  }
+  if (!password || password.length < 6) {
+    return { error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' }
+  }
+  if (!['admin', 'staff', 'viewer'].includes(role)) {
+    return { error: 'บทบาทไม่ถูกต้อง' }
+  }
+
+  try {
+    // Check for existing profile with same email to provide clearer error
+    const { data: existingProfiles, error: existingErr } = await adminClient
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .limit(1)
+
+    if (existingErr) {
+      return { error: `ตรวจสอบอีเมลล้มเหลว: ${existingErr.message}` }
+    }
+    if (Array.isArray(existingProfiles) && existingProfiles.length > 0) {
+      return { error: 'อีเมลนี้มีอยู่ในระบบแล้ว' }
+    }
+
+    // Step 1: Create the Auth user. The database trigger always creates a safe
+    // viewer profile; the server-only upsert below applies the requested role.
+    const authResult = await retrySupabase(async () => {
+      const result = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          role,
+          is_active,
+        },
+      })
+      if (result.error) throw result.error
+      return result
+    })
+
+    if (!authResult.data?.user) {
+      trace.complete('failure', { reason: 'auth_create_failed' })
+      return { error: 'สร้างผู้ใช้ใน Auth ล้มเหลว' }
+    }
+
+    const userId = authResult.data.user.id
+
+    // Step 2: Upsert profile linked to the new auth user UUID
+    // Use upsert with onConflict 'id' to avoid duplicate primary key errors
+    const { error: profileError } = await adminClient
+      .from('profiles')
+      .upsert([
+        {
+          id: userId,
+          email,
+          full_name,
+          role,
+          is_active,
+        }
+      ], { onConflict: 'id' })
+
+    if (profileError) {
+      logger.error({ operation: 'createAuthUser', feature: 'admin', details: 'upsert profile error' }, profileError)
+      // Rollback: delete the auth user we just created
+      try {
+        await adminClient.auth.admin.deleteUser(userId)
+      } catch (delErr) {
+        return { error: `สร้าง/อัปเดต Profile ล้มเหลว: ${profileError.message} (และไม่สามารถลบ Auth user: ${String(delErr)})` }
+      }
+      return { error: `สร้าง/อัปเดต Profile ล้มเหลว (ยกเลิก Auth User แล้ว): ${profileError.message}` }
+    }
+
+    // Log in audit_logs
+    await adminClient.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'CREATE_USER',
+      target_table: 'profiles',
+      target_id: userId,
+      new_data: { email, full_name, role },
+    })
+
+    revalidatePath('/admin/db-panel')
+    trace.complete('success', { userId })
+    return { success: true, userId }
+  } catch (err) {
+    trace.complete('failure')
+    const result = await handleActionError(err, 'createAuthUser', 'admin', auth.profile?.id)
+    return { error: result.error ?? result.message }
+  }
+}
+
+// ============================================================
+// Delete Auth User (hard delete from both auth.users + profiles)
+// ============================================================
+
+export async function deleteAuthUser(userId: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อลบผู้ใช้' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  // Delete from auth.users (cascades to profiles if FK is set, or manual below)
+  const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
+  if (authDeleteError) return { error: authDeleteError.message }
+
+  // Hard-delete the profile row (safety net if FK doesn't cascade)
+  await adminClient.from('profiles').delete().eq('id', userId)
+
+  await adminClient.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'DELETE_USER',
+    target_table: 'profiles',
+    target_id: userId,
+  })
+
+  revalidatePath('/admin/db-panel')
+  return { success: true }
+}
+
+// ============================================================
+// Reset Auth User password (admin)
+// ============================================================
+
+export async function resetAuthPassword(userId: string, newPassword: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อรีเซ็ตรหัสผ่าน' }
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  try {
+    const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
+      password: newPassword,
+      email_confirm: true,
+    })
+
+    if (error) {
+      logger.error({ operation: 'resetAuthPassword', feature: 'admin', details: 'updateUserById error' }, error)
+      return { error: error.message }
+    }
+
+    await adminClient.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'RESET_PASSWORD',
+      target_table: 'profiles',
+      target_id: userId,
+      new_data: { note: 'Password reset by admin' }
+    })
+
+    revalidatePath('/admin/db-panel')
+    return { success: true, data }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    logger.error({ operation: 'resetAuthPassword', feature: 'admin', details: 'unexpected error' }, err)
+    return { error: 'เกิดข้อผิดพลาดขณะรีเซ็ตรหัสผ่าน: ' + errMsg }
+  }
+}
+
+// ============================================================
+// Update Auth User email (admin)
+// ============================================================
+
+export async function updateUserEmail(userId: string, newEmail: string) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อแก้ไขอีเมล' }
+  }
+
+  const trimmedEmail = (newEmail || '').trim().toLowerCase()
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+    return { error: 'กรุณาระบุรูปแบบอีเมลให้ถูกต้อง' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  try {
+    const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
+      email: trimmedEmail,
+      email_confirm: true,
+    })
+
+    if (error) {
+      logger.error({ operation: 'updateUserEmail', feature: 'admin', details: 'updateUserById error' }, error)
+      return { error: error.message }
+    }
+
+    // Sync profiles table
+    await adminClient
+      .from('profiles')
+      .update({ email: trimmedEmail, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+
+    await adminClient.from('audit_logs').insert({
+      user_id: auth.profile.id,
+      action: 'UPDATE_EMAIL',
+      target_table: 'profiles',
+      target_id: userId,
+      new_data: { new_email: trimmedEmail }
+    })
+
+    revalidatePath('/admin/db-panel')
+    return { success: true, data }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    logger.error({ operation: 'updateUserEmail', feature: 'admin', details: 'unexpected error' }, err)
+    return { error: 'เกิดข้อผิดพลาดขณะเปลี่ยนอีเมล: ' + errMsg }
+  }
+}
+
+// ============================================================
+// Update Profile Role and Active Status (admin)
+// ============================================================
+
+export async function updateUserProfileRoleAndStatus(
+  userId: string,
+  payload: {
+    role?: 'admin' | 'staff' | 'viewer'
+    is_active?: boolean
+    full_name?: string
+  }
+) {
+  const auth = await requireAdmin()
+  if (auth.error) return { error: auth.error }
+
+  if (!userId) {
+    return { error: 'ไม่พบรหัสผู้ใช้งาน' }
+  }
+
+  // Prevent admin from deactivating themselves or changing their own role away from admin
+  if (userId === auth.profile.id) {
+    if (payload.is_active === false) {
+      return { error: 'ไม่สามารถปิดการใช้งานบัญชีของตนเองได้' }
+    }
+    if (payload.role && payload.role !== 'admin') {
+      return { error: 'ไม่สามารถเปลี่ยนบทบาทของตนเองได้' }
+    }
+  }
+
+  if (payload.role && !['admin', 'staff', 'viewer'].includes(payload.role)) {
+    return { error: 'บทบาทไม่ถูกต้อง' }
+  }
+
+  const supabase = await getSupabaseClient()
+
+  // Fetch old data for audit log
+  const { data: oldProfile } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, is_active')
+    .eq('id', userId)
+    .single()
+
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if (payload.role !== undefined) {
+    updateData.role = payload.role
+  }
+  if (payload.is_active !== undefined) {
+    updateData.is_active = payload.is_active
+  }
+  if (payload.full_name !== undefined) {
+    updateData.full_name = normalizeForStorage(payload.full_name.trim())
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updateData)
+    .eq('id', userId)
+    .select()
+
+  if (error) {
+    logger.error({ operation: 'updateUserProfileRoleAndStatus', feature: 'admin', details: error.message }, error)
+    return { error: error.message }
+  }
+
+  // Update Supabase Auth user metadata if service role is available
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    try {
+      const adminClient = await createAdminClient()
+      const authMetadataUpdates: Record<string, unknown> = {}
+      if (payload.role !== undefined) authMetadataUpdates.role = payload.role
+      if (payload.is_active !== undefined) authMetadataUpdates.is_active = payload.is_active
+      if (payload.full_name !== undefined) authMetadataUpdates.full_name = payload.full_name
+
+      if (Object.keys(authMetadataUpdates).length > 0) {
+        await adminClient.auth.admin.updateUserById(userId, {
+          user_metadata: authMetadataUpdates,
+        })
+      }
+    } catch (authErr) {
+      logger.warn({
+        operation: 'updateUserProfileRoleAndStatus',
+        feature: 'admin',
+        details: `Auth metadata update warning: ${authErr instanceof Error ? authErr.message : String(authErr)}`,
+      })
+    }
+  }
+
+  // Record in audit_logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
+    action: 'UPDATE_PROFILE',
+    target_table: 'profiles',
+    target_id: userId,
+    old_data: oldProfile || null,
+    new_data: updateData,
+  })
+
+  revalidatePath('/admin/users')
+  revalidatePath('/admin/db-panel')
+  revalidatePath('/', 'layout')
+
+  return { success: true, profile: data?.[0] }
+}
+

@@ -1,0 +1,39 @@
+import { defineConfig, devices } from '@playwright/test';
+
+export function getWebServerConfig(env: NodeJS.ProcessEnv) {
+  if (env.PLAYWRIGHT_EXTERNAL_SERVER === 'true') return undefined
+
+  return {
+    command: 'node node_modules/next/dist/bin/next start',
+    url: 'http://localhost:3000',
+    reuseExistingServer: false,
+    timeout: 120_000,
+  }
+}
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  fullyParallel: false,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: 1,
+  reporter: 'list',
+  webServer: getWebServerConfig(process.env),
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    {
+      name: 'smoke',
+      testMatch: /.*\.smoke\.test\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium',
+      testIgnore: /.*\.smoke\.test\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+});
