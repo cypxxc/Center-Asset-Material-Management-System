@@ -1,16 +1,15 @@
 'use client'
 
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
-import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList } from 'lucide-react'
+import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList, MapPin, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ItemActionState } from '../actions'
 import {
   FormField,
   FormLabel,
   FormError,
-  FormSection,
   FormGrid,
   FormActions,
   FormInput,
@@ -21,8 +20,6 @@ import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 import { getTransformedImageUrl } from '@/lib/supabase/image'
-import { AssetNumberTemplate } from '@/features/asset-numbers/types'
-import { AssetNumberFields } from '@/features/asset-numbers/components/asset-number-fields'
 import { DepreciationFields } from '@/features/depreciation/components/depreciation-fields'
 
 interface ItemFormProps {
@@ -30,17 +27,16 @@ interface ItemFormProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
-  assetNumberTemplates?: AssetNumberTemplate[]
   item?: ItemDetail
   inline?: boolean
   onCancel?: () => void
   /** Called after a successful inline create (modal mode). Not called when redirect happens. */
   onSuccess?: () => void
-  /** Limits the visible fields to a wizard step while keeping the complete form mounted. */
-  wizardStep?: 1 | 2
+  /** Shares action status with the modal footer. */
+  onPendingChange?: (pending: boolean) => void
   /** Lets a submit button outside the form reference this form. */
   formId?: string
-  /** Hides the standalone form actions when a parent owns wizard navigation. */
+  /** Hides the standalone form actions when a parent owns the fixed footer. */
   showActions?: boolean
 }
 
@@ -65,16 +61,16 @@ export function ItemForm({
   categories,
   locations,
   units,
-  assetNumberTemplates = [],
   item,
   inline = false,
   onCancel,
   onSuccess,
-  wizardStep,
+  onPendingChange,
   formId,
   showActions = true,
 }: ItemFormProps) {
-  const [state, formAction] = useActionState(action, null)
+  const [state, formAction, pending] = useActionState(action, null)
+  useEffect(() => { onPendingChange?.(pending) }, [pending, onPendingChange])
   // Track which error message version the user has dismissed.
   // Using a ref + state avoids a useEffect→setState cascade.
   const dismissedRef = useRef<typeof state>(null)
@@ -121,7 +117,7 @@ export function ItemForm({
           </div>
       )}
 
-      <div hidden={wizardStep === 2} className="contents">
+      <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุประเภทและข้อมูลที่จำเป็นของสิ่งของ">
       {/* Tabs Navigation */}
       <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-slate-100 mb-2">
         <button
@@ -130,7 +126,7 @@ export function ItemForm({
           aria-selected={activeTab === 'asset'}
           aria-controls="asset-details"
           onClick={() => setActiveTab('asset')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+          className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'asset'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -145,21 +141,21 @@ export function ItemForm({
           aria-selected={activeTab === 'material'}
           aria-controls="material-details"
           onClick={() => setActiveTab('material')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+          className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'material'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-400 hover:text-slate-600'
           }`}
         >
           <ClipboardList className="h-4 w-4" />
-          <span>วัสดุสิ้นเปลือง</span>
+          <span>วัสดุ</span>
         </button>
       </div>
 
       <input type="hidden" name="item_type" value={itemType} />
 
-      <FormSection title="1. ข้อมูลทั่วไป">
-        <FormGrid>
+
+        <FormGrid className="sm:grid-cols-2">
           <FormField className="sm:col-span-2">
             <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
             <FormInput
@@ -219,28 +215,12 @@ export function ItemForm({
             <FieldError errors={state?.fieldErrors?.unit_id} />
           </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
-            <FormSelect
-              id="location_id"
-              name="location_id"
-              defaultValue={item?.location?.id ?? ''}
-              aria-invalid={!!state?.fieldErrors?.location_id}
-            >
-              <option value="">ไม่ระบุ</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>{location.name}</option>
-              ))}
-            </FormSelect>
-            <FieldError errors={state?.fieldErrors?.location_id} />
-          </FormField>
+
         </FormGrid>
       </FormSection>
-      </div>
 
-      <div hidden={wizardStep === 1} className="contents">
-      <FormSection title="2. รายละเอียดและราคา">
-        <FormGrid>
+      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="เลขทะเบียน คุณลักษณะ และราคา">
+        <FormGrid className="sm:grid-cols-2">
           <FormField>
             <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
             <FormattedNumberInput
@@ -253,19 +233,17 @@ export function ItemForm({
             <FieldError errors={state?.fieldErrors?.unit_price} />
           </FormField>
         </FormGrid>
-      </FormSection>
 
       {activeTab === 'asset' ? (
         <div id="asset-details" role="tabpanel">
-        <FormSection title="รายละเอียดครุภัณฑ์เพิ่มเติม">
-          <FormGrid>
-            <AssetNumberFields templates={assetNumberTemplates} defaultValue={item?.asset_no} />
+
+          <FormGrid className="sm:grid-cols-2">
+            <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
             <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
             <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
             <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
           </FormGrid>
-        </FormSection>
-        <DepreciationFields item={item} />
+
         </div>
       ) : (
         <div id="material-details" role="tabpanel">
@@ -281,8 +259,25 @@ export function ItemForm({
         </div>
       )}
 
-      <FormSection title="3. สถานที่ ผู้รับผิดชอบ และสถานะ">
-        <FormGrid>
+      </FormSection>
+
+      <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />} description="จัดเก็บที่ไหน ใครดูแล และสถานะปัจจุบัน">
+        <FormGrid className="sm:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="location_id">สถานที่</FormLabel>
+            <FormSelect
+              id="location_id"
+              name="location_id"
+              defaultValue={item?.location?.id ?? ''}
+              aria-invalid={!!state?.fieldErrors?.location_id}
+            >
+              <option value="">ไม่ระบุ</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </FormSelect>
+            <FieldError errors={state?.fieldErrors?.location_id} />
+          </FormField>
           <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
 
           <FormField>
@@ -301,6 +296,11 @@ export function ItemForm({
             </FormSelect>
           </FormField>
 
+        </FormGrid>
+      </FormSection>
+
+      <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />} description="เพิ่มภาพประกอบและข้อมูลอื่น ๆ (ไม่บังคับ)">
+        <FormGrid className="sm:grid-cols-2">
           <ImageUploadInput defaultValue={item?.image_url} />
 
           <FormField className="sm:col-span-2">
@@ -309,13 +309,13 @@ export function ItemForm({
               id="note"
               name="note"
               defaultValue={item?.note ?? ''}
-              rows={4}
+              rows={3}
               dir="auto"
             />
           </FormField>
         </FormGrid>
       </FormSection>
-      </div>
+      {activeTab === 'asset' && <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4"><DepreciationFields item={item} /></div>}
 
       {showActions && <FormActions>
         {onCancel ? (
@@ -328,6 +328,34 @@ export function ItemForm({
         <SubmitButton />
       </FormActions>}
     </form>
+  )
+}
+
+const sectionTones = {
+  blue: 'border-blue-200 bg-blue-50 text-blue-900',
+  violet: 'border-violet-200 bg-violet-50 text-violet-900',
+  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  slate: 'border-slate-200 bg-slate-100 text-slate-800',
+}
+
+function FormSection({ title, description, tone, icon, children }: {
+  title: string
+  description: string
+  tone: keyof typeof sectionTones
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section aria-label={title} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className={`flex items-center gap-3 border-b border-l-4 px-4 py-3 ${sectionTones[tone]}`}>
+        <span aria-hidden="true">{icon}</span>
+        <div>
+          <h3 className="text-sm font-bold">{title}</h3>
+          <p className="mt-0.5 text-xs opacity-80">{description}</p>
+        </div>
+      </div>
+      <div className="space-y-4 p-4 sm:p-5">{children}</div>
+    </section>
   )
 }
 
@@ -466,7 +494,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
     <div className="space-y-2 sm:col-span-2">
       <FormLabel>รูปภาพสิ่งของ</FormLabel>
       
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border p-6 bg-muted/10">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 p-4 bg-slate-50">
         {preview ? (
           previewFailed ? (
             <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] w-[240px] h-[180px] bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
@@ -523,7 +551,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
             </div>
           )
         ) : (
-          <div className="text-center flex flex-col items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-left">
             <div className="rounded-full bg-muted p-3 text-muted-foreground">
               <ImageIcon className="h-6 w-6" />
             </div>
@@ -536,7 +564,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
               variant="outline"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-2"
+              className="shrink-0"
             >
               เลือกไฟล์
             </Button>
@@ -570,4 +598,3 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
     </div>
   )
 }
-

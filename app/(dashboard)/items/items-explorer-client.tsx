@@ -59,7 +59,6 @@ import {
 import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport } from '@/features/items/actions'
 import { cn } from '@/lib/utils'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
-import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -72,7 +71,6 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
-  assetNumberTemplates?: AssetNumberTemplate[]
 }
 
 type ViewMode = 'list' | 'grid'
@@ -104,7 +102,6 @@ export function ItemsExplorerClient({
   locations,
   categories,
   units,
-  assetNumberTemplates = [],
 }: ItemsExplorerClientProps) {
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
@@ -736,7 +733,6 @@ export function ItemsExplorerClient({
         categories={categories}
         locations={locations}
         units={units}
-        assetNumberTemplates={assetNumberTemplates}
       />
     </div>
   )

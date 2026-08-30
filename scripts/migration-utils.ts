@@ -10,7 +10,6 @@ const HISTORICAL_DUPLICATE_MIGRATIONS = new Map<string, Set<string>>([
   ['00003', new Set(['00003_performance_indexes.sql', '00003_rls_policies.sql'])],
   ['00018', new Set(['00018_allow_staff_manage_metadata.sql', '00018_import_items_bulk_tx_line_errors.sql'])],
   ['00028', new Set(['00028_audit_system_hardening.sql', '00028_revoke_authenticated_admin_sql.sql'])],
-  ['00033', new Set(['00033_add_sso_profile_fields.sql', '00033_hot_path_performance_indexes.sql'])],
 ])
 
 export function validateAvailableMigrationNumbers(available: string[]): void {

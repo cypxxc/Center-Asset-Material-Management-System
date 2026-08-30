@@ -220,32 +220,16 @@ async function createItemCore(
   const supabase = await createClient()
   let committedResult: { itemId: string; userId: string }
   try {
-    const assetNumberMode = formData.get('asset_number_mode')
-    const templateId = formData.get('asset_number_template_id')
-    const payloadRaw = formData.get('asset_number_payload')
-    let payload: Record<string, string> = {}
-    if (typeof payloadRaw === 'string' && payloadRaw) {
-      try {
-        const candidate = JSON.parse(payloadRaw)
-        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-          payload = Object.fromEntries(Object.entries(candidate).map(([key, value]) => [key, String(value)]))
-        }
-      } catch {
-        return { ok: false, kind: 'validation', message: 'ข้อมูลแม่แบบเลขครุภัณฑ์ไม่ถูกต้อง', userId }
-      }
-    }
-
+    const assetNumberSource = parsed.data.item_type === 'asset' ? 'manual' : null
     const result = await supabase
       .from('items')
       .insert({
         ...parsed.data,
         created_by: userId,
         updated_by: userId,
-        asset_number_source: parsed.data.item_type === 'asset' && (assetNumberMode === 'manual' || assetNumberMode === 'template')
-          ? assetNumberMode
-          : null,
-        asset_number_template_id: assetNumberMode === 'template' && typeof templateId === 'string' && templateId ? templateId : null,
-        asset_number_payload: assetNumberMode === 'template' ? payload : null,
+        asset_number_source: assetNumberSource,
+        asset_number_template_id: null,
+        asset_number_payload: null,
         depreciation_method: parsed.data.depreciation_enabled ? 'straight_line' : null,
         depreciation_residual_value: 1,
       })
@@ -264,7 +248,6 @@ async function createItemCore(
       }
     }
 
-    const assetNumberSource = assetNumberMode === 'manual' || assetNumberMode === 'template' ? assetNumberMode : undefined
     await writeAuditLog({
       operation: 'create',
       feature: 'items',

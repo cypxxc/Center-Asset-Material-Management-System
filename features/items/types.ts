@@ -69,7 +69,7 @@ export interface ItemListResult {
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  material: 'วัสดุสิ้นเปลือง',
+  material: 'วัสดุ',
   asset: 'ครุภัณฑ์',
 }
 

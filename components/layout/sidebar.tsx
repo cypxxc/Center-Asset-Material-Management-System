@@ -149,7 +149,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           >
             <div className="flex items-center min-w-0 flex-1">
               <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
-              <span className="truncate">วัสดุสิ้นเปลือง</span>
+              <span className="truncate">วัสดุ</span>
             </div>
             <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               {totalSuppliesCount}

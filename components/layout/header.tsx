@@ -217,7 +217,7 @@ export function Header({ profile }: HeaderProps) {
                 )}
               >
                 <Package className="h-4 w-4 text-slate-500" />
-                <span>วัสดุสิ้นเปลือง (Supplies)</span>
+                <span>วัสดุ</span>
               </Link>
 
               <Link

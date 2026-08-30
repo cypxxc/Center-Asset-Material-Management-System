@@ -4,7 +4,6 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { getItemReferences, getSidebarData } from '@/features/items/queries'
-import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
 
@@ -29,10 +28,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect('/login?error=inactive')
   }
 
-  const [sidebarData, references, assetNumberTemplates] = await Promise.all([
+  const [sidebarData, references] = await Promise.all([
     getSidebarData(),
     getItemReferences(),
-    getAssetNumberTemplates(true),
   ])
 
   return (
@@ -48,7 +46,6 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           categories={references.categories}
           locations={references.locations}
           units={references.units}
-          assetNumberTemplates={assetNumberTemplates}
         >
           <Sidebar profile={profile} sidebarData={sidebarData} />
           <div className="flex flex-1 flex-col overflow-hidden">

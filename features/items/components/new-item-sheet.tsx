@@ -5,7 +5,6 @@ import { X, Plus, Save } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
 import { ItemDetail, ReferenceOption } from '../types'
-import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 import { Button } from '@/components/ui/button'
 
 const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
@@ -17,7 +16,6 @@ interface NewItemSheetProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
-  assetNumberTemplates?: AssetNumberTemplate[]
   item?: ItemDetail | null
 }
 
@@ -72,13 +70,12 @@ export function NewItemSheet({
   categories,
   locations,
   units,
-  assetNumberTemplates = [],
   item = null,
 }: NewItemSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const initialFormSignatureRef = useRef('')
   const [formVersion, setFormVersion] = useState(0)
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
+  const [pending, setPending] = useState(false)
   const formId = useId()
 
   useEffect(() => {
@@ -88,7 +85,6 @@ export function NewItemSheet({
     if (open) {
       if (dialog.open) return
       dialog.showModal()
-      setCurrentStep(1)
       setFormVersion((version) => version + 1)
     } else if (dialog.open) {
       dialog.close()
@@ -128,26 +124,14 @@ export function NewItemSheet({
     onSuccess()
   }, [onSuccess])
 
-  const goNext = useCallback(() => {
-    const form = dialogRef.current?.querySelector('form')
-    if (!form) return
-
-    if (!form.checkValidity()) {
-      form.reportValidity()
-      form.querySelector<HTMLElement>(':invalid')?.focus()
-      return
-    }
-
-    setCurrentStep(2)
-  }, [])
-
   const handleCloseAttempt = useCallback(() => {
+    if (pending) return
     if (isFormDirty()) {
       const confirmClose = window.confirm('ปิดแบบฟอร์มหรือไม่? ระบบบันทึกร่างไว้แล้ว คุณกลับมากรอกต่อได้')
       if (!confirmClose) return
     }
     onClose()
-  }, [isFormDirty, onClose])
+  }, [isFormDirty, onClose, pending])
 
   // Close on backdrop click (outside the panel).
   // Native <dialog>: backdrop clicks have event.target === dialog element itself.
@@ -177,10 +161,12 @@ export function NewItemSheet({
   return (
     <dialog
       ref={dialogRef}
+      aria-labelledby={`${formId}-title`}
+      aria-describedby={`${formId}-description`}
       onClick={handleDialogClick}
       className="new-item-sheet-dialog"
     >
-      {/* Inner panel — slide from right */}
+      {/* Centered panel with independently scrolling content */}
       <div
         className="new-item-sheet-panel"
         onClick={(e) => e.stopPropagation()}
@@ -192,14 +178,11 @@ export function NewItemSheet({
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-black tracking-tight text-slate-900">
+              <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900">
                 {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
               </h2>
-              <p className="mt-0.5 text-xs font-semibold text-slate-700">
-                {currentStep === 1 ? 'ข้อมูลหลัก' : 'รายละเอียดเพิ่มเติม'}
-              </p>
-              <p aria-live="polite" className="mt-0.5 text-xs font-medium text-slate-500">
-                {currentStep} จาก 2
+              <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500">
+                กรอกข้อมูลในหน้าเดียว · ช่องที่มี * จำเป็นต้องกรอก
               </p>
             </div>
           </div>
@@ -221,36 +204,23 @@ export function NewItemSheet({
             categories={categories}
             locations={locations}
             units={units}
-            assetNumberTemplates={assetNumberTemplates}
             item={item ?? undefined}
             inline
             onCancel={handleCloseAttempt}
             onSuccess={handleSuccess}
-            wizardStep={currentStep}
+            onPendingChange={setPending}
             formId={formId}
             showActions={false}
           />
         </div>
 
         <div className="new-item-sheet-footer">
-          {currentStep === 1 ? (
-            <>
-              <Button type="button" variant="outline" onClick={handleCloseAttempt}>ยกเลิก</Button>
-              <Button type="button" onClick={goNext}>ถัดไป</Button>
-            </>
-          ) : (
-            <>
-              <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>ย้อนกลับ</Button>
-              <Button type="button" variant="outline" onClick={() => {
-                const dialog = dialogRef.current
-                if (dialog) saveDraft(dialog)
-              }}>บันทึกร่าง</Button>
-              <Button type="submit" form={formId} className="ml-auto gap-1.5 font-semibold">
-                <Save className="h-4 w-4" />
-                เพิ่มรายการ
-              </Button>
-            </>
-          )}
+          <span className="mr-auto hidden text-xs text-slate-500 sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
+          <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt}>ยกเลิก</Button>
+          <Button type="submit" form={formId} disabled={pending} className="gap-2 font-semibold">
+            <Save className="h-4 w-4" />
+            {pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
+          </Button>
         </div>
       </div>
 
@@ -283,14 +253,14 @@ export function NewItemSheet({
 
         .new-item-sheet-panel {
           width: 100%;
-          max-width: 760px;
+          max-width: 980px;
           max-height: min(92vh, 860px);
           background: #fff;
           display: flex;
           flex-direction: column;
           box-shadow: 0 24px 80px rgba(15,23,42,0.22);
           border: 1px solid #e2e8f0;
-          border-radius: 12px;
+          border-radius: 20px;
           overflow: hidden;
         }
 
@@ -309,7 +279,9 @@ export function NewItemSheet({
         .new-item-sheet-body {
           flex: 1;
           overflow-y: auto;
-          padding: 16px 20px;
+          padding: 20px;
+          background: #f8fafc;
+          min-height: 0;
           overscroll-behavior: contain;
         }
 

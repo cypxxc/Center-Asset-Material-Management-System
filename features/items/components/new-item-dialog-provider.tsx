@@ -3,7 +3,6 @@
 import { createContext, startTransition, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
-import { AssetNumberTemplate } from '@/features/asset-numbers/types'
 import { ReferenceOption } from '@/features/items/types'
 import { NewItemSheet } from './new-item-sheet'
 
@@ -14,7 +13,6 @@ interface NewItemDialogProviderProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
-  assetNumberTemplates?: AssetNumberTemplate[]
 }
 
 interface NewItemDialogTriggerProps {
@@ -45,7 +43,6 @@ export function NewItemDialogProvider({
   categories,
   locations,
   units,
-  assetNumberTemplates = [],
 }: NewItemDialogProviderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
@@ -84,7 +81,6 @@ export function NewItemDialogProvider({
         categories={categories}
         locations={locations}
         units={units}
-        assetNumberTemplates={assetNumberTemplates}
       />
     </NewItemDialogContext.Provider>
   )

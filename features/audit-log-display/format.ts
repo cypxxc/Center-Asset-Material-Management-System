@@ -92,7 +92,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const TYPE_LABELS: Record<string, string> = {
   asset: 'ครุภัณฑ์',
-  material: 'วัสดุสิ้นเปลือง',
+  material: 'วัสดุ',
 }
 
 const ROLE_LABELS: Record<string, string> = {

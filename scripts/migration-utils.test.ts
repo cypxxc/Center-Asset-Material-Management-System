@@ -36,7 +36,6 @@ test('migration numbers allow only the repository exact historical duplicate pai
     ['00003_performance_indexes.sql', '00003_rls_policies.sql'],
     ['00018_allow_staff_manage_metadata.sql', '00018_import_items_bulk_tx_line_errors.sql'],
     ['00028_audit_system_hardening.sql', '00028_revoke_authenticated_admin_sql.sql'],
-    ['00033_add_sso_profile_fields.sql', '00033_hot_path_performance_indexes.sql'],
   ]
   assert.doesNotThrow(() =>
     validateAvailableMigrationNumbers([

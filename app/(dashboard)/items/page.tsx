@@ -4,7 +4,6 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
 import { ItemsExplorerClient } from './items-explorer-client'
 import { redirect } from 'next/navigation'
-import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
 
 interface ItemsPageProps {
   searchParams: Promise<ItemListSearchParams & { deleted?: string }>
@@ -13,11 +12,10 @@ interface ItemsPageProps {
 export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   const params = await searchParams
 
-  const [profile, references, result, assetNumberTemplates] = await Promise.all([
+  const [profile, references, result] = await Promise.all([
     getCurrentProfile(),
     getItemReferences(),
     getItems(params),
-    getAssetNumberTemplates(true)
   ])
 
   if (!profile) {
@@ -44,7 +42,6 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
       locations={references.locations}
       categories={references.categories}
       units={references.units}
-      assetNumberTemplates={assetNumberTemplates}
     />
   )
 }

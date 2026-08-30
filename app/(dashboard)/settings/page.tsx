@@ -9,13 +9,10 @@ import { canManageSettings } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { Tag, Building2, Box, Upload } from 'lucide-react'
-import { Hash } from 'lucide-react'
 import Link from 'next/link'
 
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
-import { getAssetNumberTemplates } from '@/features/asset-numbers/queries'
-import { AssetNumberTemplateSection } from '@/features/asset-numbers/components/asset-number-template-section'
 
 interface SettingsPageProps {
   searchParams: Promise<{
@@ -31,7 +28,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect('/dashboard')
   }
   const params = await searchParams
-  const activeTab = ['categories', 'locations', 'units', 'import', 'asset-numbers'].includes(params.tab ?? '')
+  const activeTab = ['categories', 'locations', 'units', 'import'].includes(params.tab ?? '')
     ? params.tab!
     : 'categories'
   const metadataSection =
@@ -39,19 +36,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       ? activeTab
       : 'all'
 
-  const [data, assetNumberTemplates] = await Promise.all([
-    activeTab === 'import' || activeTab === 'asset-numbers'
-      ? Promise.resolve({ categories: [], locations: [], units: [] })
-      : getSettingsData(metadataSection),
-    activeTab === 'asset-numbers' ? getAssetNumberTemplates() : Promise.resolve([]),
-  ])
+  const data = activeTab === 'import'
+    ? { categories: [], locations: [], units: [] }
+    : await getSettingsData(metadataSection)
 
   const tabs = [
     { id: 'categories', label: 'หมวดหมู่พัสดุ', icon: <Tag className="h-4 w-4" /> },
     { id: 'locations', label: 'สถานที่จัดตั้ง', icon: <Building2 className="h-4 w-4" /> },
     { id: 'units', label: 'หน่วยนับ', icon: <Box className="h-4 w-4" /> },
     { id: 'import', label: 'นำเข้าพัสดุ CSV/Excel', icon: <Upload className="h-4 w-4" /> },
-    { id: 'asset-numbers', label: 'เลขครุภัณฑ์', icon: <Hash className="h-4 w-4" /> },
   ]
 
   return (
@@ -123,9 +116,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         )}
         {activeTab === 'import' && (
           <ImportSection />
-        )}
-        {activeTab === 'asset-numbers' && (
-          <AssetNumberTemplateSection templates={assetNumberTemplates} />
         )}
       </div>
     </PageContainer>

@@ -7,6 +7,37 @@ import { ItemForm } from '../../features/items/components/item-form';
 
 const noopAction = async () => ({ success: true });
 
+test('ItemForm accepts a manual asset number without offering templates', () => {
+  const { container } = render(React.createElement(ItemForm, {
+    action: noopAction, categories: [], locations: [], units: [],
+  }));
+  const input = screen.getByRole('textbox', { name: 'เลขครุภัณฑ์' });
+  fireEvent.change(input, { target: { value: 'สขส7.7110-006-0001-11/58' } });
+  const submitted = new window.FormData(container.querySelector('form')!);
+  assert.equal(submitted.get('asset_no'), 'สขส7.7110-006-0001-11/58');
+  assert.equal(screen.queryByRole('checkbox', { name: 'ใช้แม่แบบเลขครุภัณฑ์' }) === null, true);
+  assert.equal(submitted.has('asset_number_template_id'), false);
+});
+
+test('ItemForm preserves an existing asset number until the user edits it', () => {
+  const { container } = render(React.createElement(ItemForm, {
+    action: noopAction, categories: [], locations: [], units: [],
+    item: {
+      id: 'item-1', item_name: 'Desk', item_type: 'asset', quantity: 1,
+      unit_price: null, asset_no: 'เดิม-001/69', serial_no: null,
+      responsible_person: null, status: 'active', updated_at: '', created_at: '',
+      category: null, unit: null, location: null, brand: null, model: null,
+      note: null, image_url: null,
+    },
+  }));
+  const form = container.querySelector('form')!;
+  assert.equal(new window.FormData(form).get('asset_no'), 'เดิม-001/69');
+  fireEvent.change(screen.getByRole('textbox', { name: 'เลขครุภัณฑ์' }), {
+    target: { value: 'แก้ไข-002/69' },
+  });
+  assert.equal(new window.FormData(form).get('asset_no'), 'แก้ไข-002/69');
+});
+
 test('ItemForm shows image file validation as inline error', () => {
   let alertCalls = 0;
   const originalAlert = window.alert;

@@ -37,6 +37,31 @@ function validItemFormData(withImage = false) {
   return formData
 }
 
+test('createItemInline ignores obsolete template fields and keeps the manual number', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setAuth({ id: 'staff' }, { id: 'staff', role: 'staff', is_active: true })
+  mockSupabaseRegistry.setTableResponse('items', [{ id: 'new-item' }])
+  const form = validItemFormData()
+  form.set('asset_number_mode', 'template')
+  form.set('asset_number_template_id', 'obsolete-template')
+  form.set('asset_number_payload', 'invalid-json')
+  let inserted: Record<string, unknown> | undefined
+  const original = mockSupabaseRegistry.recordQuery
+  mockSupabaseRegistry.recordQuery = (entry) => {
+    original.call(mockSupabaseRegistry, entry)
+    if (entry.table === 'items') inserted = entry.operations.find(([operation]) => operation === 'insert')?.[1] as Record<string, unknown>
+  }
+  try {
+    const result = await createItemInline(null, form)
+    assert.equal(result.success, true)
+    assert.equal(inserted?.asset_no, 'ASSET-001')
+    assert.equal(inserted?.asset_number_source, 'manual')
+    assert.equal(inserted?.asset_number_template_id, null)
+  } finally {
+    mockSupabaseRegistry.recordQuery = original
+  }
+})
+
 test('createItemInline uses ActionResponse for unauthenticated and viewer requests', async () => {
   const warnCalls: unknown[][] = []
   const originalConsoleWarn = console.warn
