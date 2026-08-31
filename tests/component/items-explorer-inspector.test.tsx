@@ -86,6 +86,31 @@ function renderComponent(props = defaultProps) {
   )
 }
 
+test('Inspector groups complete depreciation details and preserves zero prices', () => {
+  renderComponent({ ...defaultProps, items: [{ ...mockItems[0],
+    unit_price: 0,
+    created_at: '2026-01-01T01:00:00Z',
+    depreciation_enabled: true,
+    depreciation_cost: 10001,
+    depreciation_useful_life_years: 5,
+    depreciation_start_basis: 'available',
+    depreciation_start_date: '2026-01-01',
+    depreciation_residual_value: 1,
+  }] })
+  fireEvent.click(screen.getByText(mockItems[0].item_name))
+  const drawer = within(screen.getByRole('dialog'))
+  assert.ok(drawer.getByRole('region', { name: 'ข้อมูลหลัก' }))
+  const price = within(drawer.getByRole('region', { name: 'ทะเบียนและราคา' }))
+  assert.ok(price.getByText('฿0'))
+  assert.ok(price.getByText('0.00 บาท'))
+  const depreciation = within(drawer.getByRole('region', { name: 'การคิดค่าเสื่อมราคา' }))
+  assert.ok(depreciation.getByText('2,000.00 บาท'))
+  assert.ok(depreciation.getByText('วันที่พร้อมใช้งาน'))
+  assert.ok(depreciation.getByText(/สูตร: ค่าเสื่อมต่อปี/))
+  assert.ok(drawer.getByRole('region', { name: 'ข้อมูลการบันทึก' }))
+  assert.ok(drawer.getByText('1 ม.ค. 2569 08:00'))
+})
+
 test('ItemsExplorerClient renders table rows with full width', () => {
   renderComponent()
 

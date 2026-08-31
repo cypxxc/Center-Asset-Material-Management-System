@@ -24,6 +24,7 @@ export interface ItemListRow {
   responsible_person: string | null
   status: ItemStatus
   updated_at: string
+  created_at?: string
   category: ReferenceOption | null
   unit: ReferenceOption | null
   location: ReferenceOption | null

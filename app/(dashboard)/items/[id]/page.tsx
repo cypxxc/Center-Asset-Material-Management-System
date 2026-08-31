@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
 import { getItemById, getItemAuditLogs } from '@/features/items/queries'
 import type { ItemAuditLog } from '@/features/items/queries'
-import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import type { ItemDetail } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
@@ -13,21 +12,12 @@ import { canWrite, canDelete } from '@/lib/permissions'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
 import { ItemDetailActions } from './item-detail-actions'
-import { calculateStraightLineDepreciation } from '@/features/depreciation/calculation'
+import { ItemDetailSections } from '@/features/items/components/item-detail-sections'
 
 interface ItemDetailPageProps {
   params: Promise<{
     id: string
   }>
-}
-
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-medium text-foreground">{value || '-'}</div>
-    </div>
-  )
 }
 
 export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
@@ -49,16 +39,10 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
 
   const userCanWrite = canWrite(profile.role)
   const userCanDelete = canDelete(profile.role)
-  const depreciation = calculateStraightLineDepreciation({
-    enabled: item.depreciation_enabled ?? false,
-    cost: item.depreciation_cost ?? null,
-    usefulLifeYears: item.depreciation_useful_life_years ?? null,
-    startDate: item.depreciation_start_date ?? null,
-    residualValue: item.depreciation_residual_value ?? 1,
-  })
+
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 p-6 md:p-8">
+    <div className="h-full overflow-y-auto bg-background p-4 sm:p-6 md:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -102,40 +86,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
 
 
         <div className={item.image_url ? "grid gap-6 md:grid-cols-[1fr_280px]" : "grid gap-6"}>
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
-            <section className="grid gap-4 sm:grid-cols-2">
-              <DetailRow label="ประเภท" value={ITEM_TYPE_LABELS[item.item_type]} />
-              <DetailRow label="สถานะ" value={ITEM_STATUS_LABELS[item.status]} />
-              <DetailRow label="หมวดหมู่" value={item.category?.name} />
-              <DetailRow label="จำนวน" value={`${item.quantity} ${item.unit?.name ?? ''}`} />
-              <DetailRow label="ราคาต่อหน่วย" value={item.unit_price == null ? null : `${item.unit_price.toLocaleString('th-TH')} บาท`} />
-              <DetailRow label="เลขครุภัณฑ์" value={item.asset_no} />
-              <DetailRow label="Serial Number" value={item.serial_no} />
-              <DetailRow label="ยี่ห้อ" value={item.brand} />
-              <DetailRow label="รุ่น" value={item.model} />
-              <DetailRow label="สถานที่" value={item.location?.name} />
-              <DetailRow label="ผู้รับผิดชอบ" value={item.responsible_person} />
-            </section>
-
-            {depreciation && <section className="rounded-lg border border-border bg-muted/20 p-4">
-              <h3 className="text-sm font-bold text-foreground">การคิดค่าเสื่อมราคา</h3>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <DetailRow label="วิธีคิด" value="เส้นตรง (Straight-line)" />
-                <DetailRow label="วันเริ่มคิด" value={item.depreciation_start_date} />
-                <DetailRow label="มูลค่าพร้อมใช้งาน" value={`${(item.depreciation_cost ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
-                <DetailRow label="อายุการใช้งาน" value={`${item.depreciation_useful_life_years} ปี`} />
-                <DetailRow label="ค่าเสื่อมต่อปี" value={`${depreciation.annualDepreciation.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
-                <DetailRow label="ค่าเสื่อมสะสม ณ วันนี้" value={`${depreciation.accumulatedDepreciation.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
-                <DetailRow label="มูลค่าสุทธิ ณ วันนี้" value={`${depreciation.netBookValue.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
-                <DetailRow label="มูลค่าคงเหลือ" value="1.00 บาท" />
-              </div>
-            </section>}
-
-            <section className="rounded-lg border border-border bg-muted/20 p-4">
-              <h3 className="text-sm font-bold text-foreground">หมายเหตุ</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.note || 'ไม่มีหมายเหตุ'}</p>
-            </section>
-          </div>
+          <ItemDetailSections item={item} />
 
           {item.image_url && (
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col gap-3">
