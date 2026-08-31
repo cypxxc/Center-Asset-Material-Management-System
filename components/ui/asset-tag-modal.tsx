@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Printer, X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal, LayoutGrid, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { generateCode128Bars } from "@/lib/barcode"
 import { generateQrCodeSvgPath } from "@/lib/qr-code"
 
 export interface ItemStickerData {
@@ -58,7 +57,6 @@ export interface PresetConfig {
   titleSize: string
   nameSize: string
   metaSize: string
-  barcodeHeight: string
   codeSize: string
   qrSize: string
 }
@@ -68,7 +66,6 @@ export interface FieldVisibilityConfig {
   showResponsible: boolean
   showLocation: boolean
   showPrice: boolean
-  showBarcode: boolean
   showQr: boolean
   showCutLines: boolean
 }
@@ -87,7 +84,6 @@ export function getTypographyForHeight(heightMm: number): {
   titleSize: string
   nameSize: string
   metaSize: string
-  barcodeHeight: string
   codeSize: string
   qrSize: string
 } {
@@ -97,7 +93,6 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[10px]",
       nameSize: "text-xs font-bold",
       metaSize: "text-[9.5px]",
-      barcodeHeight: "h-7",
       codeSize: "text-[10px]",
       qrSize: "h-14 w-14",
     }
@@ -107,7 +102,6 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[8.5px]",
       nameSize: "text-[10.5px] font-bold",
       metaSize: "text-[8.5px]",
-      barcodeHeight: "h-5",
       codeSize: "text-[9px]",
       qrSize: "h-11 w-11",
     }
@@ -117,7 +111,6 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[7.5px]",
       nameSize: "text-[9.5px] font-bold",
       metaSize: "text-[7.5px]",
-      barcodeHeight: "h-4.5",
       codeSize: "text-[8px]",
       qrSize: "h-9 w-9",
     }
@@ -127,7 +120,6 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[6.5px]",
       nameSize: "text-[8.5px] font-bold",
       metaSize: "text-[6.5px]",
-      barcodeHeight: "h-3.5",
       codeSize: "text-[7px]",
       qrSize: "h-7 w-7",
     }
@@ -156,7 +148,6 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
     titleSize: "text-[10px]",
     nameSize: "text-xs font-bold",
     metaSize: "text-[9.5px]",
-    barcodeHeight: "h-7",
     codeSize: "text-[10px]",
     qrSize: "h-14 w-14",
   },
@@ -181,7 +172,6 @@ const PRESETS: Record<StickerSizePreset, PresetConfig> = {
     titleSize: "text-[10px]",
     nameSize: "text-xs font-bold",
     metaSize: "text-[9.5px]",
-    barcodeHeight: "h-7",
     codeSize: "text-[10px]",
     qrSize: "h-14 w-14",
   },
@@ -198,20 +188,11 @@ function SingleStickerItem({
   visibility: FieldVisibilityConfig
   isSheetCell?: boolean
 }) {
-  const barcodeText = itemData.asset_no || itemData.serial_no || ""
+  const referenceText = itemData.asset_no || itemData.serial_no || ""
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
   const itemUrl = itemData.id
     ? `${baseUrl}/items/${itemData.id}`
     : (itemData.asset_no || itemData.serial_no || "")
-
-  let barcodeData = null
-  if (visibility.showBarcode && barcodeText) {
-    try {
-      barcodeData = generateCode128Bars(barcodeText)
-    } catch {
-      barcodeData = null
-    }
-  }
 
   let qrCodeData = null
   if (visibility.showQr && itemUrl) {
@@ -224,109 +205,64 @@ function SingleStickerItem({
 
   const brandModel = [itemData.brand, itemData.model].filter(Boolean).join(" ")
 
+  const compact = Number.parseFloat(presetConfig.height) < 35
+  const qrPixels = compact ? 40 : Math.min(92, Math.max(52, Number.parseFloat(presetConfig.width) * 1.05))
+
   return (
     <div
       style={{
         width: isSheetCell ? "100%" : presetConfig.width,
         height: isSheetCell ? "100%" : presetConfig.height,
       }}
-      className={`print-tag-card label-card bg-white text-slate-900 ${
+      className={`print-tag-card label-card bg-white text-black ${
         visibility.showCutLines
           ? "border border-dashed border-slate-400 cut-guide-dashed"
           : "border border-solid border-slate-900 cut-guide-solid"
-      } rounded-xs shadow-2xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
+      } flex flex-col gap-1.5 overflow-hidden box-border break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
     >
-      {/* Sticker Header */}
       {visibility.showOrg && (
-        <div className="border-b border-slate-900 pb-0.5 mb-1 text-center shrink-0">
-          <div className={`font-bold tracking-tight text-slate-900 ${presetConfig.titleSize}`}>
-            CAMMS — ระบบบริหารจัดการทรัพย์สิน
-          </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-black pb-1.5">
+          <span className={`border border-black px-1.5 py-0.5 font-black leading-none tracking-tight ${presetConfig.titleSize}`}>CAMMS</span>
+          <span className={`${presetConfig.metaSize} font-medium text-black`}>ทะเบียนทรัพย์สินส่วนกลาง</span>
         </div>
       )}
 
-      {/* Sticker Content Area: Dual Column (Left 75-80% Details + Barcode, Right 20-25% QR Code) */}
-      <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0 min-w-0 w-full">
-        {/* Left Column (75-80%): Details & Code 128 Barcode with Bold Asset ID */}
-        <div className="flex-[4] flex flex-col justify-between min-w-0">
-          <div className="space-y-0.5 min-h-0 min-w-0">
-            <div className={`truncate leading-tight ${presetConfig.nameSize}`} title={itemData.item_name}>
+      <div className="shrink-0 min-w-0">
+        <div className={`${presetConfig.metaSize} leading-tight`}>{itemData.asset_no ? "เลขครุภัณฑ์" : "Serial Number"}</div>
+        <div className={`mt-0.5 font-mono font-bold leading-tight [overflow-wrap:anywhere] ${compact ? presetConfig.codeSize : referenceText.length > 24 ? "text-[12px]" : "text-[17px]"}`}>
+          {referenceText || "ไม่ได้ระบุ"}
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 items-stretch gap-2 border-t border-slate-300 pt-1.5">
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1">
+          <div>
+            <div className={`break-words leading-tight font-bold ${compact ? presetConfig.nameSize : "text-[13px]"} line-clamp-2`} title={itemData.item_name}>
               {itemData.item_name}
             </div>
-            {brandModel && (
-              <div className={`truncate text-slate-700 leading-tight ${presetConfig.metaSize}`}>
-                {brandModel}
-              </div>
-            )}
-            {visibility.showLocation && itemData.location_name && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                สถานที่: {itemData.location_name}
-              </div>
-            )}
-            {visibility.showResponsible && itemData.responsible_person && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                ผู้รับผิดชอบ: {itemData.responsible_person}
-              </div>
-            )}
-            {visibility.showPrice && itemData.unit_price != null && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                ราคา: {Number(itemData.unit_price).toLocaleString('th-TH')} บาท
-              </div>
-            )}
+            {brandModel && <div className={`mt-0.5 truncate leading-snug ${presetConfig.metaSize}`}>{brandModel}</div>}
           </div>
-
-          {/* Barcode SVG section */}
-          {visibility.showBarcode && (
-            <div className="mt-0.5 flex flex-col items-start justify-center w-full">
-              {barcodeData && barcodeData.bars.length > 0 ? (
-                <>
-                  <svg
-                    viewBox={`0 0 ${barcodeData.totalWidth} 40`}
-                    className={`w-full max-w-full overflow-hidden shrink-0 ${presetConfig.barcodeHeight}`}
-                    preserveAspectRatio="none"
-                    role="img"
-                    aria-label={`บาร์โค้ด ${barcodeText}`}
-                  >
-                    {barcodeData.bars.map((bar, i) => (
-                      <rect
-                        key={i}
-                        x={bar.x}
-                        y={0}
-                        width={bar.width}
-                        height={40}
-                        fill="black"
-                      />
-                    ))}
-                  </svg>
-                  <div
-                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider truncate min-w-0 max-w-full mt-0.5`}
-                  >
-                    {barcodeText}
-                  </div>
-                </>
-              ) : (
-                <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
-                  ไม่มีรหัสบาร์โค้ด
-                </div>
-              )}
-            </div>
-          )}
+          <div className={`space-y-0.5 leading-snug text-black ${presetConfig.metaSize}`}>
+            {visibility.showLocation && itemData.location_name && <div className="truncate">สถานที่: {itemData.location_name}</div>}
+            {visibility.showResponsible && itemData.responsible_person && <div className="truncate">ผู้รับผิดชอบ: {itemData.responsible_person}</div>}
+            {visibility.showPrice && itemData.unit_price != null && <div className="truncate">ราคา: {Number(itemData.unit_price).toLocaleString('th-TH')} บาท</div>}
+          </div>
         </div>
-
-        {/* Right Column (20-25%): Direct Link QR Code with "สแกนตรวจสอบ" text */}
         {visibility.showQr && qrCodeData && (
-          <div className="flex-1 flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
+          <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
             <svg
-              viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
-              className={presetConfig.qrSize}
+              viewBox={`-4 -4 ${qrCodeData.size + 8} ${qrCodeData.size + 8}`}
+              width={qrPixels}
+              height={qrPixels}
+              className="bg-white"
+              shapeRendering="crispEdges"
               role="img"
               aria-label={`QR Code ลิงก์ ${itemUrl}`}
             >
+              <rect x={-4} y={-4} width={qrCodeData.size + 8} height={qrCodeData.size + 8} fill="white" />
               <path d={qrCodeData.path} fill="black" />
             </svg>
-            <span className="text-[6.5px] font-bold text-slate-600 tracking-tighter leading-none mt-0.5 whitespace-nowrap">
-              สแกนตรวจสอบ
-            </span>
+            <span className="text-[7px] font-medium leading-tight text-black">สแกนดูรายละเอียด</span>
           </div>
         )}
       </div>
@@ -334,99 +270,55 @@ function SingleStickerItem({
   )
 }
 
-function A4SheetPreview({
-  items,
-  cols,
-  rows,
-  pageIndex,
-  marginTop = 8,
-  marginBottom = 8,
-  marginLeft = 6,
-  marginRight = 6,
-  gap = 3,
-  showCutLines = true,
-}: {
+function StickerSheet({ items, presetConfig, visibility }: {
   items: ItemStickerData[]
-  cols: number
-  rows: number
-  pageIndex: number
-  marginTop?: number
-  marginBottom?: number
-  marginLeft?: number
-  marginRight?: number
-  gap?: number
-  showCutLines?: boolean
+  presetConfig: PresetConfig
+  visibility: FieldVisibilityConfig
 }) {
-  const labelsPerPage = cols * rows
-  const pageItems = items.slice(pageIndex * labelsPerPage, (pageIndex + 1) * labelsPerPage)
-
-  const baseWidth = 240
-  const scale = baseWidth / 210
-  const baseHeight = Math.round(297 * scale)
-
+  const grid = presetConfig.sheetGrid!
   return (
-    <div
-      data-testid="a4-sheet-preview"
-      className="bg-white shadow-md border border-slate-300 rounded-sm overflow-hidden box-border mx-auto select-none transition-all flex flex-col justify-start"
-      style={{
-        width: `${baseWidth}px`,
-        height: `${baseHeight}px`,
-        paddingTop: `${Math.max(1, marginTop * scale)}px`,
-        paddingBottom: `${Math.max(1, marginBottom * scale)}px`,
-        paddingLeft: `${Math.max(1, marginLeft * scale)}px`,
-        paddingRight: `${Math.max(1, marginRight * scale)}px`,
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        className="w-full h-full grid"
-        style={{
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-          gap: `${Math.max(1, gap * scale)}px`,
-          alignContent: "start",
-          justifyContent: "center",
-        }}
-      >
-        {Array.from({ length: labelsPerPage }).map((_, slotIdx) => {
-          const item = pageItems[slotIdx]
-          if (item) {
-            return (
-              <div
-                key={slotIdx}
-                className={`${
-                  showCutLines
-                    ? "border border-dashed border-slate-600"
-                    : "border border-slate-800"
-                } bg-white rounded-[1px] p-0.5 flex flex-col justify-between overflow-hidden text-[5.5px] leading-tight box-border shadow-2xs min-w-0 min-h-0`}
-                title={`${item.item_name} (${item.asset_no || item.serial_no || ""})`}
-              >
-                <div className="flex-1 min-h-0 overflow-hidden flex flex-col justify-start">
-                  <div className="font-bold text-slate-900 truncate leading-tight">
-                    {item.item_name}
-                  </div>
-                  {(item.asset_no || item.serial_no) && (
-                    <div className="font-mono text-[5px] text-slate-600 truncate leading-none">
-                      {item.asset_no || item.serial_no}
-                    </div>
-                  )}
-                </div>
-                <div className="h-1 w-full bg-slate-800/80 rounded-[0.5px] shrink-0 mt-0.5" />
-              </div>
-            )
-          }
-          return (
-            <div
-              key={slotIdx}
-              className="border border-dashed border-slate-300 bg-slate-50/50 rounded-[1px] flex items-center justify-center text-[5px] text-slate-300 font-mono select-none min-w-0 min-h-0"
-            >
-              ว่าง
-            </div>
-          )
-        })}
-      </div>
+    <div className="a4-sheet print-page-a4" style={{
+      width: "210mm", height: "297mm", maxHeight: "297mm", boxSizing: "border-box",
+      padding: `${grid.marginTop ?? 8}mm ${grid.marginRight ?? 6}mm ${grid.marginBottom ?? 8}mm ${grid.marginLeft ?? 6}mm`,
+      display: "grid",
+      gridTemplateColumns: `repeat(${grid.cols}, ${grid.labelWidth})`,
+      gridTemplateRows: `repeat(${grid.rows}, ${grid.labelHeight})`,
+      gap: grid.gap ?? "3mm 4mm", justifyContent: "center", alignContent: "start",
+      overflow: "hidden", background: "white",
+    }}>
+      {items.map((item, index) => <SingleStickerItem key={index} itemData={item}
+        presetConfig={presetConfig} visibility={visibility} isSheetCell />)}
     </div>
   )
+}
+
+function ScaledPrintPreview({ widthMm, heightMm, children, testId }: {
+  widthMm: number
+  heightMm: number
+  children: React.ReactNode
+  testId?: string
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = React.useState(420)
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setAvailableWidth(entry.contentRect.width)
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+  // Render at print dimensions first, then scale the complete page uniformly.
+  const pixelsPerMm = 96 / 25.4
+  const scale = Math.min(1, availableWidth / (widthMm * pixelsPerMm))
+  return <div ref={containerRef} data-testid={testId} className="w-full min-w-0 max-w-[420px]">
+    <div className="relative mx-auto" style={{ width: widthMm * pixelsPerMm * scale, height: heightMm * pixelsPerMm * scale }}>
+      <div className="absolute left-0 top-0 origin-top-left bg-white shadow-sm" style={{ width: `${widthMm}mm`, height: `${heightMm}mm`, transform: `scale(${scale})` }}>
+        {children}
+      </div>
+    </div>
+  </div>
 }
 
 export function AssetTagModal({
@@ -457,7 +349,6 @@ export function AssetTagModal({
     showResponsible: false,
     showLocation: true,
     showPrice: false,
-    showBarcode: true,
     showQr: true,
     showCutLines: true,
   })
@@ -1093,15 +984,7 @@ export function AssetTagModal({
                     <span>ราคาทรัพย์สิน</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showBarcode}
-                      onChange={() => toggleField("showBarcode")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
-                    />
-                    <span>Barcode (Code128)</span>
-                  </label>
+
 
                   <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
                     <input
@@ -1226,26 +1109,20 @@ export function AssetTagModal({
                 </div>
               </div>
 
-              <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[220px] border border-slate-300/60 shadow-inner overflow-x-auto">
+              <p className="text-xs leading-relaxed text-slate-600">แสดงแบบเดียวกับงานพิมพ์จริง ย่อให้พอดีหน้าจอ • ตอนพิมพ์เลือกขนาดจริง 100% และปิดหัว–ท้ายกระดาษ</p>
+              <div className="p-4 sm:p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[220px] border border-slate-300/60 shadow-inner overflow-x-auto">
                 {previewMode === "sheet" && activeConfig.isSheet ? (
-                  <A4SheetPreview
-                    items={expandedPrintList}
-                    cols={sheetCols}
-                    rows={sheetRows}
-                    pageIndex={safeSheetPageIndex}
-                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 8}
-                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 8}
-                    marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 6}
-                    marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 6}
-                    gap={selectedPreset === "custom_grid" ? customGrid.gap : 3}
-                    showCutLines={fieldVisibility.showCutLines}
-                  />
+                  <ScaledPrintPreview widthMm={210} heightMm={297} testId="a4-sheet-preview">
+                    <StickerSheet
+                      items={expandedPrintList.slice(safeSheetPageIndex * labelsPerPage, (safeSheetPageIndex + 1) * labelsPerPage)}
+                      presetConfig={activeConfig}
+                      visibility={fieldVisibility}
+                    />
+                  </ScaledPrintPreview>
                 ) : (
-                  <SingleStickerItem
-                    itemData={currentItem}
-                    presetConfig={activeConfig}
-                    visibility={fieldVisibility}
-                  />
+                  <ScaledPrintPreview widthMm={Number.parseFloat(activeConfig.width)} heightMm={Number.parseFloat(activeConfig.height)}>
+                    <SingleStickerItem itemData={currentItem} presetConfig={activeConfig} visibility={fieldVisibility} />
+                  </ScaledPrintPreview>
                 )}
               </div>
             </div>
@@ -1289,42 +1166,7 @@ export function AssetTagModal({
               (pageIdx + 1) * labelsPerPage
             )
             return (
-              <div
-                key={pageIdx}
-                className="a4-sheet print-page-a4"
-                style={{
-                  width: "210mm",
-                  height: "297mm",
-                  maxHeight: "297mm",
-                  boxSizing: "border-box",
-                  padding: selectedPreset === "custom_grid"
-                    ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
-                    : "8mm 6mm",
-                  display: "grid",
-                  gridTemplateColumns: selectedPreset === "custom_grid"
-                    ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
-                    : `repeat(${sheetCols}, 96mm)`,
-                  gridTemplateRows: selectedPreset === "custom_grid"
-                    ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
-                    : `repeat(${sheetRows}, 54mm)`,
-                  gap: selectedPreset === "custom_grid"
-                    ? `${customGrid.gap}mm`
-                    : "3mm 4mm",
-                  justifyContent: "center",
-                  alignContent: "start",
-                  overflow: "hidden",
-                }}
-              >
-                {pageItems.map((itm, idx) => (
-                  <SingleStickerItem
-                    key={idx}
-                    itemData={itm}
-                    presetConfig={activeConfig}
-                    visibility={fieldVisibility}
-                    isSheetCell={true}
-                  />
-                ))}
-              </div>
+              <StickerSheet key={pageIdx} items={pageItems} presetConfig={activeConfig} visibility={fieldVisibility} />
             )
           })
         ) : (

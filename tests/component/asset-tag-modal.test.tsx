@@ -30,7 +30,7 @@ test('AssetTagModal renders null when isOpen is false', () => {
 
   assert.equal(container.innerHTML, '')
 })
-test('AssetTagModal renders title, item info, and barcode when open', () => {
+test('AssetTagModal renders title, item info, and QR without barcode when open', () => {
   render(
     React.createElement(AssetTagModal, {
       isOpen: true,
@@ -45,9 +45,8 @@ test('AssetTagModal renders title, item info, and barcode when open', () => {
   assert.ok(screen.getAllByText('Ergonomic Pro 2026').length >= 1)
   assert.ok(screen.getAllByText('สถานที่: ห้องทำงาน 302').length >= 1)
 
-  // Verify barcode SVG is rendered
-  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด AST-2026-008' })
-  assert.ok(barcodeSvgs.length >= 1)
+  // The printed label keeps the identifier but no longer renders a barcode.
+  assert.equal(screen.queryByRole('img', { name: 'บาร์โค้ด AST-2026-008' }), null)
 })
 
 test('AssetTagModal supports standard and custom presets', () => {
@@ -168,7 +167,7 @@ test('AssetTagModal toggles field visibility (price, responsible person, organiz
   // Toggle Org Header to OFF
   const orgCheckbox = screen.getByLabelText('ชื่อระบบ / CAMMS')
   fireEvent.click(orgCheckbox)
-  assert.equal(screen.queryByText('CAMMS — ระบบบริหารจัดการทรัพย์สิน'), null)
+  assert.equal(screen.queryByText('CAMMS'), null)
 })
 
 test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
@@ -187,8 +186,7 @@ test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
   )
 
   assert.ok(screen.getAllByText('SN-MONITOR-99').length >= 1)
-  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' })
-  assert.ok(barcodeSvgs.length >= 1)
+  assert.equal(screen.queryByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' }), null)
 })
 
 test('AssetTagModal triggers onClose callback when clicking close button or cancel button', () => {
@@ -286,7 +284,7 @@ test('AssetTagModal renders Direct Link QR Code SVG element for mobile phone sca
 
   const qrSvgs = screen.getAllByRole('img', { name: /QR Code ลิงก์/ })
   assert.ok(qrSvgs.length >= 1)
-  assert.ok(screen.getAllByText('สแกนตรวจสอบ').length >= 1)
+  assert.ok(screen.getAllByText('สแกนดูรายละเอียด').length >= 1)
 })
 
 test('AssetTagModal supports custom grid preset, column/row adjustments, and margin/gap settings', () => {
@@ -365,14 +363,15 @@ test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
   const sheetPreview = document.querySelector('[data-testid="a4-sheet-preview"]')
   assert.ok(sheetPreview)
 
-  // Standard preset has 10 slots (2 cols * 5 rows)
-  const slots = sheetPreview.querySelectorAll('.grid > div')
-  assert.equal(slots.length, 10)
-
-  // First slot should display mockItem name
-  assert.ok(slots[0].textContent?.includes('เก้าอี้สำนักงานเพื่อสุขภาพ'))
-  // Other unfilled slots should display "ว่าง"
-  assert.ok(slots[1].textContent?.includes('ว่าง'))
+  // Preview uses exactly the same sheet and QR markup as printing.
+  const previewSheet = sheetPreview.querySelector('.print-page-a4')
+  const printedSheet = document.querySelector('#printable-asset-tag .print-page-a4')
+  assert.ok(previewSheet)
+  assert.ok(printedSheet)
+  assert.equal(previewSheet.outerHTML, printedSheet.outerHTML)
+  assert.equal(previewSheet.querySelectorAll('.label-card').length, 1)
+  assert.ok(previewSheet.querySelector('svg[aria-label^="QR Code"]'))
+  assert.ok(!previewSheet.textContent?.includes('ว่าง'))
 
   // Switch back to Single view
   fireEvent.click(singleToggle)
@@ -409,19 +408,15 @@ test('calculateCustomGridDimensions correctly calculates label dimensions', () =
 
 test('getTypographyForHeight returns scalable text styles and heights', () => {
   const large = getTypographyForHeight(50)
-  assert.equal(large.barcodeHeight, 'h-7')
   assert.equal(large.nameSize, 'text-xs font-bold')
 
   const medium = getTypographyForHeight(38)
-  assert.equal(medium.barcodeHeight, 'h-5')
   assert.equal(medium.nameSize, 'text-[10.5px] font-bold')
 
   const small = getTypographyForHeight(28)
-  assert.equal(small.barcodeHeight, 'h-4.5')
   assert.equal(small.nameSize, 'text-[9.5px] font-bold')
 
   const compact = getTypographyForHeight(20)
-  assert.equal(compact.barcodeHeight, 'h-3.5')
   assert.equal(compact.nameSize, 'text-[8.5px] font-bold')
 })
 

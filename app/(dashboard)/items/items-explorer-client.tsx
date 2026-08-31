@@ -747,6 +747,31 @@ interface ItemsListProps {
   onToggleSort: (field: string) => void
 }
 
+function ItemListThumbnail({ item }: { item: ItemListRow }) {
+  const [failed, setFailed] = useState(false)
+
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted text-muted-foreground">
+      {item.image_url && !failed ? (
+        // Images are already hosted by the application's storage service.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.image_url}
+          alt={`รูปสิ่งของ: ${item.item_name}`}
+          width={48}
+          height={48}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden="true">{typeIcons[item.item_type]}</span>
+      )}
+    </div>
+  )
+}
+
 function ItemsList({
   items,
   selectedItemId,
@@ -802,7 +827,7 @@ function ItemsList({
                 className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
               />
             </DataTableHead>
-            <DataTableHead className="w-12 px-2" />
+            <DataTableHead className="w-16 px-2"><span className="sr-only">รูปภาพสิ่งของ</span></DataTableHead>
             <DataTableHead className="min-w-[220px] px-2">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
             <DataTableHead className="hidden sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
             <DataTableHead className="hidden md:table-cell">หมวดหมู่</DataTableHead>
@@ -838,9 +863,7 @@ function ItemsList({
                   />
                 </DataTableCell>
                 <DataTableCell className="px-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
-                    {typeIcons[item.item_type]}
-                  </div>
+                  <ItemListThumbnail key={item.image_url ?? 'no-image'} item={item} />
                 </DataTableCell>
                 <DataTableCell className="px-2">
                   <div className="font-extrabold text-card-foreground">{item.item_name}</div>
@@ -1093,7 +1116,7 @@ function Inspector({
                 className="h-10 rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Tag className="h-4 w-4" />
-                <span>พิมพ์ป้ายบาร์โค้ด</span>
+                <span>พิมพ์สติกเกอร์</span>
               </Button>
               <Link href={`/items/${item.id}`} className="w-full">
                 <Button

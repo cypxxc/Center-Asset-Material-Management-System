@@ -145,7 +145,7 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   assert.ok(drawerScope.getByText('สภาพดี เบิกใช้งานเมื่อมกราคม 2026'))
 
   // Verify quick action buttons exist in drawer
-  assert.ok(drawerScope.getByRole('button', { name: 'พิมพ์ป้ายบาร์โค้ด' }))
+  assert.ok(drawerScope.getByRole('button', { name: 'พิมพ์สติกเกอร์' }))
   assert.ok(drawerScope.getByRole('button', { name: 'ดูหน้ารายละเอียดเต็ม' }))
   assert.ok(drawerScope.getByRole('button', { name: 'แก้ไขข้อมูล' }))
 })
