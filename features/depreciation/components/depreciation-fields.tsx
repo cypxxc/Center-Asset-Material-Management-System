@@ -24,6 +24,12 @@ export function DepreciationFields({ item }: { item?: ItemDetail }) {
         </span>
         <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} className="h-4 w-4 accent-primary" />
       </label>
+      <div className="mt-3 rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm">
+        <p className="font-medium">สูตรคำนวณค่าเสื่อมแบบเส้นตรง</p>
+        <p className="mt-1 leading-relaxed text-muted-foreground">
+          ค่าเสื่อมต่อปี = (มูลค่าพร้อมใช้งาน − มูลค่าคงเหลือ 1 บาท) ÷ อายุการใช้งาน (ปี)
+        </p>
+      </div>
       {enabled && <>
         <FormGrid className="mt-4">
           <FormField>
