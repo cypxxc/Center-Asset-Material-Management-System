@@ -12,6 +12,7 @@ const requiredMigrations = [
   '00030_revoke_anon_admin_sql.sql',
   '00031_lock_down_public_report_rpcs.sql',
   '20260909012737_shared_rate_limits.sql',
+  '20260909015108_bounded_report_exports.sql',
 ]
 
 async function main() {
@@ -56,13 +57,13 @@ async function main() {
         from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl), false) as public_execute
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname in
-      ('exec_admin_sql','get_report_items_page','get_report_stats','get_sidebar_stats','import_items_bulk_tx','restore_database_backup')`)
+      ('exec_admin_sql','get_report_items_page','get_report_export_batch','get_report_stats','get_sidebar_stats','import_items_bulk_tx','restore_database_backup')`)
   for (const row of aclRows) {
     if (row.anon_execute || row.public_execute) {
       failures.push(`unsafe execute grant: ${String(row.proname)}`)
     }
   }
-  if (aclRows.length !== 6) failures.push('one or more required release RPCs are missing')
+  if (aclRows.length !== 7) failures.push('one or more required release RPCs are missing')
 
   if (failures.length > 0) throw new Error(`Database release readiness failed:\n- ${failures.join('\n- ')}`)
   console.log('Database release readiness passed: migrations, RLS, and RPC grants are safe.')

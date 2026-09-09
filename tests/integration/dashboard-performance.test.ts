@@ -62,7 +62,8 @@ test('dashboard defers the realtime subscription behind a client-only boundary',
   assert.doesNotMatch(pageSource, /import \{ RealtimeRefreshBridge \} from '@\/components\/realtime-refresh-bridge'/)
   assert.match(boundarySource, /dynamic\(\s*\(\) => import\('@\/components\/realtime-refresh-bridge'\)/)
   assert.match(boundarySource, /ssr:\s*false/)
-  assert.match(realtimeRefreshSource, /router\.refresh\(\)\s+const supabase = createClient\(\)/)
+  assert.match(realtimeRefreshSource, /return startRealtimeRefresh\(/)
+  assert.match(realtimeRefreshSource, /refresh: \(\) => router\.refresh\(\)/)
 })
 
 test('getLowStockItems is exported as a function in features/items/queries', async () => {

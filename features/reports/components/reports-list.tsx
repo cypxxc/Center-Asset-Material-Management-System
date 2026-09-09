@@ -11,6 +11,7 @@ import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { ReportItemRow } from '../queries'
 import { recordReportExportAudit, getExportReportItems } from '../actions'
 import { generateReportPdf } from '@/lib/reports-pdf-generator'
+import { downloadReportExcel } from '@/lib/download-report-excel'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
@@ -73,6 +74,7 @@ export function ReportsList({
   const [prevQ, setPrevQ] = useState(searchParams.q ?? '')
   const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const currentQ = searchParams.q ?? ''
   if (currentQ !== prevQ) {
@@ -132,38 +134,28 @@ export function ReportsList({
   }
 
   const exportToExcel = async () => {
+    if (isExportingExcel) return
+    setExportError(null)
     setIsExportingExcel(true)
     try {
-      const filterSummary = buildFilterSummary()
-      const { items: exportItems, totalQuantity: exportQty, totalValue: exportVal } =
-        await getExportReportItems(searchParams)
-
-      const { generateReportExcel } = await import('@/lib/reports-excel-generator')
-      const buffer = await generateReportExcel(exportItems, {
-        filterSummary,
-        totalQuantity: exportQty,
-        totalValue: exportVal,
+      await downloadReportExcel(searchParams, {
+        filterSummary: buildFilterSummary(),
+        filename: `office-items-report-${new Date().toISOString().split('T')[0]}.xlsx`,
       })
-
-      const blob = new Blob([buffer as BlobPart], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `office-items-report-${new Date().toISOString().split('T')[0]}.xlsx`
-      a.click()
-      window.URL.revokeObjectURL(url)
-
-      await recordReportExportAudit('excel', filterSummary)
     } catch (error) {
-      console.error('Failed to export Excel:', error)
+      setExportError(error instanceof Error ? error.message : 'ดาวน์โหลด Excel ไม่สำเร็จ กรุณาลองอีกครั้ง')
     } finally {
       setIsExportingExcel(false)
     }
   }
 
   const exportToPdf = async () => {
+    if (isExportingPdf) return
+    setExportError(null)
+    if (totalCount > 5000) {
+      setExportError('PDF รองรับสูงสุด 5,000 รายการ กรุณาเลือกตัวกรองเพิ่มเติมหรือดาวน์โหลด Excel')
+      return
+    }
     setIsExportingPdf(true)
     try {
       const filterSummary = buildFilterSummary()
@@ -171,10 +163,9 @@ export function ReportsList({
         await getExportReportItems(searchParams)
 
       generateReportPdf(exportItems, filterSummary, exportQty, exportVal)
-
       await recordReportExportAudit('pdf', filterSummary)
-    } catch (error) {
-      console.error('Failed to export PDF:', error)
+    } catch {
+      setExportError('ส่งออก PDF ไม่สำเร็จ กรุณาลองอีกครั้งหรือดาวน์โหลด Excel (PDF รองรับสูงสุด 5,000 รายการ)')
     } finally {
       setIsExportingPdf(false)
     }
@@ -297,6 +288,12 @@ export function ReportsList({
           </>
         }
       />
+
+        {exportError && (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive print:hidden">
+            {exportError}
+          </p>
+        )}
 
         {/* Category Combo Chart with Consolidated KPIs */}
         <CategoryComboChart

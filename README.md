@@ -176,6 +176,39 @@ does not prove multi-connection locking behavior on the deployed database.
 
 ## 📄 License & Documentation
 
+### Items and Reports performance rollout
+
+Apply `db/migrations/20260909015108_bounded_report_exports.sql` before deploying
+the matching application. The earlier shared rate-limit migration
+`20260909012737_shared_rate_limits.sql` is also required. Record migrations in
+the release ledger through your migration process and run `npm run verify-db-release`.
+These migrations have not been applied to the hosted database by this change.
+
+Reports now require the bounded RPCs: failures display errors instead of loading
+the entire table into Node. Excel downloads use authenticated, rate-limited
+`GET /api/reports/export`, cursor batches of 500 and a streaming XLSX writer.
+PDF remains capped at 5,000 records with a visible Excel recommendation.
+Exports preserve filters and ordering. Batch requests do not share a database
+snapshot: avoid concurrent bulk edits for a stable export. Count discrepancies
+abort the download, but equal-count edits can still change its contents.
+Downloads have a 280-second deadline and stop database reads on cancellation.
+The browser holds the final compressed XLSX blob; very large exports may still
+need a background job/object-storage workflow beyond hosting time limits.
+
+Items retains exact pagination, measuring `items.getItems.data` separately from
+`items.getItems.count`, and signs page images in one Storage request. The two
+queries can observe concurrent writes at slightly different times. Existing
+trigram indexes cover all six search fields; no duplicate indexes are added.
+Use `db/diagnostics/items-search-plan.sql` on representative staging data and
+compare data/count timings separately. No production latency improvement is
+claimed without those measurements. Realtime refreshes debounce at 750 ms,
+defer while hidden, and flush once the tab becomes visible.
+
+The Excel writer adapts ExcelJS's internal worksheet stream for backpressure.
+Keep cancellation, slow-consumer, and workbook-validity tests when upgrading
+ExcelJS. Local PostgreSQL tests verify pagination, sorting, grants, and RLS;
+hosted database performance and deployment behavior require staging validation.
+
 For detailed architectural decisions, operations, and recovery guides, see:
 - [AGENTS.md](file:///D:/omni-asset/AGENTS.md) — Developer & agent guidelines
 - [DEPLOYMENT.md](file:///D:/omni-asset/DEPLOYMENT.md) — Deployment & migration instructions

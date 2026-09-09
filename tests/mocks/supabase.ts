@@ -6,6 +6,8 @@ export interface MockResponse {
 type MockOperation = [string, ...unknown[]];
 
 export interface MockQueryLogEntry {
+  selectColumns?: string;
+  selectOptions?: unknown;
   table: string;
   clientKind: 'anon' | 'service';
   operations: MockOperation[];
@@ -246,6 +248,8 @@ export const mockSupabaseRegistry = new SupabaseMockRegistry();
 
 export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | 'service' = 'anon') {
   const operations: MockOperation[] = [];
+  let selectColumns: string | undefined;
+  let selectOptions: unknown;
 
   const waitForDelay = async () => {
     const delayMs = mockSupabaseRegistry.getTableDelay(tableName);
@@ -266,7 +270,7 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
   };
 
   const recordAndResolve = async () => {
-    mockSupabaseRegistry.recordQuery({ table: tableName, clientKind, operations: [...operations] });
+    mockSupabaseRegistry.recordQuery({ table: tableName, clientKind, operations: [...operations], selectColumns, selectOptions });
     if (clientKind === 'service' && tableName === 'profiles') {
       const upsert = operations.find((operation) => operation[0] === 'upsert');
       if (upsert) mockSupabaseRegistry.applyProfileUpsert(upsert[1]);
@@ -276,7 +280,7 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
   };
 
   const chain: MockQueryBuilder = {
-    select: () => record(['select']),
+    select: (columns, options) => { selectColumns = columns; selectOptions = options; return record(['select']); },
     insert: (values: unknown) => record(['insert', values]),
     upsert: (values: unknown, options?: unknown) => record(['upsert', values, options]),
     update: (values: unknown) => record(['update', values]),
@@ -314,7 +318,8 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
   rpc: (name: string, args?: Record<string, unknown>) => {
     mockSupabaseRegistry.recordRpc({ name, args });
     const { data, error } = mockSupabaseRegistry.getRpcResponse(name);
-    return Promise.resolve({ data, error });
+    const result = Promise.resolve({ data, error });
+    return Object.assign(result, { abortSignal: () => result });
   },
   auth: {
     getUser: async () => {
@@ -351,6 +356,10 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
   },
   storage: {
     from: (bucket: string) => ({
+      createSignedUrls: async (paths: string[]) => {
+        mockSupabaseRegistry.recordStorage({ bucket, operation: 'createSignedUrls', path: paths.join(',') });
+        return { data: paths.map(path => ({ path, signedUrl: `https://signed.example/${path}`, error: null })), error: null };
+      },
       upload: async (path: string) => {
         mockSupabaseRegistry.recordStorage({ bucket, operation: 'upload', path });
         return { data: { path: `mocked/${path}` }, error: null };

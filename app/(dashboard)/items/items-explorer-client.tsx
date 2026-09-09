@@ -45,6 +45,7 @@ import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'
+import { downloadReportExcel } from '@/lib/download-report-excel'
 import {
   DataTable,
   DataTableHeader,
@@ -53,7 +54,7 @@ import {
   DataTableRow,
   DataTableCell
 } from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport } from '@/features/items/actions'
+import { bulkUpdateItems, bulkHardDeleteItems } from '@/features/items/actions'
 import { cn } from '@/lib/utils'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 
@@ -222,76 +223,14 @@ export function ItemsExplorerClient({
   const exportToExcel = async () => {
     if (isExporting) return
     setIsExporting(true)
+    setBlockingError(null)
     triggerToast('กำลังเตรียมข้อมูลสำหรับส่งออก...', 'info')
     try {
-      const { default: ExcelJS } = await import('exceljs')
-      triggerToast('กำลังดึงข้อมูลพัสดุจากระบบ...', 'info')
-      const allItems = await getItemsForExport(params)
-      if (!allItems || allItems.length === 0) {
-        setBlockingError('ไม่พบข้อมูลที่จะส่งออก')
-        setIsExporting(false)
-        return
-      }
-
-      triggerToast(`กำลังจัดทำไฟล์ Excel (${allItems.length.toLocaleString()} รายการ)...`, 'info')
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('ทะเบียนสิ่งของ')
-
-      worksheet.columns = [
-        { header: 'ชื่อสิ่งของ', key: 'item_name', width: 25 },
-        { header: 'ประเภท', key: 'item_type', width: 15 },
-        { header: 'หมวดหมู่', key: 'category_name', width: 15 },
-        { header: 'จำนวน', key: 'quantity', width: 10 },
-        { header: 'ราคาต่อหน่วย', key: 'unit_price', width: 14 },
-        { header: 'หน่วยนับ', key: 'unit_name', width: 10 },
-        { header: 'เลขครุภัณฑ์', key: 'asset_no', width: 20 },
-        { header: 'Serial Number', key: 'serial_no', width: 20 },
-        { header: 'ยี่ห้อ', key: 'brand', width: 15 },
-        { header: 'รุ่น', key: 'model', width: 15 },
-        { header: 'สถานที่', key: 'location_name', width: 20 },
-        { header: 'ผู้รับผิดชอบ', key: 'responsible_person', width: 20 },
-        { header: 'สถานะ', key: 'status', width: 15 },
-        { header: 'หมายเหตุ', key: 'note', width: 25 },
-      ]
-
-      allItems.forEach((item) => {
-        worksheet.addRow({
-          item_name: item.item_name,
-          item_type: ITEM_TYPE_LABELS[item.item_type] || item.item_type,
-          category_name: item.category?.name || '-',
-          quantity: item.quantity,
-          unit_price: item.unit_price ?? 0,
-          unit_name: item.unit?.name || '-',
-          asset_no: item.asset_no || '-',
-          serial_no: item.serial_no || '-',
-          brand: item.brand || '-',
-          model: item.model || '-',
-          location_name: item.location?.name || '-',
-          responsible_person: item.responsible_person || '-',
-          status: ITEM_STATUS_LABELS[item.status] || item.status,
-          note: item.note || '-',
-        })
-      })
-
-      // Format headers
-      worksheet.getRow(1).font = { bold: true }
-      worksheet.getRow(1).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE2E8F0' },
-      }
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
       const typeLabel = params.type ? `_${ITEM_TYPE_LABELS[params.type as ItemType] || params.type}` : ''
-      a.download = `inventory_registry${typeLabel}_${new Date().toISOString().split('T')[0]}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
+      await downloadReportExcel(params, {
+        inventory: true,
+        filename: `inventory_registry${typeLabel}_${new Date().toISOString().split('T')[0]}.xlsx`,
+      })
       triggerToast('ดาวน์โหลดไฟล์เรียบร้อยแล้ว')
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
