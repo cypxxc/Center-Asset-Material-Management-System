@@ -483,6 +483,11 @@ export async function updateUnit(id: string, formData: FormData) {
 export async function updateProfile(id: string, formData: FormData) {
   const timer = startTimer()
   await requireAdmin()
+  const rateLimitCheck = await checkRateLimit('updateProfile', 30, 60000)
+  if (!rateLimitCheck.success) {
+    redirectToSettings('error', rateLimitCheck.error!, 'users')
+  }
+
   const currentProfile = await getCurrentProfile()
   if (currentProfile?.id === id) {
     redirectToSettings('error', 'ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้', 'users')

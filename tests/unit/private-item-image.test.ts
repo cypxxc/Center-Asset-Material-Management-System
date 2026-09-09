@@ -1,3 +1,4 @@
+import '../setup/server-only'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { resolvePrivateItemImageUrl } from '../../lib/supabase/storage'

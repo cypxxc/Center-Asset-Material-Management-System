@@ -1,3 +1,4 @@
+import '../../tests/setup/allow-rate-limit'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { z } from 'zod'

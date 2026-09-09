@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import { getTrustedClientIp } from './request-ip'
 import { after } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logging'
@@ -43,7 +44,7 @@ export async function writeAuditLog(payload: AuditLogPayload) {
       traceId = headersList.get('x-trace-id') || traceId
     }
     if (!ip) {
-      ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
+      ip = getTrustedClientIp(headersList)
     }
   } catch {
     // Graceful fallback for non-request contexts (e.g. unit tests)

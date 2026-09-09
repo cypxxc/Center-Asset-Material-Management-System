@@ -11,6 +11,7 @@ const requiredMigrations = [
   '00029_harden_profile_role_defaults.sql',
   '00030_revoke_anon_admin_sql.sql',
   '00031_lock_down_public_report_rpcs.sql',
+  '20260909012737_shared_rate_limits.sql',
 ]
 
 async function main() {

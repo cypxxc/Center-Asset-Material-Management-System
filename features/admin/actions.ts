@@ -1,13 +1,14 @@
 'use server'
 
 import { getCurrentProfile } from '@/features/auth/queries'
-import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
+import { checkRateLimit, type RateLimitTier } from '@/lib/rate-limit'
 import { assertAdminTable } from '@/features/admin/table-policy'
 
 
@@ -15,7 +16,7 @@ import { isAdmin } from '@/lib/permissions'
 
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
-    return createAdminClient()
+    return createServiceRoleClient()
   }
   return createClient()
 }
@@ -29,8 +30,16 @@ export async function requireAdmin() {
   return { profile }
 }
 
-export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
+async function requireAdminOperation(action: string, tier: RateLimitTier) {
   const auth = await requireAdmin()
+  if (auth.error) return auth
+  const rate = await checkRateLimit(action, tier)
+  if (!rate.success) return { error: rate.error ?? 'Too many requests', profile: undefined }
+  return auth
+}
+
+export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
+  const auth = await requireAdminOperation('getTableData', 'read')
   if (auth.error) return { error: auth.error, data: [], count: 0 }
   const safeTable = assertAdminTable(tableName, 'read')
 
@@ -52,7 +61,7 @@ export async function getTableData(tableName: string, page: number = 1, pageSize
 }
 
 export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('upsertTableRow', 'mutation')
   if (auth.error) return { error: auth.error }
   const safeTable = assertAdminTable(tableName, 'write')
 
@@ -125,7 +134,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 }
 
 export async function deleteTableRow(tableName: string, rowId: string) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('deleteTableRow', 'mutation')
   if (auth.error) return { error: auth.error }
   const safeTable = assertAdminTable(tableName, 'delete')
 
@@ -158,34 +167,39 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   return { success: true }
 }
 
-export async function runAdminSql(sqlQuery: string) {
-  const auth = await requireAdmin()
+export async function runAdminSql(sqlQuery: string, confirmation?: string) {
+  const auth = await requireAdminOperation('runAdminSql', 'mutation')
   if (auth.error) return { error: auth.error }
 
   if (process.env.ADMIN_SQL_ENABLED !== 'true') {
     return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
   }
 
+  if (confirmation !== 'EXECUTE SQL') return { error: 'กรุณายืนยันการรัน SQL โดยพิมพ์ EXECUTE SQL' }
+  if (!sqlQuery.trim() || sqlQuery.length > 100000) return { error: 'SQL must contain 1–100000 characters.' }
+
   const supabase = createServiceRoleClient()
+  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex'))
+  const executionId = crypto.randomUUID()
+  const audit = { user_id: auth.profile.id, target_table: 'multiple/raw_sql' }
+  const { error: auditError } = await supabase.from('audit_logs').insert({
+    ...audit, action: 'SQL_EXECUTE_ATTEMPT', new_data: { query_hash: queryHash, execution_id: executionId },
+  })
+  if (auditError) return { error: 'ไม่สามารถบันทึกประวัติได้ จึงยังไม่ได้รัน SQL' }
   const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
 
-  if (error) {
-    return { error: error.message }
-  }
-
-  // Log SQL execution in audit_logs
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
+  const { error: completionError } = await supabase.from('audit_logs').insert({
+    ...audit,
     action: 'SQL_EXECUTE',
-    target_table: 'multiple/raw_sql',
-    new_data: { query_hash: await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex')) }
+    new_data: { query_hash: queryHash, execution_id: executionId, status: error || data?.ok === false ? 'failed' : 'completed' },
   })
-
+  if (completionError) return { error: 'SQL ถูกส่งไปรันแล้ว แต่บันทึกผลไม่สำเร็จ กรุณาตรวจสอบฐานข้อมูลก่อนรันซ้ำ' }
+  if (error) return { error: error.message }
   return data
 }
 
 export async function exportDatabaseData() {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('exportDatabaseData', 'export')
   if (auth.error) return { error: auth.error, backup: null }
 
   const supabase = await getSupabaseClient()
@@ -216,7 +230,7 @@ export async function exportDatabaseData() {
 }
 
 export async function importDatabaseData(backupJsonStr: string) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('importDatabaseData', 'export')
   if (auth.error) return { error: auth.error }
 
   // This RPC authorizes with auth.uid(); keep the administrator's session.
@@ -266,7 +280,7 @@ export async function createAuthUser(payload: {
   role: 'admin' | 'staff' | 'viewer'
   is_active: boolean
 }) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('createAuthUser', 'mutation')
   const trace = await beginActionTrace({
     feature: 'admin',
     action: 'createAuthUser',
@@ -282,7 +296,7 @@ export async function createAuthUser(payload: {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อสร้างผู้ใช้ใหม่' }
   }
 
-  const adminClient = await createAdminClient()
+  const adminClient = await createServiceRoleClient()
 
   // Basic server-side validation
   let email = normalizeForStorage(payload.email || '')
@@ -397,14 +411,14 @@ export async function createAuthUser(payload: {
 // ============================================================
 
 export async function deleteAuthUser(userId: string) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('deleteAuthUser', 'mutation')
   if (auth.error) return { error: auth.error }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อลบผู้ใช้' }
   }
 
-  const adminClient = await createAdminClient()
+  const adminClient = await createServiceRoleClient()
 
   // Delete from auth.users (cascades to profiles if FK is set, or manual below)
   const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
@@ -429,7 +443,7 @@ export async function deleteAuthUser(userId: string) {
 // ============================================================
 
 export async function resetAuthPassword(userId: string, newPassword: string) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('resetAuthPassword', 'mutation')
   if (auth.error) return { error: auth.error }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
@@ -440,7 +454,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     return { error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' }
   }
 
-  const adminClient = await createAdminClient()
+  const adminClient = await createServiceRoleClient()
 
   try {
     const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
@@ -475,7 +489,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
 // ============================================================
 
 export async function updateUserEmail(userId: string, newEmail: string) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('updateUserEmail', 'mutation')
   if (auth.error) return { error: auth.error }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
@@ -487,7 +501,7 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     return { error: 'กรุณาระบุรูปแบบอีเมลให้ถูกต้อง' }
   }
 
-  const adminClient = await createAdminClient()
+  const adminClient = await createServiceRoleClient()
 
   try {
     const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
@@ -535,7 +549,7 @@ export async function updateUserProfileRoleAndStatus(
     full_name?: string
   }
 ) {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOperation('updateUserProfileRoleAndStatus', 'mutation')
   if (auth.error) return { error: auth.error }
 
   if (!userId) {
@@ -593,7 +607,7 @@ export async function updateUserProfileRoleAndStatus(
   // Update Supabase Auth user metadata if service role is available
   if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     try {
-      const adminClient = await createAdminClient()
+      const adminClient = await createServiceRoleClient()
       const authMetadataUpdates: Record<string, unknown> = {}
       if (payload.role !== undefined) authMetadataUpdates.role = payload.role
       if (payload.is_active !== undefined) authMetadataUpdates.is_active = payload.is_active

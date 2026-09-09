@@ -1,3 +1,4 @@
+import '../setup/server-only'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { writeAuditLog } from '@/lib/audit'

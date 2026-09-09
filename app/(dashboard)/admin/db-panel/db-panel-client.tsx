@@ -375,12 +375,14 @@ export default function DBPanelClient() {
 
   // Execute SQL
   const handleRunSql = async () => {
+    const confirmation = window.prompt('SQL สามารถแก้ไขหรือลบข้อมูลโดยตรงได้ ใช้เฉพาะช่วงบำรุงรักษา พิมพ์ EXECUTE SQL เพื่อยืนยัน')
+    if (confirmation !== 'EXECUTE SQL') return
     setIsSqlRunning(true)
     setSqlError(null)
     setSqlResult(null)
 
     try {
-      const res = await runAdminSql(sqlQuery)
+      const res = await runAdminSql(sqlQuery, confirmation)
       if (res.error) {
         setSqlError(res.error)
       } else {

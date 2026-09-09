@@ -1,4 +1,4 @@
-import { createAdminClient, createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logging'
 
 export function parseStoragePathFromUrl(imageUrl: string | null | undefined): string | null {
@@ -33,11 +33,7 @@ export async function deleteItemStorageImage(imageUrl: string | null | undefined
   try {
     let supabase
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        supabase = await createAdminClient()
-      } catch {
-        supabase = createServiceRoleClient()
-      }
+      supabase = createServiceRoleClient()
     } else {
       supabase = await createClient()
     }

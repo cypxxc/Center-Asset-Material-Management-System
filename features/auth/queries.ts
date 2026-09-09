@@ -1,18 +1,8 @@
 import { cache } from 'react'
-import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { measureQuery } from '@/lib/performance'
-import { getDevelopmentSessionUser } from './dev-auth'
 
 const getCurrentUser = cache(async function getCurrentUser() {
-  const devSessionUser = await getDevelopmentSessionUser()
-  if (devSessionUser) {
-    return {
-      id: devSessionUser.id,
-      email: devSessionUser.email,
-      user_metadata: { full_name: devSessionUser.full_name ?? null },
-    }
-  }
-
   const supabase = await createClient()
   const {
     result: {
@@ -28,23 +18,9 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
   const user = await getCurrentUser()
   if (!user) return null
 
-  const devSessionUser = await getDevelopmentSessionUser()
-  if (devSessionUser) {
-    const adminClient = await createAdminClient()
-    const {
-      data: profile,
-    } = await adminClient
-      .from('profiles')
-      .select('*')
-      .eq('id', devSessionUser.id)
-      .maybeSingle()
-
-    return profile
-  }
-
   const supabase = await createClient()
   const {
-    result: { data: profile },
+    result: { data: profile, error },
   } = await measureQuery('auth.getCurrentProfile', () =>
     supabase
       .from('profiles')
@@ -53,5 +29,5 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
       .single()
   )
 
-  return profile
+  return error || !profile?.is_active ? null : profile
 })

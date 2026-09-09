@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { beginActionTrace, classifyActionResponse } from '@/lib/tracing'
@@ -11,7 +11,6 @@ import { retrySupabase } from '@/lib/retry'
 import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
 import { resolveUniqueProfileEmail } from './login-identifier'
-import { getDevelopmentSeedAccount, setDevelopmentSessionUser } from './dev-auth'
 
 
 export async function signOut() {
@@ -19,8 +18,6 @@ export async function signOut() {
   try {
     const supabase = await createClient()
     await supabase.auth.signOut()
-    const { clearDevelopmentSessionUser } = await import('./dev-auth')
-    await clearDevelopmentSessionUser()
     trace.complete('success')
     redirect('/login')
   } catch (err) {
@@ -66,7 +63,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
       email = identifier
     } else {
       // Only create admin client when needed (non-email login)
-      const adminClient = await createAdminClient()
+      const adminClient = await createServiceRoleClient()
       
       if (isUUID) {
         const userResult = await retrySupabase(async () => {
@@ -114,8 +111,6 @@ export async function login(_prevState: { error?: string } | null, formData: For
     return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
   }
 
-  const developmentSeedAccount = getDevelopmentSeedAccount(email, password)
-
   try {
     const signInResult = await retrySupabase(async () => {
       const result = await supabase.auth.signInWithPassword({ email, password })
@@ -124,44 +119,21 @@ export async function login(_prevState: { error?: string } | null, formData: For
     })
 
     const userId = signInResult.data.user?.id
-    if (userId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_active')
-        .eq('id', userId)
-        .single()
+    if (!userId) throw new Error('Authentication did not return a user')
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_active')
+      .eq('id', userId)
+      .single()
 
-      if (!profile?.is_active) {
-        await supabase.auth.signOut()
-        metrics.loginFailure()
-        trace.complete('failure', { reason: 'inactive_profile' })
-        redirect('/login?error=inactive')
-      }
+    if (!profile?.is_active) {
+      await supabase.auth.signOut()
+      metrics.loginFailure()
+      trace.complete('failure', { reason: 'inactive_profile' })
+      redirect('/login?error=inactive')
     }
   } catch (err) {
     if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
-
-    if (developmentSeedAccount) {
-      const adminClient = await createAdminClient()
-      const { data: profile, error: profileError } = await adminClient
-        .from('profiles')
-        .select('id, email, is_active, role, full_name')
-        .eq('email', email)
-        .maybeSingle()
-
-      if (!profileError && profile?.is_active) {
-        await setDevelopmentSessionUser({
-          id: profile.id,
-          email: profile.email ?? email,
-          role: (profile.role as 'admin' | 'staff' | 'viewer') ?? developmentSeedAccount.role,
-          full_name: profile.full_name ?? null,
-        })
-
-        metrics.loginSuccess()
-        trace.complete('success', { fallback: 'development_seed' })
-        redirect('/dashboard')
-      }
-    }
 
     metrics.loginFailure()
     trace.complete('failure', { reason: 'invalid_credentials' })
@@ -190,6 +162,12 @@ export async function updatePersonalProfile(_prevState: PersonalProfileActionSta
     }
 
     trace.context.userId = user.id
+
+    const rateLimitCheck = await checkRateLimit('updatePersonalProfile', config.limits.rateLimitDefault, config.limits.rateLimitWindowMs)
+    if (!rateLimitCheck.success) {
+      trace.complete('failure', { reason: 'rate_limited' })
+      return { error: rateLimitCheck.error! }
+    }
 
     const fullName = formData.get('full_name') as string
     if (!fullName?.trim()) {
@@ -228,6 +206,12 @@ export async function updatePersonalPassword(_prevState: PersonalProfileActionSt
     }
 
     trace.context.userId = user.id
+
+    const rateLimitCheck = await checkRateLimit('updatePersonalPassword', config.limits.rateLimitDefault, config.limits.rateLimitWindowMs)
+    if (!rateLimitCheck.success) {
+      trace.complete('failure', { reason: 'rate_limited' })
+      return { error: rateLimitCheck.error! }
+    }
 
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirm_password') as string
@@ -273,6 +257,12 @@ export async function updateSidebarOrder(order: string[]): Promise<{ success?: b
     }
 
     trace.context.userId = user.id
+
+    const rateLimitCheck = await checkRateLimit('updateSidebarOrder', config.limits.rateLimitDefault, config.limits.rateLimitWindowMs)
+    if (!rateLimitCheck.success) {
+      trace.complete('failure', { reason: 'rate_limited' })
+      return { error: rateLimitCheck.error! }
+    }
 
     const { error } = await supabase
       .from('profiles')

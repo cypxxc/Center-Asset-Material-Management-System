@@ -39,7 +39,6 @@ Object.assign(require.cache[serverPath]!.exports, {
     }
     return observedClient('anon')
   },
-  createAdminClient: async () => observedClient('service'),
   createServiceRoleClient: () => observedClient('service'),
 })
 
@@ -366,12 +365,12 @@ test('both actions remove an uploaded image exactly once when item insertion fai
   }
 })
 
-test('only createItem applies the existing create rate limit contract', async () => {
+test('createItem and createItemInline share the create rate limit contract', async () => {
   reset()
   staff()
   await createItem(null, new FormData())
   await createItemInline(null, new FormData())
-  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
+  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000], ['createItem', 30, 60000]])
 })
 
 test('createItem safely handles each committed telemetry failure and removes the upload exactly once', async () => {

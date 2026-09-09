@@ -1,4 +1,4 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
 
 export interface ProfileListItem {
@@ -46,7 +46,7 @@ export async function getProfilesList(params: {
   page?: number
   pageSize?: number
 } = {}) {
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createAdminClient() : await createClient()
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createServiceRoleClient() : await createClient()
   const page = params.page || 1
   const pageSize = params.pageSize || 50
   const from = (page - 1) * pageSize
@@ -85,7 +85,7 @@ export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
     }
   }
 
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createAdminClient() : await createClient()
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createServiceRoleClient() : await createClient()
   const page = params.page || 1
   const pageSize = params.pageSize || 50
   const from = (page - 1) * pageSize

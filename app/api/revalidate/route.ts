@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { createHash, timingSafeEqual } from 'node:crypto'
 
 /**
  * POST /api/revalidate
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const auth = request.headers.get('authorization') ?? ''
-  if (auth !== `Bearer ${secret}`) {
+  if (!timingSafeEqual(createHash('sha256').update(auth).digest(), createHash('sha256').update(`Bearer ${secret}`).digest())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -161,7 +161,6 @@ type CreateItemCoreResult =
     }
 
 type CreateItemCoreOptions = {
-  afterAuthorize?: (userId: string) => Promise<{ message: string } | null>
   onCommitted?: (result: { itemId: string; userId: string }) => Promise<void>
 }
 
@@ -175,9 +174,9 @@ async function createItemCore(
   }
 
   const userId = auth.profile.id
-  const authorizationFollowUp = await options.afterAuthorize?.(userId)
-  if (authorizationFollowUp) {
-    return { ok: false, kind: 'unexpected', message: authorizationFollowUp.message, userId }
+  const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
+  if (!rateLimitCheck.success) {
+    return { ok: false, kind: 'unexpected', message: rateLimitCheck.error!, userId }
   }
 
   formData.set('image_url', '')
@@ -282,10 +281,6 @@ export async function createItem(
 ): Promise<ItemActionState> {
   const timer = startTimer()
   const result = await createItemCore(formData, {
-    afterAuthorize: async () => {
-      const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
-      return rateLimitCheck.success ? null : { message: rateLimitCheck.error! }
-    },
     onCommitted: async ({ userId }) => {
       const durationMs = timer.stop()
       const ctx = await getRequestContext(userId)
@@ -460,6 +455,9 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
     return errorResponse(auth.error ?? 'Unauthorized')
   }
 
+  const rateLimitCheck = await checkRateLimit('bulkUpdateItems', 30, 60000)
+  if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
+
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการแก้ไข')
   }
@@ -492,10 +490,13 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   const profile = await getCurrentProfile()
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  if (!profile || !profile.is_active || (profile.role !== 'admin' && profile.role !== 'staff')) {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
     return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
   }
+
+  const rateLimitCheck = await checkRateLimit('bulkDeleteItems', 30, 60000)
+  if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบ')
@@ -545,6 +546,9 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
     return errorResponse(auth.error ?? 'Unauthorized')
   }
 
+  const rateLimitCheck = await checkRateLimit('hardDeleteItem', 30, 60000)
+  if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
+
   const supabase = await createClient()
 
   // ดึงข้อมูลก่อนลบ เพื่อเก็บลงประวัติและลบรูปออกจาก Storage ด้วย
@@ -584,6 +588,9 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
     logger.warn({ operation: 'bulkHardDeleteItems', feature: 'items', details: 'Unauthorized bulk hard delete attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
   }
+
+  const rateLimitCheck = await checkRateLimit('bulkHardDeleteItems', 30, 60000)
+  if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบถาวร')
@@ -796,6 +803,12 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
 
 export async function getItemsForExport(params: ItemListSearchParams) {
+  const profile = await getCurrentProfile()
+  if (!profile || !profile.is_active) throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+
+  const rateLimitCheck = await checkRateLimit('getItemsForExport', 10, 60000)
+  if (!rateLimitCheck.success) throw new Error(rateLimitCheck.error!)
+
   const result = await getReportItemsList(params, true)
   return result.items
 }

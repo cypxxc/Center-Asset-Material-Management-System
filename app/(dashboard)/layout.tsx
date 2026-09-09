@@ -15,13 +15,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const profile = await getCurrentProfile()
 
   if (!profile) {
-    return (
-      <ToastProvider>
-        <div className="min-h-screen w-screen overflow-y-auto bg-slate-50 text-slate-900">
-          {children}
-        </div>
-      </ToastProvider>
-    )
+    redirect('/login?error=inactive')
   }
 
   if (!profile.is_active) {

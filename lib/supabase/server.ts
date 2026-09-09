@@ -1,3 +1,4 @@
+import 'server-only'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
@@ -32,15 +33,16 @@ export async function createClient() {
   )
 }
 
-export async function createAdminClient() {
-  return createServiceRoleClient()
-}
-
 export function createServiceRoleClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
       db: {
         schema: 'public',
       },

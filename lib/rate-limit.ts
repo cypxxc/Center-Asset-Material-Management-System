@@ -1,6 +1,9 @@
 import { headers } from 'next/headers'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { logSecurityEvent } from '@/lib/security-logger'
+import { createServiceRoleClient } from '@/lib/supabase/server'
+import { PostgresRateLimiter } from './postgres-rate-limit'
+import { getTrustedClientIp } from './request-ip'
 
 export type RateLimitTier = 'auth' | 'mutation' | 'export' | 'read'
 
@@ -94,7 +97,8 @@ let globalRateLimiter: RateLimiter
 
 export function getRateLimiter(): RateLimiter {
   if (!globalRateLimiter) {
-    globalRateLimiter = new MemoryRateLimiter()
+    globalRateLimiter = new PostgresRateLimiter((name, args) =>
+      createServiceRoleClient().rpc(name, args).abortSignal(AbortSignal.timeout(5000)))
   }
   return globalRateLimiter
 }
@@ -124,19 +128,17 @@ export async function checkRateLimit(
 
   try {
     const headersList = await headers()
-    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
+    const ip = getTrustedClientIp(headersList)
 
     let userId = 'anonymous'
-    try {
+    if (actionName !== 'login') {
       const profile = await getCurrentProfile()
-      if (profile?.id) {
-        userId = profile.id
-      }
-    } catch {
-      // Gracefully handle auth checks failing in non-HTTP mock contexts (e.g. CLI tests)
+      if (!profile?.id) return { success: false, error: 'กรุณาเข้าสู่ระบบด้วยบัญชีที่เปิดใช้งานก่อนทำรายการ' }
+      userId = profile.id
     }
 
-    const key = `${userId}:${ip}:${actionName}`
+    // A user cannot rotate IPs to reset a mutation limit. Login is always IP-bound.
+    const key = JSON.stringify([actionName, userId === 'anonymous' ? `ip:${ip}` : `user:${userId}`])
     const limiter = getRateLimiter()
     const result = await limiter.limit(key, limitValue, windowMs)
 
@@ -170,7 +172,6 @@ export async function checkRateLimit(
 
     return { success: true }
   } catch {
-    // Return success to fall back gracefully if next/headers cannot be resolved (e.g. unit tests outside request contexts)
-    return { success: true }
+    return { success: false, error: 'ระบบตรวจสอบจำนวนคำขอไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง' }
   }
 }

@@ -14,7 +14,7 @@ test('restore sends the authenticated admin session even when a service key is c
   const loadModule = createRequire(path.join(process.cwd(), 'package.json'))
   const factories = loadModule('./lib/supabase/server')
   const originalUserClient = factories.createClient
-  const originalAdminClient = factories.createAdminClient
+  const originalAdminClient = factories.createServiceRoleClient
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key'
   let submitted: unknown
@@ -28,13 +28,13 @@ test('restore sends the authenticated admin session even when a service key is c
     },
   })
   factories.createClient = async () => client(true)
-  factories.createAdminClient = async () => client(false)
+  factories.createServiceRoleClient = () => client(false)
   try {
     assert.deepEqual(await importDatabaseData(JSON.stringify(backup)), { success: true, tablesRestored: ['items'] })
     assert.deepEqual(submitted, { backup })
   } finally {
     factories.createClient = originalUserClient
-    factories.createAdminClient = originalAdminClient
+    factories.createServiceRoleClient = originalAdminClient
     if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey
   }

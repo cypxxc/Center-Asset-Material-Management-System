@@ -1,3 +1,4 @@
+import '../setup/server-only'
 import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

@@ -384,7 +384,16 @@ require.cache[supabaseServerPath] = {
   loaded: true,
   exports: {
     createClient: async () => createMockSupabaseClient('anon'),
-    createAdminClient: async () => createMockSupabaseClient('service'),
     createServiceRoleClient: () => createMockSupabaseClient('service'),
   }
 } as NodeJS.Module;
+
+// Business-logic tests use an explicit allowed limiter fixture. Security tests
+// exercise the real limiter separately or override this response to deny.
+const rateLimitPath = require.resolve('../../lib/rate-limit');
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- load real exports before installing the business-test fixture
+require(rateLimitPath);
+require.cache[rateLimitPath]!.exports = {
+  ...require.cache[rateLimitPath]!.exports,
+  checkRateLimit: async () => ({ success: true }),
+};

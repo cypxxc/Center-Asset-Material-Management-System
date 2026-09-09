@@ -1,3 +1,4 @@
+import '../setup/server-only'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { MemoryRateLimiter, getRateLimiter, checkRateLimit } from '@/lib/rate-limit'
@@ -22,14 +23,14 @@ test('MemoryRateLimiter enforces sliding window limits', async () => {
   assert.ok(r3.reset > Date.now())
 })
 
-test('getRateLimiter returns MemoryRateLimiter singleton', () => {
+test('getRateLimiter returns a shared-storage limiter singleton', () => {
   const limiter1 = getRateLimiter()
   const limiter2 = getRateLimiter()
   assert.strictEqual(limiter1, limiter2)
-  assert.ok(limiter1 instanceof MemoryRateLimiter)
+  assert.ok(!(limiter1 instanceof MemoryRateLimiter))
 })
 
-test('checkRateLimit returns success: true outside request context (graceful fallback)', async () => {
+test('checkRateLimit fails closed outside request context', async () => {
   const result = await checkRateLimit('test-action')
-  assert.strictEqual(result.success, true)
+  assert.strictEqual(result.success, false)
 })

@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { measureQuery } from '@/lib/performance'
-import { readDevelopmentSessionUser } from '@/features/auth/dev-auth'
 
 const STATIC_ASSET_PREFIXES = ['/assets/', '/fonts/', '/icons/', '/images/']
 const STATIC_ASSET_EXTENSION = /\.(?:avif|css|gif|ico|jpe?g|js|map|otf|png|svg|ttf|webp|woff2?)$/i
@@ -54,12 +53,10 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const devSessionUser = readDevelopmentSessionUser(request.cookies as unknown as import('@/features/auth/dev-auth').CookieStoreLike)
-  const user = devSessionUser
-    ? ({ id: devSessionUser.id, email: devSessionUser.email } as { id: string; email: string })
-    : (
-        await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
-      ).result.data.user
+  const { result: { data: { user: verifiedUser }, error } } = await measureQuery(
+    'proxy.auth.getUser', () => supabase.auth.getUser()
+  )
+  const user = error ? null : verifiedUser
 
   // Auth page routing
   const isLoginPage = pathname === '/login'
