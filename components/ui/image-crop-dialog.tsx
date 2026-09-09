@@ -18,6 +18,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
   const imageRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -29,6 +30,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
     setRotation(0)
     setOffset({ x: 0, y: 0 })
     setIsProcessing(false)
+    setError(null)
   }
 
   const handleRotate = () => {
@@ -56,6 +58,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
   const handleConfirm = useCallback(async () => {
     if (!imageSrc || isProcessing) return
     setIsProcessing(true)
+    setError(null)
 
     try {
       const img = new Image()
@@ -98,36 +101,21 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
       ctx.restore()
 
       if (typeof canvas.toBlob !== 'function') {
-        const dummyBlob = new Blob([], { type: 'image/webp' })
-        const croppedFile = new File([dummyBlob], 'cropped-item.webp', { type: 'image/webp' })
-        onConfirm(croppedFile)
-        return
+        throw new Error('Image encoding is unavailable')
       }
 
-      const blob: Blob = await new Promise((resolve) => {
-        canvas.toBlob(
-          (b) => {
-            if (b) {
-              resolve(b)
-            } else {
-              canvas.toBlob(
-                (fallbackBlob) => resolve(fallbackBlob || new Blob([], { type: 'image/jpeg' })),
-                'image/jpeg',
-                0.85
-              )
-            }
-          },
-          'image/webp',
-          0.85
-        )
+      const encode = (type: string) => new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, type, 0.85)
       })
+      let blob = await encode('image/webp')
+      if (!blob || blob.size === 0) blob = await encode('image/jpeg')
+      if (!blob || blob.size === 0) throw new Error('Image encoding failed')
 
-      const croppedFile = new File([blob], 'cropped-item.webp', { type: blob.type || 'image/webp' })
+      const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/png' ? 'png' : 'webp'
+      const croppedFile = new File([blob], `cropped-item.${extension}`, { type: blob.type })
       onConfirm(croppedFile)
     } catch {
-      // Fallback: Create minimal fallback webp file
-      const fallbackBlob = new Blob([], { type: 'image/webp' })
-      onConfirm(new File([fallbackBlob], 'cropped-item.webp', { type: 'image/webp' }))
+      setError('ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองอีกครั้งหรือเลือกรูปภาพอื่น')
     } finally {
       setIsProcessing(false)
     }
@@ -218,6 +206,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
         </div>
 
         {/* Actions */}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex items-center justify-end gap-3 pt-2">
           <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isProcessing}>
             ยกเลิก

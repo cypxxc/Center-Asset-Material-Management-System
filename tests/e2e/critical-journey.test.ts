@@ -5,9 +5,10 @@ const realAuthE2EEnabled = process.env.CAMMS_E2E_REAL_AUTH === 'true';
 
 async function signIn(
   page: Page,
-  email = process.env.CAMMS_E2E_ADMIN_ID ?? 'admin@registry.s',
-  password = process.env.CAMMS_E2E_ADMIN_PASSWORD ?? 'admin1234',
+  email = process.env.CAMMS_E2E_ADMIN_ID,
+  password = process.env.CAMMS_E2E_ADMIN_PASSWORD,
 ) {
+  if (!email?.trim() || !password?.trim()) throw new Error('Configure CAMMS_E2E_ADMIN_ID and CAMMS_E2E_ADMIN_PASSWORD for authenticated E2E');
   await page.goto('/login');
   await page.locator('input[name="id"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
@@ -33,7 +34,7 @@ test.describe('CAMMS E2E critical journeys and accessibility', () => {
   });
 
   test('admin can log in, create, edit, soft-delete, and view settings', async ({ page }) => {
-    test.skip(!realAuthE2EEnabled, 'Full critical journey requires CAMMS_E2E_REAL_AUTH=true and seed users.');
+    test.skip(!realAuthE2EEnabled, 'Full critical journey requires CAMMS_E2E_REAL_AUTH=true and configured staging credentials.');
 
     await page.goto('/login');
     await scanAccessibility(page, 'Login page');

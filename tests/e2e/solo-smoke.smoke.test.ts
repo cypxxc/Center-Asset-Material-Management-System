@@ -2,10 +2,13 @@ import { expect, test } from '@playwright/test';
 
 const realAuthE2EEnabled = process.env.CAMMS_E2E_REAL_AUTH === 'true';
 
-async function signInAsStaff(page: import('@playwright/test').Page) {
+async function signInForDraft(page: import('@playwright/test').Page) {
+  const id = process.env.CAMMS_E2E_ADMIN_ID;
+  const password = process.env.CAMMS_E2E_ADMIN_PASSWORD;
+  if (!id?.trim() || !password?.trim()) throw new Error('Configure CAMMS_E2E_ADMIN_ID and CAMMS_E2E_ADMIN_PASSWORD for authenticated smoke tests');
   await page.goto('/login');
-  await page.locator('input[name="id"]').fill('staff@registry.s');
-  await page.locator('input[name="password"]').fill('staff1234');
+  await page.locator('input[name="id"]').fill(id);
+  await page.locator('input[name="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/dashboard/);
 }
@@ -20,9 +23,9 @@ test.describe('Solo developer browser smoke tests', () => {
   });
 
   test('new item dialog uses standard centered layout and persists draft locally', async ({ page }) => {
-    test.skip(!realAuthE2EEnabled, 'Draft dialog smoke requires CAMMS_E2E_REAL_AUTH=true and seed users.');
+    test.skip(!realAuthE2EEnabled, 'Draft dialog smoke requires CAMMS_E2E_REAL_AUTH=true and configured staging credentials.');
 
-    await signInAsStaff(page);
+    await signInForDraft(page);
     await page.goto('/items?new=true');
 
     const dialog = page.locator('.new-item-sheet-dialog');

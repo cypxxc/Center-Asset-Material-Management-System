@@ -29,4 +29,4 @@ No shipped demonstration handlers report fabricated inventory or fake successful
 
 ## Review status
 
-Scope and approach are approved in conversation. This written specification awaits the user's review required by the invoked brainstorming skill before implementation planning.
+The user reviewed and approved this written specification in conversation before implementation.

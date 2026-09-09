@@ -104,9 +104,14 @@ Migration execution is tracked atomically in the `public.app_migrations` databas
 
 ### Authentication and request limits
 
-All environments use real Supabase Auth accounts. The former `registry-dev-auth`
-cookie and built-in demo passwords no longer sign users in. Create development
-accounts through Supabase Auth and provision their active `profiles` records.
+All environments use real Supabase Auth accounts. No demo accounts or fixed-password
+seed scripts are bundled. Create development accounts through Supabase Auth and
+provision their active `profiles` records. Authenticated browser tests require
+`CAMMS_E2E_REAL_AUTH=true`, `CAMMS_E2E_ADMIN_ID`, and `CAMMS_E2E_ADMIN_PASSWORD`
+configured for a staging administrator; there are no credential defaults.
+
+The Excel import template contains headers only. Fill it with your own records
+using the column format guide before importing.
 
 Request limits use a service-role-only PostgreSQL RPC, `consume_rate_limit`, with
 atomic fixed-window counters shared by every application instance. There is no
