@@ -6,6 +6,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { ReportsList } from '../../features/reports/components/reports-list'
 import type { ReportItemRow } from '../../features/reports/queries'
 
+// Export UI tests must not open real sockets when CI supplies Supabase settings.
+// Realtime lifecycle behavior is covered separately in realtime-refresh.test.ts.
+process.env.NEXT_PUBLIC_SUPABASE_URL = ''
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
+
 const item: ReportItemRow = {
   id: 'item-1', item_name: 'โต๊ะ', item_type: 'asset', quantity: 1,
   unit_price: 100, asset_no: null, serial_no: null, responsible_person: null,
