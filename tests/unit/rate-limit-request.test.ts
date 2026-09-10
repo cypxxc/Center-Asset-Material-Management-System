@@ -11,7 +11,8 @@ require.cache[headersPath]!.exports = { ...require.cache[headersPath]!.exports, 
 const authPath = require.resolve('../../features/auth/queries')
 loadModule(authPath)
 let profile: { id: string } | null = null
-require.cache[authPath]!.exports = { getCurrentProfile: async () => profile }
+let profileReads = 0
+require.cache[authPath]!.exports = { getCurrentProfile: async () => { profileReads++; return profile } }
 const serverPath = require.resolve('../../lib/supabase/server')
 const keys: string[] = []
 let response: unknown = { success: true, remaining: 0, reset: Date.now() + 60000 }
@@ -24,6 +25,20 @@ require.cache[serverPath]!.exports = { createServiceRoleClient: () => ({ rpc: (_
   },
 }) }) }
 const { checkRateLimit } = loadModule('./lib/rate-limit') as typeof import('../../lib/rate-limit')
+
+test('an action can reuse its server-verified active profile without repeating Auth/profile lookup', async () => {
+  process.env.TRUSTED_PROXY_MODE = 'forwarded'
+  process.env.TRUSTED_PROXY_HOPS = '1'
+  profileReads = 0
+  profile = { id: 'user-1' }
+  const before = keys.length
+  assert.equal((await checkRateLimit('updateItem', 1, 60000, { id: 'user-1', is_active: true })).success, true)
+  assert.equal(profileReads, 0)
+  assert.equal(keys.length, before + 1)
+  assert.equal((await checkRateLimit('updateItem', 1, 60000, { id: 'user-1', is_active: false })).success, false)
+  assert.equal(keys.length, before + 1)
+  keys.length = 0
+})
 
 test('request limiter cannot be reset by changing user IP or login session', async () => {
   process.env.TRUSTED_PROXY_MODE = 'forwarded'

@@ -22,7 +22,8 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
-  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
+  // The action response must contain current counts without a second refresh.
+  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, { expire: 0 })
   revalidatePath('/', 'layout')
 }
 
@@ -174,7 +175,7 @@ async function createItemCore(
   }
 
   const userId = auth.profile.id
-  const rateLimitCheck = await checkRateLimit('createItem', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('createItem', 30, 60000, auth.profile)
   if (!rateLimitCheck.success) {
     return { ok: false, kind: 'unexpected', message: rateLimitCheck.error!, userId }
   }
@@ -343,7 +344,7 @@ export async function updateItem(
   }
 
   // Rate Limiter
-  const rateLimitCheck = await checkRateLimit('updateItem', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('updateItem', 30, 60000, auth.profile)
   if (!rateLimitCheck.success) {
     return { message: rateLimitCheck.error! }
   }
@@ -455,7 +456,7 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
     return errorResponse(auth.error ?? 'Unauthorized')
   }
 
-  const rateLimitCheck = await checkRateLimit('bulkUpdateItems', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('bulkUpdateItems', 30, 60000, auth.profile)
   if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   if (!ids.length) {
@@ -495,7 +496,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
   }
 
-  const rateLimitCheck = await checkRateLimit('bulkDeleteItems', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('bulkDeleteItems', 30, 60000, profile)
   if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   if (!ids.length) {
@@ -546,7 +547,7 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
     return errorResponse(auth.error ?? 'Unauthorized')
   }
 
-  const rateLimitCheck = await checkRateLimit('hardDeleteItem', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('hardDeleteItem', 30, 60000, auth.profile)
   if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   const supabase = await createClient()
@@ -589,7 +590,7 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
     return errorResponse(auth.error ?? 'Unauthorized')
   }
 
-  const rateLimitCheck = await checkRateLimit('bulkHardDeleteItems', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('bulkHardDeleteItems', 30, 60000, auth.profile)
   if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
   if (!ids.length) {
@@ -664,7 +665,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
   }
 
   // 1. Rate Limiting
-  const rateLimitCheck = await checkRateLimit('importItemsBulk', 10, 60000)
+  const rateLimitCheck = await checkRateLimit('importItemsBulk', 10, 60000, auth.profile)
   if (!rateLimitCheck.success) {
     return errorResponse(rateLimitCheck.error!)
   }
@@ -806,7 +807,7 @@ export async function getItemsForExport(params: ItemListSearchParams) {
   const profile = await getCurrentProfile()
   if (!profile || !profile.is_active) throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
 
-  const rateLimitCheck = await checkRateLimit('getItemsForExport', 10, 60000)
+  const rateLimitCheck = await checkRateLimit('getItemsForExport', 10, 60000, profile)
   if (!rateLimitCheck.success) throw new Error(rateLimitCheck.error!)
 
   const result = await getReportItemsList(params, true)

@@ -34,7 +34,7 @@ export async function requireAdmin() {
 async function requireAdminOperation(action: string, tier: RateLimitTier) {
   const auth = await requireAdmin()
   if (auth.error) return auth
-  const rate = await checkRateLimit(action, tier)
+  const rate = await checkRateLimit(action, tier, undefined, auth.profile)
   if (!rate.success) return { error: rate.error ?? 'Too many requests', profile: undefined }
   return auth
 }

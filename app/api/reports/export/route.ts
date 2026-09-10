@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   try {
     const profile = await getCurrentProfile()
     if (!profile?.is_active) return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนส่งออก' }, { status: 401 })
-    const rate = await checkRateLimit('downloadReportExcel', 10, 60000)
+    const rate = await checkRateLimit('downloadReportExcel', 10, 60000, profile)
     if (!rate.success) return NextResponse.json({ error: rate.error }, { status: 429 })
     const query = new URL(request.url).searchParams
     const parsed = filtersSchema.safeParse(Object.fromEntries([...query.entries()].filter(([, value]) => value !== '')))

@@ -35,6 +35,7 @@ async function requireAdmin() {
   if (!isAdmin(profile.role)) {
     redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
+  return profile
 }
 
 async function requireSettingsManager() {
@@ -47,6 +48,7 @@ async function requireSettingsManager() {
   if (!canManageSettings(profile.role)) {
     redirect('/settings?error=เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้')
   }
+  return profile
 }
 
 function redirectToSettings(type: 'message' | 'error', text: string, tab?: string): never {
@@ -95,15 +97,15 @@ function revalidateSettings() {
   revalidatePath('/items/new')
   revalidatePath('/items')
   revalidatePath('/', 'layout')
-  revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max')
-  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
+  revalidateTag(CACHE_TAGS.ITEM_REFERENCES, { expire: 0 })
+  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, { expire: 0 })
 }
 
 export async function createCategory(formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('createCategory', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('createCategory', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'categories')
   }
@@ -126,8 +128,8 @@ export async function createCategory(formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'create',
       feature: 'settings',
       userId: profile?.id || null,
@@ -148,7 +150,6 @@ export async function createCategory(formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'createCategory', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'categories')
   }
@@ -159,9 +160,9 @@ export async function createCategory(formData: FormData) {
 
 export async function updateCategory(id: string, formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('updateCategory', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('updateCategory', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'categories')
   }
@@ -192,8 +193,8 @@ export async function updateCategory(id: string, formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'update',
       feature: 'settings',
       userId: profile?.id || null,
@@ -215,7 +216,6 @@ export async function updateCategory(id: string, formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'updateCategory', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'categories')
   }
@@ -226,9 +226,9 @@ export async function updateCategory(id: string, formData: FormData) {
 
 export async function createLocation(formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('createLocation', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('createLocation', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'locations')
   }
@@ -255,8 +255,8 @@ export async function createLocation(formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'create',
       feature: 'settings',
       userId: profile?.id || null,
@@ -277,7 +277,6 @@ export async function createLocation(formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'createLocation', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'locations')
   }
@@ -288,9 +287,9 @@ export async function createLocation(formData: FormData) {
 
 export async function updateLocation(id: string, formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('updateLocation', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('updateLocation', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'locations')
   }
@@ -325,8 +324,8 @@ export async function updateLocation(id: string, formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'update',
       feature: 'settings',
       userId: profile?.id || null,
@@ -348,7 +347,6 @@ export async function updateLocation(id: string, formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'updateLocation', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'locations')
   }
@@ -359,9 +357,9 @@ export async function updateLocation(id: string, formData: FormData) {
 
 export async function createUnit(formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('createUnit', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('createUnit', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'units')
   }
@@ -383,8 +381,8 @@ export async function createUnit(formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'create',
       feature: 'settings',
       userId: profile?.id || null,
@@ -405,7 +403,6 @@ export async function createUnit(formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'createUnit', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'units')
   }
@@ -416,9 +413,9 @@ export async function createUnit(formData: FormData) {
 
 export async function updateUnit(id: string, formData: FormData) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('updateUnit', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('updateUnit', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'units')
   }
@@ -448,8 +445,8 @@ export async function updateUnit(id: string, formData: FormData) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'update',
       feature: 'settings',
       userId: profile?.id || null,
@@ -471,7 +468,6 @@ export async function updateUnit(id: string, formData: FormData) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'updateUnit', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'units')
   }
@@ -482,13 +478,12 @@ export async function updateUnit(id: string, formData: FormData) {
 
 export async function updateProfile(id: string, formData: FormData) {
   const timer = startTimer()
-  await requireAdmin()
-  const rateLimitCheck = await checkRateLimit('updateProfile', 30, 60000)
+  const currentProfile = await requireAdmin()
+  const rateLimitCheck = await checkRateLimit('updateProfile', 30, 60000, currentProfile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'users')
   }
 
-  const currentProfile = await getCurrentProfile()
   if (currentProfile?.id === id) {
     redirectToSettings('error', 'ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้', 'users')
   }
@@ -522,6 +517,7 @@ export async function updateProfile(id: string, formData: FormData) {
     if (error) redirectToSettings('error', error.message, 'users')
 
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'update',
       feature: 'settings',
       userId: currentProfile?.id || null,
@@ -566,9 +562,9 @@ async function ensureCanDelete(kind: MetadataKind, id: string) {
 
 export async function deleteCategory(id: string) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('deleteCategory', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('deleteCategory', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'categories')
   }
@@ -591,8 +587,8 @@ export async function deleteCategory(id: string) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'categories')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'delete',
       feature: 'settings',
       userId: profile?.id || null,
@@ -613,7 +609,6 @@ export async function deleteCategory(id: string) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'deleteCategory', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'categories')
   }
@@ -624,9 +619,9 @@ export async function deleteCategory(id: string) {
 
 export async function deleteLocation(id: string) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('deleteLocation', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('deleteLocation', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'locations')
   }
@@ -649,8 +644,8 @@ export async function deleteLocation(id: string) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'locations')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'delete',
       feature: 'settings',
       userId: profile?.id || null,
@@ -671,7 +666,6 @@ export async function deleteLocation(id: string) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'deleteLocation', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'locations')
   }
@@ -682,9 +676,9 @@ export async function deleteLocation(id: string) {
 
 export async function deleteUnit(id: string) {
   const timer = startTimer()
-  await requireSettingsManager()
+  const profile = await requireSettingsManager()
 
-  const rateLimitCheck = await checkRateLimit('deleteUnit', 30, 60000)
+  const rateLimitCheck = await checkRateLimit('deleteUnit', 30, 60000, profile)
   if (!rateLimitCheck.success) {
     redirectToSettings('error', rateLimitCheck.error!, 'units')
   }
@@ -707,8 +701,8 @@ export async function deleteUnit(id: string) {
 
     if (error) redirectToSettings('error', friendlyDatabaseError(error.message, error.code), 'units')
 
-    const profile = await getCurrentProfile()
     await writeAuditLog({
+      persistToDatabase: false, // The authenticated mutation is audited by its database trigger.
       operation: 'delete',
       feature: 'settings',
       userId: profile?.id || null,
@@ -729,7 +723,6 @@ export async function deleteUnit(id: string) {
     if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
       throw err
     }
-    const profile = await getCurrentProfile()
     await handleActionError(err, 'deleteUnit', 'settings', profile?.id)
     redirectToSettings('error', 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล', 'units')
   }

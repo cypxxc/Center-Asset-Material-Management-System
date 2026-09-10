@@ -111,7 +111,10 @@ export interface CheckRateLimitResult {
 export async function checkRateLimit(
   actionName: string,
   tierOrLimit?: RateLimitTier | number,
-  customWindowMs?: number
+  customWindowMs?: number,
+  // Internal server callers only: pass the profile already returned by their
+  // authorization guard in this action. Never populate this from action input.
+  verifiedProfile?: { id: string; is_active: boolean }
 ): Promise<CheckRateLimitResult> {
   let limitValue = 60
   let windowMs = 60000
@@ -132,7 +135,8 @@ export async function checkRateLimit(
 
     let userId = 'anonymous'
     if (actionName !== 'login') {
-      const profile = await getCurrentProfile()
+      if (verifiedProfile && !verifiedProfile.is_active) return { success: false, error: 'กรุณาเข้าสู่ระบบด้วยบัญชีที่เปิดใช้งานก่อนทำรายการ' }
+      const profile = verifiedProfile ?? await getCurrentProfile()
       if (!profile?.id) return { success: false, error: 'กรุณาเข้าสู่ระบบด้วยบัญชีที่เปิดใช้งานก่อนทำรายการ' }
       userId = profile.id
     }

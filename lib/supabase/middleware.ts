@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { measureQuery } from '@/lib/performance'
+import { instrumentSupabaseFetch } from './transport'
+
+const instrumentedFetch = instrumentSupabaseFetch()
 
 const STATIC_ASSET_PREFIXES = ['/assets/', '/fonts/', '/icons/', '/images/']
 const STATIC_ASSET_EXTENSION = /\.(?:avif|css|gif|ico|jpe?g|js|map|otf|png|svg|ttf|webp|woff2?)$/i
@@ -36,6 +39,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: instrumentedFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll()

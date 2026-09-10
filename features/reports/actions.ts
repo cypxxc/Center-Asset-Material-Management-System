@@ -17,7 +17,7 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
   const profile = await getCurrentProfile()
   if (!profile || !profile.is_active) throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
 
-  const rateLimitCheck = await checkRateLimit('getExportReportItems', 10, 60000)
+  const rateLimitCheck = await checkRateLimit('getExportReportItems', 10, 60000, profile)
   if (!rateLimitCheck.success) throw new Error(rateLimitCheck.error!)
 
   return await queryExportReportItems(params)
@@ -33,7 +33,7 @@ export async function recordReportExportAudit(
       return errorResponse('กรุณาเข้าสู่ระบบก่อนทำรายการ')
     }
 
-    const rateLimitCheck = await checkRateLimit('recordReportExportAudit', 30, 60000)
+    const rateLimitCheck = await checkRateLimit('recordReportExportAudit', 30, 60000, profile)
     if (!rateLimitCheck.success) return errorResponse(rateLimitCheck.error!)
 
     await writeAuditLog({

@@ -7,12 +7,13 @@ import { mockSupabaseRegistry } from '../mocks/supabase'
 const loadModule = createRequire(`${process.cwd()}/package.json`)
 let serviceCalls = 0
 const ranges: number[][] = []
+const orders: string[] = []
 const factoryPath = require.resolve('../../lib/supabase/server')
 require.cache[factoryPath]!.exports.createServiceRoleClient = () => {
   serviceCalls++
   const query = {
     select: () => query,
-    order: () => query,
+    order: (column: string) => { orders.push(column); return query },
     range: async (from: number, to: number) => {
       ranges.push([from, to])
       return { data: [{ id: 'visible-row' }], count: 1, error: null }
@@ -26,7 +27,15 @@ beforeEach(() => {
   mockSupabaseRegistry.clear()
   serviceCalls = 0
   ranges.length = 0
+  orders.length = 0
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-only'
+})
+
+test('admin lists use a unique tie-breaker for timestamp pagination', async () => {
+  mockSupabaseRegistry.setAuth({ id: 'admin' }, { id: 'admin', role: 'admin', is_active: true })
+  await getProfilesList()
+  await getAuditLogsList()
+  assert.deepEqual(orders, ['created_at', 'id', 'created_at', 'id'])
 })
 
 test('direct list calls deny unauthenticated, staff, and inactive administrators before service access', async () => {

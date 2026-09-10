@@ -1,0 +1,95 @@
+[
+  {
+    "label": "public-jwks",
+    "sample": 1,
+    "status": 200,
+    "reusedSocket": false,
+    "dnsDoneMs": 27.502499999999998,
+    "tcpDoneMs": 31.061299999999996,
+    "tlsDoneMs": 63.7128,
+    "firstByteMs": 730.5617,
+    "totalMs": 731.1555,
+    "bytes": 240
+  },
+  {
+    "label": "service-profile-limit1",
+    "sample": 1,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 740.8214,
+    "totalMs": 741.0227,
+    "bytes": 45
+  },
+  {
+    "label": "public-jwks",
+    "sample": 2,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 312.0416,
+    "totalMs": 312.19460000000004,
+    "bytes": 240
+  },
+  {
+    "label": "service-profile-limit1",
+    "sample": 2,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 674.6579000000002,
+    "totalMs": 674.7892000000002,
+    "bytes": 45
+  },
+  {
+    "label": "public-jwks",
+    "sample": 3,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 354.6814000000004,
+    "totalMs": 354.81830000000036,
+    "bytes": 240
+  },
+  {
+    "label": "service-profile-limit1",
+    "sample": 3,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 613.1469999999999,
+    "totalMs": 613.3773000000001,
+    "bytes": 45
+  },
+  {
+    "label": "public-jwks",
+    "sample": 4,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 511.451,
+    "totalMs": 511.66049999999996,
+    "bytes": 240
+  },
+  {
+    "label": "service-profile-limit1",
+    "sample": 4,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 452.37239999999974,
+    "totalMs": 452.51309999999967,
+    "bytes": 45
+  },
+  {
+    "label": "public-jwks",
+    "sample": 5,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 368.7385999999997,
+    "totalMs": 368.9967999999999,
+    "bytes": 240
+  },
+  {
+    "label": "service-profile-limit1",
+    "sample": 5,
+    "status": 200,
+    "reusedSocket": true,
+    "firstByteMs": 508.8811000000005,
+    "totalMs": 509.03909999999996,
+    "bytes": 45
+  }
+]

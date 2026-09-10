@@ -1,0 +1,327 @@
+[
+  {
+    "label": "local-production-login",
+    "sample": 1,
+    "status": 200,
+    "ttfbMs": 165.369,
+    "totalMs": 168.624,
+    "bytes": 8221,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-login",
+    "sample": 2,
+    "status": 200,
+    "ttfbMs": 8.386,
+    "totalMs": 8.971,
+    "bytes": 8221,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-login",
+    "sample": 3,
+    "status": 200,
+    "ttfbMs": 7.902,
+    "totalMs": 8.661,
+    "bytes": 8221,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-login",
+    "sample": 4,
+    "status": 200,
+    "ttfbMs": 5.572,
+    "totalMs": 6.232,
+    "bytes": 8221,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-login",
+    "sample": 5,
+    "status": 200,
+    "ttfbMs": 6.832,
+    "totalMs": 7.489,
+    "bytes": 8221,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-protected-no-session",
+    "sample": 1,
+    "status": 307,
+    "ttfbMs": 4.633,
+    "totalMs": 4.827,
+    "bytes": 6,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-protected-no-session",
+    "sample": 2,
+    "status": 307,
+    "ttfbMs": 4.726,
+    "totalMs": 4.841,
+    "bytes": 6,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-protected-no-session",
+    "sample": 3,
+    "status": 307,
+    "ttfbMs": 3.555,
+    "totalMs": 3.764,
+    "bytes": 6,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-protected-no-session",
+    "sample": 4,
+    "status": 307,
+    "ttfbMs": 3.782,
+    "totalMs": 3.906,
+    "bytes": 6,
+    "serverTiming": null
+  },
+  {
+    "label": "local-production-protected-no-session",
+    "sample": 5,
+    "status": 307,
+    "ttfbMs": 4.497,
+    "totalMs": 4.628,
+    "bytes": 6,
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-login",
+    "sample": 1,
+    "status": 200,
+    "ttfbMs": 851.094,
+    "totalMs": 851.748,
+    "bytes": 8221,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-login",
+    "sample": 2,
+    "status": 200,
+    "ttfbMs": 74.462,
+    "totalMs": 75.025,
+    "bytes": 8221,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-login",
+    "sample": 3,
+    "status": 200,
+    "ttfbMs": 70.512,
+    "totalMs": 71.006,
+    "bytes": 8221,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-login",
+    "sample": 4,
+    "status": 200,
+    "ttfbMs": 86.553,
+    "totalMs": 87.037,
+    "bytes": 8221,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-login",
+    "sample": 5,
+    "status": 200,
+    "ttfbMs": 95.362,
+    "totalMs": 95.958,
+    "bytes": 8221,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-protected-no-session",
+    "sample": 1,
+    "status": 307,
+    "ttfbMs": 65.466,
+    "totalMs": 65.609,
+    "bytes": 15,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-protected-no-session",
+    "sample": 2,
+    "status": 307,
+    "ttfbMs": 206.356,
+    "totalMs": 206.494,
+    "bytes": 15,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-protected-no-session",
+    "sample": 3,
+    "status": 307,
+    "ttfbMs": 61.77,
+    "totalMs": 61.922,
+    "bytes": 15,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-protected-no-session",
+    "sample": 4,
+    "status": 307,
+    "ttfbMs": 67.596,
+    "totalMs": 67.802,
+    "bytes": 15,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "deployed-protected-no-session",
+    "sample": 5,
+    "status": 307,
+    "ttfbMs": 63.78,
+    "totalMs": 64.111,
+    "bytes": 15,
+    "vercelRegion": "sin1",
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-public-jwks",
+    "sample": 1,
+    "status": 200,
+    "ttfbMs": 827.078,
+    "totalMs": 827.383,
+    "bytes": 240,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-public-jwks",
+    "sample": 2,
+    "status": 200,
+    "ttfbMs": 130.62,
+    "totalMs": 131.031,
+    "bytes": 240,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-public-jwks",
+    "sample": 3,
+    "status": 200,
+    "ttfbMs": 103.175,
+    "totalMs": 103.52,
+    "bytes": 240,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-public-jwks",
+    "sample": 4,
+    "status": 200,
+    "ttfbMs": 108.635,
+    "totalMs": 109.47,
+    "bytes": 240,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-public-jwks",
+    "sample": 5,
+    "status": 200,
+    "ttfbMs": 82.657,
+    "totalMs": 83.111,
+    "bytes": 240,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-anon-empty-items",
+    "sample": 1,
+    "status": 401,
+    "ttfbMs": 1455.179,
+    "totalMs": 1455.926,
+    "bytes": 180,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-anon-empty-items",
+    "sample": 2,
+    "status": 401,
+    "ttfbMs": 408.122,
+    "totalMs": 408.624,
+    "bytes": 180,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-anon-empty-items",
+    "sample": 3,
+    "status": 401,
+    "ttfbMs": 407.275,
+    "totalMs": 407.874,
+    "bytes": 180,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-anon-empty-items",
+    "sample": 4,
+    "status": 401,
+    "ttfbMs": 188.977,
+    "totalMs": 190.009,
+    "bytes": 180,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-anon-empty-items",
+    "sample": 5,
+    "status": 401,
+    "ttfbMs": 105.046,
+    "totalMs": 105.481,
+    "bytes": 180,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-auth-rejected-no-session",
+    "sample": 1,
+    "status": 401,
+    "ttfbMs": 383.73,
+    "totalMs": 383.856,
+    "bytes": 96,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-auth-rejected-no-session",
+    "sample": 2,
+    "status": 401,
+    "ttfbMs": 764.981,
+    "totalMs": 766.516,
+    "bytes": 96,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-auth-rejected-no-session",
+    "sample": 3,
+    "status": 401,
+    "ttfbMs": 599.733,
+    "totalMs": 617.694,
+    "bytes": 96,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-auth-rejected-no-session",
+    "sample": 4,
+    "status": 401,
+    "ttfbMs": 308.265,
+    "totalMs": 308.386,
+    "bytes": 96,
+    "serverTiming": null
+  },
+  {
+    "label": "supabase-auth-rejected-no-session",
+    "sample": 5,
+    "status": 401,
+    "ttfbMs": 255.33,
+    "totalMs": 264.889,
+    "bytes": 96,
+    "serverTiming": null
+  }
+]

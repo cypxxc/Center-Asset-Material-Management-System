@@ -66,6 +66,7 @@ import {
 import { bulkUpdateItems, bulkHardDeleteItems } from '@/features/items/actions'
 import { cn } from '@/lib/utils'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
+import { useLiveItems } from '@/features/items/components/use-live-items'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -74,6 +75,7 @@ interface ItemsExplorerClientProps {
   totalPages: number
   params: ItemListSearchParams & { new?: string }
   userCanWrite: boolean
+  authRevision?: string
   userCanDelete: boolean
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
@@ -99,18 +101,21 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient({
-  items,
-  total,
+  items: initialItems,
+  total: initialTotal,
   page,
-  totalPages,
+  totalPages: initialTotalPages,
   params,
   userCanWrite,
+  authRevision,
   userCanDelete,
   locations,
   categories,
   units,
 }: ItemsExplorerClientProps) {
-  useRealtimeRefresh(['items', 'categories', 'locations', 'units'], true, { debounceMs: 2500 })
+  useRealtimeRefresh(['categories', 'locations', 'units'], true, { debounceMs: 2500 })
+  const live = useLiveItems({ items: initialItems, total: initialTotal, page, pageSize: 10, totalPages: initialTotalPages }, params, authRevision)
+  const { items, total, totalPages } = live.data
   const router = useRouter()
   const [localItems, setLocalItems] = useState<ItemListRow[]>(items)
   const [prevItems, setPrevItems] = useState<ItemListRow[]>(items)
@@ -534,7 +539,7 @@ export function ItemsExplorerClient({
                 if (res.success) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
-                  router.refresh()
+                  // The server action already returns revalidated page data.
                 } else {
                   setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะ')
@@ -570,7 +575,7 @@ export function ItemsExplorerClient({
                 if (res.success) {
                   triggerToast(res.message || 'อัปเดตเรียบร้อย')
                   setSelectedItemIds([])
-                  router.refresh()
+                  // The server action already returns revalidated page data.
                 } else {
                   setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการย้ายสถานที่')
@@ -610,7 +615,7 @@ export function ItemsExplorerClient({
                 if (res.success) {
                   triggerToast(res.message || 'ลบเรียบร้อย')
                   setSelectedItemIds([])
-                  router.refresh()
+                  // The server action already returns revalidated page data.
                 } else {
                   setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
@@ -635,7 +640,7 @@ export function ItemsExplorerClient({
         </div>
       )}
 
-      <AssetTagModal
+      {(isBatchPrintOpen || singlePrintItem) && <AssetTagModal
         isOpen={isBatchPrintOpen || Boolean(singlePrintItem)}
         onClose={() => {
           setIsBatchPrintOpen(false)
@@ -643,7 +648,9 @@ export function ItemsExplorerClient({
         }}
         item={singlePrintItem ?? undefined}
         items={isBatchPrintOpen ? selectedItemsData : undefined}
-      />
+      />}
+
+      {live.error && <p role="status" className="fixed bottom-4 right-4 z-40 rounded-lg border bg-card px-4 py-2 text-sm">{live.error}</p>}
 
       {/* Blocking Error Modal */}
       {blockingError && (
@@ -670,7 +677,7 @@ export function ItemsExplorerClient({
       )}
 
       {/* New Item Sheet */}
-      <NewItemSheet
+      {isSheetOpen && <NewItemSheet
         open={isSheetOpen}
         item={editingItem}
         onClose={() => {
@@ -681,12 +688,12 @@ export function ItemsExplorerClient({
           setIsSheetOpen(false)
           setEditingItem(null)
           triggerToast(editingItem ? 'บันทึกการแก้ไขเรียบร้อยแล้ว' : 'เพิ่มสิ่งของเรียบร้อยแล้ว')
-          router.refresh()
+          // The server action already returns revalidated page data.
         }}
         categories={categories}
         locations={locations}
         units={units}
-      />
+      />}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header'
 import { getItemReferences, getSidebarData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
+import { LiveSidebarProvider } from '@/components/layout/live-sidebar'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -36,19 +37,21 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         ข้ามไปเนื้อหาหลัก
       </a>
       <div className="flex h-screen w-screen overflow-hidden bg-background text-slate-900">
-        <NewItemDialogProvider
-          categories={references.categories}
-          locations={references.locations}
-          units={references.units}
-        >
-          <Sidebar profile={profile} sidebarData={sidebarData} />
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <Header profile={profile} />
-            <main id="main-content" className="flex-1 overflow-hidden">
-              {children}
-            </main>
-          </div>
-        </NewItemDialogProvider>
+        <LiveSidebarProvider data={sidebarData}>
+          <NewItemDialogProvider
+            categories={references.categories}
+            locations={references.locations}
+            units={references.units}
+          >
+            <Sidebar profile={profile} sidebarData={sidebarData} />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <Header profile={profile} />
+              <main id="main-content" className="flex-1 overflow-hidden">
+                {children}
+              </main>
+            </div>
+          </NewItemDialogProvider>
+        </LiveSidebarProvider>
       </div>
     </ToastProvider>
   )

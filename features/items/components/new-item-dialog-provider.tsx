@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { ReferenceOption } from '@/features/items/types'
 import type { NewItemSheet } from './new-item-sheet'
@@ -48,7 +48,6 @@ export function NewItemDialogProvider({
   const [Sheet, setSheet] = useState<typeof NewItemSheet | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const loading = useRef(false)
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -88,8 +87,8 @@ export function NewItemDialogProvider({
   const handleSuccess = useCallback(() => {
     closeNewItemSheet()
     toast('เพิ่มสิ่งของเรียบร้อยแล้ว', 'success')
-    router.refresh()
-  }, [closeNewItemSheet, router, toast])
+    // createItemInline revalidates the layout in the action response.
+  }, [closeNewItemSheet, toast])
 
   return (
     <NewItemDialogContext.Provider value={openNewItemSheet}>

@@ -26,6 +26,7 @@ import {
 import { signOut } from '@/features/auth/actions'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { cn } from '@/lib/utils'
+import { useLiveSidebar } from './live-sidebar'
 
 interface SidebarProps {
   profile: {
@@ -75,7 +76,8 @@ function getCategoryIcon(name: string) {
   return <FileText className="h-3.5 w-3.5 mr-2 text-slate-400" />
 }
 
-export function Sidebar({ profile, sidebarData }: SidebarProps) {
+export function Sidebar({ profile, sidebarData: initialSidebarData }: SidebarProps) {
+  const sidebarData = useLiveSidebar().data ?? initialSidebarData
   const pathname = usePathname()
   const searchParams = useSearchParams()
 

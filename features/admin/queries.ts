@@ -63,6 +63,7 @@ export async function getProfilesList(params: {
     .from('profiles')
     .select('id, full_name, email, role, is_active, created_at, updated_at', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .order('id', { ascending: true })
 
   if (params.q) {
     query = query.or(`full_name.ilike.%${params.q}%,email.ilike.%${params.q}%`)
@@ -109,6 +110,7 @@ export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
       profiles:user_id(id, full_name, email, role)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
+    .order('id', { ascending: true })
 
   if (params.action && params.action !== 'all') {
     query = query.eq('action', params.action)
