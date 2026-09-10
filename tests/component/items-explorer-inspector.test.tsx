@@ -2,7 +2,7 @@ import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 
 // This component test exercises the inspector UI, not the live Supabase channel.
 // Disable the channel so placeholder CI credentials cannot leave a realtime socket open.
@@ -10,6 +10,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = ''
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 
 import { ItemsExplorerClient } from '../../app/(dashboard)/items/items-explorer-client'
+import { Inspector } from '../../app/(dashboard)/items/items-inspector'
 import { ToastProvider } from '../../components/ui/toast'
 import type { ItemListRow } from '../../features/items/types'
 
@@ -86,7 +87,51 @@ function renderComponent(props = defaultProps) {
   )
 }
 
-test('Inspector groups complete depreciation details and preserves zero prices', () => {
+test('Inspector forwards the selected item to print and edit actions', () => {
+  const item = mockItems[0]
+  const printed: unknown[] = []
+  const edited: ItemListRow[] = []
+  render(React.createElement(Inspector, {
+    isOpen: true,
+    onClose: () => {},
+    item,
+    userCanWrite: true,
+    userCanDelete: false,
+    onCopy: () => {},
+    onPrint: (value) => printed.push(value),
+    onEdit: (value) => edited.push(value),
+  }))
+
+  fireEvent.click(screen.getByRole('button', { name: 'พิมพ์สติกเกอร์' }))
+  assert.deepEqual(printed, [{
+    id: item.id,
+    item_name: item.item_name,
+    asset_no: item.asset_no,
+    serial_no: item.serial_no,
+    brand: item.brand,
+    model: item.model,
+    location_name: item.location?.name,
+    category_name: item.category?.name,
+    responsible_person: item.responsible_person,
+    unit_price: item.unit_price,
+  }])
+  fireEvent.click(screen.getByRole('button', { name: 'แก้ไขข้อมูล' }))
+  assert.deepEqual(edited, [item])
+})
+
+test('Escape dismisses the inspector while its first dynamic import is pending', async () => {
+  renderComponent()
+  fireEvent.click(screen.getByText(mockItems[0].item_name))
+  assert.equal(screen.getByText('กำลังโหลดรายละเอียด…').getAttribute('role'), 'status')
+  fireEvent.keyDown(window, { key: 'Escape' })
+  assert.equal(screen.queryByText('กำลังโหลดรายละเอียด…'), null)
+  await act(async () => {
+    await import('../../app/(dashboard)/items/items-inspector')
+  })
+  assert.equal(screen.queryByRole('dialog'), null)
+})
+
+test('Inspector groups complete depreciation details and preserves zero prices', async () => {
   renderComponent({ ...defaultProps, items: [{ ...mockItems[0],
     unit_price: 0,
     created_at: '2026-01-01T01:00:00Z',
@@ -98,7 +143,7 @@ test('Inspector groups complete depreciation details and preserves zero prices',
     depreciation_residual_value: 1,
   }] })
   fireEvent.click(screen.getByText(mockItems[0].item_name))
-  const drawer = within(screen.getByRole('dialog'))
+  const drawer = within(await screen.findByRole('dialog'))
   assert.ok(drawer.getByRole('region', { name: 'ข้อมูลหลัก' }))
   const price = within(drawer.getByRole('region', { name: 'ทะเบียนและราคา' }))
   assert.ok(price.getByText('฿0'))
@@ -111,7 +156,7 @@ test('Inspector groups complete depreciation details and preserves zero prices',
   assert.ok(drawer.getByText('1 ม.ค. 2569 08:00'))
 })
 
-test('ItemsExplorerClient renders table rows with full width', () => {
+test('ItemsExplorerClient renders table rows with full width', async () => {
   renderComponent()
 
   // Verify item rows are rendered in the table
@@ -123,7 +168,7 @@ test('ItemsExplorerClient renders table rows with full width', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('Clicking an item row opens the Slide-Over Inspector Drawer with correct metadata', () => {
+test('Clicking an item row opens the Slide-Over Inspector Drawer with correct metadata', async () => {
   renderComponent()
 
   // Click on the first item row in table
@@ -131,7 +176,7 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   fireEvent.click(row)
 
   // Drawer should now be visible
-  const drawer = screen.getByRole('dialog')
+  const drawer = await screen.findByRole('dialog')
   assert.ok(drawer)
   assert.equal(drawer.getAttribute('aria-label'), 'รายละเอียดรายการ')
 
@@ -150,12 +195,12 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   assert.ok(drawerScope.getByRole('button', { name: 'แก้ไขข้อมูล' }))
 })
 
-test('Clicking close button closes the Slide-Over Inspector Drawer', () => {
+test('Clicking close button closes the Slide-Over Inspector Drawer', async () => {
   renderComponent()
 
   // Open drawer
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
-  assert.ok(screen.getByRole('dialog'))
+  assert.ok(await screen.findByRole('dialog'))
 
   // Click close button inside drawer
   const closeButton = screen.getByRole('button', { name: 'ปิดแถบรายละเอียด' })
@@ -165,12 +210,12 @@ test('Clicking close button closes the Slide-Over Inspector Drawer', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('Pressing Escape key closes the Slide-Over Inspector Drawer', () => {
+test('Pressing Escape key closes the Slide-Over Inspector Drawer', async () => {
   renderComponent()
 
   // Open drawer
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
-  assert.ok(screen.getByRole('dialog'))
+  assert.ok(await screen.findByRole('dialog'))
 
   // Press Escape
   fireEvent.keyDown(window, { key: 'Escape' })
@@ -179,12 +224,12 @@ test('Pressing Escape key closes the Slide-Over Inspector Drawer', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('Clicking backdrop closes the Slide-Over Inspector Drawer', () => {
+test('Clicking backdrop closes the Slide-Over Inspector Drawer', async () => {
   renderComponent()
 
   // Open drawer
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
-  assert.ok(screen.getByRole('dialog'))
+  assert.ok(await screen.findByRole('dialog'))
 
   // Click backdrop
   const backdrop = screen.getByTestId('inspector-backdrop')
@@ -194,14 +239,14 @@ test('Clicking backdrop closes the Slide-Over Inspector Drawer', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('Clicking another item row switches the inspected item in the drawer', () => {
+test('Clicking another item row switches the inspected item in the drawer', async () => {
   renderComponent()
 
   // Open first item
   const firstRow = screen.getByText('โน้ตบุ๊ก Dell Latitude 5420')
   fireEvent.click(firstRow)
 
-  let drawer = screen.getByRole('dialog')
+  let drawer = await screen.findByRole('dialog')
   assert.ok(within(drawer).getByText('EQ-2026-001'))
 
   // Click second item row in table
@@ -209,7 +254,7 @@ test('Clicking another item row switches the inspected item in the drawer', () =
   fireEvent.click(secondRow)
 
   // Drawer should now display second item metadata
-  drawer = screen.getByRole('dialog')
+  drawer = await screen.findByRole('dialog')
   const drawerScope = within(drawer)
   assert.ok(drawerScope.getByText('50 รีม'))
   assert.ok(drawerScope.getByText('฿135'))
