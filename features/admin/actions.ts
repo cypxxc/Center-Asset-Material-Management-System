@@ -9,7 +9,8 @@ import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
 import { checkRateLimit, type RateLimitTier } from '@/lib/rate-limit'
-import { assertAdminTable } from '@/features/admin/table-policy'
+import { assertAdminTable, parseAdminMutation, parseAdminRowId, validateAdminItemState, adminPolicyError, type AdminTable } from '@/features/admin/table-policy'
+import { normalizeAdminPagination } from '@/features/admin/pagination'
 
 
 import { isAdmin } from '@/lib/permissions'
@@ -41,11 +42,12 @@ async function requireAdminOperation(action: string, tier: RateLimitTier) {
 export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
   const auth = await requireAdminOperation('getTableData', 'read')
   if (auth.error) return { error: auth.error, data: [], count: 0 }
-  const safeTable = assertAdminTable(tableName, 'read')
+  let safeTable: AdminTable
+  try { safeTable = assertAdminTable(tableName, 'read') }
+  catch (error) { return { error: adminPolicyError(error), data: [], count: 0 } }
 
   const supabase = await getSupabaseClient()
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+  const { from, to } = normalizeAdminPagination(page, pageSize)
 
   // Handle audit_logs sorting by created_at, others can sort by name or created_at if exists
   const sortBy = safeTable === 'audit_logs' || safeTable === 'items' ? 'created_at' : 'id'
@@ -63,26 +65,28 @@ export async function getTableData(tableName: string, page: number = 1, pageSize
 export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
   const auth = await requireAdminOperation('upsertTableRow', 'mutation')
   if (auth.error) return { error: auth.error }
-  const safeTable = assertAdminTable(tableName, 'write')
+  let safeTable: AdminTable
+  let cleanPayload: Record<string, unknown>
+  try {
+    safeTable = assertAdminTable(tableName, rowId === null ? 'insert' : 'update')
+    if (rowId !== null) parseAdminRowId(rowId)
+    cleanPayload = parseAdminMutation(safeTable, rowId === null ? 'insert' : 'update', payload)
+    if (safeTable === 'profiles' && rowId === auth.profile.id &&
+        (cleanPayload.is_active === false || (cleanPayload.role !== undefined && cleanPayload.role !== 'admin'))) {
+      return { error: 'ไม่สามารถปิดการใช้งานหรือเปลี่ยนบทบาทบัญชีของตนเองได้' }
+    }
+  } catch (error) { return { error: adminPolicyError(error) } }
 
   const supabase = await getSupabaseClient()
-
-  // Clean up payload fields that are empty or shouldn't be edited directly
-  const cleanPayload = { ...payload }
-  delete cleanPayload.id
-  delete cleanPayload.created_at
-  delete cleanPayload.updated_at
-  delete cleanPayload.deleted_at
-
-  if (safeTable === 'profiles') {
-    delete cleanPayload.email
-  }
-
-  // Normalize empty strings to null for nullable database columns
-  for (const key in cleanPayload) {
-    if (cleanPayload[key] === '') {
-      cleanPayload[key] = null
+  if (safeTable === 'items') {
+    if (rowId) {
+      const { data: existing, error } = await supabase.from('items').select('*').eq('id', rowId).single()
+      if (error || !existing) return { error: error?.message || 'Item not found' }
+      try { validateAdminItemState({ ...existing, ...cleanPayload }) }
+      catch (error) { return { error: adminPolicyError(error) } }
     }
+    cleanPayload.updated_by = auth.profile.id
+    if (!rowId) cleanPayload.created_by = auth.profile.id
   }
 
   if (rowId) {
@@ -136,7 +140,11 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 export async function deleteTableRow(tableName: string, rowId: string) {
   const auth = await requireAdminOperation('deleteTableRow', 'mutation')
   if (auth.error) return { error: auth.error }
-  const safeTable = assertAdminTable(tableName, 'delete')
+  let safeTable: AdminTable
+  try {
+    safeTable = assertAdminTable(tableName, 'delete')
+    parseAdminRowId(rowId)
+  } catch (error) { return { error: adminPolicyError(error) } }
 
   const supabase = await getSupabaseClient()
 
@@ -413,6 +421,7 @@ export async function createAuthUser(payload: {
 export async function deleteAuthUser(userId: string) {
   const auth = await requireAdminOperation('deleteAuthUser', 'mutation')
   if (auth.error) return { error: auth.error }
+  if (userId === auth.profile.id) return { error: 'ไม่สามารถลบบัญชีของตนเองได้' }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อลบผู้ใช้' }

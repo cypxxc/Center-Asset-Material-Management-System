@@ -11,7 +11,10 @@ let selectedId: unknown
 let hasForgedCookie = true
 const forged = JSON.stringify({ id: 'forged-admin', email: 'admin@example.com', role: 'admin' })
 const client = {
-  auth: { getUser: async () => ({ data: { user }, error: authError }) },
+  auth: {
+    getUser: async () => ({ data: { user }, error: authError }),
+    getClaims: async () => ({ data: user ? { claims: { sub: user.id } } : null, error: authError }),
+  },
   from: () => ({ select: () => ({ eq: (_key: string, id: unknown) => {
     selectedId = id
     return { single: async () => ({ data: { id, role: 'staff', is_active: active }, error: null }), maybeSingle: async () => ({ data: { id, role: 'admin', is_active: active }, error: null }) }

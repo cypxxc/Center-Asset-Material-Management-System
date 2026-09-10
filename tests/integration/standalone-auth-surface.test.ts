@@ -26,7 +26,7 @@ require.cache[supabaseSsrPath] = {
   exports: {
     createServerClient: () => ({
       auth: {
-        getUser: async () => ({ data: { user: null }, error: null }),
+        getClaims: async () => ({ data: null, error: null }),
       },
     }),
   },

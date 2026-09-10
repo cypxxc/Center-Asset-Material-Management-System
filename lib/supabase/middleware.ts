@@ -22,7 +22,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Exclude assets, public files, and api routes from auth checks immediately
-  // to avoid establishing Supabase clients and making auth getUser network calls
+  // to avoid establishing Supabase clients and validating sessions unnecessarily
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -40,23 +40,39 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          const previousCookies = supabaseResponse.cookies.getAll()
           supabaseResponse = NextResponse.next({
             request,
           })
+          previousCookies.forEach((cookie) => supabaseResponse.cookies.set(cookie))
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
+          Object.entries(headers).forEach(([name, value]) => supabaseResponse.headers.set(name, value))
         },
       },
     }
   )
 
-  const { result: { data: { user: verifiedUser }, error } } = await measureQuery(
-    'proxy.auth.getUser', () => supabase.auth.getUser()
+  // Verify the signature, expiry, and refresh session cookies through the SDK.
+  // Asymmetric keys use cached JWKS; legacy symmetric keys still call Auth.
+  // Server guards separately keep getUser and the current active-profile check.
+  const { result: { data, error } } = await measureQuery(
+    'proxy.auth.getClaims', () => supabase.auth.getClaims()
   )
-  const user = error ? null : verifiedUser
+  const user = !error && typeof data?.claims?.sub === 'string' && data.claims.sub.length > 0
+
+  function redirectWithSession(url: URL) {
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie))
+    for (const name of ['cache-control', 'expires', 'pragma']) {
+      const value = supabaseResponse.headers.get(name)
+      if (value !== null) response.headers.set(name, value)
+    }
+    return response
+  }
 
   // Auth page routing
   const isLoginPage = pathname === '/login'
@@ -67,12 +83,12 @@ export async function updateSession(request: NextRequest) {
     if (!isLoginPage) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
-      return NextResponse.redirect(url)
+      return redirectWithSession(url)
     }
   } else if (isLoginPage && !isInactiveNotice) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    return redirectWithSession(url)
   }
 
   return supabaseResponse

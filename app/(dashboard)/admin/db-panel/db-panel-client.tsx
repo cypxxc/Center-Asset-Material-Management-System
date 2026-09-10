@@ -166,6 +166,8 @@ export default function DBPanelClient() {
   const [totalCount, setTotalCount] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [searchTerm, setSearchTerm] = useState<string>('')
+  const [tableError, setTableError] = useState<string | null>(null)
+  const isReadOnlyTable = activeTab === 'audit' || selectedTable === 'audit_logs'
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isPending, startTransition] = useTransition()
   
@@ -193,10 +195,13 @@ export default function DBPanelClient() {
   // Fetch Table Data
   const fetchTable = async (tableName: string, page: number) => {
     setIsLoading(true)
-    const res = await getTableData(tableName, page, pageSize)
-    setIsLoading(false)
+    setTableError(null)
+    let res: Awaited<ReturnType<typeof getTableData>>
+    try { res = await getTableData(tableName, page, pageSize) }
+    catch { setTableError('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่'); return }
+    finally { setIsLoading(false) }
     if (res.error) {
-      setSqlError(res.error)
+      setTableError(res.error)
     } else {
       setTableData(res.data as Record<string, unknown>[])
       setTotalCount(res.count)
@@ -224,6 +229,7 @@ export default function DBPanelClient() {
 
   // Handle Edit/Add Row
   const handleOpenForm = (row: Record<string, unknown> | null = null) => {
+    if (isReadOnlyTable) return
     setEditingRow(row)
     setFormData(row ? { ...row } : {})
     // generate a nonce to break browser autofill heuristics for new forms
@@ -559,6 +565,7 @@ export default function DBPanelClient() {
         <main className="flex-1 min-w-0 flex flex-col bg-slate-950/20">
           
           {/* TAB 1: TABLE BROWSER or TAB 4: AUDIT LOGS */}
+          {tableError && (activeTab === 'browser' || activeTab === 'audit') && <p role="alert" className="text-red-600 p-4">{tableError}</p>}
           {(activeTab === 'browser' || activeTab === 'audit') && (
             <div className="flex-1 min-h-0 flex flex-col p-6 space-y-4">
               
@@ -598,7 +605,7 @@ export default function DBPanelClient() {
                   </button>
 
                   {/* Add Row Button (Disabled for read-only audit logs) */}
-                  {activeTab !== 'audit' && (
+                  {!isReadOnlyTable && (
                     <button
                       onClick={() => handleOpenForm(null)}
                       className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
@@ -627,7 +634,7 @@ export default function DBPanelClient() {
                           <div className="text-[8px] text-slate-500 font-semibold mt-0.5">{col.name}</div>
                         </th>
                       ))}
-                      {activeTab !== 'audit' && (
+                      {!isReadOnlyTable && (
                         <th className="py-3 px-4 text-center sticky right-0 bg-slate-900 z-20 w-24">จัดการ (Actions)</th>
                       )}
                     </tr>
@@ -670,7 +677,7 @@ export default function DBPanelClient() {
                           )
                         })}
 
-                        {activeTab !== 'audit' && (
+                        {!isReadOnlyTable && (
                           <td className="py-2 px-4 sticky right-0 bg-slate-950/80 backdrop-blur-sm text-center flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenForm(row)}
@@ -693,7 +700,7 @@ export default function DBPanelClient() {
 
                     {filteredData.length === 0 && (
                       <tr>
-                        <td colSpan={activeSchema.length + (activeTab !== 'audit' ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
+                        <td colSpan={activeSchema.length + (!isReadOnlyTable ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
                           ไม่พบแถวข้อมูลในตารางนี้
                         </td>
                       </tr>
