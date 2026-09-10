@@ -88,13 +88,18 @@ test.before(async () => {
   ({ NewItemDialogProvider, NewItemDialogTrigger } = await import('../../features/items/components/new-item-dialog-provider'));
 });
 
-test('NewItemDialogTrigger opens the creation sheet without navigation', () => {
+test('NewItemDialogTrigger loads the creation sheet only on demand without navigation', async () => {
   renderProvider(<NewItemDialogTrigger>ขึ้นทะเบียนใหม่</NewItemDialogTrigger>);
+  assert.equal(document.querySelector('dialog'), null);
 
   fireEvent.click(screen.getByRole('button', { name: 'ขึ้นทะเบียนใหม่' }));
 
-  assert.ok(screen.getByRole('dialog'));
+  await waitFor(() => assert.ok(screen.getByRole('dialog')), { timeout: 5000 });
   assert.equal(routerPushCalls, 0);
+  fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
+  await waitFor(() => assert.equal(screen.queryByRole('dialog'), null));
+  fireEvent.click(screen.getByRole('button', { name: 'ขึ้นทะเบียนใหม่' }));
+  await waitFor(() => assert.ok(screen.getByRole('dialog')));
 });
 
 test('provider opens after Next synchronizes search params from a compatibility URL', async () => {

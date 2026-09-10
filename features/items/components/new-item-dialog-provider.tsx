@@ -1,10 +1,10 @@
 'use client'
 
-import { createContext, startTransition, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { ReferenceOption } from '@/features/items/types'
-import { NewItemSheet } from './new-item-sheet'
+import type { NewItemSheet } from './new-item-sheet'
 
 const NewItemDialogContext = createContext<(() => void) | null>(null)
 
@@ -45,18 +45,39 @@ export function NewItemDialogProvider({
   units,
 }: NewItemDialogProviderProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [Sheet, setSheet] = useState<typeof NewItemSheet | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const loading = useRef(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  const openNewItemSheet = useCallback(() => setIsOpen(true), [])
+  const openNewItemSheet = useCallback(async () => {
+    if (Sheet) {
+      setIsOpen(true)
+      return
+    }
+    if (loading.current) return
+    loading.current = true
+    setIsLoading(true)
+    try {
+      const sheetModule = await import('./new-item-sheet')
+      setSheet(() => sheetModule.NewItemSheet)
+      setIsOpen(true)
+    } catch {
+      toast('โหลดฟอร์มไม่สำเร็จ กรุณากดเพิ่มรายการเพื่อลองใหม่', 'error')
+    } finally {
+      loading.current = false
+      setIsLoading(false)
+    }
+  }, [Sheet, toast])
   const closeNewItemSheet = useCallback(() => setIsOpen(false), [])
 
   useEffect(() => {
     if (searchParams.get('new') !== 'true') return
 
-    startTransition(openNewItemSheet)
+    startTransition(() => { void openNewItemSheet() })
 
     const nextSearchParams = new URLSearchParams(searchParams.toString())
     nextSearchParams.delete('new')
@@ -73,7 +94,8 @@ export function NewItemDialogProvider({
   return (
     <NewItemDialogContext.Provider value={openNewItemSheet}>
       {children}
-      <NewItemSheet
+      {isLoading && <div role="status" className="fixed bottom-6 right-6 z-50 rounded-lg border bg-background px-4 py-3 shadow-lg">กำลังโหลดฟอร์ม…</div>}
+      {Sheet && <Sheet
         open={isOpen}
         item={null}
         onClose={closeNewItemSheet}
@@ -81,7 +103,7 @@ export function NewItemDialogProvider({
         categories={categories}
         locations={locations}
         units={units}
-      />
+      />}
     </NewItemDialogContext.Provider>
   )
 }
