@@ -1,4 +1,3 @@
-import '../setup/server-only'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mockSupabaseRegistry } from '../mocks/supabase'

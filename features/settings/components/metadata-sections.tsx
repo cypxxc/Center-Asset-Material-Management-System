@@ -393,6 +393,39 @@ export function ImportSection() {
         fgColor: { argb: 'FF2563EB' }, // Blue 600
       }
 
+      // Add example rows
+      worksheet.addRow({
+        item_name: 'เครื่องคอมพิวเตอร์ MacBook Air (ตัวอย่าง)',
+        item_type: 'asset',
+        quantity: 1,
+        unit_price: 35900,
+        brand: 'Apple',
+        model: 'M2',
+        asset_no: 'CAMMS-AS-9872',
+        serial_no: 'C02H20YQ088G',
+        status: 'active',
+        category_name: 'ครุภัณฑ์คอมพิวเตอร์',
+        location_name: 'ห้องทำงาน 301',
+        unit_name: 'เครื่อง',
+        note: 'ของฝ่ายไอที',
+      })
+
+      worksheet.addRow({
+        item_name: 'กระดาษ A4 80 แกรม (ตัวอย่าง)',
+        item_type: 'material',
+        quantity: 5,
+        unit_price: 125,
+        brand: 'Double A',
+        model: '-',
+        asset_no: '',
+        serial_no: '',
+        status: 'active',
+        category_name: 'วัสดุสำนักงาน',
+        location_name: 'ห้องเก็บของชั้น 1',
+        unit_name: 'รีม',
+        note: 'สำรองสำหรับฝ่ายบุคคล',
+      })
+
       const buffer = await workbook.xlsx.writeBuffer()
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = window.URL.createObjectURL(blob)
@@ -592,44 +625,54 @@ export function ImportSection() {
                 <tr className="border-b border-border bg-muted/50 text-muted-foreground font-bold">
                   <th className="p-2 border-r border-border">หัวข้อคอลัมน์ (Header)</th>
                   <th className="p-2 border-r border-border">ข้อมูลที่รองรับ</th>
+                  <th className="p-2">ตัวอย่างข้อมูล</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-card-foreground font-medium">
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_name</td>
                   <td className="p-2 border-r border-border">ชื่อสิ่งของ/พัสดุครุภัณฑ์ (จำเป็น)</td>
+                  <td className="p-2">เครื่องคอมพิวเตอร์พกพา MacBook Air</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_type</td>
                   <td className="p-2 border-r border-border">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (วัสดุ)</td>
+                  <td className="p-2">asset</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">quantity</td>
                   <td className="p-2 border-r border-border">จำนวนพัสดุครุภัณฑ์ (ตัวเลขจำนวนเต็ม)</td>
+                  <td className="p-2">1</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">unit_price</td>
                   <td className="p-2 border-r border-border">ราคาต่อหน่วย ใช้คำนวณมูลค่าในรายงาน (ไม่บังคับ)</td>
+                  <td className="p-2">35900</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">brand</td>
                   <td className="p-2 border-r border-border">ยี่ห้อ/แบรนด์</td>
+                  <td className="p-2">Apple</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">model</td>
                   <td className="p-2 border-r border-border">รุ่นสินค้า</td>
+                  <td className="p-2">M2 (2022)</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">asset_no</td>
                   <td className="p-2 border-r border-border">รหัสเลขครุภัณฑ์ (เฉพาะครุภัณฑ์)</td>
+                  <td className="p-2">CAMMS-AS-9872</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">serial_no</td>
                   <td className="p-2 border-r border-border">รหัสซีเรียลนัมเบอร์สินค้า (SN)</td>
+                  <td className="p-2">C02H20YQ088G</td>
                 </tr>
                 <tr className="hover:bg-muted/40">
                   <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">status</td>
                   <td className="p-2 border-r border-border">สถานะ: active / spare / damaged / waiting_repair / inactive / disposed</td>
+                  <td className="p-2">active</td>
                 </tr>
               </tbody>
             </table>

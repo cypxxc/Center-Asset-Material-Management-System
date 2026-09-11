@@ -1,48 +1,42 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createTransitionCompletion, startRealtimeRefresh } from './realtime-refresh-controller'
 
 type RealtimeTable = 'items' | 'categories' | 'locations' | 'units' | 'audit_logs'
 
-export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true, { debounceMs = 750 }: { debounceMs?: number } = {}) {
+export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [completion] = useState(createTransitionCompletion)
-  const tableKey = [...new Set(tables)].sort().join(',')
-
-  useEffect(() => {
-    completion.observe(isPending)
-  }, [completion, isPending])
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tableKey = tables.join(',')
 
   useEffect(() => {
     if (!enabled || !tableKey) return
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
 
+    router.refresh()
     const supabase = createClient()
-    const stop = startRealtimeRefresh({
-      tables: tableKey.split(','),
-      enabled,
-      debounceMs,
-      visibility: document,
-      refresh: (complete) => {
-        completion.begin(complete)
-        startTransition(() => router.refresh())
-      },
-      subscribe: (tableList, onChange) => {
-        const channel = supabase.channel(`camms-realtime-${tableKey}`)
-        for (const table of tableList) {
-          channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange)
-        }
-        void channel.subscribe()
-        return () => { void supabase.removeChannel(channel) }
-      },
-    })
-    return () => {
-      stop()
-      completion.cancel()
+    const tableList = tableKey.split(',') as RealtimeTable[]
+    const channel = supabase
+      .channel(`camms-realtime-${tableKey}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: tableList[0] }, () => {
+        if (refreshTimer.current) clearTimeout(refreshTimer.current)
+        refreshTimer.current = setTimeout(() => router.refresh(), 150)
+      })
+
+    for (const table of tableList.slice(1)) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+        if (refreshTimer.current) clearTimeout(refreshTimer.current)
+        refreshTimer.current = setTimeout(() => router.refresh(), 150)
+      })
     }
-  }, [completion, debounceMs, enabled, router, startTransition, tableKey])
+
+    void channel.subscribe()
+
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+      void supabase.removeChannel(channel)
+    }
+  }, [enabled, router, tableKey])
 }

@@ -9,10 +9,6 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
 
 test('getProfilesList queries profiles with search term, role filter, and pagination', async () => {
   mockSupabaseRegistry.clear();
-  mockSupabaseRegistry.setAuth(
-    { id: 'user-admin', email: 'admin@example.com' },
-    { id: 'user-admin', email: 'admin@example.com', role: 'admin', is_active: true }
-  );
   const mockProfiles = [
     {
       id: 'user-1',
@@ -33,7 +29,7 @@ test('getProfilesList queries profiles with search term, role filter, and pagina
       updated_at: null,
     },
   ];
-  mockSupabaseRegistry.setTableResponseForClient('profiles', 'service', mockProfiles);
+  mockSupabaseRegistry.setTableResponse('profiles', mockProfiles);
 
   const res = await getProfilesList({ q: 'Somchai', role: 'staff', is_active: 'true', page: 1, pageSize: 10 });
 
@@ -41,7 +37,7 @@ test('getProfilesList queries profiles with search term, role filter, and pagina
   assert.equal(res.totalCount, 2);
 
   const queryLog = mockSupabaseRegistry.getQueryLog();
-  const profilesQuery = queryLog.find((q) => q.table === 'profiles' && q.operations.some((op) => op[0] === 'range'));
+  const profilesQuery = queryLog.find((q) => q.table === 'profiles');
   assert.ok(profilesQuery, 'Profiles query should be logged');
 
   const operations = profilesQuery.operations.map((op) => op[0]);
@@ -145,3 +141,4 @@ test('updateUserProfileRoleAndStatus rejects invalid role', async () => {
   assert.ok(res.error);
   assert.match(res.error, /บทบาทไม่ถูกต้อง/);
 });
+

@@ -1,7 +1,6 @@
 import { getItems, getItemReferences } from '@/features/items/queries'
 import { ItemListSearchParams } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { profileRevision } from '@/features/auth/profile-revision'
 import { canWrite, canDelete } from '@/lib/permissions'
 import { ItemsExplorerClient } from './items-explorer-client'
 import { redirect } from 'next/navigation'
@@ -38,7 +37,6 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
       page={normalResult.page}
       totalPages={normalResult.totalPages}
       params={params}
-      authRevision={profileRevision(profile)}
       userCanWrite={userCanWrite}
       userCanDelete={userCanDelete}
       locations={references.locations}

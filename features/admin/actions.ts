@@ -1,23 +1,21 @@
 'use server'
 
 import { getCurrentProfile } from '@/features/auth/queries'
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
-import { checkRateLimit, type RateLimitTier } from '@/lib/rate-limit'
-import { assertAdminTable, parseAdminMutation, parseAdminRowId, validateAdminItemState, adminPolicyError, type AdminTable } from '@/features/admin/table-policy'
-import { normalizeAdminPagination } from '@/features/admin/pagination'
+import { assertAdminTable } from '@/features/admin/table-policy'
 
 
 import { isAdmin } from '@/lib/permissions'
 
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
-    return createServiceRoleClient()
+    return createAdminClient()
   }
   return createClient()
 }
@@ -31,23 +29,14 @@ export async function requireAdmin() {
   return { profile }
 }
 
-async function requireAdminOperation(action: string, tier: RateLimitTier) {
-  const auth = await requireAdmin()
-  if (auth.error) return auth
-  const rate = await checkRateLimit(action, tier, undefined, auth.profile)
-  if (!rate.success) return { error: rate.error ?? 'Too many requests', profile: undefined }
-  return auth
-}
-
 export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
-  const auth = await requireAdminOperation('getTableData', 'read')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, data: [], count: 0 }
-  let safeTable: AdminTable
-  try { safeTable = assertAdminTable(tableName, 'read') }
-  catch (error) { return { error: adminPolicyError(error), data: [], count: 0 } }
+  const safeTable = assertAdminTable(tableName, 'read')
 
   const supabase = await getSupabaseClient()
-  const { from, to } = normalizeAdminPagination(page, pageSize)
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
 
   // Handle audit_logs sorting by created_at, others can sort by name or created_at if exists
   const sortBy = safeTable === 'audit_logs' || safeTable === 'items' ? 'created_at' : 'id'
@@ -63,30 +52,28 @@ export async function getTableData(tableName: string, page: number = 1, pageSize
 }
 
 export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
-  const auth = await requireAdminOperation('upsertTableRow', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
-  let safeTable: AdminTable
-  let cleanPayload: Record<string, unknown>
-  try {
-    safeTable = assertAdminTable(tableName, rowId === null ? 'insert' : 'update')
-    if (rowId !== null) parseAdminRowId(rowId)
-    cleanPayload = parseAdminMutation(safeTable, rowId === null ? 'insert' : 'update', payload)
-    if (safeTable === 'profiles' && rowId === auth.profile.id &&
-        (cleanPayload.is_active === false || (cleanPayload.role !== undefined && cleanPayload.role !== 'admin'))) {
-      return { error: 'ไม่สามารถปิดการใช้งานหรือเปลี่ยนบทบาทบัญชีของตนเองได้' }
-    }
-  } catch (error) { return { error: adminPolicyError(error) } }
+  const safeTable = assertAdminTable(tableName, 'write')
 
   const supabase = await getSupabaseClient()
-  if (safeTable === 'items') {
-    if (rowId) {
-      const { data: existing, error } = await supabase.from('items').select('*').eq('id', rowId).single()
-      if (error || !existing) return { error: error?.message || 'Item not found' }
-      try { validateAdminItemState({ ...existing, ...cleanPayload }) }
-      catch (error) { return { error: adminPolicyError(error) } }
+
+  // Clean up payload fields that are empty or shouldn't be edited directly
+  const cleanPayload = { ...payload }
+  delete cleanPayload.id
+  delete cleanPayload.created_at
+  delete cleanPayload.updated_at
+  delete cleanPayload.deleted_at
+
+  if (safeTable === 'profiles') {
+    delete cleanPayload.email
+  }
+
+  // Normalize empty strings to null for nullable database columns
+  for (const key in cleanPayload) {
+    if (cleanPayload[key] === '') {
+      cleanPayload[key] = null
     }
-    cleanPayload.updated_by = auth.profile.id
-    if (!rowId) cleanPayload.created_by = auth.profile.id
   }
 
   if (rowId) {
@@ -138,13 +125,9 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 }
 
 export async function deleteTableRow(tableName: string, rowId: string) {
-  const auth = await requireAdminOperation('deleteTableRow', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
-  let safeTable: AdminTable
-  try {
-    safeTable = assertAdminTable(tableName, 'delete')
-    parseAdminRowId(rowId)
-  } catch (error) { return { error: adminPolicyError(error) } }
+  const safeTable = assertAdminTable(tableName, 'delete')
 
   const supabase = await getSupabaseClient()
 
@@ -175,39 +158,34 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   return { success: true }
 }
 
-export async function runAdminSql(sqlQuery: string, confirmation?: string) {
-  const auth = await requireAdminOperation('runAdminSql', 'mutation')
+export async function runAdminSql(sqlQuery: string) {
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   if (process.env.ADMIN_SQL_ENABLED !== 'true') {
     return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
   }
 
-  if (confirmation !== 'EXECUTE SQL') return { error: 'กรุณายืนยันการรัน SQL โดยพิมพ์ EXECUTE SQL' }
-  if (!sqlQuery.trim() || sqlQuery.length > 100000) return { error: 'SQL must contain 1–100000 characters.' }
-
   const supabase = createServiceRoleClient()
-  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex'))
-  const executionId = crypto.randomUUID()
-  const audit = { user_id: auth.profile.id, target_table: 'multiple/raw_sql' }
-  const { error: auditError } = await supabase.from('audit_logs').insert({
-    ...audit, action: 'SQL_EXECUTE_ATTEMPT', new_data: { query_hash: queryHash, execution_id: executionId },
-  })
-  if (auditError) return { error: 'ไม่สามารถบันทึกประวัติได้ จึงยังไม่ได้รัน SQL' }
   const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
 
-  const { error: completionError } = await supabase.from('audit_logs').insert({
-    ...audit,
+  if (error) {
+    return { error: error.message }
+  }
+
+  // Log SQL execution in audit_logs
+  await supabase.from('audit_logs').insert({
+    user_id: auth.profile.id,
     action: 'SQL_EXECUTE',
-    new_data: { query_hash: queryHash, execution_id: executionId, status: error || data?.ok === false ? 'failed' : 'completed' },
+    target_table: 'multiple/raw_sql',
+    new_data: { query_hash: await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex')) }
   })
-  if (completionError) return { error: 'SQL ถูกส่งไปรันแล้ว แต่บันทึกผลไม่สำเร็จ กรุณาตรวจสอบฐานข้อมูลก่อนรันซ้ำ' }
-  if (error) return { error: error.message }
+
   return data
 }
 
 export async function exportDatabaseData() {
-  const auth = await requireAdminOperation('exportDatabaseData', 'export')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, backup: null }
 
   const supabase = await getSupabaseClient()
@@ -238,7 +216,7 @@ export async function exportDatabaseData() {
 }
 
 export async function importDatabaseData(backupJsonStr: string) {
-  const auth = await requireAdminOperation('importDatabaseData', 'export')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   // This RPC authorizes with auth.uid(); keep the administrator's session.
@@ -288,7 +266,7 @@ export async function createAuthUser(payload: {
   role: 'admin' | 'staff' | 'viewer'
   is_active: boolean
 }) {
-  const auth = await requireAdminOperation('createAuthUser', 'mutation')
+  const auth = await requireAdmin()
   const trace = await beginActionTrace({
     feature: 'admin',
     action: 'createAuthUser',
@@ -304,7 +282,7 @@ export async function createAuthUser(payload: {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อสร้างผู้ใช้ใหม่' }
   }
 
-  const adminClient = await createServiceRoleClient()
+  const adminClient = await createAdminClient()
 
   // Basic server-side validation
   let email = normalizeForStorage(payload.email || '')
@@ -419,15 +397,14 @@ export async function createAuthUser(payload: {
 // ============================================================
 
 export async function deleteAuthUser(userId: string) {
-  const auth = await requireAdminOperation('deleteAuthUser', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
-  if (userId === auth.profile.id) return { error: 'ไม่สามารถลบบัญชีของตนเองได้' }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อลบผู้ใช้' }
   }
 
-  const adminClient = await createServiceRoleClient()
+  const adminClient = await createAdminClient()
 
   // Delete from auth.users (cascades to profiles if FK is set, or manual below)
   const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
@@ -452,7 +429,7 @@ export async function deleteAuthUser(userId: string) {
 // ============================================================
 
 export async function resetAuthPassword(userId: string, newPassword: string) {
-  const auth = await requireAdminOperation('resetAuthPassword', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
@@ -463,7 +440,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     return { error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' }
   }
 
-  const adminClient = await createServiceRoleClient()
+  const adminClient = await createAdminClient()
 
   try {
     const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
@@ -498,7 +475,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
 // ============================================================
 
 export async function updateUserEmail(userId: string, newEmail: string) {
-  const auth = await requireAdminOperation('updateUserEmail', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
@@ -510,7 +487,7 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     return { error: 'กรุณาระบุรูปแบบอีเมลให้ถูกต้อง' }
   }
 
-  const adminClient = await createServiceRoleClient()
+  const adminClient = await createAdminClient()
 
   try {
     const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
@@ -558,7 +535,7 @@ export async function updateUserProfileRoleAndStatus(
     full_name?: string
   }
 ) {
-  const auth = await requireAdminOperation('updateUserProfileRoleAndStatus', 'mutation')
+  const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   if (!userId) {
@@ -616,7 +593,7 @@ export async function updateUserProfileRoleAndStatus(
   // Update Supabase Auth user metadata if service role is available
   if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     try {
-      const adminClient = await createServiceRoleClient()
+      const adminClient = await createAdminClient()
       const authMetadataUpdates: Record<string, unknown> = {}
       if (payload.role !== undefined) authMetadataUpdates.role = payload.role
       if (payload.is_active !== undefined) authMetadataUpdates.is_active = payload.is_active

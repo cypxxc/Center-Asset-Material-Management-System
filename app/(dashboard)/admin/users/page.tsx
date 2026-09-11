@@ -1,6 +1,5 @@
 import { requireAdmin } from '@/features/admin/actions'
 import { getProfilesList } from '@/features/admin/queries'
-import { normalizeAdminPagination } from '@/features/admin/pagination'
 import { redirect } from 'next/navigation'
 import UsersClient from './users-client'
 
@@ -21,7 +20,8 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   }
 
   const params = await searchParams
-  const { page, pageSize } = normalizeAdminPagination(params.page, params.pageSize)
+  const page = parseInt(params.page || '1', 10) || 1
+  const pageSize = parseInt(params.pageSize || '50', 10) || 50
 
   const initialData = await getProfilesList({
     q: params.q,

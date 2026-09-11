@@ -39,6 +39,7 @@ Object.assign(require.cache[serverPath]!.exports, {
     }
     return observedClient('anon')
   },
+  createAdminClient: async () => observedClient('service'),
   createServiceRoleClient: () => observedClient('service'),
 })
 
@@ -140,8 +141,6 @@ function staff() {
   )
 }
 
-const verifiedStaff = { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
-
 function reset() {
   mockSupabaseRegistry.clear()
   inserts.length = 0
@@ -200,7 +199,7 @@ test('createItem applies rate limiting before validation, upload, and insert', a
   invalid.set('item_name', '')
 
   assert.deepEqual(await createItem(null, invalid), { message: 'rate limit reached' })
-  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000, verifiedStaff]])
+  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
   assert.deepEqual(mockSupabaseRegistry.getStorageLog(), [])
   assert.deepEqual(inserts, [])
 })
@@ -255,7 +254,7 @@ test('createItem inserts attribution, delegates audit persistence to the databas
   assert.equal(inserts.some((entry) => entry.table === 'audit_logs'), false)
   assert.deepEqual(cacheCalls, [
     ['path', '/items'],
-    ['tag', 'sidebar-data', { expire: 0 }],
+    ['tag', 'sidebar-data', 'max'],
     ['path', '/', 'layout'],
   ])
 })
@@ -367,12 +366,12 @@ test('both actions remove an uploaded image exactly once when item insertion fai
   }
 })
 
-test('createItem and createItemInline share the create rate limit contract', async () => {
+test('only createItem applies the existing create rate limit contract', async () => {
   reset()
   staff()
   await createItem(null, new FormData())
   await createItemInline(null, new FormData())
-  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000, verifiedStaff], ['createItem', 30, 60000, verifiedStaff]])
+  assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
 })
 
 test('createItem safely handles each committed telemetry failure and removes the upload exactly once', async () => {

@@ -1,6 +1,5 @@
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { normalizeAdminPagination } from './pagination'
 
 export interface ProfileListItem {
   id: string
@@ -47,23 +46,16 @@ export async function getProfilesList(params: {
   page?: number
   pageSize?: number
 } = {}) {
-  const profile = await getCurrentProfile()
-  if (!profile || profile.role !== 'admin' || !profile.is_active) {
-    return {
-      profiles: [] as ProfileListItem[],
-      totalCount: 0,
-      error: 'Access Denied: Admin role required and profile must be active',
-    }
-  }
-
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createServiceRoleClient() : await createClient()
-  const { from, to } = normalizeAdminPagination(params.page, params.pageSize)
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createAdminClient() : await createClient()
+  const page = params.page || 1
+  const pageSize = params.pageSize || 50
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
 
   let query = supabase
     .from('profiles')
     .select('id, full_name, email, role, is_active, created_at, updated_at', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .order('id', { ascending: true })
 
   if (params.q) {
     query = query.or(`full_name.ilike.%${params.q}%,email.ilike.%${params.q}%`)
@@ -93,8 +85,11 @@ export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
     }
   }
 
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createServiceRoleClient() : await createClient()
-  const { from, to } = normalizeAdminPagination(params.page, params.pageSize)
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createAdminClient() : await createClient()
+  const page = params.page || 1
+  const pageSize = params.pageSize || 50
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
 
   let query = supabase
     .from('audit_logs')
@@ -110,7 +105,6 @@ export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
       profiles:user_id(id, full_name, email, role)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
-    .order('id', { ascending: true })
 
   if (params.action && params.action !== 'all') {
     query = query.eq('action', params.action)

@@ -3,7 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
-import { resolvePrivateItemImageUrl, resolvePrivateItemImageUrls } from '@/lib/supabase/storage'
+import { resolvePrivateItemImageUrl } from '@/lib/supabase/storage'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { normalizeForSearch } from '@/lib/unicode'
@@ -186,7 +186,9 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
   const page = parsePage(params.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
-  const dataQuery = supabase
+  const q = normalizeForSearch(params.q || '')
+
+  let query = supabase
     .from('items')
     .select(
       `
@@ -204,50 +206,36 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
         model,
         note,
         image_url,
-        created_at,
-        depreciation_enabled,
-        depreciation_method,
-        depreciation_cost,
-        depreciation_useful_life_years,
-        depreciation_start_basis,
-        depreciation_start_date,
-        depreciation_residual_value,
         category:categories(id, name),
         unit:units(id, name),
         location:locations(id, name)
-      `
+      `,
+      { count: 'exact' }
     )
 
-  // Both independently executed requests use the same filter implementation.
-  function applyFilters(query: {
-    is(column: string, value: null): unknown
-    eq(column: string, value: string): unknown
-    or(filters: string): unknown
-  }): void {
-    const q = normalizeForSearch(params.q || '')
-    query.is('deleted_at', null)
-    if (q) {
-      const safe = q.replaceAll(',', ' ')
-      query.or(
-        `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%`
-      )
-    }
+    .is('deleted_at', null)
 
-    if (isItemType(params.type)) {
-      query.eq('item_type', params.type)
-    }
+  if (q) {
+    const safe = q.replaceAll(',', ' ')
+    query = query.or(
+      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%`
+    )
+  }
 
-    if (isItemStatus(params.status)) {
-      query.eq('status', params.status)
-    }
+  if (isItemType(params.type)) {
+    query = query.eq('item_type', params.type)
+  }
 
-    if (params.category_id) {
-      query.eq('category_id', params.category_id)
-    }
+  if (isItemStatus(params.status)) {
+    query = query.eq('status', params.status)
+  }
 
-    if (params.location_id) {
-      query.eq('location_id', params.location_id)
-    }
+  if (params.category_id) {
+    query = query.eq('category_id', params.category_id)
+  }
+
+  if (params.location_id) {
+    query = query.eq('location_id', params.location_id)
   }
 
   let orderColumn = 'updated_at'
@@ -277,26 +265,23 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     }
   }
 
-  const countQuery = supabase.from('items').select('id', { count: 'exact', head: true })
-  applyFilters(dataQuery)
-  applyFilters(countQuery)
-  const [dataResult, countResult] = await Promise.all([
-    measureQuery('items.getItems.data', () =>
-      dataQuery.order(orderColumn, { ascending }).order('id', { ascending: true }).range(from, to)
-    ),
-    measureQuery('items.getItems.count', () => countQuery),
-  ])
-  if (dataResult.result.error || countResult.result.error) {
+  const {
+    result: { data, count, error },
+  } = await measureQuery('items.getItems', () =>
+    query.order(orderColumn, { ascending }).range(from, to)
+  )
+
+  if (error) {
     throw new Error('Unable to load item data')
   }
 
-  const total = countResult.result.count ?? 0
-  const rows = ((dataResult.result.data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
-  const imageUrls = await resolvePrivateItemImageUrls(
-    rows.map(item => item.image_url),
-    (paths, expiresIn) => supabase.storage.from('item-images').createSignedUrls(paths, expiresIn)
+  const total = count ?? 0
+
+  const items = await Promise.all(
+    ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][])
+      .map(normalizeItemListRow)
+      .map((item) => signItemImage(supabase, item))
   )
-  const items = rows.map((item, index) => ({ ...item, image_url: imageUrls[index] }))
 
   return {
     items,

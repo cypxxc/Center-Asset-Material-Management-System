@@ -1,16 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { measureQuery } from '@/lib/performance'
-import { instrumentSupabaseFetch } from './transport'
-import { config } from '@/lib/config'
-import { withDeadline } from '@/lib/deadline'
-
-function unavailableResponse() {
-  return new NextResponse('<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>บริการขัดข้องชั่วคราว</title><body><main><h1>บริการขัดข้องชั่วคราว</h1><p>ระบบไม่สามารถตรวจสอบการเข้าสู่ระบบได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง</p><p><a href="/">ลองใหม่</a></p></main></body></html>', {
-    status: 503,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'Retry-After': '15' },
-  })
-}
+import { readDevelopmentSessionUser } from '@/features/auth/dev-auth'
 
 const STATIC_ASSET_PREFIXES = ['/assets/', '/fonts/', '/icons/', '/images/']
 const STATIC_ASSET_EXTENSION = /\.(?:avif|css|gif|ico|jpe?g|js|map|otf|png|svg|ttf|webp|woff2?)$/i
@@ -32,7 +23,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Exclude assets, public files, and api routes from auth checks immediately
-  // to avoid establishing Supabase clients and validating sessions unnecessarily
+  // to avoid establishing Supabase clients and making auth getUser network calls
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -42,60 +33,33 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  const controller = new AbortController()
-  const instrumentedFetch = instrumentSupabaseFetch(undefined, { signal: controller.signal })
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: { fetch: instrumentedFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet, headers) {
-          if (controller.signal.aborted) return
+        setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          const previousCookies = supabaseResponse.cookies.getAll()
           supabaseResponse = NextResponse.next({
             request,
           })
-          previousCookies.forEach((cookie) => supabaseResponse.cookies.set(cookie))
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
-          Object.entries(headers).forEach(([name, value]) => supabaseResponse.headers.set(name, value))
         },
       },
     }
   )
 
-  // Verify the signature, expiry, and refresh session cookies through the SDK.
-  // Asymmetric keys use cached JWKS; legacy symmetric keys still call Auth.
-  // Server guards separately keep getUser and the current active-profile check.
-  let user = false
-  try {
-    const { result: { data, error } } = await withDeadline(() => measureQuery(
-      'proxy.auth.getClaims', () => supabase.auth.getClaims()
-    ), config.limits.supabaseAuthTimeoutMs, controller)
-    if (error && (error.name === 'AuthRetryableFetchError' || (error.status ?? 0) >= 500)) {
-      return unavailableResponse()
-    }
-    user = !error && typeof data?.claims?.sub === 'string' && data.claims.sub.length > 0
-  } catch {
-    // Fail closed without destroying a potentially valid session during an outage.
-    return unavailableResponse()
-  }
-
-  function redirectWithSession(url: URL) {
-    const response = NextResponse.redirect(url)
-    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie))
-    for (const name of ['cache-control', 'expires', 'pragma']) {
-      const value = supabaseResponse.headers.get(name)
-      if (value !== null) response.headers.set(name, value)
-    }
-    return response
-  }
+  const devSessionUser = readDevelopmentSessionUser(request.cookies as unknown as import('@/features/auth/dev-auth').CookieStoreLike)
+  const user = devSessionUser
+    ? ({ id: devSessionUser.id, email: devSessionUser.email } as { id: string; email: string })
+    : (
+        await measureQuery('proxy.auth.getUser', () => supabase.auth.getUser())
+      ).result.data.user
 
   // Auth page routing
   const isLoginPage = pathname === '/login'
@@ -106,12 +70,12 @@ export async function updateSession(request: NextRequest) {
     if (!isLoginPage) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
-      return redirectWithSession(url)
+      return NextResponse.redirect(url)
     }
   } else if (isLoginPage && !isInactiveNotice) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return redirectWithSession(url)
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

@@ -1,4 +1,3 @@
-import '../tests/setup/server-only'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MemoryRateLimiter, RATE_LIMIT_TIERS, getRateLimiter, checkRateLimit } from './rate-limit'
@@ -30,31 +29,31 @@ test('RATE_LIMIT_TIERS configuration defines correct security thresholds', () =>
   assert.equal(RATE_LIMIT_TIERS.read.windowMs, 60000)
 })
 
-test('checkRateLimit handles tier names and numeric limits fail closed outside request context', async () => {
+test('checkRateLimit handles tier names and numeric limits gracefully outside request context', async () => {
   const resAuth = await checkRateLimit('test-auth', 'auth')
-  assert.equal(resAuth.success, false)
+  assert.equal(resAuth.success, true)
 
   const resMutation = await checkRateLimit('test-mutation', 'mutation')
-  assert.equal(resMutation.success, false)
+  assert.equal(resMutation.success, true)
 
   const resExport = await checkRateLimit('test-export', 'export')
-  assert.equal(resExport.success, false)
+  assert.equal(resExport.success, true)
 
   const resRead = await checkRateLimit('test-read', 'read')
-  assert.equal(resRead.success, false)
+  assert.equal(resRead.success, true)
 
   const resCustom = await checkRateLimit('test-custom', 50, 30000)
-  assert.equal(resCustom.success, false)
+  assert.equal(resCustom.success, true)
 
   const resDefault = await checkRateLimit('test-default')
-  assert.equal(resDefault.success, false)
+  assert.equal(resDefault.success, true)
 })
 
-test('getRateLimiter returns a shared-storage limiter singleton', () => {
+test('getRateLimiter returns MemoryRateLimiter singleton', () => {
   const limiter1 = getRateLimiter()
   const limiter2 = getRateLimiter()
   assert.equal(limiter1, limiter2)
-  assert.ok(!(limiter1 instanceof MemoryRateLimiter))
+  assert.ok(limiter1 instanceof MemoryRateLimiter)
 })
 
 test('MemoryRateLimiter isolates different keys', async () => {

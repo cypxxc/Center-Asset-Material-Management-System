@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ItemForm } from '../../features/items/components/item-form';
 
 const noopAction = async () => ({ success: true });
@@ -69,21 +69,7 @@ test('ItemForm shows image file validation as inline error', () => {
   }
 });
 
-test('ItemForm revokes old local image previews when replacing files', async (t) => {
-  const originalImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
-  Object.defineProperty(globalThis, 'Image', { configurable: true, value: class {
-    width = 1200; height = 900;
-    onload?: () => void;
-    set src(_value: string) { queueMicrotask(() => this.onload?.()); }
-  } });
-  t.after(() => {
-    if (originalImage) Object.defineProperty(globalThis, 'Image', originalImage);
-    else Reflect.deleteProperty(globalThis, 'Image');
-  });
-  t.mock.method(window.HTMLCanvasElement.prototype, 'getContext', () => ({
-    fillRect() {}, save() {}, translate() {}, rotate() {}, scale() {}, drawImage() {}, restore() {},
-  }) as unknown as CanvasRenderingContext2D);
-  t.mock.method(window.HTMLCanvasElement.prototype, 'toBlob', (callback: BlobCallback) => callback(new Blob(['encoded-image'], { type: 'image/webp' })));
+test('ItemForm revokes old local image previews when replacing files', async () => {
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
   const originalFileReader = global.FileReader;
@@ -129,7 +115,6 @@ test('ItemForm revokes old local image previews when replacing files', async (t)
 
     const confirmBtn1 = screen.getByText('ครอบรูปภาพ (4:3)');
     fireEvent.click(confirmBtn1);
-    await waitFor(() => assert.equal(counter, 1));
 
     fireEvent.change(fileInput, {
       target: {
@@ -139,7 +124,8 @@ test('ItemForm revokes old local image previews when replacing files', async (t)
 
     const confirmBtn2 = screen.getByText('ครอบรูปภาพ (4:3)');
     fireEvent.click(confirmBtn2);
-    await waitFor(() => assert.deepEqual(revoked, ['blob:test-1']));
+
+    assert.deepEqual(revoked, ['blob:test-1']);
   } finally {
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;

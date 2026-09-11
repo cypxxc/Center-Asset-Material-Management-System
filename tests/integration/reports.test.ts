@@ -104,7 +104,7 @@ test('getReportItemsList sends filters, Thai sort and pagination to paginated re
 
 test('getReportItemsList calculates value from stored unit_price only', async () => {
   mockSupabaseRegistry.clear();
-  const items = [
+  mockSupabaseRegistry.setTableResponse('items', [
     {
       id: 'priced-1',
       item_name: 'Dell Latitude Laptop',
@@ -139,9 +139,7 @@ test('getReportItemsList calculates value from stored unit_price only', async ()
       unit: null,
       location: null,
     },
-  ];
-  mockSupabaseRegistry.setRpcResponse('get_report_items_page', { items: items.slice(0, 1), total_count: 2, total_quantity: 3, total_value: 2469 });
-  mockSupabaseRegistry.setRpcResponse('get_report_export_batch', { items, next_cursor: null });
+  ]);
 
   const result = await getReportItemsList({}, true);
 

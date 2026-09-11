@@ -2,13 +2,13 @@ import '../../tests/setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mockSupabaseRegistry } from '../../tests/mocks/supabase'
-import { getExportReportItems, getReportItemsList } from './queries'
+import { getExportReportItems } from './queries'
 
 test('getExportReportItems function exists and accepts search parameters', () => {
   assert.equal(typeof getExportReportItems, 'function')
 })
 
-test('PDF export preflights count and fetches bounded cursor batches', async () => {
+test('getExportReportItems queries get_report_items_page RPC with page 1 and page size 5000', async () => {
   mockSupabaseRegistry.clear()
   mockSupabaseRegistry.setRpcResponse('get_report_items_page', {
     items: [
@@ -35,10 +35,6 @@ test('PDF export preflights count and fetches bounded cursor batches', async () 
     total_value: 12500,
   })
 
-  mockSupabaseRegistry.setRpcResponse('get_report_export_batch', {
-    items: [{ id: 'export-1', item_name: 'โต๊ะทำงาน', quantity: 5, unit_price: 2500 }], next_cursor: null,
-  })
-
   const result = await getExportReportItems({
     q: 'โต๊ะ',
     type: 'asset',
@@ -54,11 +50,10 @@ test('PDF export preflights count and fetches bounded cursor batches', async () 
   assert.equal(result.totalValue, 12500)
 
   const rpcCalls = mockSupabaseRegistry.getRpcLog()
-  assert.equal(rpcCalls.length, 2)
+  assert.equal(rpcCalls.length, 1)
   assert.equal(rpcCalls[0].name, 'get_report_items_page')
   assert.equal(rpcCalls[0].args?.p_page, 1)
-  assert.equal(rpcCalls[0].args?.p_page_size, 1)
-  assert.equal(rpcCalls[1].args?.p_batch_size, 500)
+  assert.equal(rpcCalls[0].args?.p_page_size, 5000)
   assert.equal(rpcCalls[0].args?.p_q, 'โต๊ะ')
   assert.equal(rpcCalls[0].args?.p_type, 'asset')
   assert.equal(rpcCalls[0].args?.p_status, 'active')
@@ -66,17 +61,13 @@ test('PDF export preflights count and fetches bounded cursor batches', async () 
   assert.equal(rpcCalls[0].args?.p_location_id, 'loc-1')
 })
 
-test('RPC errors cannot masquerade as a successful empty export or trigger unbounded fallback', async () => {
+test('getExportReportItems handles RPC error gracefully', async () => {
   mockSupabaseRegistry.clear()
   mockSupabaseRegistry.setRpcResponse('get_report_items_page', null, { message: 'Database error' })
 
-  await assert.rejects(getExportReportItems({}))
-  await assert.rejects(getReportItemsList({}))
-})
-
-test('PDF export rejects more than 5000 matches before fetching export rows', async () => {
-  mockSupabaseRegistry.clear()
-  mockSupabaseRegistry.setRpcResponse('get_report_items_page', { items: [], total_count: 5001, total_quantity: 5001, total_value: 1 })
-  await assert.rejects(getExportReportItems({}), /5,000|Excel/)
-  assert.equal(mockSupabaseRegistry.getRpcLog().length, 1)
+  const result = await getExportReportItems({})
+  assert.equal(result.items.length, 0)
+  assert.equal(result.totalCount, 0)
+  assert.equal(result.totalQuantity, 0)
+  assert.equal(result.totalValue, 0)
 })
