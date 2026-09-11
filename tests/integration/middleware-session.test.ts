@@ -11,6 +11,7 @@ let claimsResult: { data: { claims: { sub?: string } } | null; error: Error | nu
 let cookiesToSet: Cookie[] = []
 let clientCalls = 0
 let claimsCalls = 0
+let hangClaims = false
 const refreshHeaders = {
   'Cache-Control': 'private, no-cache, no-store, must-revalidate, max-age=0',
   Pragma: 'no-cache',
@@ -26,6 +27,7 @@ require.cache[ssrPath] = {
       clientCalls++
       return { auth: { getClaims: async () => {
         claimsCalls++
+        if (hangClaims) return new Promise(() => {})
         if (cookiesToSet.length) options.cookies.setAll(cookiesToSet, refreshHeaders)
         return claimsResult
       } } }
@@ -38,6 +40,7 @@ test.beforeEach(() => {
   cookiesToSet = []
   clientCalls = 0
   claimsCalls = 0
+  hangClaims = false
 })
 
 test('verified claims allow protected navigation with one SDK verification', async () => {
@@ -112,4 +115,32 @@ test('public assets and API routes never create an auth client', async () => {
   }
   assert.equal(clientCalls, 0)
   assert.equal(claimsCalls, 0)
+})
+
+test('temporary Auth failure returns retryable 503 without clearing session or redirecting', async () => {
+  const { updateSession } = await import('../../lib/supabase/middleware')
+  claimsResult = { data: null, error: Object.assign(new Error('upstream unavailable'), { status: 504, name: 'AuthRetryableFetchError' }) }
+  const response = await updateSession(new NextRequest('http://localhost/dashboard'))
+  assert.equal(response.status, 503)
+  assert.equal(response.headers.get('location'), null)
+  assert.equal(response.headers.get('set-cookie'), null)
+  assert.match(response.headers.get('cache-control') ?? '', /no-store/)
+  assert.match(await response.text(), /ลองใหม่/)
+})
+
+test('hung Auth has an overall deadline even when the SDK never settles', async () => {
+  const { config } = await import('../../lib/config')
+  const limits = config.limits as unknown as { supabaseAuthTimeoutMs: number }
+  const original = limits.supabaseAuthTimeoutMs
+  limits.supabaseAuthTimeoutMs = 20
+  hangClaims = true
+  try {
+    const { updateSession } = await import('../../lib/supabase/middleware')
+    const response = await Promise.race([
+      updateSession(new NextRequest('http://localhost/dashboard')),
+      new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('Auth still hangs')), 300); timer.unref() }),
+    ])
+    assert.equal(response.status, 503)
+    assert.equal(response.headers.get('set-cookie'), null)
+  } finally { limits.supabaseAuthTimeoutMs = original }
 })

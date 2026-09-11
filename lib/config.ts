@@ -32,6 +32,7 @@ export const config = {
     imageMaxBytes: 5 * 1024 * 1024,
     adminSqlTimeoutMs: 30_000,
     supabaseQueryTimeoutMs: 15_000,
+    supabaseAuthTimeoutMs: 10_000,
     exportTimeoutMs: 120_000,
   },
 

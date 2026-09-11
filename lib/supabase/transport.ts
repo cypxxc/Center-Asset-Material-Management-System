@@ -1,6 +1,7 @@
 import { metrics } from '@/lib/metrics'
 import { getRequestContext } from '@/lib/tracing/context'
 import { logger } from '@/lib/logging'
+import { config } from '@/lib/config'
 
 function serviceFor(input: RequestInfo | URL): string {
   const pathname = new URL(input instanceof Request ? input.url : String(input)).pathname
@@ -15,14 +16,24 @@ function serviceFor(input: RequestInfo | URL): string {
 }
 
 /** Measures HTTP response-header latency, not PostgreSQL execution time/body parsing. */
-export function instrumentSupabaseFetch(fetcher: typeof fetch = (...args) => fetch(...args)): typeof fetch {
+export function instrumentSupabaseFetch(
+  fetcher: typeof fetch = (...args) => fetch(...args),
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
+): typeof fetch {
   return async (input, init) => {
     const service = serviceFor(input)
     const trace = process.env.CAMMS_PERF_TRACE === 'true' ? await getRequestContext() : null
     const start = performance.now()
     let status = 'network_error'
     try {
-      const response = await fetcher(input, init)
+      const signals = [AbortSignal.timeout(options.timeoutMs ?? config.limits.supabaseQueryTimeoutMs)]
+      const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined)
+      if (callerSignal) signals.push(callerSignal)
+      if (options.signal) signals.push(options.signal)
+      const signal = AbortSignal.any(signals)
+      signal.throwIfAborted()
+      // Keep the signal alive after headers arrive to also bound body consumption.
+      const response = await fetcher(input, { ...init, signal })
       status = String(response.status)
       return response
     } finally {
