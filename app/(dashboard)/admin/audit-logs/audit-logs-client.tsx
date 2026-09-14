@@ -18,7 +18,7 @@ import {
   ArrowRight,
   Code2,
 } from 'lucide-react'
-import { AuditLogListItem } from '@/features/admin/queries'
+import type { AuditLogListItem } from '@/features/admin/types'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'

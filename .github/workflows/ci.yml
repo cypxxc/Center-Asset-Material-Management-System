@@ -53,9 +53,97 @@ jobs:
       - name: Run browser smoke tests
         run: npm run test:smoke
 
+  postgres-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATA_BACKEND: postgres
+      NEXT_PUBLIC_DATA_BACKEND: postgres
+      POSTGRES_ADMIN_LIVE_TEST: '1'
+      POSTGRES_QUERY_INTEGRATION: '1'
+      POSTGRES_HTTP_INTEGRATION: '1'
+      POSTGRES_RECOVERY_INTEGRATION: '1'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create fresh PostgreSQL service and restricted application roles
+        run: |
+          npm run postgres:setup
+          npm run postgres:up
+          npm run postgres:app:setup
+          npm run postgres:app:setup
+          npm run postgres:activate
+
+      - name: Verify environment and real database policies
+        run: |
+          npm run verify-env
+          npm run verify-db-release
+          npm run postgres:verify:security
+
+      - name: Run live queries, administration and fresh restore integration
+        run: node --import tsx --test features/items/postgres-queries-live.test.ts tests/integration/postgres-admin-live.test.ts tests/integration/postgres-admin-restore-live.test.ts
+
+      - name: Check PostgreSQL production code
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start PostgreSQL production application
+        run: |
+          mkdir -p .cache/postgres
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 > .cache/postgres/ci-app.log 2>&1 &
+          echo $! > .cache/postgres/ci-app.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health/readiness > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo 'PostgreSQL app did not become ready'
+          exit 1
+
+      - name: Verify real authenticated CRUD and private files and session events
+        run: |
+          npm run postgres:verify:browser
+          npm run postgres:verify:http
+          npm run postgres:verify:limits
+          npm run postgres:verify:recovery
+
+      - name: Build deployable image without credentials
+        run: docker build --tag camms-ci:${{ github.sha }} .
+
+      - name: Retain PostgreSQL failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-failure-diagnostics
+          path: |
+            .cache/postgres/ci-app.log
+            .cache/postgres/browser-item.png
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop CI-owned service
+        if: always()
+        run: |
+          if test -f .cache/postgres/ci-app.pid; then kill "$(cat .cache/postgres/ci-app.pid)" || true; fi
+          if test -f .env.postgres.local; then docker compose --env-file .env.postgres.local -f compose.postgres.yaml down; fi
+
   staging-release:
     if: github.event_name == 'workflow_dispatch'
-    needs: build
+    needs: [build, postgres-release]
     runs-on: ubuntu-latest
     environment: staging
     env:

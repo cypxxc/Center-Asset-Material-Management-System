@@ -79,8 +79,10 @@ export function runTestFile(testFile: string, options: RunTestFileOptions): Prom
   });
 }
 
-async function findTestFiles() {
+export async function findTestFiles(projectRoot = root) {
   const patterns = [
+    'components/**/*.test.ts',
+    'components/**/*.test.tsx',
     'features/**/*.test.ts',
     'features/**/*.test.tsx',
     'tests/unit/**/*.test.ts',
@@ -92,7 +94,7 @@ async function findTestFiles() {
 
   const files: string[] = [];
   for (const pattern of patterns) {
-    const matches = await glob(pattern, { cwd: root, absolute: true });
+    const matches = await glob(pattern, { cwd: projectRoot, absolute: true });
     files.push(...matches);
   }
 

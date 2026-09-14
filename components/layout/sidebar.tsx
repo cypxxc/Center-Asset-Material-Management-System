@@ -10,7 +10,6 @@ import {
   ChevronRight,
   FileText,
   Folder,
-  FolderOpen,
   Grid,
   Laptop,
   LogOut,
@@ -122,7 +121,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all flex-1',
               pathname === '/dashboard'
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'hover:bg-slate-50 hover:text-slate-800'
+                : 'hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <Grid className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
@@ -131,7 +130,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         )
       case 'all-items':
         return (
-          <Link href="/items" className={cn('flex items-center px-2.5 py-2 rounded-lg transition-all', pathname === '/items' && !currentType && !currentCategory && !currentLocation ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50' : 'hover:bg-slate-50 hover:text-slate-800')}>
+          <Link href="/items" className={cn('flex items-center px-2.5 py-2 rounded-lg transition-all', pathname === '/items' && !currentType && !currentCategory && !currentLocation ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50' : 'hover:bg-slate-50 hover:text-foreground')}>
             <Package className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
             <span className="truncate">รายการทั้งหมด</span>
           </Link>
@@ -144,14 +143,14 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all flex-1',
               pathname === '/items' && currentType === 'material'
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'hover:bg-slate-50 hover:text-slate-800'
+                : 'hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <div className="flex items-center min-w-0 flex-1">
               <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
               <span className="truncate">วัสดุ</span>
             </div>
-            <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+            <span className="bg-slate-100 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               {totalSuppliesCount}
             </span>
           </Link>
@@ -164,7 +163,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
                 pathname === '/items' && currentType === 'asset' && !currentCategory
                   ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                  : 'hover:bg-slate-50 hover:text-slate-800'
+                  : 'hover:bg-slate-50 hover:text-foreground'
               )}
             >
               <button
@@ -184,13 +183,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
                 <span className="truncate">ครุภัณฑ์</span>
               </Link>
-              <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="bg-slate-100 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {totalAssetsCount}
               </span>
             </div>
 
             {assetsFolderExpanded && (
-              <div className="pl-6 border-l border-slate-200 ml-4 space-y-0.5">
+              <div className="pl-6 border-l border-border ml-4 space-y-0.5">
                 {categories.map((cat) => {
                   const isCurrent = currentCategory === cat.id && pathname === '/items'
                   const count = getCategoryCount(cat.id)
@@ -202,14 +201,14 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                         'text-left py-1.5 px-2.5 rounded-md flex items-center justify-between transition-colors',
                         isCurrent
                           ? 'bg-blue-100/60 text-blue-700 font-bold'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
                       )}
                     >
                       <div className="flex items-center min-w-0">
                         {getCategoryIcon(cat.name)}
                         <span className="truncate">{cat.name}</span>
                       </div>
-                      <span className="text-[9px] font-bold text-slate-600">{count}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground">{count}</span>
                     </Link>
                   )
                 })}
@@ -225,7 +224,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
                 pathname === '/locations' && !currentLocation
                   ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                  : 'hover:bg-slate-50 hover:text-slate-800'
+                  : 'hover:bg-slate-50 hover:text-foreground'
               )}
             >
               <button
@@ -245,13 +244,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 <MapPin className="w-4 h-4 mr-2 text-rose-500 flex-shrink-0" />
                 <span className="truncate">สถานที่</span>
               </Link>
-              <span className="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="bg-slate-100 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 {locations.length}
               </span>
             </div>
 
             {locationsFolderExpanded && (
-              <div className="pl-6 border-l border-slate-200 ml-4 space-y-0.5">
+              <div className="pl-6 border-l border-border ml-4 space-y-0.5">
                 {locations.map((loc) => {
                   const isCurrent = currentLocation === loc.id && pathname === '/items'
                   const count = getLocationCount(loc.id)
@@ -263,11 +262,11 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                         'text-left py-1.5 px-2.5 rounded-md flex items-center justify-between transition-colors',
                         isCurrent
                           ? 'bg-blue-100/60 text-blue-700 font-bold'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
                       )}
                     >
                       <span className="truncate">{loc.name}</span>
-                      <span className="text-[9px] font-bold text-slate-600">{count}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground">{count}</span>
                     </Link>
                   )
                 })}
@@ -283,7 +282,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all flex-1',
               pathname === '/reports'
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'hover:bg-slate-50 hover:text-slate-800'
+                : 'hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <BarChart2 className="w-4 h-4 mr-2.5 text-slate-400 flex-shrink-0" />
@@ -296,39 +295,37 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   }
 
   return (
-    <aside className="relative z-30 hidden h-full w-[256px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+    <aside className="relative z-30 hidden h-full w-[256px] shrink-0 flex-col border-r border-border bg-card md:flex">
       {/* Brand Header */}
-      <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-slate-200 px-4">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-500/20">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white ">
             <Package className="h-4 w-4" />
           </div>
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-extrabold text-slate-800">CAMMS Portal</div>
-            <div className="truncate text-[9px] font-semibold text-slate-600">Asset & Material Management</div>
+            <div className="truncate text-sm font-extrabold text-foreground">CAMMS Portal</div>
+            <div className="truncate text-[11px] font-normal text-muted-foreground">ระบบจัดการครุภัณฑ์และวัสดุ</div>
           </div>
         </Link>
       </div>
 
       <div className="px-4 py-3 border-b border-slate-100">
-        <h2 className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
-          <FolderOpen className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-          <span>งานหลัก</span>
-        </h2>
-        
+
+
         {canWrite && (
-          <NewItemDialogTrigger className="mt-3 flex w-full items-center justify-center space-x-1.5 rounded-lg bg-blue-600 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/10 transition-all hover:bg-blue-700">
+          <NewItemDialogTrigger className="flex w-full items-center justify-center space-x-1.5 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700">
             <Plus className="w-3.5 h-3.5" />
             <span>ขึ้นทะเบียนใหม่</span>
           </NewItemDialogTrigger>
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 text-xs font-medium text-slate-600 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 text-[13px] font-medium text-muted-foreground space-y-1">
         {itemsOrder.map((key) => {
 
           return (
             <div key={key} className="min-w-0">
+              {(key === 'all-items' || key === 'reports') && <p className="px-2.5 pb-2 pt-5 text-[11px] font-medium text-muted-foreground">{key === 'all-items' ? 'ทะเบียนพัสดุ' : 'สรุปข้อมูล'}</p>}
               <div className="flex-1 min-w-0">
                 {renderMenuItem(key)}
               </div>
@@ -338,8 +335,9 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
       </nav>
 
       {/* Footer Area: Settings, Trash, Profile, Logout */}
-      <div className="px-2.5 pt-3 border-t border-slate-200 bg-slate-50/30 text-xs">
+      <div className="px-2.5 pt-3 border-t border-border bg-slate-50/30 text-xs">
 
+        {canWrite && <p className="px-2.5 pb-2 text-[11px] font-medium text-muted-foreground">จัดการระบบ</p>}
         {/* System Settings - Admin & Staff */}
         {canWrite && (
           <Link
@@ -348,7 +346,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
               pathname === '/settings'
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <Settings className="w-4 h-4 mr-2.5 text-slate-400" />
@@ -364,7 +362,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
               pathname.startsWith('/admin/users')
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <UserCog className="w-4 h-4 mr-2.5 text-slate-400" />
@@ -380,7 +378,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
               pathname.startsWith('/admin/audit-logs')
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <History className="w-4 h-4 mr-2.5 text-slate-400" />
@@ -396,7 +394,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
               pathname.startsWith('/admin/db-panel')
                 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100/50'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-foreground'
             )}
           >
             <Database className="w-4 h-4 mr-2.5 text-slate-400" />
@@ -405,14 +403,14 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         )}
       </div>
 
-      <div className="border-t border-slate-200 bg-slate-50/70 p-2 mt-auto">
+      <div className="border-t border-border bg-slate-50/70 p-2 mt-auto">
         {profile && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card p-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-slate-100">
               <User className="h-4 w-4 text-slate-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold leading-none text-slate-800">{profile.full_name}</p>
+              <p className="truncate text-xs font-bold leading-none text-foreground">{profile.full_name}</p>
               <p className="mt-1 truncate text-[10px] font-semibold text-blue-600">
                 {roleLabels[profile.role] ?? profile.role}
               </p>

@@ -19,7 +19,7 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react'
-import { ProfileListItem } from '@/features/admin/queries'
+import type { ProfileListItem } from '@/features/admin/types'
 import {
   createAuthUser,
   deleteAuthUser,

@@ -17,6 +17,7 @@ const optionalUrl = z.preprocess(
     .string()
     .url('รูปแบบ URL ไม่ถูกต้อง')
     .max(500, 'URL ต้องมีความยาวไม่เกิน 500 ตัวอักษร')
+    .or(z.string().regex(/^\/api\/files\/item-images\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/, 'รูปแบบ URL ไม่ถูกต้อง'))
     .optional()
     .or(z.literal('').transform(() => undefined))
     .transform((value) => value || null)

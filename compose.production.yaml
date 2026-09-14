@@ -1,0 +1,76 @@
+name: camms-production
+services:
+  app:
+    image: camms-web:${CAMMS_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    stop_grace_period: 30s
+    environment:
+      NODE_ENV: production
+      DATA_BACKEND: postgres
+      NEXT_PUBLIC_DATA_BACKEND: postgres
+      LOCAL_STORAGE_PATH: /data/storage
+      LOG_LEVEL: ${CAMMS_LOG_LEVEL:-info}
+    secrets: [camms_runtime]
+    volumes:
+      - type: bind
+        source: ${CAMMS_STORAGE_HOST_PATH:?Set the absolute existing upload directory}
+        target: /data/storage
+        bind:
+          create_host_path: false
+      - next_cache:/app/.next/cache
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    networks: [frontend, existing_database]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '5'}
+
+  proxy:
+    image: caddy:2.11-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      CAMMS_SITE: ${CAMMS_SITE:?Set an explicit HTTPS hostname}
+    ports:
+      - "${CAMMS_BIND_ADDRESS:-127.0.0.1}:${CAMMS_HTTP_PORT:-80}:80"
+      - "${CAMMS_BIND_ADDRESS:-127.0.0.1}:${CAMMS_HTTPS_PORT:-443}:443"
+    volumes:
+      - type: bind
+        source: ${CAMMS_CADDYFILE:-./deploy/Caddyfile.public}
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - caddy_data:/data
+      - caddy_config:/config
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    networks: [frontend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '5'}
+
+secrets:
+  camms_runtime:
+    file: ${CAMMS_RUNTIME_SECRET_FILE:-.env.production.runtime}
+networks:
+  frontend:
+  existing_database:
+    external: true
+    name: ${CAMMS_DATABASE_NETWORK:-camms-postgres-local_default}
+volumes:
+  next_cache:
+  caddy_data:
+  caddy_config:

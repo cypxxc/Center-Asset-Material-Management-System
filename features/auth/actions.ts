@@ -12,9 +12,11 @@ import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
 import { resolveUniqueProfileEmail } from './login-identifier'
 import { getDevelopmentSeedAccount, setDevelopmentSessionUser } from './dev-auth'
+import { isPostgresBackend } from '@/lib/backend'
 
 
 export async function signOut() {
+  if (isPostgresBackend()) return (await import('./postgres-actions')).postgresSignOut()
   const trace = await beginActionTrace({ feature: 'auth', action: 'signOut' })
   try {
     const supabase = await createClient()
@@ -31,6 +33,7 @@ export async function signOut() {
 }
 
 export async function login(_prevState: { error?: string } | null, formData: FormData) {
+  if (isPostgresBackend()) return (await import('./postgres-actions')).postgresLogin(formData)
   const trace = await beginActionTrace({ feature: 'auth', action: 'login' })
 
   const identifier = ((formData.get('id') as string) || '').trim()
@@ -179,6 +182,7 @@ export type PersonalProfileActionState = {
 }
 
 export async function updatePersonalProfile(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
+  if (isPostgresBackend()) return (await import('./postgres-actions')).postgresUpdateProfile(formData)
   const trace = await beginActionTrace({ feature: 'auth', action: 'updatePersonalProfile' })
 
   try {
@@ -217,6 +221,7 @@ export async function updatePersonalProfile(_prevState: PersonalProfileActionSta
 }
 
 export async function updatePersonalPassword(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
+  if (isPostgresBackend()) return (await import('./postgres-actions')).postgresUpdatePassword(formData)
   const trace = await beginActionTrace({ feature: 'auth', action: 'updatePersonalPassword' })
 
   try {
@@ -263,6 +268,7 @@ export async function updatePersonalPassword(_prevState: PersonalProfileActionSt
 }
 
 export async function updateSidebarOrder(order: string[]): Promise<{ success?: boolean; error?: string }> {
+  if (isPostgresBackend()) return (await import('./postgres-actions')).postgresUpdateSidebar(order)
   const trace = await beginActionTrace({ feature: 'auth', action: 'updateSidebarOrder' })
 
   try {

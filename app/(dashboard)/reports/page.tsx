@@ -13,21 +13,21 @@ interface ReportsPageProps {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const profile = await getCurrentProfile()
-  if (!profile) {
-    redirect('/login')
-  }
-
   const params = await searchParams
-  const [references, stats, reportData, depreciationReport] = await Promise.all([
+  const [profile, references, stats, reportData, depreciationReport] = await Promise.all([
+    getCurrentProfile(),
     getItemReferences(),
     getReportStats(),
     getReportItemsList(params),
     getDepreciationReport(),
   ])
 
+  if (!profile) redirect('/login')
+  if (!profile.is_active) redirect('/login?error=inactive')
+
   return (
-    <><ReportsList
+    <div className="h-full overflow-y-auto bg-background print:h-auto print:overflow-visible"><ReportsList
+      preparedBy={profile.full_name}
       items={reportData.items}
       totalCount={reportData.totalCount}
       totalQuantity={reportData.totalQuantity}
@@ -38,6 +38,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       categories={references.categories}
       locations={references.locations}
       stats={stats}
-    /><DepreciationReport {...depreciationReport} /></>
+    /><div className="px-4 pb-6 sm:px-6 lg:px-8"><DepreciationReport {...depreciationReport} /></div></div>
   )
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Autonomous Cybersecurity & Infrastructure Defense Audit Runner
+ * Local security control checks (headers, rate limiting, sanitization, logging).
  * Center Asset & Material Management System (CAMMS Portal)
  */
 import { SECURITY_HEADERS } from '../lib/security-headers'
@@ -86,8 +86,8 @@ const checks: AuditCheck[] = [
         severity: 'INFO',
         eventType: 'ADMIN_ACTION',
         threatVector: 'Automated Security Verification Run',
-        impactAnalysis: 'Security sanity scan performed across all 5 defense pillars',
-        automatedActionTaken: 'Recorded scan execution timestamp in audit trail',
+        impactAnalysis: 'Verified security event formatting',
+        automatedActionTaken: 'Emitted a local verification event',
         recommendedFollowUp: 'Maintain scheduled verification cadence',
       })
       return formatted.includes('[SECURITY INCIDENT] [INFO]') && formatted.includes('Vector: Automated Security Verification Run')
@@ -97,7 +97,7 @@ const checks: AuditCheck[] = [
 
 async function runSecurityAudit() {
   console.log('\n==================================================================')
-  console.log('  CAMMS Autonomous Cybersecurity & Defense Audit Runner')
+  console.log('  CAMMS Local Security Control Checks')
   console.log('==================================================================\n')
 
   let passed = 0
@@ -134,9 +134,9 @@ async function runSecurityAudit() {
   } else {
     console.log(`[SECURITY AUDIT] [INFO] ${timestamp}`)
     console.log('Vector: Security baseline posture verification')
-    console.log('Impact: All 5 defense pillars verified intact')
-    console.log('Action Taken: Security gate cleared with 0 vulnerabilities detected')
-    console.log('Follow-up: No action required; defense matrix fully operational\n')
+    console.log(`Impact: ${passed} local security control checks passed`)
+    console.log('Scope: Headers, rate limiting, input sanitization, and log formatting')
+    console.log('Follow-up: Run audit:release and verify-db-release for dependency and database checks\n')
   }
 }
 

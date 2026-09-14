@@ -2,12 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import ws from 'ws'
+import { cache } from 'react'
 
 type WritableCookieStore = {
   set(name: string, value: string, options?: Record<string, unknown>): void
 }
 
-export async function createClient() {
+// React scopes this client to one render request; cookies never cross users.
+export const createClient = cache(async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(
@@ -30,7 +32,7 @@ export async function createClient() {
       },
     }
   )
-}
+})
 
 export async function createAdminClient() {
   return createServiceRoleClient()

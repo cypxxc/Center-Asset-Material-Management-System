@@ -1,35 +1,8 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
-
-export interface ProfileListItem {
-  id: string
-  full_name: string | null
-  email: string | null
-  role: 'admin' | 'staff' | 'viewer'
-  is_active: boolean
-  created_at: string
-  updated_at: string | null
-}
-
-export interface AuditLogListItem {
-  id: string
-  user_id: string | null
-  action: string
-  target_table: string
-  target_id: string | null
-  old_data: Record<string, unknown> | null
-  new_data: Record<string, unknown> | null
-  created_at: string
-  actor_name?: string | null
-  actor_email?: string | null
-  actor_role?: string | null
-  profiles?: {
-    id?: string
-    full_name?: string | null
-    email?: string | null
-    role?: string | null
-  } | null
-}
+import type { ProfileListItem, AuditLogListItem } from './types'
+import { isPostgresBackend } from '@/lib/backend'
+import { pgGetProfilesList, pgGetAuditLogsList } from './postgres-admin'
 
 export interface GetAuditLogsParams {
   q?: string
@@ -46,6 +19,7 @@ export async function getProfilesList(params: {
   page?: number
   pageSize?: number
 } = {}) {
+  if (isPostgresBackend()) return pgGetProfilesList(params)
   const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? await createAdminClient() : await createClient()
   const page = params.page || 1
   const pageSize = params.pageSize || 50
@@ -76,6 +50,7 @@ export async function getProfilesList(params: {
 }
 
 export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
+  if (isPostgresBackend()) return pgGetAuditLogsList(params)
   const profile = await getCurrentProfile()
   if (!profile || profile.role !== 'admin' || !profile.is_active) {
     return {

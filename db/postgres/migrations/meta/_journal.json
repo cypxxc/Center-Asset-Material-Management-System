@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789112102502,
+      "tag": "0000_fresh_docker_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789112160284,
+      "tag": "0001_access_audit_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789349192691,
+      "tag": "0002_enforce_depreciation_required",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789349608108,
+      "tag": "0003_login_attempt_budget",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789349705083,
+      "tag": "0004_align_registry_permissions",
+      "breakpoints": true
+    }
+  ]
+}

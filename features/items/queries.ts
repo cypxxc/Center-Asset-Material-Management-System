@@ -1,5 +1,8 @@
 import 'server-only'
 
+import { isPostgresBackend } from '@/lib/backend'
+import { getPostgresItemReferences, getPostgresItems, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems } from './postgres-queries'
+
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -10,6 +13,7 @@ import { normalizeForSearch } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { measureQuery } from '@/lib/performance'
 import {
+  ItemAuditLog,
   ItemDetail,
   ItemListResult,
   ItemListRow,
@@ -18,8 +22,6 @@ import {
   ItemType,
   ReferenceOption,
 } from './types'
-
-
 
 const PAGE_SIZE = 10
 
@@ -142,6 +144,7 @@ export async function getItemReferences(): Promise<{
   locations: ReferenceOption[]
   units: ReferenceOption[]
 }> {
+  if (isPostgresBackend()) return getPostgresItemReferences()
   return getCachedItemReferences()
 }
 
@@ -180,8 +183,8 @@ const getCachedSidebarData = unstable_cache(
   { tags: [CACHE_TAGS.SIDEBAR_DATA], revalidate: 300 }
 )
 
-
 export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
+  if (isPostgresBackend()) return getPostgresItems(params)
   const supabase = await createClient()
   const page = parsePage(params.page)
   const from = (page - 1) * PAGE_SIZE
@@ -293,6 +296,7 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
 }
 
 export async function getItemById(id: string): Promise<ItemDetail | null> {
+  if (isPostgresBackend()) return getPostgresItemById(id)
   const supabase = await createClient()
   const {
     result: { data, error },
@@ -343,19 +347,12 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
 }
 
 export const getSidebarData = cache(async function getSidebarData() {
+  if (isPostgresBackend()) return getPostgresSidebarData()
   return getCachedSidebarData()
 })
 
-export interface ItemAuditLog {
-  id: string
-  action: string
-  created_at: string
-  user_name: string
-  old_data: Record<string, unknown> | null
-  new_data: Record<string, unknown> | null
-}
-
 export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> {
+  if (isPostgresBackend()) return getPostgresItemAuditLogs(itemId)
   const profile = await getCurrentProfile()
   if (!profile || profile.role !== 'admin') {
     return []
@@ -413,6 +410,7 @@ export interface LowStockDashboardItem {
 export const getLowStockItems = cache(async function getLowStockItems(
   limit = 5
 ): Promise<LowStockDashboardItem[]> {
+  if (isPostgresBackend()) return getPostgresLowStockItems(limit)
   const supabase = await createClient()
   const {
     result: { data, error },

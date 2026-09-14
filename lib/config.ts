@@ -32,6 +32,7 @@ export const config = {
     imageMaxBytes: 5 * 1024 * 1024,
     adminSqlTimeoutMs: 30_000,
     supabaseQueryTimeoutMs: 15_000,
+    supabaseAuthTimeoutMs: 10_000,
     exportTimeoutMs: 120_000,
   },
 
@@ -59,7 +60,8 @@ export const config = {
   },
 } as const
 
-function getRequiredEnvKeys(): readonly string[] {
+function getRequiredEnvKeys(env: Record<string,string|undefined>): readonly string[] {
+  if (env.DATA_BACKEND === 'postgres') return ['DATABASE_URL','DATABASE_AUTH_URL','LOCAL_STORAGE_PATH']
   return [
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
@@ -71,6 +73,6 @@ export function validateEnvConfig(env: Record<string, string | undefined> = proc
   valid: boolean
   missing: string[]
 } {
-  const missing = getRequiredEnvKeys().filter((key) => !env[key]?.trim())
+  const missing = getRequiredEnvKeys(env).filter((key) => !env[key]?.trim())
   return { valid: missing.length === 0, missing: [...missing] }
 }

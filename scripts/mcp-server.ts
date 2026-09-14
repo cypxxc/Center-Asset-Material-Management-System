@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import { createPostgresMcp } from './mcp-postgres';
 import {
   isMcpWriteEnabled,
   parseMcpCreateItem,
@@ -32,17 +33,19 @@ function loadEnv() {
 loadEnv();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const writeEnabled = isMcpWriteEnabled(process.env);
+const postgresBackend = process.env.DATA_BACKEND === 'postgres';
+const postgres = postgresBackend ? createPostgresMcp(process.env) : null;
+const writeEnabled = postgres ? postgres.writeEnabled : isMcpWriteEnabled(process.env);
 const supabaseKey = writeEnabled
   ? process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseKey) {
+if (!postgres && (!supabaseUrl || !supabaseKey)) {
   console.error('Error: Supabase environment variables not configured in .env.local');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
+const supabase = postgres ? null! : createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false,
   },
@@ -58,6 +61,7 @@ const rl = readline.createInterface({
   output: process.stdout,
   terminal: false,
 });
+rl.on('close', () => { void postgres?.close(); });
 
 rl.on('line', async (line) => {
   try {
@@ -314,6 +318,10 @@ async function writeMcpAudit(action: string, targetId: string, values: unknown) 
 }
 
 async function executeTool(name: string, args: McpToolArguments | undefined): Promise<string> {
+  if (postgres) {
+    if (name === 'revalidate_cache') return 'PostgreSQL changes refresh through the application live updates. Reload the browser if needed.';
+    return postgres.execute(name, args);
+  }
   switch (name) {
     case 'list_items': {
       const limit = Math.min(100, Math.max(1, args?.limit || 25));

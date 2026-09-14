@@ -19,6 +19,9 @@ import { metrics } from '@/lib/metrics'
 import { retryStorage } from '@/lib/retry'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { isPostgresBackend } from '@/lib/backend'
+import { insertPostgresItem, getPostgresItemForUpdate, updatePostgresItem, mutatePostgresItems, importPostgresItems } from './postgres-actions'
+import { uploadLocalItemImage } from '@/lib/postgres/storage'
 
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
@@ -117,6 +120,7 @@ async function handleImageUpload(
     }
 
     try {
+      if (isPostgresBackend()) return { imageUrl: await uploadLocalItemImage(file), oldImageUrlToDelete: currentImageUrl }
       const fileBuffer = await file.arrayBuffer()
       const safeFilename = normalizeFilename(file.name)
       const fileExt = safeFilename.split('.').pop() || 'jpg'
@@ -217,11 +221,11 @@ async function createItemCore(
     }
   }
 
-  const supabase = await createClient()
+  const supabase = isPostgresBackend() ? null : await createClient()
   let committedResult: { itemId: string; userId: string }
   try {
     const assetNumberSource = parsed.data.item_type === 'asset' ? 'manual' : null
-    const result = await supabase
+    const result = isPostgresBackend() ? await insertPostgresItem(parsed.data) : await supabase!
       .from('items')
       .insert({
         ...parsed.data,
@@ -320,7 +324,7 @@ export async function updateItem(
   formData: FormData
 ): Promise<ItemActionState> {
   const timer = startTimer()
-  const supabase = await createClient()
+  const supabase = isPostgresBackend() ? null : await createClient()
 
   let auth
   let oldItem = null
@@ -329,7 +333,7 @@ export async function updateItem(
     // Run authentication check and database old item fetch in parallel to minimize network latency
     const [authResult, oldItemResult] = await Promise.all([
       requireEditor(),
-      supabase
+      isPostgresBackend() ? getPostgresItemForUpdate(id) : supabase!
         .from('items')
         .select('*')
         .eq('id', id)
@@ -382,7 +386,7 @@ export async function updateItem(
   }
 
   try {
-    const { error } = await supabase
+    const { error } = isPostgresBackend() ? await updatePostgresItem(id, parsed.data) : await supabase!
       .from('items')
       .update({
         ...parsed.data,
@@ -454,6 +458,7 @@ export async function updateItem(
 }
 
 export async function bulkUpdateItems(ids: string[], updates: { location_id?: string; status?: string }): Promise<ActionResponse> {
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'update', updates)
   const auth = await requireEditor()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkUpdateItems', feature: 'items', details: 'Unauthorized bulk update attempt' })
@@ -491,6 +496,7 @@ export async function bulkUpdateItems(ids: string[], updates: { location_id?: st
 }
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'delete')
   const profile = await getCurrentProfile()
   if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
@@ -539,6 +545,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
 }
 
 export async function hardDeleteItem(id: string): Promise<ActionResponse> {
+  if (isPostgresBackend()) return mutatePostgresItems([id], 'delete')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'hardDeleteItem', feature: 'items', details: 'Unauthorized hard delete attempt' })
@@ -579,6 +586,7 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 }
 
 export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse> {
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'purge')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkHardDeleteItems', feature: 'items', details: 'Unauthorized bulk hard delete attempt' })
@@ -663,7 +671,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
   }
 
   // 2. Input size limits check (5MB)
-  if (csvContent.length > 5 * 1024 * 1024) {
+  if (Buffer.byteLength(csvContent, 'utf8') > 5 * 1024 * 1024) {
     return errorResponse('ขนาดไฟล์ข้อมูลนำเข้าใหญ่เกินกำหนด (สูงสุด 5MB)')
   }
 
@@ -747,8 +755,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       return errorResponse('ไม่พบแถวข้อมูลที่สามารถนำเข้าได้')
     }
 
-    const supabase = await createClient()
-    const { data, error } = await supabase.rpc('import_items_bulk_tx', {
+    const supabase = isPostgresBackend() ? null : await createClient()
+    const { data, error } = isPostgresBackend() ? await importPostgresItems(itemsToInsert) : await supabase!.rpc('import_items_bulk_tx', {
       items_json: itemsToInsert,
       creator_id: auth.profile.id,
     })
@@ -764,8 +772,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       return errorResponse('เกิดข้อผิดพลาดขณะนำเข้าข้อมูล: ' + (res.error || 'ข้อผิดพลาดภายใน'))
     }
 
-    // Centralized Audit Log
-    await writeAuditLog({
+    // PostgreSQL records each row through database audit triggers.
+    if (!isPostgresBackend()) await writeAuditLog({
       operation: 'import',
       feature: 'items',
       userId: auth.profile.id,

@@ -3,7 +3,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { AssetTagModal, calculateCustomGridDimensions, getTypographyForHeight } from '../../components/ui/asset-tag-modal'
+import { AssetTagModal } from '../../components/ui/asset-tag-modal'
+import { calculateCustomGridDimensions, getTypographyForHeight } from '../../components/ui/asset-tag-layout'
 import type { ItemStickerData } from '../../components/ui/asset-tag-modal'
 
 const mockItem: ItemStickerData = {
@@ -66,7 +67,7 @@ test('AssetTagModal supports standard and custom presets', () => {
   assert.ok(standardBtn)
   assert.ok(customGridBtn)
 
-  // Click Standard preset (16 per page)
+  // Click Standard preset (10 per page)
   fireEvent.click(standardBtn)
   
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
@@ -350,7 +351,7 @@ test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
     })
   )
 
-  // Default is Standard preset (16 slots: 2 cols * 8 rows)
+  // Default is Standard preset (10 slots: 2 cols * 5 rows)
   // Verify Single vs Sheet preview toggle buttons exist
   const singleToggle = screen.getByRole('button', { name: 'ดูตัวอย่างแบบดวงเดี่ยว (Single)' })
   const sheetToggle = screen.getByRole('button', { name: 'ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)' })

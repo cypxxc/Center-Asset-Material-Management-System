@@ -73,6 +73,14 @@ export async function writeAuditLog(payload: AuditLogPayload) {
     return
   }
 
+  if (process.env.DATA_BACKEND === 'postgres') {
+    const { withUserDatabase } = await import('@/lib/postgres/request')
+    const { sql } = await import('drizzle-orm')
+    await withUserDatabase((tx) => tx.execute(sql`insert into public.audit_logs(user_id,action,target_table,target_id,old_data,new_data)
+      values(private.current_user_id(),${payload.operation},${payload.targetType},${payload.targetId ?? null},${JSON.stringify(payload.oldValues ?? null)}::jsonb,${JSON.stringify(payload.newValues ?? { timestamp,requestId })}::jsonb)`))
+    return
+  }
+
   const persist = async () => {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

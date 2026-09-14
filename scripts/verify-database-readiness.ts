@@ -14,6 +14,20 @@ const requiredMigrations = [
 ]
 
 async function main() {
+  if (process.env.DATA_BACKEND === 'postgres') {
+    const { Pool } = await import('pg')
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis:5000 })
+    try {
+      const tables=await pool.query("select relname from pg_class join pg_namespace n on n.oid=relnamespace where n.nspname='public' and relname=any($1::text[]) and relrowsecurity",[['profiles','items','categories','locations','units','audit_logs']])
+      if(tables.rows.length!==6) throw new Error('PostgreSQL registry tables or RLS are incomplete')
+      const role=await pool.query('select rolsuper,rolbypassrls from pg_roles where rolname=current_user')
+      if(role.rows[0].rolsuper || role.rows[0].rolbypassrls)throw new Error('PostgreSQL application role must not bypass RLS')
+      const rows=await pool.query('select id from public.profiles limit 1')
+      if(rows.rows.length)throw new Error('Anonymous request can access profiles')
+      console.log('PostgreSQL readiness passed: schema, restricted role and anonymous RLS verified.')
+      return
+    } finally { await pool.end() }
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Database readiness requires Supabase URL and service-role key')

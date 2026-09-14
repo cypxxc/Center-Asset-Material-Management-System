@@ -1,0 +1,2 @@
+ALTER TABLE "items" DROP CONSTRAINT "items_depreciation_check";--> statement-breakpoint
+ALTER TABLE "items" ADD CONSTRAINT "items_depreciation_check" CHECK (not "items"."depreciation_enabled" or coalesce(("items"."item_type"='asset' and "items"."depreciation_method"='straight_line' and "items"."depreciation_cost">1 and "items"."depreciation_useful_life_years">0 and "items"."depreciation_start_basis" in ('acquired','available','manual') and "items"."depreciation_start_date" is not null and "items"."depreciation_residual_value"=1),false));

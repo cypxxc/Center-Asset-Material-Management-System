@@ -6,7 +6,7 @@ import {
   generateReportExcel,
   REPORT_EXCEL_HEADERS,
 } from '../../lib/reports-excel-generator'
-import { ReportItemRow } from '../../features/reports/queries'
+import type { ReportItemRow } from '../../features/reports/types'
 
 const mockReportItems: ReportItemRow[] = [
   {

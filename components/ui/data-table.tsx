@@ -10,13 +10,13 @@ export const DataTable = React.forwardRef<HTMLTableElement, DataTableProps>(
   ({ className, wrapperClassName, responsive = true, children, ...props }, ref) => {
     return (
       <div className={cn(
-        "w-full border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden",
+        "w-full border border-border rounded-xl bg-card overflow-hidden",
         responsive && "overflow-x-auto",
         wrapperClassName
       )}>
         <table
           ref={ref}
-          className={cn("w-full border-collapse text-left text-xs text-slate-600", className)}
+          className={cn("w-full border-collapse text-left text-[13px] text-foreground", className)}
           {...props}
         >
           {children}
@@ -33,7 +33,7 @@ export const DataTableHeader = React.forwardRef<HTMLTableSectionElement, React.H
       <thead
         ref={ref}
         className={cn(
-          "bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider select-none sticky top-0 z-10",
+          "bg-muted border-b border-border text-xs font-medium text-muted-foreground select-none sticky top-0 z-10",
           className
         )}
         {...props}
@@ -74,7 +74,7 @@ export const DataTableBody = React.forwardRef<HTMLTableSectionElement, React.HTM
   ({ className, ...props }, ref) => (
     <tbody
       ref={ref}
-      className={cn("divide-y divide-slate-100 bg-white", className)}
+      className={cn("divide-y divide-border bg-card", className)}
       {...props}
     />
   )
@@ -91,7 +91,7 @@ export const DataTableRow = React.forwardRef<HTMLTableRowElement, DataTableRowPr
       ref={ref}
       className={cn(
         "transition-colors",
-        hoverable && "hover:bg-slate-50/80",
+        hoverable && "hover:bg-muted/60",
         className
       )}
       {...props}
@@ -110,7 +110,7 @@ export const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCel
     <td
       ref={ref}
       className={cn(
-        "px-4 py-2.5 align-middle whitespace-nowrap",
+        "px-4 py-3 align-middle whitespace-nowrap",
         isCheckbox && "w-10 px-3",
         isActions && "text-right",
         className

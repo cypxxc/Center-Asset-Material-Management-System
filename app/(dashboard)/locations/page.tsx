@@ -3,18 +3,22 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
+import { isPostgresBackend } from '@/lib/backend'
+import { getPostgresLocationsOverview } from '@/features/settings/postgres-queries'
 import { LocationsClient } from './locations-client'
 
 export default async function LocationsPage() {
-  const profile = await getCurrentProfile()
-
-  if (!profile) {
-    redirect('/login')
+  if (isPostgresBackend()) {
+    const profile = await getCurrentProfile()
+    if (!profile) redirect('/login')
+    if (!profile.is_active) redirect('/login?error=inactive')
+    const data = await getPostgresLocationsOverview()
+    return <LocationsClient {...data} />
   }
-
   const supabase = await createClient()
 
-  const [locationsResult, itemsResult] = await Promise.all([
+  const [profile, locationsResult, itemsResult] = await Promise.all([
+    getCurrentProfile(),
     supabase.from('locations').select('id, name, building, floor, room').eq('is_active', true).order('name'),
     supabase.from('items').select(`
       id,
@@ -28,6 +32,8 @@ export default async function LocationsPage() {
       location:locations(id, name)
     `).is('deleted_at', null),
   ])
+  if (!profile) redirect('/login')
+  if (!profile.is_active) redirect('/login?error=inactive')
   const { data: locations, error: locError } = locationsResult
   const { data: items, error: itemsError } = itemsResult
 

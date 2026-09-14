@@ -9,6 +9,8 @@ import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
 import { assertAdminTable } from '@/features/admin/table-policy'
+import { isPostgresBackend } from '@/lib/backend'
+import { pgGetTableData, pgUpsertTableRow, pgDeleteTableRow, pgExportDatabaseData, pgImportDatabaseData, pgCreateAuthUser, pgDeleteAuthUser, pgResetAuthPassword, pgUpdateUserEmail, pgUpdateUserProfile } from './postgres-admin'
 
 
 import { isAdmin } from '@/lib/permissions'
@@ -30,6 +32,7 @@ export async function requireAdmin() {
 }
 
 export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
+  if (isPostgresBackend()) return pgGetTableData(tableName, page, pageSize)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, data: [], count: 0 }
   const safeTable = assertAdminTable(tableName, 'read')
@@ -52,6 +55,7 @@ export async function getTableData(tableName: string, page: number = 1, pageSize
 }
 
 export async function upsertTableRow(tableName: string, rowId: string | null, payload: Record<string, unknown>) {
+  if (isPostgresBackend()) return pgUpsertTableRow(tableName, rowId, payload)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
   const safeTable = assertAdminTable(tableName, 'write')
@@ -96,7 +100,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     })
 
     revalidatePath('/admin/db-panel')
-    return { success: true, data: data?.[0] }
+    return { error: undefined, success: true, data: data?.[0] }
   } else {
     // Insert
     const { data, error } = await supabase
@@ -120,11 +124,12 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     }
 
     revalidatePath('/admin/db-panel')
-    return { success: true, data: data?.[0] }
+    return { error: undefined, success: true, data: data?.[0] }
   }
 }
 
 export async function deleteTableRow(tableName: string, rowId: string) {
+  if (isPostgresBackend()) return pgDeleteTableRow(tableName, rowId)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
   const safeTable = assertAdminTable(tableName, 'delete')
@@ -155,12 +160,14 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   })
 
   revalidatePath('/admin/db-panel')
-  return { success: true }
+  return { error: undefined, success: true }
 }
 
 export async function runAdminSql(sqlQuery: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
+
+  if (isPostgresBackend()) return { error: 'Raw SQL is disabled for the standalone PostgreSQL backend. Use reviewed database migrations for maintenance.' }
 
   if (process.env.ADMIN_SQL_ENABLED !== 'true') {
     return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
@@ -185,6 +192,7 @@ export async function runAdminSql(sqlQuery: string) {
 }
 
 export async function exportDatabaseData() {
+  if (isPostgresBackend()) return pgExportDatabaseData()
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, backup: null }
 
@@ -208,6 +216,7 @@ export async function exportDatabaseData() {
   }
 
   return {
+    error: undefined,
     backup: {
       __meta: { version: 1, exportedAt: new Date().toISOString(), tables },
       ...backup,
@@ -215,14 +224,15 @@ export async function exportDatabaseData() {
   }
 }
 
-export async function importDatabaseData(backupJsonStr: string) {
+export async function importDatabaseData(backupJsonStr: string): Promise<{ success?: boolean; error?: string; tablesRestored?: string[] }> {
+  if (isPostgresBackend()) return pgImportDatabaseData(backupJsonStr)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
   // This RPC authorizes with auth.uid(); keep the administrator's session.
   const supabase = await createClient()
   try {
-    if (backupJsonStr.length > 25 * 1024 * 1024) {
+    if (Buffer.byteLength(backupJsonStr, 'utf8') > 25 * 1024 * 1024) {
       return { error: 'Backup file is too large. Maximum size is 25 MB.' }
     }
 
@@ -266,6 +276,7 @@ export async function createAuthUser(payload: {
   role: 'admin' | 'staff' | 'viewer'
   is_active: boolean
 }) {
+  if (isPostgresBackend()) return pgCreateAuthUser(payload)
   const auth = await requireAdmin()
   const trace = await beginActionTrace({
     feature: 'admin',
@@ -384,7 +395,7 @@ export async function createAuthUser(payload: {
 
     revalidatePath('/admin/db-panel')
     trace.complete('success', { userId })
-    return { success: true, userId }
+    return { error: undefined, success: true, userId }
   } catch (err) {
     trace.complete('failure')
     const result = await handleActionError(err, 'createAuthUser', 'admin', auth.profile?.id)
@@ -397,6 +408,7 @@ export async function createAuthUser(payload: {
 // ============================================================
 
 export async function deleteAuthUser(userId: string) {
+  if (isPostgresBackend()) return pgDeleteAuthUser(userId)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
@@ -421,7 +433,7 @@ export async function deleteAuthUser(userId: string) {
   })
 
   revalidatePath('/admin/db-panel')
-  return { success: true }
+  return { error: undefined, success: true }
 }
 
 // ============================================================
@@ -429,6 +441,7 @@ export async function deleteAuthUser(userId: string) {
 // ============================================================
 
 export async function resetAuthPassword(userId: string, newPassword: string) {
+  if (isPostgresBackend()) return pgResetAuthPassword(userId, newPassword)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
@@ -462,7 +475,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
     })
 
     revalidatePath('/admin/db-panel')
-    return { success: true, data }
+    return { error: undefined, success: true, data }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     logger.error({ operation: 'resetAuthPassword', feature: 'admin', details: 'unexpected error' }, err)
@@ -475,6 +488,7 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
 // ============================================================
 
 export async function updateUserEmail(userId: string, newEmail: string) {
+  if (isPostgresBackend()) return pgUpdateUserEmail(userId, newEmail)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
@@ -515,7 +529,7 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     })
 
     revalidatePath('/admin/db-panel')
-    return { success: true, data }
+    return { error: undefined, success: true, data }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     logger.error({ operation: 'updateUserEmail', feature: 'admin', details: 'unexpected error' }, err)
@@ -535,6 +549,7 @@ export async function updateUserProfileRoleAndStatus(
     full_name?: string
   }
 ) {
+  if (isPostgresBackend()) return pgUpdateUserProfile(userId, payload)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
 
@@ -627,5 +642,5 @@ export async function updateUserProfileRoleAndStatus(
   revalidatePath('/admin/db-panel')
   revalidatePath('/', 'layout')
 
-  return { success: true, profile: data?.[0] }
+  return { error: undefined, success: true, profile: data?.[0] }
 }

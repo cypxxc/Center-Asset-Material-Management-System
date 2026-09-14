@@ -1,6 +1,38 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNodeTestArgs, runTestFile, type SpawnChild } from './run-tests';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, relative } from 'node:path';
+import { createNodeTestArgs, findTestFiles, runTestFile, type SpawnChild } from './run-tests';
+
+test('discovers colocated and centralized tests without running browser journeys', async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), 'camms-test-discovery-'));
+  const expected = [
+    'components/ui/crop.test.tsx',
+    'components/ui/layout.test.ts',
+    'features/items/schema.test.ts',
+    'features/items/form.test.tsx',
+    'tests/unit/utils.test.ts',
+    'tests/component/button.test.tsx',
+    'tests/integration/items.test.ts',
+    'lib/date.test.ts',
+    'scripts/runner.test.ts',
+  ];
+  try {
+    for (const file of [...expected, 'tests/e2e/journey.test.ts', 'scratch/draft.test.ts']) {
+      const target = join(projectRoot, file);
+      await mkdir(join(target, '..'), { recursive: true });
+      await writeFile(target, '');
+    }
+    const discovered = await findTestFiles(projectRoot);
+    assert.deepEqual(
+      discovered.map((file) => relative(projectRoot, file).replaceAll('\\', '/')).sort(),
+      [...expected].sort(),
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
 
 type Listener = (...args: never[]) => void;
 

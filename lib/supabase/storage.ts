@@ -1,5 +1,6 @@
 import { createAdminClient, createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logging'
+import { isPostgresBackend } from '@/lib/backend'
 
 export function parseStoragePathFromUrl(imageUrl: string | null | undefined): string | null {
   if (!imageUrl || typeof imageUrl !== 'string') return null
@@ -19,6 +20,10 @@ export async function resolvePrivateItemImageUrl(
   imageUrl: string | null | undefined,
   createSignedUrl: (path: string, expiresIn: number) => Promise<SignedUrlResult>
 ): Promise<string | null> {
+  if (isPostgresBackend()) {
+    const { resolveLocalItemImageUrl } = await import('@/lib/postgres/storage')
+    return resolveLocalItemImageUrl(imageUrl)
+  }
   const filePath = parseStoragePathFromUrl(imageUrl)
   if (!filePath) return null
 
@@ -27,6 +32,10 @@ export async function resolvePrivateItemImageUrl(
 }
 
 export async function deleteItemStorageImage(imageUrl: string | null | undefined): Promise<{ success: boolean; error?: string }> {
+  if (isPostgresBackend()) {
+    const { deleteLocalItemImage } = await import('@/lib/postgres/storage')
+    return deleteLocalItemImage(imageUrl)
+  }
   const filePath = parseStoragePathFromUrl(imageUrl)
   if (!filePath) return { success: true }
 

@@ -8,7 +8,7 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
-import { ReportItemRow } from '../queries'
+import type { ReportItemRow } from '../types'
 import { recordReportExportAudit, getExportReportItems } from '../actions'
 import { generateReportPdf } from '@/lib/reports-pdf-generator'
 import { formatDate } from '@/lib/date'
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/data-table'
 
 interface ReportsListProps {
+  preparedBy?: string
   items: ReportItemRow[]
   totalCount: number
   totalQuantity: number
@@ -55,6 +56,7 @@ interface ReportsListProps {
 }
 
 export function ReportsList({
+  preparedBy,
   items,
   totalCount,
   totalQuantity,
@@ -226,15 +228,24 @@ export function ReportsList({
   return (
     <>
       <RealtimeRefreshBridge tables={['items', 'categories', 'locations', 'units']} />
-    <PageContainer className="print:bg-white print:p-0">
+    <PageContainer maxWidth="full" className="h-auto overflow-visible print:bg-white print:p-0">
       
       {/* Printable Report Header */}
       <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานครุภัณฑ์สํานักงานประจําปี</h1>
-            <p className="text-xs text-muted-foreground print:text-slate-500 mt-1">สำนักงานใหญ่ แผนกเทคโนโลยีสารสนเทศและบริหารจัดการทั่วไป</p>
-            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()} | จัดเตรียมโดย: เจ้าหน้าที่พัสดุ</p>
+            <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนพัสดุ</h1>
+            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()}{preparedBy ? ` | จัดเตรียมโดย: ${preparedBy}` : ''}</p>
+            <p className="mt-2 text-xs text-foreground">
+              เงื่อนไข: {[
+                searchParams.q && `คำค้น: ${searchParams.q}`,
+                searchParams.type && `ประเภท: ${ITEM_TYPE_LABELS[searchParams.type as keyof typeof ITEM_TYPE_LABELS] || searchParams.type}`,
+                searchParams.status && `สถานะ: ${ITEM_STATUS_LABELS[searchParams.status as keyof typeof ITEM_STATUS_LABELS] || searchParams.status}`,
+                searchParams.category_id && `หมวดหมู่: ${categories.find((category) => category.id === searchParams.category_id)?.name || searchParams.category_id}`,
+                searchParams.location_id && `สถานที่: ${locations.find((location) => location.id === searchParams.location_id)?.name || searchParams.location_id}`,
+              ].filter(Boolean).join(' · ') || 'ทั้งหมด'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">หน้าที่ {currentPage} จาก {Math.max(1, totalPages)} · แสดง {items.length} จาก {totalCount} รายการที่ตรงเงื่อนไข</p>
           </div>
           <div className="text-right">
             <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS Portal</h2>
@@ -250,7 +261,7 @@ export function ReportsList({
         title={
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <span>รายงานสรุปและวิเคราะห์ผล (Inventory Reports)</span>
+            <span>รายงานพัสดุ</span>
           </div>
         }
         subtitle="สรุปมูลค่าครุภัณฑ์ ตรวจสอบสถานะ และส่งออกข้อมูลเป็นไฟล์ Excel/CSV"

@@ -2,7 +2,6 @@ import { logger } from '@/lib/logging'
 import { metrics } from '@/lib/metrics'
 import { config } from '@/lib/config'
 import { startTimer, type Timer } from '@/lib/performance'
-import { isApplicationError } from '@/lib/errors'
 import { getRequestContext, withTraceContext, type RequestContext } from './context'
 
 export type ActionStatus = 'success' | 'failure'
@@ -69,53 +68,7 @@ export async function beginActionTrace(meta: ActionTraceMeta): Promise<ActionTra
   }
 }
 
-/**
- * Wrap an async server action body with tracing, metrics, and error logging.
- * Re-throws NEXT_REDIRECT and ApplicationError; converts unexpected throws via caller.
- */
-export async function traceAction<T>(
-  meta: ActionTraceMeta,
-  fn: (trace: ActionTraceHandle) => Promise<T>,
-  options?: {
-    classifyResult?: (result: T) => ActionStatus
-  },
-): Promise<T> {
-  const trace = await beginActionTrace(meta)
-  try {
-    const result = await fn(trace)
-    const status = options?.classifyResult?.(result) ?? 'success'
-    trace.complete(status)
-    return result
-  } catch (err) {
-    if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) {
-      throw err
-    }
-
-    const status: ActionStatus = 'failure'
-    trace.complete(status, isApplicationError(err) ? { code: err.code } : undefined)
-
-    metrics.counter('server_action.failure', 1, {
-      feature: meta.feature,
-      action: meta.action,
-    })
-
-    logger.error(
-      withTraceContext(trace.context, {
-        operation: meta.action,
-        feature: meta.feature,
-        action: meta.action,
-        userId: meta.userId,
-        status: 'failure',
-        latency: trace.timer.stop(),
-      }),
-      err,
-    )
-
-    throw err
-  }
-}
-
-/** Classify ActionResponse-style results for traceAction. */
+/** Classify ActionResponse-style results when completing an action trace. */
 export function classifyActionResponse(result: {
   error?: string
   message?: string

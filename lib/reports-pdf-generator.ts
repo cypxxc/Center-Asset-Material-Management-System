@@ -1,4 +1,4 @@
-import { ReportItemRow } from '@/features/reports/queries'
+import type { ReportItemRow } from '@/features/reports/types'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { formatDate } from '@/lib/date'
 

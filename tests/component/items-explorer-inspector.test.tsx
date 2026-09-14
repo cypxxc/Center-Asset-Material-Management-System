@@ -98,6 +98,19 @@ test('ItemsExplorerClient renders table rows with full width', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
+test('Type navigation preserves search filters and resets category and pagination', () => {
+  renderComponent({ ...defaultProps, params: { q: 'Dell', type: 'asset', status: 'active', location_id: 'loc-1', category_id: 'cat-1', page: '3' } })
+  const navigation = within(screen.getByRole('navigation', { name: 'ประเภทพัสดุ' }))
+  assert.equal(navigation.getByRole('link', { name: 'ครุภัณฑ์' }).getAttribute('aria-current'), 'page')
+  const destination = new URL(navigation.getByRole('link', { name: 'วัสดุ' }).getAttribute('href')!, 'http://localhost')
+  assert.equal(destination.searchParams.get('type'), 'material')
+  assert.equal(destination.searchParams.get('q'), 'Dell')
+  assert.equal(destination.searchParams.get('status'), 'active')
+  assert.equal(destination.searchParams.get('location_id'), 'loc-1')
+  assert.equal(destination.searchParams.get('category_id'), null)
+  assert.equal(destination.searchParams.get('page'), '1')
+})
+
 test('Clicking an item row opens the Slide-Over Inspector Drawer with correct metadata', () => {
   renderComponent()
 

@@ -53,6 +53,8 @@ export function getMissingEnvVars(env: Record<string, string | undefined> = proc
     loadEnvFromFile(envFile, mergedEnv)
   }
 
+  if (mergedEnv.DATA_BACKEND === 'postgres') return ['DATABASE_URL','DATABASE_AUTH_URL','LOCAL_STORAGE_PATH'].filter((key) => !mergedEnv[key]?.trim())
+
   if (mergedEnv.CI === 'true') {
     for (const key of requiredEnv) {
       if (!mergedEnv[key] || !mergedEnv[key]?.trim()) {
@@ -93,6 +95,17 @@ export function verifyEnv(env: Record<string, string | undefined> = process.env 
 
   const isProd = mergedEnv.NODE_ENV === 'production'
   const isCI = mergedEnv.CI === 'true'
+
+  if (mergedEnv.DATA_BACKEND === 'postgres') {
+    for (const key of ['DATABASE_URL','DATABASE_AUTH_URL']) {
+      try {
+        const url = new URL(mergedEnv[key] ?? '')
+        if (!['postgres:','postgresql:'].includes(url.protocol) || !url.hostname || !url.username || !url.password || url.pathname === '/') throw new Error('Invalid PostgreSQL URL')
+      } catch { console.error(`Invalid PostgreSQL connection setting: ${key}`); process.exit(1) }
+    }
+    console.log('PostgreSQL environment check passed.')
+    return
+  }
 
   const supabaseUrl = mergedEnv.NEXT_PUBLIC_SUPABASE_URL || ''
   const anonKey = mergedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''

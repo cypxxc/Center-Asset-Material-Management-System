@@ -1,17 +1,19 @@
 # CAMMS Portal — Center Asset & Material Management System
 
-A production-ready, Next.js 16 + Supabase internal web application designed for tracking office assets, supplies, materials, and equipment. Built with a Thai-first UI, strict role-based access control, dark mode support, and comprehensive audit logging.
+A Next.js 16 internal web application for tracking office assets and materials, supporting Supabase or standalone Docker PostgreSQL with Drizzle ORM. Built with a Thai-first UI, role-based access control, dark mode support, and audit logging.
+
+For a fresh Docker installation without Supabase, follow [PostgreSQL + Drizzle setup and operations](docs/postgres/README.md). This mode owns authentication, private uploads, live updates, and backups locally. The Supabase setup below remains available for that backend.
 
 ---
 
 ## 🌟 Key Features
 
 - **Item & Inventory Registry**: Complete CRUD management for office assets and materials with custom asset numbers, serial numbers, locations, categories, and units.
-- **Image Management**: Integrated client-side image cropping and compression dialog before Supabase Storage upload.
+- **Image Management**: Client-side cropping and compression, with Supabase Storage or authenticated local file storage depending on the selected backend.
 - **Permanent Item Deletion**: Authorized deletion permanently removes items with audit logging.
 - **Reports & Export System**: Full dataset query engine with downloadable **Excel (.xlsx)** and **PDF** report generators.
 - **Settings & Metadata Control**: Dynamic management of categories, locations, units, and active profile roles (Admin, Staff, Viewer).
-- **Asset Number Templates**: Administrators can maintain reusable static asset-number templates. Staff select a template while registering an asset, review the generated preview, and edit the final number before saving; duplicate numbers are rejected.
+- **Asset Numbers**: Enter and edit asset numbers directly when registering or updating assets; duplicate numbers are rejected.
 - **Realtime Updates**: Registry, dashboard, reports, audit-log, and database-management views refresh automatically when shared data changes.
 - **Dark Mode & Responsive UI**: Built with 100% semantic CSS theme tokens (`bg-card`, `border-border`, `text-primary`, etc.) for automatic light/dark mode transitions and route-level animated loading skeletons.
 - **Role-Based Access Control (RBAC)**:
@@ -19,18 +21,18 @@ A production-ready, Next.js 16 + Supabase internal web application designed for 
   - **Staff**: Operational access to create and update items and reference metadata.
   - **Viewer**: Read-only browsing across items, reports, and dashboards.
 - **Unicode & i18n Hardening**: Full NFC normalization, Unicode-aware validation, UTF-8 BOM handling, and database ICU Thai collation (`th-TH-x-icu`).
-- **Health & Monitoring**: Health check endpoints (`/api/health`, `/api/health/readiness`, `/api/health/liveness`, `/api/health/status`) and real-time performance bundle budget enforcement.
+- **Health & Monitoring**: Health check endpoints (`/api/health/readiness`, `/api/health/liveness`, `/api/health/status`) and real-time performance bundle budget enforcement.
 - **Local MCP Integration**: Built-in Model Context Protocol server for AI assistant interaction (`npm run mcp`).
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 16.2 (App Router, Turbopack, `proxy.ts` middleware)
+- **Framework**: Next.js 16.3.4 (App Router, webpack, `proxy.ts` middleware)
 - **UI & Styling**: React 19, Tailwind CSS v4, Radix UI (`radix-ui`), Lucide Icons
 - **Database & Auth**: Supabase PostgreSQL, Supabase Auth, Row Level Security (RLS)
 - **Validation**: Zod v4 schemas with custom Unicode preprocessors
-- **Export Engines**: ExcelJS, pdfmake / custom canvas PDF generator
+- **Export Engines**: ExcelJS and browser print-to-PDF reports
 - **Runtime & Quality Gate**: Node.js 24.x LTS, TypeScript 5.x (Strict), ESLint 9 (Flat Config), Playwright
 
 ---
@@ -72,10 +74,10 @@ npm run dev
 
 | Command | Description |
 | :--- | :--- |
-| `npm run check` | **Full Quality Gate**: Validates env, runs 224+ unit tests, lints code, and builds for production |
-| `npm run dev` | Starts Next.js dev server with Turbopack |
+| `npm run check` | **Full Quality Gate**: Validates env, runs unit/component/integration tests, lints code, and builds for production |
+| `npm run dev` | Starts Next.js dev server with webpack |
 | `npm run build` | Compiles production build and runs performance bundle budget checks |
-| `npm run typecheck` | Strict TypeScript check with unused locals & parameters validation |
+| `npm run typecheck` | Generates route types, then runs strict TypeScript and unused-code checks |
 | `npm run lint` | Runs ESLint (flat config) |
 | `npm test` | Runs complete test suite via Node test runner (`tsx`) |
 | `npm run verify-env` | Validates required Supabase environment variables |
@@ -121,8 +123,4 @@ Migration execution is tracked atomically in the `public.app_migrations` databas
 
 ## 📄 License & Documentation
 
-For detailed architectural decisions, operations, and recovery guides, see:
-- [AGENTS.md](file:///D:/omni-asset/AGENTS.md) — Developer & agent guidelines
-- [DEPLOYMENT.md](file:///D:/omni-asset/DEPLOYMENT.md) — Deployment & migration instructions
-- [PRODUCT.md](file:///D:/omni-asset/PRODUCT.md) — Functional requirements & scope
-- [SECURITY.md](file:///D:/omni-asset/SECURITY.md) — Security policies & environment governance
+See [the cleanup audit](docs/cleanup/README.md) for maintenance findings, verification results, and intentionally retained code. Repository guidance is in `AGENTS.md` when present in your checkout.

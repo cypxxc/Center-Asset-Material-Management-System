@@ -157,6 +157,7 @@ function formatCellValue(row: Record<string, unknown>, colName: string, selected
 }
 
 export default function DBPanelClient() {
+  const postgresMode = process.env.NEXT_PUBLIC_DATA_BACKEND === 'postgres'
   useRealtimeRefresh(['items', 'categories', 'locations', 'units', 'audit_logs'])
   const [activeTab, setActiveTab] = useState<TabId>('browser')
   
@@ -425,7 +426,15 @@ export default function DBPanelClient() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!confirm('คำเตือน: การกู้คืนข้อมูลนี้จะทำการอัปเดต/เขียนทับ (Upsert) ข้อมูลเดิมที่มีอยู่ในฐานข้อมูลทั้งหมด คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?')) {
+    if (file.size > 25 * 1024 * 1024) {
+      setBackupResult({ type: 'error', message: 'ขนาดไฟล์กู้คืนต้องไม่เกิน 25 MB' })
+      e.target.value = ''
+      return
+    }
+
+    if (!confirm(postgresMode
+      ? 'การกู้คืนจะแทนที่รายการพัสดุ หมวดหมู่ สถานที่ และหน่วยนับทั้งหมดด้วยข้อมูลในไฟล์ โดยเก็บบัญชีผู้ใช้และประวัติเดิมไว้ ต้องการดำเนินการต่อหรือไม่?'
+      : 'คำเตือน: การกู้คืนข้อมูลนี้จะทำการอัปเดต/เขียนทับ (Upsert) ข้อมูลเดิมที่มีอยู่ในฐานข้อมูลทั้งหมด คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?')) {
       e.target.value = ''
       return
     }
@@ -434,30 +443,24 @@ export default function DBPanelClient() {
     setBackupResult(null)
 
     try {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        const jsonStr = event.target?.result as string
-        if (!jsonStr) {
-          setIsBackupLoading(false)
-          setBackupResult({ type: 'error', message: 'ไม่สามารถอ่านไฟล์กู้คืนได้' })
-          return
-        }
-
-        const res = await importDatabaseData(jsonStr)
-        setIsBackupLoading(false)
-        if (res.success) {
-          setBackupResult({ type: 'success', message: 'กู้คืนฐานข้อมูลและสร้างประวัติบันทึกการทำงานเรียบร้อยแล้ว' })
-          if (activeTab === 'browser') fetchTable(selectedTable, 1)
-        } else {
-          setBackupResult({ type: 'error', message: res.error || 'การกู้คืนฐานข้อมูลล้มเหลว' })
-        }
+      const jsonStr = await file.text()
+      if (!jsonStr) {
+        setBackupResult({ type: 'error', message: 'ไม่สามารถอ่านไฟล์กู้คืนได้' })
+        return
       }
-      reader.readAsText(file)
+
+      const res = await importDatabaseData(jsonStr)
+      if (res.success) {
+        setBackupResult({ type: 'success', message: 'กู้คืนฐานข้อมูลและสร้างประวัติบันทึกการทำงานเรียบร้อยแล้ว' })
+        if (activeTab === 'browser') fetchTable(selectedTable, 1)
+      } else {
+        setBackupResult({ type: 'error', message: res.error || 'การกู้คืนฐานข้อมูลล้มเหลว' })
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
-      setIsBackupLoading(false)
       setBackupResult({ type: 'error', message: errMsg })
     } finally {
+      setIsBackupLoading(false)
       e.target.value = ''
     }
   }
@@ -928,7 +931,7 @@ export default function DBPanelClient() {
                     </div>
                     <h4 className="text-xs font-bold text-white uppercase tracking-wider">กู้คืนฐานข้อมูล (Restore)</h4>
                     <p className="text-[10px] text-slate-500 leading-relaxed">
-                      อัปโหลดไฟล์ JSON Backup ที่สร้างจากแผงควบคุมนี้ ระบบจะเขียนทับและบันทึกประวัติการเปลี่ยนแปลงลงฐานข้อมูลโดยอัตโนมัติ
+                      {postgresMode ? 'แทนที่ข้อมูลพัสดุ หมวดหมู่ สถานที่ และหน่วยนับจากไฟล์ JSON โดยเก็บบัญชีผู้ใช้และประวัติเดิมไว้ ไฟล์นี้ไม่รวมรหัสผ่านและรูปภาพ' : 'อัปโหลดไฟล์ JSON Backup ที่สร้างจากแผงควบคุมนี้ ระบบจะเขียนทับและบันทึกประวัติการเปลี่ยนแปลงลงฐานข้อมูลโดยอัตโนมัติ'}
                     </p>
                   </div>
 

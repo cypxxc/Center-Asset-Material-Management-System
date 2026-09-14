@@ -4,6 +4,10 @@ import * as React from 'react'
 import { FormInput } from '@/components/ui/form'
 import { formatNumberWithCommas, stripCommas } from '@/lib/number-format'
 
+const subscribeToHydration = () => () => {}
+const hydratedSnapshot = () => true
+const serverSnapshot = () => false
+
 export interface FormattedNumberInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'defaultValue' | 'value'> {
   allowDecimals?: boolean
@@ -16,6 +20,9 @@ export const FormattedNumberInput = React.forwardRef<
   FormattedNumberInputProps
 >(({ allowDecimals = false, defaultValue, value, name, onChange, ...props }, ref) => {
   const localRef = React.useRef<HTMLInputElement>(null)
+  // The visible field has no name: only its hidden counterpart is submitted.
+  // Until hydration attaches onChange, edits would silently submit the old value.
+  const hydrated = React.useSyncExternalStore(subscribeToHydration, hydratedSnapshot, serverSnapshot)
 
   React.useImperativeHandle(ref, () => localRef.current as HTMLInputElement)
 
@@ -110,6 +117,7 @@ export const FormattedNumberInput = React.forwardRef<
         value={displayValue}
         onChange={handleChange}
         {...props}
+        disabled={props.disabled || !hydrated}
       />
     </>
   )

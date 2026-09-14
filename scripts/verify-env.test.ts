@@ -7,7 +7,7 @@ import path from 'node:path'
 import { getMissingEnvVars, verifyEnv } from './verify-env'
 
 test('uses safe fallback values for CI when Supabase secrets are missing', () => {
-  const missing = getMissingEnvVars({ CI: 'true' } as unknown as NodeJS.ProcessEnv)
+  const missing = getMissingEnvVars({ CI: 'true', DATA_BACKEND: 'supabase' } as unknown as NodeJS.ProcessEnv)
 
   assert.deepEqual(missing, [])
 })
@@ -39,6 +39,7 @@ test('verifyEnv rejects invalid URL formats', () => {
 
   try {
     verifyEnv({
+      DATA_BACKEND: 'supabase',
       NEXT_PUBLIC_SUPABASE_URL: 'invalid-url',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'valid-long-anon-key-string-value-here',
       SUPABASE_SERVICE_ROLE_KEY: 'valid-long-service-key-string-value-here',
@@ -58,6 +59,7 @@ test('verifyEnv rejects short tokens', () => {
 
   try {
     verifyEnv({
+      DATA_BACKEND: 'supabase',
       NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'short',
       SUPABASE_SERVICE_ROLE_KEY: 'valid-long-service-key-string-value-here',
@@ -69,3 +71,6 @@ test('verifyEnv rejects short tokens', () => {
   }
 })
 
+test('PostgreSQL validation requires its own settings without Supabase', () => {
+  assert.deepEqual(getMissingEnvVars({ DATA_BACKEND: 'postgres', DATABASE_URL: 'postgres://app:password@localhost/db', DATABASE_AUTH_URL: 'postgres://auth:password@localhost/db', LOCAL_STORAGE_PATH: './files' }), [])
+})

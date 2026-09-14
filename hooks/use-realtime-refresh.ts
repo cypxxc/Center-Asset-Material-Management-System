@@ -13,6 +13,16 @@ export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true) {
 
   useEffect(() => {
     if (!enabled || !tableKey) return
+    if (process.env.NEXT_PUBLIC_DATA_BACKEND === 'postgres') {
+      const events = new EventSource(`/api/events?tables=${encodeURIComponent(tableKey)}`)
+      const refresh = () => {
+        if (refreshTimer.current) clearTimeout(refreshTimer.current)
+        refreshTimer.current = setTimeout(() => router.refresh(),150)
+      }
+      events.onopen = refresh
+      events.onmessage = (message) => { if (message.data !== 'heartbeat') refresh() }
+      return () => { events.close(); if (refreshTimer.current) clearTimeout(refreshTimer.current) }
+    }
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
 
     router.refresh()

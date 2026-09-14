@@ -13,6 +13,8 @@ import { handleActionError } from '@/lib/error-handler'
 import { logger } from '@/lib/logging'
 
 import { canManageSettings, isAdmin } from '@/lib/permissions'
+import { isPostgresBackend } from '@/lib/backend'
+import { mutatePostgresMetadata, updatePostgresSettingsProfile } from './postgres-actions'
 
 type MetadataKind = 'category' | 'location' | 'unit'
 
@@ -100,6 +102,7 @@ function revalidateSettings() {
 }
 
 export async function createCategory(formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('categories', 'create', formData)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -158,6 +161,7 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function updateCategory(id: string, formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('categories', 'update', formData, id)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -225,6 +229,7 @@ export async function updateCategory(id: string, formData: FormData) {
 }
 
 export async function createLocation(formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('locations', 'create', formData)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -287,6 +292,7 @@ export async function createLocation(formData: FormData) {
 }
 
 export async function updateLocation(id: string, formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('locations', 'update', formData, id)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -358,6 +364,7 @@ export async function updateLocation(id: string, formData: FormData) {
 }
 
 export async function createUnit(formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('units', 'create', formData)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -415,6 +422,7 @@ export async function createUnit(formData: FormData) {
 }
 
 export async function updateUnit(id: string, formData: FormData) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('units', 'update', formData, id)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -481,6 +489,7 @@ export async function updateUnit(id: string, formData: FormData) {
 }
 
 export async function updateProfile(id: string, formData: FormData) {
+  if (isPostgresBackend()) return updatePostgresSettingsProfile(id, formData)
   const timer = startTimer()
   await requireAdmin()
   const currentProfile = await getCurrentProfile()
@@ -560,6 +569,7 @@ async function ensureCanDelete(kind: MetadataKind, id: string) {
 }
 
 export async function deleteCategory(id: string) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('categories', 'delete', undefined, id)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -618,6 +628,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function deleteLocation(id: string) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('locations', 'delete', undefined, id)
   const timer = startTimer()
   await requireSettingsManager()
 
@@ -676,6 +687,7 @@ export async function deleteLocation(id: string) {
 }
 
 export async function deleteUnit(id: string) {
+  if (isPostgresBackend()) return mutatePostgresMetadata('units', 'delete', undefined, id)
   const timer = startTimer()
   await requireSettingsManager()
 

@@ -79,3 +79,31 @@ test('FormattedNumberInput filters out invalid characters', () => {
 
   assert.equal(input.value, '1,000');
 });
+
+// The visible value must not accept edits before its hidden submission value can sync.
+test('FormattedNumberInput waits for hydration before enabling editing', async () => {
+  const { renderToString } = await import('react-dom/server');
+  const { hydrateRoot } = await import('react-dom/client');
+  const { act } = await import('@testing-library/react');
+  const element = React.createElement(FormattedNumberInput, { name: 'quantity', defaultValue: 2 });
+  const container = document.createElement('div');
+  container.innerHTML = renderToString(element);
+  document.body.appendChild(container);
+  const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+  let root!: ReturnType<typeof hydrateRoot>;
+  try {
+    assert.equal(input.disabled, true);
+    await act(async () => { root = hydrateRoot(container, element); });
+    assert.equal(input.disabled, false);
+    fireEvent.change(input, { target: { value: '3' } });
+    assert.equal((container.querySelector('input[name=quantity]') as HTMLInputElement).value, '3');
+  } finally {
+    if (root) await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+test('FormattedNumberInput respects an explicitly disabled control after hydration', () => {
+  render(React.createElement(FormattedNumberInput, { defaultValue: 2, disabled: true }));
+  assert.equal((screen.getByRole('textbox') as HTMLInputElement).disabled, true);
+});

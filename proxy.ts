@@ -2,11 +2,14 @@ import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { applySecurityHeaders } from '@/lib/security-headers'
 import { ensureTraceHeaders } from '@/lib/tracing'
+import { isPostgresBackend } from '@/lib/backend'
 
 export async function proxy(request: NextRequest) {
   ensureTraceHeaders(request.headers)
 
-  const response = await updateSession(request)
+  const response = isPostgresBackend()
+    ? await (await import('@/lib/postgres/middleware')).updatePostgresSession(request)
+    : await updateSession(request)
 
   return applySecurityHeaders(request, response)
 }

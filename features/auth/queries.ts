@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { isPostgresBackend } from '@/lib/backend'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { measureQuery } from '@/lib/performance'
 import { getDevelopmentSessionUser } from './dev-auth'
@@ -25,6 +26,7 @@ const getCurrentUser = cache(async function getCurrentUser() {
 })
 
 export const getCurrentProfile = cache(async function getCurrentProfile() {
+  if (isPostgresBackend()) return (await import('@/lib/postgres/session')).getPostgresProfile()
   const user = await getCurrentUser()
   if (!user) return null
 

@@ -15,6 +15,7 @@ async function runMcp(requests: unknown[], allowWrite: boolean): Promise<JsonRpc
     cwd: process.cwd(),
     env: {
       ...process.env,
+      DATA_BACKEND: 'supabase',
       NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
       CAMMS_MCP_ALLOW_WRITE: allowWrite ? 'true' : 'false',

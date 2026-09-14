@@ -90,11 +90,22 @@ export async function checkReadiness(): Promise<ReadinessResult> {
 
   const [database, storage] = await Promise.all([
     timedCheck(async () => {
+      if (process.env.DATA_BACKEND === 'postgres') {
+        const { getDatabase } = await import('@/lib/postgres/db')
+        const { sql } = await import('drizzle-orm')
+        await getDatabase().execute(sql`select 1 from public.profiles limit 1`)
+        return
+      }
       const supabase = createServiceRoleClient()
       const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
       if (error) throw error
     }),
     timedCheck(async () => {
+      if (process.env.DATA_BACKEND === 'postgres') {
+        const { access, constants } = await import('node:fs/promises')
+        await access(process.env.LOCAL_STORAGE_PATH ?? './.local-storage', constants.R_OK | constants.W_OK)
+        return
+      }
       const supabase = createServiceRoleClient()
       const { error } = await supabase.storage.from(config.supabase.storageBucket).list('', { limit: 1 })
       if (error) throw error

@@ -45,6 +45,7 @@ yarn-error.log*
 .next-dev.log
 .next-dev.err.log
 /.cache/
+/.local-storage/
 /.turbo/
 desktop.ini
 

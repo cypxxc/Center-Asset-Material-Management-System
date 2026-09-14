@@ -1,8 +1,11 @@
 import 'server-only'
+import { isPostgresBackend } from '@/lib/backend'
+import { getPostgresDepreciationReport } from './postgres-queries'
 import { createClient } from '@/lib/supabase/server'
 import { calculateStraightLineDepreciation } from './calculation'
 
 export async function getDepreciationReport() {
+  if (isPostgresBackend()) return getPostgresDepreciationReport()
   const supabase = await createClient()
   const { data, error } = await supabase.from('items').select('id, item_name, asset_no, depreciation_cost, depreciation_useful_life_years, depreciation_start_date, depreciation_residual_value').eq('item_type', 'asset').eq('depreciation_enabled', true).is('deleted_at', null).order('item_name')
   if (error) throw new Error('Unable to load depreciation report')

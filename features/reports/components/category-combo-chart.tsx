@@ -10,10 +10,6 @@ export interface ComboCategoryItem {
   activeQty: number
 }
 
-// Aliases for compatibility
-export type RadarCategoryItem = ComboCategoryItem
-export type CategoryComboItem = ComboCategoryItem
-
 export interface CategoryComboChartProps {
   data: ComboCategoryItem[]
   totalValue?: number
@@ -550,6 +546,3 @@ export function CategoryComboChart({
     </div>
   )
 }
-
-// Alias export for backward compatibility
-export const CategoryRadarChart = CategoryComboChart

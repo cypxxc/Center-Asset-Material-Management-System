@@ -6,7 +6,7 @@ import {
   buildAuditDiff,
   getAuditActionLabel,
 } from '@/features/audit-log-display/format'
-import type { ItemAuditLog } from '@/features/items/queries'
+import type { ItemAuditLog } from '@/features/items/types'
 
 interface ItemAuditTimelineProps {
   logs: ItemAuditLog[]

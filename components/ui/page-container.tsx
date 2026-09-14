@@ -14,7 +14,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "h-full overflow-y-auto bg-slate-50/50 p-6 md:p-8 font-sans text-slate-800",
+        "h-full overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 font-sans text-foreground",
         className
       )}
       {...props}

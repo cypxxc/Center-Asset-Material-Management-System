@@ -5,7 +5,8 @@ import { writeAuditLog } from '@/lib/audit'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 
 import { ItemListSearchParams } from '@/features/items/types'
-import { getExportReportItems as queryExportReportItems, ReportItemRow } from './queries'
+import { getExportReportItems as queryExportReportItems } from './queries'
+import type { ReportItemRow } from './types'
 
 export async function getExportReportItems(params: ItemListSearchParams): Promise<{
   items: ReportItemRow[]

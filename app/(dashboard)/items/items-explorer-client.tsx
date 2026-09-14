@@ -357,18 +357,19 @@ export function ItemsExplorerClient({
         {/* Main Content Area */}
         <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Dynamic Integrated Header Area */}
-          <div className="shrink-0 border-b border-border bg-card px-6 py-5 md:px-8">
+          <div className="shrink-0 border-b border-border bg-card px-4 py-5 sm:px-6 md:px-8">
             {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col min-w-0">
                 {/* Dynamic Main Title */}
-                <h2 className="text-lg md:text-xl font-bold tracking-tight text-card-foreground leading-tight">
+                <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-card-foreground leading-snug">
                   {params.type === 'material'
                     ? 'รายการทะเบียนวัสดุ'
                     : params.type === 'asset'
                     ? 'รายการทะเบียนครุภัณฑ์'
                     : 'รายการทะเบียนสิ่งของ'}
-                </h2>
+                </h1>
+                <p className="mt-1.5 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
               </div>
 
               {/* View Mode Toggle */}
@@ -402,6 +403,15 @@ export function ItemsExplorerClient({
               </div>
             </div>
 
+            <nav aria-label="ประเภทพัสดุ" className="mt-5 flex gap-1 border-b border-border">
+              {[{ value: '', label: 'ทั้งหมด' }, { value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }].map((type) => (
+                <Link key={type.value} href={buildHref({ type: type.value, category_id: '', page: '1' })}
+                  aria-current={(params.type || '') === type.value ? 'page' : undefined}
+                  className={cn('border-b-2 px-4 py-3 text-sm font-medium transition-colors', (params.type || '') === type.value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border')}>
+                  {type.label}
+                </Link>
+              ))}
+            </nav>
             {/* Row 2: Action Bar (Bottom Row) */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
               {/* Left Side: Search + Category + Status Filters */}
@@ -531,10 +541,7 @@ export function ItemsExplorerClient({
               <PaginationLink href={buildPageHref(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
                 ถัดไป
               </PaginationLink>
-              <div className="hidden items-center gap-1.5 font-semibold text-primary sm:flex">
-                <span className="material-symbols-outlined text-[15px]">sync</span>
-                <span>Synced</span>
-              </div>
+
             </div>
           </footer>
         </main>

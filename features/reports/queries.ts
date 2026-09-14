@@ -1,24 +1,14 @@
 import 'server-only'
 
+import { isPostgresBackend } from '@/lib/backend'
+import { getPostgresReportStats, getPostgresReportItemsList, getPostgresExportReportItems } from './postgres-queries'
+
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { ItemListSearchParams, ItemListRow } from '@/features/items/types'
+import type { ItemListSearchParams } from '@/features/items/types'
+import type { ReportCountBucket, ReportStats, ReportItemRow, ReportListResult } from './types'
 import { normalizeForSearch } from '@/lib/unicode'
 import { measureQuery } from '@/lib/performance'
-
-export interface ReportCountBucket {
-  count: number
-  qty: number
-}
-
-export interface ReportStats {
-  totalItems: number
-  totalQuantity: number
-  typeCounts: Record<string, ReportCountBucket>
-  statusCounts: Record<string, ReportCountBucket>
-  categoryCounts: Record<string, ReportCountBucket>
-  locationCount: number
-}
 
 /**
  * Fetches summary statistics for reports dashboard.
@@ -26,6 +16,7 @@ export interface ReportStats {
  * with efficient column projection, bypassing client payload overhead.
  */
 export const getReportStats = cache(async function getReportStats(): Promise<ReportStats> {
+  if (isPostgresBackend()) return getPostgresReportStats()
   const supabase = await createClient()
   const {
     result: { data, error },
@@ -49,9 +40,9 @@ export const getReportStats = cache(async function getReportStats(): Promise<Rep
   const res = data as {
     total_items: number
     total_quantity: number
-    type_counts: Record<string, { count: number; qty: number }>
-    status_counts: Record<string, { count: number; qty: number }>
-    category_counts: Record<string, { count: number; qty: number }>
+    type_counts: Record<string, ReportCountBucket>
+    status_counts: Record<string, ReportCountBucket>
+    category_counts: Record<string, ReportCountBucket>
     location_count: number
   }
 
@@ -71,21 +62,6 @@ export const getReportStats = cache(async function getReportStats(): Promise<Rep
 function firstRelation<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) return value[0] ?? null
   return value
-}
-
-export interface ReportItemRow extends ItemListRow {
-  brand: string | null
-  model: string | null
-  unit_price: number | null
-}
-
-export interface ReportListResult {
-  items: ReportItemRow[]
-  totalCount: number
-  totalQuantity: number
-  totalValue: number
-  totalPages: number
-  page: number
 }
 
 interface ReportItemsPageRpcResponse {
@@ -173,6 +149,7 @@ export async function getReportItemsList(
   params: ItemListSearchParams,
   noPagination = false
 ): Promise<ReportListResult> {
+  if (isPostgresBackend()) return getPostgresReportItemsList(params, noPagination)
   if (!noPagination) {
     const rpcResult = await getReportItemsPageViaRpc(params)
     if (rpcResult) return rpcResult
@@ -330,6 +307,7 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
   totalQuantity: number
   totalValue: number
 }> {
+  if (isPostgresBackend()) return getPostgresExportReportItems(params)
   const supabase = await createClient()
   const q = params.q ? normalizeForSearch(params.q) : null
   const itemType = params.type || null
@@ -374,6 +352,3 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
     totalValue: res.total_value ?? items.reduce((acc, i) => acc + i.quantity * (i.unit_price ?? 0), 0),
   }
 }
-
-
-

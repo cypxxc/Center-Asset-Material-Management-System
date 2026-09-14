@@ -15,7 +15,6 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -69,7 +68,7 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
   return (
     <PageContainer maxWidth="full">
       <PageHeader
-        title="สำรวจตำแหน่งจัดเก็บ (Locations)"
+        title="สถานที่จัดเก็บ"
         subtitle="ตรวจสอบ ตรวจนับ และค้นหาสิ่งของระหว่างแผนกสำนักงานต่างๆ"
       />
 
@@ -82,72 +81,70 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
             const totalQty = locItems.reduce((sum, item) => sum + item.qty, 0)
 
             return (
-              <Button
-                key={loc.id}
-                asChild
-              >
                 <button
+                  key={loc.id}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => setSelectedLocationId(isSelected ? null : loc.id)}
                   className={cn(
-                    'w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between cursor-pointer h-auto shrink-0 select-none font-normal bg-clip-padding',
+                    'w-full text-left p-4 rounded-xl border transition-colors flex items-center justify-between gap-3 cursor-pointer h-auto shrink-0 select-none font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     isSelected
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/10 hover:bg-blue-700'
-                      : 'bg-white text-slate-800 border-slate-100 hover:border-slate-200 shadow-sm hover:bg-slate-50'
+                      ? 'bg-blue-50 text-blue-950 border-blue-300 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-50 dark:border-blue-700 dark:hover:bg-blue-900'
+                      : 'bg-card text-foreground border-border hover:border-border shadow-sm hover:bg-muted'
                   )}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div
                       className={cn(
-                        'p-2 rounded-lg',
-                        isSelected ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                        'shrink-0 p-2 rounded-lg',
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
                       )}
                     >
                       <MapPin className="w-5 h-5" />
                     </div>
-                    <div>
-                      <p className="font-bold text-sm">{loc.name}</p>
-                      <p className={cn('text-[11px] mt-0.5', isSelected ? 'text-blue-100' : 'text-slate-400')}>
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-sm">{loc.name}</p>
+                      <p className={cn('text-xs mt-1', isSelected ? 'text-blue-800 dark:text-blue-200' : 'text-muted-foreground')}>
                         มีอุปกรณ์ {locItems.length} รายการ ({totalQty} ชิ้น)
                       </p>
                     </div>
                   </div>
                   <ChevronRight
                     className={cn(
-                      'w-4 h-4 transition-transform',
-                      isSelected ? 'rotate-90 text-white' : 'text-slate-400'
+                      'w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none',
+                      isSelected ? 'rotate-90 text-blue-700 dark:text-blue-200' : 'text-muted-foreground'
                     )}
                   />
                 </button>
-              </Button>
             )
           })}
           {locations.length === 0 && (
-            <p className="text-center text-xs text-slate-400 py-6">ไม่พบข้อมูลสถานที่</p>
+            <p className="text-center text-xs text-muted-foreground py-6">ไม่พบข้อมูลสถานที่</p>
           )}
         </div>
 
         {/* Right Pane: Selected Location Items */}
         <div className="lg:col-span-2">
           {selectedLocation ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
               {/* Selected Header */}
-              <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+              <div className="p-5 bg-muted text-foreground flex flex-wrap gap-3 items-center justify-between">
                 <div>
                   <h3 className="font-bold text-base flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-blue-400" />
                     <span>สิ่งของทั้งหมดที่ตั้งอยู่ที่: {selectedLocation.name}</span>
                   </h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     แสดงรายการเครื่องมือ อุปกรณ์ และวัสดุที่ผู้รับผิดชอบดูแลอยู่ที่สถานที่นี้
                   </p>
                 </div>
-                <span className="bg-blue-600 font-bold px-2.5 py-1 rounded-full text-xs">
+                <span className="bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full text-xs">
                   {getItemsInLocation(selectedLocation.id).length} รายการ
                 </span>
               </div>
 
               {/* Search bar inside selected location */}
-              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="p-4 border-b border-border bg-muted/50">
                 <SearchInput
                   value={searchQuery}
                   onChange={(val) => setSearchQuery(val)}
@@ -161,26 +158,26 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                 {selectedLocationItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 bg-white hover:bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl transition-all flex items-center justify-between text-xs"
+                    className="p-3 bg-card hover:bg-muted/50 border border-border hover:border-border rounded-xl transition-all flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center flex-shrink-0">
-                        {typeIcons[item.type] || <Folder className="w-4 h-4 text-slate-500" />}
+                        {typeIcons[item.type] || <Folder className="w-4 h-4 text-muted-foreground" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-800 truncate pr-2">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <p className="font-bold text-foreground truncate pr-2">{item.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           S/N: {item.serialNumber} | {item.categoryName}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="font-black text-slate-800">{item.qty} ชิ้น</span>
+                      <span className="font-black text-foreground">{item.qty} ชิ้น</span>
                       <StatusBadge status={item.status} />
                       <Link
                         href={`/items/${item.id}`}
-                        className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                        className="p-1 text-muted-foreground hover:text-blue-600 transition-colors"
                         title="เปิดหน้ารายละเอียดเต็ม"
                       >
                         <ExternalLink className="w-4 h-4" />

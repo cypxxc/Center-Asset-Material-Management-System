@@ -1,0 +1,21 @@
+name: camms-postgres-local
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run npm run postgres:setup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run postgres:setup}
+      POSTGRES_DB: ${POSTGRES_DB:?Run npm run postgres:setup}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:?Run npm run postgres:setup}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+volumes:
+  postgres_data:

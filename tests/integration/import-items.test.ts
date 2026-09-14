@@ -24,6 +24,17 @@ test('importItemsBulk rejects missing item_name header', async () => {
   assert.equal(res.error, 'ไม่พบหัวคอลัมน์ "item_name" (ชื่อสิ่งของ) กรุณาตรวจสอบไฟล์ของคุณว่ามีหัวตารางที่ถูกต้อง');
 });
 
+test('importItemsBulk applies its 5 MiB limit to UTF-8 bytes, including Thai text', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+  const res = await importItemsBulk('ก'.repeat(2 * 1024 * 1024));
+  assert.equal(res.success, false);
+  assert.match(res.error ?? '', /สูงสุด 5MB/);
+});
+
 test('importItemsBulk rejects rows with mismatched columns count', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setAuth(

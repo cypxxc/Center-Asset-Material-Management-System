@@ -1,6 +1,5 @@
 import dynamic from 'next/dynamic'
 import { getReportStats } from '@/features/reports/queries'
-import type { ReportCountBucket } from '@/features/reports/queries'
 import type { StatusItemData } from '@/components/dashboard/status-donut-chart'
 
 const StatusDonutChart = dynamic(
@@ -28,7 +27,7 @@ export async function DashboardCategoryList() {
     { key: 'damaged', label: 'ชำรุด/ส่งซ่อม', qty: damagedQty, pct: damagedPct, color: '#f43f5e' },
     { key: 'other', label: 'อื่นๆ/จำหน่าย', qty: otherQty, pct: otherPct, color: '#94a3b8' },
   ]
-  const categoryEntries = Object.entries(stats.categoryCounts) as [string, ReportCountBucket][]
+  const categoryEntries = Object.entries(stats.categoryCounts)
 
   return (
     <>

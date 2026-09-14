@@ -68,6 +68,15 @@ export interface ItemListResult {
   totalPages: number
 }
 
+export interface ItemAuditLog {
+  id: string
+  action: string
+  created_at: string
+  user_name: string
+  old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null
+}
+
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   material: 'วัสดุ',
   asset: 'ครุภัณฑ์',
