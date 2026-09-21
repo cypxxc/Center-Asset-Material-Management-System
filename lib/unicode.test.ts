@@ -7,7 +7,6 @@ import {
   getGraphemeLength,
   normalizeForStorage,
   normalizeForSearch,
-  normalizeForCompare,
   normalizeFilename,
   preventCSVInjection,
 } from './unicode'
@@ -66,14 +65,6 @@ test('normalizeForSearch lowercases and normalizes', () => {
   const nfd = 'Caf\u00E9\u200B'
   assert.equal(normalizeForSearch(nfd), 'café')
   assert.equal(normalizeForSearch(''), '')
-})
-
-test('normalizeForCompare normalizes and strips invisible characters for strict comparison', () => {
-  const val1 = 'IT\u200BSupport' // Has zero-width space
-  assert.equal(normalizeForCompare(val1), 'itsupport')
-  assert.equal(normalizeForCompare('  Caf\u00E9  '), 'café')
-  assert.equal(normalizeForCompare('cafe\u0301'), 'café')
-  assert.equal(normalizeForCompare(''), '')
 })
 
 test('normalizeFilename cleans filenames while preserving Unicode', () => {

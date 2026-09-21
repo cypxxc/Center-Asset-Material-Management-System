@@ -27,33 +27,9 @@ export class ApplicationError extends Error {
   }
 }
 
-export class ValidationError extends ApplicationError {
-  constructor(message: string, details?: unknown) {
-    super(message, 'VALIDATION_ERROR', 400, { details })
-  }
-}
-
 export class AuthorizationError extends ApplicationError {
   constructor(message = 'คุณไม่มีสิทธิ์ทำรายการนี้') {
     super(message, 'AUTHORIZATION_ERROR', 403)
-  }
-}
-
-export class NotFoundError extends ApplicationError {
-  constructor(message = 'ไม่พบข้อมูลที่ร้องขอ') {
-    super(message, 'NOT_FOUND', 404)
-  }
-}
-
-export class ConflictError extends ApplicationError {
-  constructor(message: string, details?: unknown) {
-    super(message, 'CONFLICT', 409, { details })
-  }
-}
-
-export class RateLimitError extends ApplicationError {
-  constructor(message = 'คุณทำรายการเร็วเกินไป กรุณารอสักครู่แล้วลองใหม่') {
-    super(message, 'RATE_LIMIT', 429)
   }
 }
 

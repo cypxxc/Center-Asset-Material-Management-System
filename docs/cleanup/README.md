@@ -1,5 +1,15 @@
 # Codebase cleanup audit — 2026-09-11
 
+## Unused-code follow-up — 2026-09-21
+
+Repository-wide reference searches found six utility exports with no application or script callers: `validateEnvConfig`, `normalizeForCompare`, `ValidationError`, `NotFoundError`, `ConflictError`, and `RateLimitError`. Removed these exports, the private helper used only by `validateEnvConfig`, and three tests exclusive to the removed utilities. Error-handler tests now construct `ApplicationError` directly and continue to verify safe messages; error tests retain code/status checks and cover details on the base class. The active environment validation in `scripts/verify-env.ts` remains unchanged.
+
+Added `.cache/**` to ESLint's generated-artifact ignores: a local generated CommonJS helper was causing lint failures. Application and test sources retain the existing lint rules and strict unused-local/parameter checks.
+
+Retained metrics test seams, framework Server Actions, the alternative tool pipeline, and the PostgreSQL backend. Test-only usage alone does not establish that an integration or supported backend can be retired. No dependency, migration, database setting, or application behavior was changed.
+
+Validation: strict `npm run typecheck`, `npm run lint`, the full `npm test` suite, `npm run build` (including bundle budgets), and `git diff --check` passed. Changes remain local for review.
+
 ## Follow-up cleanup requested by the user
 
 The second pass addresses two additional P2 findings, presented before implementation:

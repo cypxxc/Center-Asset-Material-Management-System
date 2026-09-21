@@ -68,19 +68,6 @@ export function normalizeForSearch(str: string): string {
 }
 
 /**
- * Normalizes a string for strict duplicate checks or value comparisons:
- * - NFC Normalization
- * - Strips invisible and control characters
- * - Lowercase
- * - Trims whitespace
- */
-export function normalizeForCompare(str: string): string {
-  if (!str) return ''
-  const clean = stripControlCharacters(stripInvisibleCharacters(str.normalize('NFC')))
-  return clean.toLowerCase().trim()
-}
-
-/**
  * Sanitizes a filename, preserving Unicode letters/digits (Thai, Chinese, Arabic, Japanese, etc.),
  * while replacing unsafe path/system control characters with underscores.
  */

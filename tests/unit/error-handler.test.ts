@@ -2,10 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { handleActionError } from '@/lib/error-handler'
 
-import { ValidationError } from '@/lib/errors'
+import { ApplicationError } from '@/lib/errors'
 
 test('handleActionError returns typed error message for ApplicationError', async () => {
-  const result = await handleActionError(new ValidationError('ชื่อไม่ถูกต้อง'), 'testOp', 'testFeature')
+  const result = await handleActionError(new ApplicationError('ชื่อไม่ถูกต้อง', 'VALIDATION_ERROR', 400), 'testOp', 'testFeature')
   assert.strictEqual(result.message, 'ชื่อไม่ถูกต้อง')
 })
 

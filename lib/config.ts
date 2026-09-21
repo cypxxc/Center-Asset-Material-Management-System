@@ -59,20 +59,3 @@ export const config = {
     envPrefix: 'FEATURE_',
   },
 } as const
-
-function getRequiredEnvKeys(env: Record<string,string|undefined>): readonly string[] {
-  if (env.DATA_BACKEND === 'postgres') return ['DATABASE_URL','DATABASE_AUTH_URL','LOCAL_STORAGE_PATH']
-  return [
-    'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-  ] as const
-}
-
-export function validateEnvConfig(env: Record<string, string | undefined> = process.env): {
-  valid: boolean
-  missing: string[]
-} {
-  const missing = getRequiredEnvKeys(env).filter((key) => !env[key]?.trim())
-  return { valid: missing.length === 0, missing: [...missing] }
-}

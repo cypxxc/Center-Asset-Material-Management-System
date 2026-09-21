@@ -56,6 +56,8 @@ scratch/
 !readme.md
 !**/README.md
 !**/readme.md
+!/.agents/skills/camms-maintenance/SKILL.md
+!/AGENTS.md
 
 
 # env files (can opt-in for committing if needed)

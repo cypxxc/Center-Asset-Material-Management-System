@@ -3,21 +3,18 @@ import assert from 'node:assert/strict'
 import {
   ApplicationError,
   AuthorizationError,
-  ConflictError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
   isApplicationError,
   toSafeErrorMessage,
 } from '@/lib/errors'
 
-test('typed errors carry codes and status codes', () => {
-  assert.equal(new ValidationError('bad input').code, 'VALIDATION_ERROR')
-  assert.equal(new ValidationError('bad input').statusCode, 400)
+test('typed errors carry codes, status codes, and details', () => {
+  const details = { field: 'name' }
+  const error = new ApplicationError('bad input', 'VALIDATION_ERROR', 400, { details })
+  assert.equal(error.code, 'VALIDATION_ERROR')
+  assert.equal(error.statusCode, 400)
+  assert.equal(error.details, details)
   assert.equal(new AuthorizationError().code, 'AUTHORIZATION_ERROR')
-  assert.equal(new NotFoundError().statusCode, 404)
-  assert.equal(new ConflictError('dup').code, 'CONFLICT')
-  assert.equal(new RateLimitError().statusCode, 429)
+  assert.equal(new AuthorizationError().statusCode, 403)
 })
 
 test('isApplicationError identifies typed errors', () => {
@@ -26,6 +23,6 @@ test('isApplicationError identifies typed errors', () => {
 })
 
 test('toSafeErrorMessage returns message for operational errors only', () => {
-  assert.equal(toSafeErrorMessage(new ValidationError('ชื่อไม่ถูกต้อง')), 'ชื่อไม่ถูกต้อง')
+  assert.equal(toSafeErrorMessage(new ApplicationError('ชื่อไม่ถูกต้อง', 'VALIDATION_ERROR', 400)), 'ชื่อไม่ถูกต้อง')
   assert.equal(toSafeErrorMessage(new Error('secret stack')), 'ระบบเกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง')
 })

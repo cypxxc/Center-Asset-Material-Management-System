@@ -1,0 +1,4 @@
+interface:
+  display_name: "CAMMS Maintenance"
+  short_description: "Investigate and fix CAMMS with verified evidence"
+  default_prompt: "Use $camms-maintenance to inspect CAMMS, fix evidenced performance and security issues, clean verified unused code, add regression tests, and summarize changes and verification on a separate branch."
