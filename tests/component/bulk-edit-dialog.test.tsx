@@ -1,7 +1,6 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BulkEditDialog } from '../../features/items/components/bulk-edit-dialog'
 
