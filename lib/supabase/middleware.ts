@@ -92,6 +92,17 @@ export async function updateSession(request: NextRequest) {
       user = !error && typeof data?.claims?.sub === 'string' && data.claims.sub.length > 0
         ? { id: data.claims.sub }
         : null
+      // A signed access token can outlive its session. Check the same Auth
+      // authority as server guards before redirecting away from the login form.
+      if (user && pathname === '/login') {
+        const { data: current, error: currentError } = await withDeadline(
+          () => supabase.auth.getUser(), config.limits.supabaseAuthTimeoutMs, controller,
+        )
+        if (currentError && (currentError.name === 'AuthRetryableFetchError' || (currentError.status ?? 0) >= 500)) {
+          return unavailableResponse()
+        }
+        user = currentError ? null : current.user
+      }
     } catch {
       // Fail closed and preserve the browser session during temporary Auth outages.
       controller.abort()

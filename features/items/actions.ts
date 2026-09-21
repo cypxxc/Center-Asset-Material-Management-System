@@ -6,6 +6,8 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { deleteItemStorageImage } from '@/lib/supabase/storage'
 import { itemFormSchema } from './schema'
+import { bulkEditSchema, BULK_EDIT_LIMIT, type BulkItemUpdates } from './bulk-edit'
+import { getItems } from './queries'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
 import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
@@ -457,42 +459,62 @@ export async function updateItem(
   redirect(`/items/${id}`)
 }
 
-export async function bulkUpdateItems(ids: string[], updates: { location_id?: string; status?: string }): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems(ids, 'update', updates)
+export async function bulkUpdateItems(ids: string[], updates: BulkItemUpdates): Promise<ActionResponse> {
+  const parsed = bulkEditSchema.safeParse({ ids, updates })
+  if (!parsed.success) return errorResponse('กรุณาเลือกรายการไม่เกิน 1,000 รายการ และตรวจสอบช่องที่ต้องการแก้ไข')
+  if (isPostgresBackend()) return mutatePostgresItems(parsed.data.ids, 'update', parsed.data.updates)
   const auth = await requireEditor()
-  if (auth.error || !auth.profile) {
-    logger.warn({ operation: 'bulkUpdateItems', feature: 'items', details: 'Unauthorized bulk update attempt' })
-    return errorResponse(auth.error ?? 'Unauthorized')
-  }
+  if (auth.error || !auth.profile) return errorResponse(auth.error ?? 'Unauthorized')
+  const rate = await checkRateLimit('items-bulk-update', 30, 60000)
+  if (!rate.success) return errorResponse(rate.error!)
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('bulk_update_items_tx', {
+      p_ids: parsed.data.ids, p_updates: parsed.data.updates,
+    })
+    if (error) {
+      logger.error({ operation: 'bulkUpdateItems', feature: 'items', userId: auth.profile.id }, error)
+      return errorResponse('บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลและลองใหม่')
+    }
+    const count = Number(data)
+    if (!Number.isInteger(count) || count <= 0) return errorResponse('ไม่พบรายการที่สามารถแก้ไขได้ กรุณาเลือกใหม่')
+    revalidatePath('/items')
+    revalidateSidebarCache()
+    return successResponse(`แก้ไขสำเร็จ ${count} จาก ${parsed.data.ids.length} รายการ`)
+  } catch (error) { return handleActionError(error, 'bulkUpdateItems', 'items') }
+}
 
-  if (!ids.length) {
-    return errorResponse('กรุณาเลือกรายการที่ต้องการแก้ไข')
-  }
-
-  const supabase = await createClient()
-  const payload: Record<string, unknown> = {
-    updated_by: auth.profile.id,
-    updated_at: new Date().toISOString(),
-  }
-  if (updates.location_id !== undefined) payload.location_id = updates.location_id || null
-  if (updates.status !== undefined) payload.status = updates.status
-
-  const { error } = await supabase
-    .from('items')
-    .update(payload)
-    .in('id', ids)
-    .is('deleted_at', null)
-
-  if (error) {
-    logger.error({ operation: 'bulkUpdateItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
-    return errorResponse('ไม่สามารถอัปเดตรายการได้: ' + error.message)
-  }
-
-  logger.info({ operation: 'bulkUpdateItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
-
-  revalidatePath('/items')
-  revalidateSidebarCache()
-  return successResponse(`อัปเดตเรียบร้อย ${ids.length} รายการ`)
+export async function getMatchingItemIds(params: ItemListSearchParams): Promise<ActionResponse<string[]>> {
+  const auth = await requireEditor()
+  if (auth.error) return errorResponse(auth.error)
+  try {
+    const ids: string[] = []
+    if (isPostgresBackend()) {
+      for (let page = 1; ; page++) {
+        const result = await getItems({ ...params, page: String(page), sort_by: 'item_name', sort_dir: 'asc' })
+        if (result.total > BULK_EDIT_LIMIT) return errorResponse('เลือกได้ครั้งละไม่เกิน 1,000 รายการ กรุณากรองข้อมูลให้แคบลง')
+        ids.push(...result.items.map(item => item.id))
+        if (page >= result.totalPages) break
+      }
+    } else {
+      const supabase = await createClient()
+      for (let offset = 0; ; offset += 500) {
+        let query = supabase.from('items').select('id', { count: 'exact' }).is('deleted_at', null)
+        const q = normalizeForSearch(params.q || '').replaceAll(',', ' ')
+        if (q) query = query.or(`item_name.ilike.%${q}%,asset_no.ilike.%${q}%,serial_no.ilike.%${q}%,brand.ilike.%${q}%,model.ilike.%${q}%,responsible_person.ilike.%${q}%`)
+        if (params.type === 'asset' || params.type === 'material') query = query.eq('item_type', params.type)
+        if (params.status && ['active','spare','damaged','waiting_repair','inactive','disposed'].includes(params.status)) query = query.eq('status', params.status)
+        if (params.category_id) query = query.eq('category_id', params.category_id)
+        if (params.location_id) query = query.eq('location_id', params.location_id)
+        const { data, count, error } = await query.order('id').range(offset, offset + 499)
+        if (error) throw error
+        if ((count ?? 0) > BULK_EDIT_LIMIT) return errorResponse('เลือกได้ครั้งละไม่เกิน 1,000 รายการ กรุณากรองข้อมูลให้แคบลง')
+        ids.push(...(data ?? []).map(item => item.id))
+        if (offset + 500 >= (count ?? 0)) break
+      }
+    }
+    return successResponse('เลือกรายการแล้ว', [...new Set(ids)])
+  } catch { return errorResponse('เลือกรายการไม่สำเร็จ กรุณาลองใหม่') }
 }
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {

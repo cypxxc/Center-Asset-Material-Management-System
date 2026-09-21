@@ -10,6 +10,7 @@ test('proxy verifies signed tokens with cached public keys without a user lookup
   const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'test-key', alg: 'ES256', use: 'sig' }
   let userCalls = 0
   let keyCalls = 0
+  let userStatus = 200
   const server = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json')
     if (request.url?.endsWith('/.well-known/jwks.json')) {
@@ -17,8 +18,8 @@ test('proxy verifies signed tokens with cached public keys without a user lookup
       response.end(JSON.stringify({ keys: [jwk] }))
     } else {
       userCalls++
-      response.writeHead(401)
-      response.end(JSON.stringify({ message: 'No user lookup expected' }))
+      response.writeHead(userStatus)
+      response.end(JSON.stringify(userStatus === 200 ? { id: 'test-user' } : { message: 'Session revoked' }))
     }
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -43,6 +44,10 @@ test('proxy verifies signed tokens with cached public keys without a user lookup
     const login = await updateSession(request(token, '/login'))
     assert.equal(login.status, 307)
     assert.equal(new URL(login.headers.get('location')!).pathname, '/dashboard')
+    userStatus = 401
+    const revokedLogin = await updateSession(request(token, '/login'))
+    assert.equal(revokedLogin.status, 200, 'a signed token with a revoked session must allow logging in again')
+    assert.equal(revokedLogin.headers.get('location'), null)
     const forged = await updateSession(request(`${payload}.${Buffer.alloc(64).toString('base64url')}`))
     assert.notEqual(forged.status, 200, 'forged signatures never pass authentication')
   } finally {

@@ -25,7 +25,7 @@ require.cache[ssrPath] = {
       cookies: { setAll(cookies: Cookie[], headers: Record<string, string>): void }
     }) => {
       clientCalls++
-      return { auth: { getClaims: async () => {
+      return { auth: { getUser: async () => ({ data: { user: { id: 'verified-user' } }, error: null }), getClaims: async () => {
         claimsCalls++
         if (hangClaims) return new Promise(() => {})
         if (cookiesToSet.length) options.cookies.setAll(cookiesToSet, refreshHeaders)

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useTransition, useEffect } from 'react'
+import React, { useMemo, useState, useTransition, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -29,7 +29,6 @@ import {
   ITEM_STATUS_LABELS,
   ITEM_TYPE_LABELS,
   ItemListRow,
-  ItemStatus,
   ItemType,
   ItemListSearchParams,
   ItemDetail,
@@ -56,7 +55,8 @@ import {
   DataTableRow,
   DataTableCell
 } from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport } from '@/features/items/actions'
+import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
+import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import { cn } from '@/lib/utils'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 
@@ -118,6 +118,17 @@ export function ItemsExplorerClient({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+  const [selectingAll, setSelectingAll] = useState(false)
+  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id])
+  const currentFilterKey = useRef(filterKey)
+  useEffect(() => { currentFilterKey.current = filterKey }, [filterKey])
+  const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
+  if (filterKey !== previousFilterKey) {
+    setPreviousFilterKey(filterKey)
+    setSelectedItemIds([])
+    setBulkEditOpen(false)
+  }
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [blockingError, setBlockingError] = useState<string | null>(null)
   const [searchVal, setSearchVal] = useState(params.q ?? '')
@@ -334,11 +345,10 @@ export function ItemsExplorerClient({
   }
 
   const handleToggleSelectAll = () => {
-    if (selectedItemIds.length === localItems.length) {
-      setSelectedItemIds([])
-    } else {
-      setSelectedItemIds(localItems.map((item) => item.id))
-    }
+    const pageIds = localItems.map(item => item.id)
+    setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
+      ? previous.filter(id => !pageIds.includes(id))
+      : [...new Set([...previous, ...pageIds])])
   }
 
   const handleSelectItem = (item: ItemListRow) => {
@@ -562,86 +572,35 @@ export function ItemsExplorerClient({
         }}
       />
 
+      {bulkEditOpen && <BulkEditDialog count={selectedItemIds.length} locations={locations} categories={categories} units={units}
+        onClose={() => setBulkEditOpen(false)} onSave={updates => bulkUpdateItems(selectedItemIds, updates)}
+        onSaved={message => { triggerToast(message); setBulkEditOpen(false); setSelectedItemIds([]); router.refresh() }} />}
       {selectedItemIds.length > 0 && (
-        <div className="fixed bottom-14 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
+        <div className="fixed bottom-14 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
           <span className="text-xs font-bold text-card-foreground">
             เลือกอยู่ <span className="text-primary font-black">{selectedItemIds.length}</span> รายการ
           </span>
 
           <div className="h-4 w-px bg-border" />
 
-          {/* Bulk Update Status */}
-          {userCanWrite && (
-            <select
-              aria-label="เปลี่ยนสถานะรายการที่เลือก"
-              onChange={async (e) => {
-                const newStatus = e.target.value
-                if (!newStatus) return
-
-                const prevItems = localItems
-                // Optimistically update status
-                setLocalItems(prev => prev.map(item =>
-                  selectedItemIds.includes(item.id) ? { ...item, status: newStatus as ItemStatus } : item
-                ))
-
-                const res = await bulkUpdateItems(selectedItemIds, { status: newStatus })
-                if (res.success) {
-                  triggerToast(res.message || 'อัปเดตเรียบร้อย')
-                  setSelectedItemIds([])
-                  router.refresh()
-                } else {
-                  setLocalItems(prevItems)
-                  setBlockingError(res.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะ')
-                }
-                e.target.value = ''
-              }}
-              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-semibold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-            >
-              <option value="">เปลี่ยนสถานะ...</option>
-              {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          )}
-
-          {/* Bulk Update Location */}
-          {userCanWrite && (
-            <select
-              aria-label="เปลี่ยนสถานที่รายการที่เลือก"
-              onChange={async (e) => {
-                const newLocId = e.target.value
-                if (!newLocId) return
-
-                const targetLoc = locations.find(l => l.id === newLocId) || null
-                const prevItems = localItems
-
-                // Optimistically update location object
-                setLocalItems(prev => prev.map(item =>
-                  selectedItemIds.includes(item.id) ? { ...item, location: targetLoc } : item
-                ))
-
-                const res = await bulkUpdateItems(selectedItemIds, { location_id: newLocId })
-                if (res.success) {
-                  triggerToast(res.message || 'อัปเดตเรียบร้อย')
-                  setSelectedItemIds([])
-                  router.refresh()
-                } else {
-                  setLocalItems(prevItems)
-                  setBlockingError(res.message || 'เกิดข้อผิดพลาดในการย้ายสถานที่')
-                }
-                e.target.value = ''
-              }}
-              className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-semibold text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px]"
-            >
-              <option value="">ย้ายสถานที่...</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
-          )}
+          {userCanWrite && <>
+            <Button id="bulk-edit-trigger" disabled={selectingAll} onClick={() => setBulkEditOpen(true)} className="h-9 text-sm">แก้ไขหลายรายการ</Button>
+            <Button variant="outline" disabled={selectingAll} onClick={async () => {
+              setSelectingAll(true)
+              try {
+                const result = await getMatchingItemIds(params)
+                if (currentFilterKey.current !== filterKey) return
+                if (result.success && result.data) setSelectedItemIds(result.data)
+                else setBlockingError(result.message || 'เลือกรายการไม่สำเร็จ')
+              } catch { setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่') }
+              finally { setSelectingAll(false) }
+            }} className="h-9 text-sm">{selectingAll ? 'กำลังเลือก...' : `เลือกทั้งหมดตามผลค้นหา (${total})`}</Button>
+          </>}
 
           {/* Bulk Print Asset Tag */}
           <Button
+            disabled={selectedItemsData.length !== selectedItemIds.length}
+            title={selectedItemsData.length !== selectedItemIds.length ? 'พิมพ์ลาเบลได้เฉพาะรายการที่เลือกในหน้านี้' : undefined}
             onClick={() => setIsBatchPrintOpen(true)}
             variant="outline"
             className="h-8 rounded-lg px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
@@ -807,7 +766,7 @@ function ItemsList({
               <input
                 type="checkbox"
                 aria-label="เลือกทุกรายการในหน้านี้"
-                checked={items.length > 0 && selectedItemIds.length === items.length}
+                checked={items.length > 0 && items.every(item => selectedItemIds.includes(item.id))}
                 onChange={onToggleSelectAll}
                 className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
               />

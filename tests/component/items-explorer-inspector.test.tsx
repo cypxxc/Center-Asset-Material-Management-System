@@ -86,6 +86,22 @@ function renderComponent(props = defaultProps) {
   )
 }
 
+test('selection survives paging, page toggles preserve other pages, filters clear selection', () => {
+  const first = { ...defaultProps, items: [mockItems[0]], page: 1, totalPages: 2 }
+  const view = renderComponent(first)
+  fireEvent.click(screen.getByLabelText(`เลือก ${mockItems[0].item_name}`))
+  const second = { ...first, items: [mockItems[1]], page: 2, params: { page: '2' } }
+  view.rerender(<ToastProvider><ItemsExplorerClient {...second} /></ToastProvider>)
+  const pageToggle = screen.getAllByRole('checkbox')[0] as HTMLInputElement
+  assert.equal(pageToggle.checked, false, 'a selected row on another page does not select this page')
+  fireEvent.click(pageToggle)
+  assert.ok(screen.getByText('เลือกอยู่ 2 รายการ'))
+  fireEvent.click(pageToggle)
+  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
+  view.rerender(<ToastProvider><ItemsExplorerClient {...second} params={{ q: 'new filter' }} /></ToastProvider>)
+  assert.equal(screen.queryByText('แก้ไขหลายรายการ'), null)
+})
+
 test('ItemsExplorerClient renders table rows with full width', () => {
   renderComponent()
 

@@ -5,6 +5,7 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
 import type { PostgresTransaction } from '@/lib/postgres/db'
 import { itemFormSchema } from './schema'
+import { bulkUpdatesSchema } from './bulk-edit'
 import { deleteLocalItemImage, resolveLocalItemImageUrl } from '@/lib/postgres/storage'
 import { errorResponse, successResponse, type ActionResponse } from '@/lib/actions-helper'
 import { revalidatePath, revalidateTag } from 'next/cache'
@@ -85,20 +86,23 @@ export async function updatePostgresItem(id: string, data: ItemInput) {
   } catch (error) { return { error: { message: databaseMessage(error) } } }
 }
 
-export async function mutatePostgresItems(ids: string[], operation: 'update' | 'delete' | 'purge', updates?: { location_id?: string; status?: string }): Promise<ActionResponse> {
+export async function mutatePostgresItems(ids: string[], operation: 'update' | 'delete' | 'purge', updates?: Record<string, unknown>): Promise<ActionResponse> {
   try {
     const profile = await editor()
     const rate = await checkRateLimit(`items-${operation}`, 30, 60000)
     if (!rate.success) return errorResponse(rate.error!)
     const validIds = z.array(uuid).min(1).max(1000).parse(ids)
     const uniqueIds = [...new Set(validIds)]
-    const changes = z.object({ location_id: uuid.or(z.literal('')).optional(), status: z.enum(['active','spare','damaged','waiting_repair','inactive','disposed']).optional() }).strict().parse(updates ?? {})
+    const changes = operation === 'update' ? bulkUpdatesSchema.parse(updates) : {}
     const rows = await withUserDatabase(async tx => {
       const match = sql`id in (${sql.join(uniqueIds.map(id => sql`${id}`), sql`, `)})`
       if (operation === 'update') {
-        if (changes.location_id) await lockItemReferences(tx, { location_id: changes.location_id })
+        await lockItemReferences(tx, changes)
         const assignments = [sql`updated_by=${profile.id}`, sql`updated_at=now()`]
         if (changes.location_id !== undefined) assignments.push(sql`location_id=${changes.location_id || null}`)
+        if (changes.category_id !== undefined) assignments.push(sql`category_id=${changes.category_id}`)
+        if (changes.unit_id !== undefined) assignments.push(sql`unit_id=${changes.unit_id}`)
+        if (changes.responsible_person !== undefined) assignments.push(sql`responsible_person=${changes.responsible_person || null}`)
         if (changes.status !== undefined) assignments.push(sql`status=${changes.status}`)
         return (await tx.execute<{ id: string; image_url: string | null }>(sql`update public.items set ${sql.join(assignments, sql`, `)} where ${match} and deleted_at is null returning id, image_url`)).rows
       }
