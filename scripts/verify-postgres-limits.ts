@@ -11,6 +11,7 @@ async function main() {
   const app = parse(readFileSync('.env.postgres.app'))
   const initial = parse(readFileSync('.env.postgres.admin'))
   const owner = new Pool({connectionString:app.DATABASE_MIGRATION_URL,connectionTimeoutMillis:5000})
+  owner.on('error', () => {})
   const token = randomBytes(32).toString('hex')
   const hash = createHash('sha256').update(token).digest('hex')
   const manifest = JSON.parse(readFileSync(process.env.POSTGRES_ACTION_MANIFEST || '.next/server/server-reference-manifest.json','utf8')) as {node: Record<string,{exportedName?:string}>}

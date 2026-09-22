@@ -23,6 +23,7 @@ async function main() {
   const root = path.resolve('.cache/postgres', `recovery-${suffix}`)
   assert.equal(path.dirname(root), path.resolve('.cache/postgres'))
   const owner = new Pool({ connectionString: app.DATABASE_MIGRATION_URL, connectionTimeoutMillis: 5000 })
+  owner.on('error', () => {})
   const pools: Pool[] = []
   const created: string[] = []
   let server: ChildProcess | undefined
@@ -48,6 +49,7 @@ async function main() {
     await cp(path.join(backup,'storage'),storage,{recursive:true,errorOnExist:true,force:false})
     assert.deepEqual(await storageInventory(storage),manifest.storageFiles)
     const pool = new Pool({connectionString:connection(app.DATABASE_MIGRATION_URL,name),connectionTimeoutMillis:5000})
+    pool.on('error', () => {})
     pools.push(pool)
     return pool
   }
