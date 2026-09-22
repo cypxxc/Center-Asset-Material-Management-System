@@ -5,8 +5,9 @@ import { withUserDatabase } from '@/lib/postgres/request'
 import { resolveLocalItemImageUrl } from '@/lib/postgres/storage'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { normalizeForSearch } from '@/lib/unicode'
-import type { ItemAuditLog, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption } from './types'
+import type { ItemAuditLog, ItemBatchResult, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption } from './types'
 import type { LowStockDashboardItem } from './queries'
+import { BATCH_SIZE, encodeItemCursor, type ItemCursorKey, type NormalizedItemListSearchParams } from './cursor'
 
 // Every fragment is static SQL or a bound value; URL parameters never become identifiers.
 export const itemRelations = sql`left join public.categories c on c.id = i.category_id
@@ -20,9 +21,16 @@ export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
-export function itemFilters(params: ItemListSearchParams, validateEnums = false): SQL {
+const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
+  i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
+  i.brand, i.model,
+  case when c.id is null then null else json_build_object('id', c.id, 'name', c.name) end as category,
+  case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
+  case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
+
+export function itemFilters(params: ItemListSearchParams | NormalizedItemListSearchParams, validateEnums = false, normalizedSearch?: string): SQL {
   const clauses = [sql`i.deleted_at is null`]
-  const normalized = normalizeForSearch(params.q || '')
+  const normalized = normalizedSearch ?? normalizeForSearch(params.q || '')
   const q = validateEnums ? normalized.replaceAll(',', ' ') : normalized
   if (q) {
     const pattern = `%${q}%`
@@ -66,6 +74,37 @@ export async function getPostgresItems(params: ItemListSearchParams): Promise<It
       order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id limit ${pageSize} offset ${(page - 1) * pageSize}`)
     const total = totals.rows[0]?.total ?? 0
     return { items: rows.rows.map(item => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) })), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
+  })
+}
+
+export async function getPostgresItemBatch(
+  params: NormalizedItemListSearchParams,
+  cursor: { key: ItemCursorKey; id: string } | null,
+): Promise<ItemBatchResult> {
+  const columns: Record<NormalizedItemListSearchParams['sort_by'], SQL> = {
+    updated_at: sql`i.updated_at`, item_name: sql`i.item_name`, item_type: sql`i.item_type`, quantity: sql`i.quantity`, status: sql`i.status`,
+  }
+  const order = columns[params.sort_by]
+  const ascending = params.sort_dir === 'asc'
+  const comparison = ascending ? sql`>` : sql`<`
+  return withUserDatabase(async (tx) => {
+    // Batch params are already normalized; trimming again would change comma-search semantics.
+    const where = itemFilters(params, false, params.q)
+    const cursorWhere = cursor
+      ? sql` and (${order} ${comparison} ${cursor.key} or (${order} = ${cursor.key} and i.id ${comparison} ${cursor.id}::uuid))`
+      : sql``
+    const totals = cursor ? null : await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
+    const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemBatchColumns}, i.note, i.image_url
+      from public.items i ${itemRelations} where ${where}${cursorWhere}
+      order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id ${ascending ? sql`asc` : sql`desc`} limit ${BATCH_SIZE + 1}`)
+    const hasMore = rows.rows.length > BATCH_SIZE
+    const items = rows.rows.slice(0, BATCH_SIZE).map((item) => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) }))
+    const last = items.at(-1)
+    return {
+      items,
+      total: totals?.rows[0]?.total ?? null,
+      nextCursor: hasMore && last ? encodeItemCursor(params, last[params.sort_by] as ItemCursorKey, last.id) : null,
+    }
   })
 }
 

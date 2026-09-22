@@ -77,6 +77,12 @@ export interface ItemAuditLog {
   new_data: Record<string, unknown> | null
 }
 
+export interface ItemBatchResult {
+  items: ItemListRow[]
+  total: number | null
+  nextCursor: string | null
+}
+
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   material: 'วัสดุ',
   asset: 'ครุภัณฑ์',

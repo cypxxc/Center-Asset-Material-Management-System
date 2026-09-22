@@ -2,7 +2,9 @@ import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { ItemBatchWindow, saveItemWindow } from '../../features/items/batch-window'
+import { normalizeItemListSearchParams } from '../../features/items/list-params'
 
 // This component test exercises the inspector UI, not the live Supabase channel.
 // Disable the channel so placeholder CI credentials cannot leave a realtime socket open.
@@ -57,8 +59,8 @@ const mockItems: ItemListRow[] = [
 const defaultProps = {
   items: mockItems,
   total: 2,
-  page: 1,
-  totalPages: 1,
+  nextCursor: null,
+  userId: 'user-1',
   params: {},
   userCanWrite: true,
   userCanDelete: true,
@@ -86,19 +88,14 @@ function renderComponent(props = defaultProps) {
   )
 }
 
-test('selection survives paging, page toggles preserve other pages, filters clear selection', () => {
-  const first = { ...defaultProps, items: [mockItems[0]], page: 1, totalPages: 2 }
-  const view = renderComponent(first)
-  fireEvent.click(screen.getByLabelText(`เลือก ${mockItems[0].item_name}`))
-  const second = { ...first, items: [mockItems[1]], page: 2, params: { page: '2' } }
-  view.rerender(<ToastProvider><ItemsExplorerClient {...second} /></ToastProvider>)
-  const pageToggle = screen.getAllByRole('checkbox')[0] as HTMLInputElement
-  assert.equal(pageToggle.checked, false, 'a selected row on another page does not select this page')
-  fireEvent.click(pageToggle)
+test('header selects retained records and filter or sort changes clear selection', () => {
+  const view = renderComponent()
+  fireEvent.click(screen.getByLabelText('เลือกทุกรายการที่โหลดอยู่'))
   assert.ok(screen.getByText('เลือกอยู่ 2 รายการ'))
-  fireEvent.click(pageToggle)
-  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
-  view.rerender(<ToastProvider><ItemsExplorerClient {...second} params={{ q: 'new filter' }} /></ToastProvider>)
+  view.rerender(<ToastProvider><ItemsExplorerClient {...defaultProps} params={{ sort_by: 'item_name' }} /></ToastProvider>)
+  assert.equal(screen.queryByText('แก้ไขหลายรายการ'), null)
+  fireEvent.click(screen.getByLabelText(`เลือก ${mockItems[0].item_name}`))
+  view.rerender(<ToastProvider><ItemsExplorerClient {...defaultProps} params={{ q: 'new filter' }} /></ToastProvider>)
   assert.equal(screen.queryByText('แก้ไขหลายรายการ'), null)
 })
 
@@ -114,6 +111,51 @@ test('ItemsExplorerClient renders table rows with full width', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
+test('list and grid render bounded visible records and view toggles preserve the item anchor', () => {
+  const items = Array.from({ length: 500 }, (_, i) => ({ ...mockItems[0], id: `virtual-${i}`, item_name: `Virtual ${i}` }))
+  const { container } = renderComponent({ ...defaultProps, items, total: 500 })
+  assert.ok(screen.getAllByRole('row').length < 30)
+  const root = screen.getByTestId('items-scroll')
+  fireEvent.scroll(root, { target: { scrollTop: 6400 } })
+  assert.ok(screen.getByText('Virtual 100'))
+  fireEvent.click(screen.getByTitle('Grid view'))
+  assert.ok(container.querySelectorAll('[tabindex="0"]').length < 50)
+  assert.ok(screen.getByText('Virtual 100'))
+  fireEvent.click(screen.getByTitle('List view'))
+  assert.ok(screen.getByText('Virtual 100'))
+  assert.ok(screen.getAllByRole('row').length < 30)
+})
+
+test('return snapshot restores deep position and refreshes the same cursor', async () => {
+  const originalFetch = global.fetch
+  const items = Array.from({ length: 200 }, (_, i) => ({ ...mockItems[0], id: `saved-${i}`, item_name: `Saved ${i}` }))
+  const store = new ItemBatchWindow({ items: items.slice(0, 25), total: 200, nextCursor: '25' }, async cursor => {
+    const start = Number(cursor)
+    return { items: items.slice(start, start + 25), total: null, nextCursor: start + 25 < 200 ? String(start + 25) : null }
+  })
+  for (let i = 1; i < 8; i++) await store.loadMore()
+  saveItemWindow({ identity: JSON.stringify(['user-1', normalizeItemListSearchParams({})]), state: store.state, view: 'list', anchor: 150 })
+  const cursors: string[] = []
+  global.fetch = async input => {
+    const cursor = new URL(String(input), 'http://localhost').searchParams.get('cursor') ?? '0'
+    cursors.push(cursor)
+    const start = Number(cursor)
+    return Response.json({ items: items.slice(start, start + 25), total: null, nextCursor: start + 25 < 200 ? String(start + 25) : null })
+  }
+  try {
+    const view = renderComponent()
+    await waitFor(() => assert.ok(screen.getByText('Saved 150')))
+    assert.equal(cursors[0], '150')
+    assert.ok(screen.getByTestId('items-scroll').scrollTop > 9000)
+    const previousCalls = cursors.length
+    view.rerender(<ToastProvider><ItemsExplorerClient {...defaultProps} items={[...mockItems]} /></ToastProvider>)
+    await waitFor(() => assert.ok(cursors.length > previousCalls))
+    await waitFor(() => assert.ok(screen.getByText('Saved 150')))
+    assert.ok(Number(cursors[previousCalls]) >= 125, 'same-query server refresh must not reset to the initial cursor')
+    assert.ok(screen.getByTestId('items-scroll').scrollTop > 9000)
+  } finally { global.fetch = originalFetch }
+})
+
 test('Type navigation preserves search filters and resets category and pagination', () => {
   renderComponent({ ...defaultProps, params: { q: 'Dell', type: 'asset', status: 'active', location_id: 'loc-1', category_id: 'cat-1', page: '3' } })
   const navigation = within(screen.getByRole('navigation', { name: 'ประเภทพัสดุ' }))
@@ -124,7 +166,7 @@ test('Type navigation preserves search filters and resets category and paginatio
   assert.equal(destination.searchParams.get('status'), 'active')
   assert.equal(destination.searchParams.get('location_id'), 'loc-1')
   assert.equal(destination.searchParams.get('category_id'), null)
-  assert.equal(destination.searchParams.get('page'), '1')
+  assert.equal(destination.searchParams.get('page'), null)
 })
 
 test('Clicking an item row opens the Slide-Over Inspector Drawer with correct metadata', () => {

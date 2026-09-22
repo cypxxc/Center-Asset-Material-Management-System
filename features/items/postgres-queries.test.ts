@@ -64,6 +64,37 @@ test('item pagination normalizes invalid pages and rejects external image URLs',
   assert.match(statements[1].sql, /order by i\.item_name asc/)
 })
 
+test('Postgres item batches use a precise timestamp projection and omit count after a cursor', async () => {
+  const { getItemBatch } = await import('./queries')
+  const { encodeItemCursor, normalizeItemListSearchParams } = await import('./cursor')
+  const params = { sort_by: 'updated_at', sort_dir: 'desc' } as const
+  const normalized = normalizeItemListSearchParams(params)
+  responses = [[{ id: '00000000-0000-4000-8000-000000000001', updated_at: '2026-09-22 10:00:00.123456+00' }]]
+  const cursor = encodeItemCursor(normalized, '2026-09-22 10:00:00.123456+00', '00000000-0000-4000-8000-000000000001')
+  const result = await getItemBatch(params, cursor)
+  assert.equal(result.total, null)
+  assert.equal(statements.length, 1)
+  assert.match(statements[0].sql, /updated_at::text as updated_at/)
+  assert.match(statements[0].sql, /i\.updated_at < \$1/)
+  assert.ok(!/count\(\*\)/.test(statements[0].sql))
+})
+
+test('Postgres batch display preserves all-match selection comma normalization', async () => {
+  const { getItemBatch } = await import('./queries')
+  responses = [[{ total: 0 }], []]
+  await getItemBatch({ q: 'a,b' })
+  assert.ok(statements[1].params.includes('%a b%'))
+  assert.ok(!statements[1].params.includes('%a,b%'))
+})
+
+test('Postgres batch preserves spaces introduced by leading and trailing commas', async () => {
+  const { getItemBatch } = await import('./queries')
+  responses = [[{ total: 0 }], []]
+  await getItemBatch({ q: ',a,' })
+  assert.ok(statements[1].params.includes('% a %'))
+  assert.ok(!statements[1].params.includes('%a%'))
+})
+
 test('references recheck authorization for every request instead of sharing a cached result', async () => {
   const { getItemReferences } = await import('./queries')
   responses = [[{ id: 'cat', name: 'Category' }], [], []]

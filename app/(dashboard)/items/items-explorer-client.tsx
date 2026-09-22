@@ -58,13 +58,15 @@ import {
 import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import { cn } from '@/lib/utils'
+import { normalizeItemListSearchParams } from '@/features/items/list-params'
+import { useItemWindow } from '@/features/items/use-item-window'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
   total: number
-  page: number
-  totalPages: number
+  nextCursor: string | null
+  userId: string
   params: ItemListSearchParams & { new?: string }
   userCanWrite: boolean
   userCanDelete: boolean
@@ -73,7 +75,6 @@ interface ItemsExplorerClientProps {
   units: { id: string; name: string }[]
 }
 
-type ViewMode = 'list' | 'grid'
 
 const typeIcons: Record<ItemType, React.ReactNode> = {
   asset: <Package className="h-4 w-4 text-blue-600" />,
@@ -91,31 +92,29 @@ function toItemDetail(item: ItemListRow): ItemDetail {
   }
 }
 
-export function ItemsExplorerClient({
+export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
+  const identity = JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)])
+  return <ItemsExplorerSession key={identity} {...props} identity={identity} />
+}
+
+function ItemsExplorerSession({
   items,
   total,
-  page,
-  totalPages,
+  nextCursor,
+  identity,
   params,
   userCanWrite,
   userCanDelete,
   locations,
   categories,
   units,
-}: ItemsExplorerClientProps) {
+}: ItemsExplorerClientProps & { identity: string }) {
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
-  const [localItems, setLocalItems] = useState<ItemListRow[]>(items)
-  const [prevItems, setPrevItems] = useState<ItemListRow[]>(items)
-
-  // Keep localItems in sync when server re-fetches (router.refresh)
-  if (items !== prevItems) {
-    setPrevItems(items)
-    setLocalItems(items)
-  }
-
+  const { attachScroll, ...windowed } = useItemWindow(identity, params, { items, total, nextCursor })
+  const localItems = windowed.loaded
   const { toast } = useToast()
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
@@ -129,7 +128,7 @@ export function ItemsExplorerClient({
     setSelectedItemIds([])
     setBulkEditOpen(false)
   }
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const { view: viewMode, setView: setViewMode } = windowed
   const [blockingError, setBlockingError] = useState<string | null>(null)
   const [searchVal, setSearchVal] = useState(params.q ?? '')
   const [prevQ, setPrevQ] = useState(params.q ?? '')
@@ -191,14 +190,6 @@ export function ItemsExplorerClient({
     if (newSortBy) query.set('sort_by', newSortBy)
     if (newSortDir) query.set('sort_dir', newSortDir)
     
-    if (updates.page) {
-      query.set('page', updates.page)
-    } else if (updates.sort_by || updates.sort_dir) {
-      if (params.page) query.set('page', params.page)
-    } else {
-      query.set('page', '1')
-    }
-    
     startTransition(() => {
       router.push(`/items?${query.toString()}`)
     })
@@ -218,10 +209,8 @@ export function ItemsExplorerClient({
     handleFilterChange({ sort_by: field, sort_dir: nextDir })
   }
 
-  const effectiveSelectedItemId = localItems.some((item) => item.id === selectedItemId)
-    ? selectedItemId
-    : localItems[0]?.id ?? null
-  const selectedItem = localItems.find((item) => item.id === effectiveSelectedItemId) ?? null
+  const effectiveSelectedItemId = inspectedItem?.id ?? null
+  const selectedItem = localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
 
   const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
@@ -324,13 +313,14 @@ export function ItemsExplorerClient({
     if (next.status) query.set('status', next.status)
     if (next.category_id) query.set('category_id', next.category_id)
     if (next.location_id) query.set('location_id', next.location_id)
-    if (next.page) query.set('page', next.page)
+    if (next.sort_by) query.set('sort_by', next.sort_by)
+    if (next.sort_dir) query.set('sort_dir', next.sort_dir)
 
     const serialized = query.toString()
     return serialized ? `/items?${serialized}` : '/items'
   }
 
-  const buildPageHref = (pageNumber: number) => buildHref({ page: String(pageNumber) })
+
 
 
 
@@ -352,11 +342,12 @@ export function ItemsExplorerClient({
   }
 
   const handleSelectItem = (item: ItemListRow) => {
-    setSelectedItemId(item.id)
+    setInspectedItem(item)
     setIsInspectorOpen(true)
   }
 
   const handleDoubleClickItem = (item: ItemListRow) => {
+    windowed.save()
     router.push(`/items/${item.id}`)
   }
 
@@ -503,22 +494,27 @@ export function ItemsExplorerClient({
                 </div>
               </div>
             )}
-            <div className={cn("flex-1 min-h-0 flex flex-col transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
+            <div ref={attachScroll} data-testid="items-scroll" className={cn("flex-1 min-h-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
               {viewMode === 'list' ? (
                 <ItemsList
-                  items={localItems}
+                  items={windowed.slots}
+                  topSpace={windowed.topSpace}
+                  bottomSpace={windowed.bottomSpace}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={handleSelectItem}
                   onDoubleClick={handleDoubleClickItem}
                   onToggleSelectItem={handleToggleSelectItem}
                   onToggleSelectAll={handleToggleSelectAll}
+                  allLoadedSelected={localItems.length > 0 && localItems.every(item => selectedItemIds.includes(item.id))}
                   params={params}
                   onToggleSort={toggleSort}
                 />
               ) : (
-                <ItemsGrid
-                  items={localItems}
+                <ItemsGrid columns={windowed.columns}
+                  items={windowed.slots}
+                  topSpace={windowed.topSpace}
+                  bottomSpace={windowed.bottomSpace}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={handleSelectItem}
@@ -529,13 +525,13 @@ export function ItemsExplorerClient({
             </div>
           </div>
 
-          <footer className="flex h-[40px] shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10">
+          <footer className="flex min-h-10 flex-wrap gap-2 py-2 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10">
             <div className="flex items-center gap-4">
               <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground">
-                ทั้งหมด {total} รายการ
+                ถึง {windowed.store.count} / {windowed.state.total ?? total} รายการ (โหลดอยู่ {localItems.length})
               </span>
               <span className="text-muted-foreground font-semibold hidden md:inline">
-                มูลค่าตามราคาที่บันทึกในหน้านี้: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
+                มูลค่ารายการที่โหลดอยู่: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
                 <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs">
@@ -545,12 +541,8 @@ export function ItemsExplorerClient({
             </div>
 
             <div className="flex items-center gap-3">
-              <PaginationLink href={buildPageHref(Math.max(1, page - 1))} disabled={page <= 1}>
-                ก่อนหน้า
-              </PaginationLink>
-              <PaginationLink href={buildPageHref(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
-                ถัดไป
-              </PaginationLink>
+              <span role="status" aria-live="polite">{windowed.state.error ?? (windowed.state.loading ? 'กำลังโหลด...' : !windowed.store.hasMore ? 'ครบทุกข้อมูลแล้ว' : '')}</span>
+              {(windowed.state.error || windowed.store.hasMore) && <Button variant="outline" disabled={windowed.state.loading} onClick={() => void (windowed.state.error ? windowed.store.retry() : windowed.store.loadMore())}>{windowed.state.error ? 'ลองใหม่' : 'โหลดเพิ่มเติม'}</Button>}
 
             </div>
           </footer>
@@ -559,6 +551,7 @@ export function ItemsExplorerClient({
 
       {/* Slide-Over Detail Drawer (Inspector Sheet) */}
       <Inspector
+        onOpenDetails={windowed.save}
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         item={selectedItem}
@@ -600,7 +593,7 @@ export function ItemsExplorerClient({
           {/* Bulk Print Asset Tag */}
           <Button
             disabled={selectedItemsData.length !== selectedItemIds.length}
-            title={selectedItemsData.length !== selectedItemIds.length ? 'พิมพ์ลาเบลได้เฉพาะรายการที่เลือกในหน้านี้' : undefined}
+            title={selectedItemsData.length !== selectedItemIds.length ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
             onClick={() => setIsBatchPrintOpen(true)}
             variant="outline"
             className="h-8 rounded-lg px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
@@ -615,17 +608,13 @@ export function ItemsExplorerClient({
               onClick={async () => {
                 if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
 
-                const prevItems = localItems
-                // Optimistically remove items from view
-                setLocalItems(prev => prev.filter(item => !selectedItemIds.includes(item.id)))
-
                 const res = await bulkHardDeleteItems(selectedItemIds)
                 if (res.success) {
                   triggerToast(res.message || 'ลบเรียบร้อย')
                   setSelectedItemIds([])
+                  void windowed.store.refresh()
                   router.refresh()
                 } else {
-                  setLocalItems(prevItems)
                   setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
                 }
               }}
@@ -705,19 +694,22 @@ export function ItemsExplorerClient({
 }
 
 interface ItemsListProps {
-  items: ItemListRow[]
+  items: (ItemListRow | null | undefined)[]
+  topSpace: number
+  bottomSpace: number
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
   onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
   onToggleSelectAll: () => void
+  allLoadedSelected: boolean
   params: ItemListSearchParams
   onToggleSort: (field: string) => void
 }
 
 function ItemsList({
-  items,
+  items, topSpace, bottomSpace, allLoadedSelected,
   selectedItemId,
   selectedItemIds,
   onSelect,
@@ -758,46 +750,52 @@ function ItemsList({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto bg-muted/20">
-      <DataTable wrapperClassName="border-0 rounded-none bg-transparent shadow-none" className="text-card-foreground">
-        <DataTableHeader className="bg-muted/50 border-b border-border">
+    <div className="bg-muted/20">
+      <DataTable responsive={false} wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible" className="text-card-foreground table-fixed min-w-[768px] sm:min-w-[856px] md:min-w-[960px] xl:min-w-[1100px]">
+        <DataTableHeader className="bg-muted border-b border-border">
           <tr>
-            <DataTableHead isCheckbox>
+            <DataTableHead isCheckbox className="w-9 px-2">
               <input
                 type="checkbox"
-                aria-label="เลือกทุกรายการในหน้านี้"
-                checked={items.length > 0 && items.every(item => selectedItemIds.includes(item.id))}
+                aria-label="เลือกทุกรายการที่โหลดอยู่"
+                checked={allLoadedSelected}
                 onChange={onToggleSelectAll}
                 className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
               />
             </DataTableHead>
-            <DataTableHead className="w-12 px-2" />
-            <DataTableHead className="min-w-[220px] px-2">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
-            <DataTableHead className="hidden sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
-            <DataTableHead className="hidden md:table-cell">หมวดหมู่</DataTableHead>
-            <DataTableHead>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
-            <DataTableHead>สถานที่</DataTableHead>
-            <DataTableHead className="hidden xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
-            <DataTableHead>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
+            <DataTableHead className="w-10 px-1" />
+            <DataTableHead className="px-3">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
+            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
+            <DataTableHead className="hidden w-28 px-3 md:table-cell">หมวดหมู่</DataTableHead>
+            <DataTableHead className="w-[88px] px-2">{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead className="w-[136px] px-3">สถานที่</DataTableHead>
+            <DataTableHead className="hidden w-[136px] px-3 xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
+            <DataTableHead className="w-28 px-3">{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {items.map((item) => {
+          {/* Six columns are always visible; spanning hidden columns creates a phantom column. */}
+          <tr aria-hidden="true"><td colSpan={6} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          {items.map((item, slot) => {
+            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={6} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
             return (
               <DataTableRow
                 key={item.id}
+                tabIndex={0}
+                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
+                title={item.item_name}
                 onClick={() => onSelect(item)}
                 onDoubleClick={() => onDoubleClick?.(item)}
                 className={cn(
-                  'cursor-pointer transition-colors',
+                  'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
                   isSelected
                     ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
                     : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
                 )}
               >
-                <DataTableCell isCheckbox onClick={(e) => e.stopPropagation()}>
+                <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     aria-label={`เลือก ${item.item_name}`}
@@ -806,27 +804,28 @@ function ItemsList({
                     className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
                   />
                 </DataTableCell>
-                <DataTableCell className="px-2">
+                <DataTableCell className="px-1">
                   <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
                     {typeIcons[item.item_type]}
                   </div>
                 </DataTableCell>
-                <DataTableCell className="px-2">
-                  <div className="font-extrabold text-card-foreground">{item.item_name}</div>
-                  <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                <DataTableCell className="px-3">
+                  <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
+                  <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
                     {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
                   </div>
                 </DataTableCell>
-                <DataTableCell className="hidden font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
-                <DataTableCell className="hidden text-muted-foreground md:table-cell">{item.category?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                <DataTableCell className="font-semibold text-muted-foreground">{item.location?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="hidden font-semibold text-muted-foreground xl:table-cell">{item.responsible_person ?? '-'}</DataTableCell>
-                <DataTableCell><StatusBadge status={item.status} /></DataTableCell>
+                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
+                <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+                <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
+                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
+                <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
               </DataTableRow>
             )
           })}
-          {!items.length && <EmptyRows />}
+          <tr aria-hidden="true"><td colSpan={6} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>
     </div>
@@ -834,7 +833,10 @@ function ItemsList({
 }
 
 interface ItemsGridProps {
-  items: ItemListRow[]
+  columns: number
+  items: (ItemListRow | null | undefined)[]
+  topSpace: number
+  bottomSpace: number
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
@@ -843,7 +845,7 @@ interface ItemsGridProps {
 }
 
 function ItemsGrid({
-  items,
+  items, columns, topSpace, bottomSpace,
   selectedItemId,
   selectedItemIds,
   onSelect,
@@ -851,19 +853,23 @@ function ItemsGrid({
   onToggleSelectItem,
 }: ItemsGridProps) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4">
+    <div className="bg-muted/20 p-4" style={{ paddingTop: topSpace + 16, paddingBottom: bottomSpace + 16 }}>
       {items.length ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {items.map((item) => {
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: 208 }}>
+          {items.map((item, slot) => {
+            if (!item) return <div key={`slot-${slot}`} className="p-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</div>
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
             return (
               <div
                 key={item.id}
+                tabIndex={0}
+                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
+                title={item.item_name}
                 onClick={() => onSelect(item)}
                 onDoubleClick={() => onDoubleClick?.(item)}
                 className={cn(
-                  'group relative flex min-h-40 flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
+                  'group relative flex h-[208px] min-w-0 overflow-hidden flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
                   isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
                 )}
               >
@@ -876,7 +882,7 @@ function ItemsGrid({
                     aria-pressed={isChecked}
                     className={cn(
                       'flex h-11 w-11 items-center justify-center rounded border transition-colors cursor-pointer',
-                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground opacity-0 group-hover:opacity-100'
+                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
                     )}
                   >
                     {isChecked && <Check className="w-4 h-4 stroke-[3px]" />}
@@ -938,7 +944,7 @@ function EmptyRows() {
   )
 }
 
-function Inspector({
+function Inspector({ onOpenDetails,
   isOpen,
   onClose,
   item,
@@ -948,6 +954,7 @@ function Inspector({
   onPrint,
   onEdit,
 }: {
+  onOpenDetails: () => void
   isOpen: boolean
   onClose: () => void
   item: ItemListRow | null
@@ -1037,7 +1044,7 @@ function Inspector({
             )}
 
             <Link
-              href={`/items/${item.id}`}
+              href={`/items/${item.id}`} onClick={onOpenDetails}
               className="absolute right-3 top-3 rounded-full bg-card/95 p-2 text-primary shadow-md transition-transform hover:scale-105 hover:bg-card"
               title="เปิดหน้ารายละเอียดเต็ม"
             >
@@ -1170,7 +1177,7 @@ function Inspector({
                 <Tag className="h-4 w-4" />
                 <span>พิมพ์ป้ายบาร์โค้ด</span>
               </Button>
-              <Link href={`/items/${item.id}`} className="w-full">
+              <Link href={`/items/${item.id}`} onClick={onOpenDetails} className="w-full">
                 <Button
                   type="button"
                   variant="outline"
@@ -1225,29 +1232,3 @@ function InspectorBox({
     </div>
   )
 }
-
-function PaginationLink({
-  href,
-  disabled,
-  children,
-}: {
-  href: string
-  disabled: boolean
-  children: React.ReactNode
-}) {
-  if (disabled) {
-    return (
-      <span className="rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-bold text-muted-foreground/60">
-        {children}
-      </span>
-    )
-  }
-
-  return (
-    <Link href={href} className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-card-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary">
-      {children}
-    </Link>
-  )
-}
-
-// Status badges are handled by the shared StatusBadge component

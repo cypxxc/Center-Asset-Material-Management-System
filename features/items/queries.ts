@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { isPostgresBackend } from '@/lib/backend'
-import { getPostgresItemReferences, getPostgresItems, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems } from './postgres-queries'
+import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems } from './postgres-queries'
 
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
@@ -9,6 +9,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { resolvePrivateItemImageUrl } from '@/lib/supabase/storage'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { getDevelopmentSessionUser } from '@/features/auth/dev-auth'
 import { normalizeForSearch } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { measureQuery } from '@/lib/performance'
@@ -16,12 +17,22 @@ import {
   ItemAuditLog,
   ItemDetail,
   ItemListResult,
+  ItemBatchResult,
   ItemListRow,
   ItemListSearchParams,
   ItemStatus,
   ItemType,
   ReferenceOption,
 } from './types'
+import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
+
+async function getEffectiveClient() {
+  const devSessionUser = await getDevelopmentSessionUser()
+  if (devSessionUser) {
+    return createServiceRoleClient()
+  }
+  return createClient()
+}
 
 const PAGE_SIZE = 10
 
@@ -123,7 +134,7 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
 }
 
 async function signItemImage<T extends { image_url?: string | null }>(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof getEffectiveClient>>,
   item: T
 ): Promise<T> {
   if (!item.image_url) return item
@@ -292,6 +303,61 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     page,
     pageSize: PAGE_SIZE,
     totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+  }
+}
+
+export async function getItemBatch(params: ItemListSearchParams, cursor?: string): Promise<ItemBatchResult> {
+  const normalized = normalizeItemListSearchParams(params)
+  const cursorValue = cursor ? decodeItemCursor(cursor, normalized) : null
+  if (isPostgresBackend()) return getPostgresItemBatch(normalized, cursorValue)
+
+  const supabase = await getEffectiveClient()
+  let query = supabase
+    .from('items')
+    .select(
+      `
+        id, item_name, item_type, quantity, unit_price, asset_no, serial_no,
+        responsible_person, status, updated_at, brand, model, note, image_url,
+        category:categories(id, name), unit:units(id, name), location:locations(id, name)
+      `,
+      cursorValue ? undefined : { count: 'exact' },
+    )
+    .is('deleted_at', null)
+
+  if (normalized.q) {
+    const pattern = escapePostgrestLiteral(`%${normalized.q}%`)
+    query = query.or([
+      'item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person',
+    ].map((column) => `${column}.ilike.${pattern}`).join(','))
+  }
+  if (normalized.type) query = query.eq('item_type', normalized.type)
+  if (normalized.status) query = query.eq('status', normalized.status)
+  if (normalized.category_id) query = query.eq('category_id', normalized.category_id)
+  if (normalized.location_id) query = query.eq('location_id', normalized.location_id)
+
+  if (cursorValue) {
+    const column = normalized.sort_by
+    const comparator = normalized.sort_dir === 'asc' ? 'gt' : 'lt'
+    const key = typeof cursorValue.key === 'number' ? String(cursorValue.key) : escapePostgrestLiteral(cursorValue.key)
+    const id = escapePostgrestLiteral(cursorValue.id)
+    query = query.or(`${column}.${comparator}.${key},and(${column}.eq.${key},id.${comparator}.${id})`)
+  }
+
+  const { data, count, error } = await query
+    .order(normalized.sort_by, { ascending: normalized.sort_dir === 'asc' })
+    .order('id', { ascending: normalized.sort_dir === 'asc' })
+    .limit(BATCH_SIZE + 1)
+
+  if (error) throw new Error('Unable to load item data')
+  const rows = ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
+  const hasMore = rows.length > BATCH_SIZE
+  const page = rows.slice(0, BATCH_SIZE)
+  const items = await Promise.all(page.map((item) => signItemImage(supabase, item)))
+  const last = items.at(-1)
+  return {
+    items,
+    total: cursorValue ? null : (count ?? 0),
+    nextCursor: hasMore && last ? encodeItemCursor(normalized, last[normalized.sort_by] as ItemCursorKey, last.id) : null,
   }
 }
 
