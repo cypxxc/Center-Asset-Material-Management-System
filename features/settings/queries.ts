@@ -4,7 +4,7 @@ import { isPostgresBackend } from '@/lib/backend'
 import { getPostgresSettingsData, getPostgresLocationsOverview } from './postgres-queries'
 
 import { createClient } from '@/lib/supabase/server'
-import type { SettingsData } from './types'
+import type { SettingsData, SettingsPageData } from './types'
 
 export type SettingsDataSection = 'categories' | 'locations' | 'units' | 'all'
 
@@ -125,3 +125,24 @@ export async function getLocationsOverview() {
     items: mappedItems,
   }
 }
+
+export async function getSettingsPageData(tabParam?: string): Promise<SettingsPageData> {
+  const activeTab = ['categories', 'locations', 'units', 'import'].includes(tabParam ?? '')
+    ? tabParam!
+    : 'categories'
+
+  const metadataSection =
+    activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units'
+      ? activeTab
+      : 'all'
+
+  const data = activeTab === 'import'
+    ? { categories: [], locations: [], units: [] }
+    : await getSettingsData(metadataSection)
+
+  return {
+    activeTab,
+    data,
+  }
+}
+

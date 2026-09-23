@@ -122,3 +122,21 @@ export interface ItemsExplorerPageData {
   }
 }
 
+export interface DashboardLayoutData {
+  sidebarData: {
+    categories: { id: string; name: string; count: number }[]
+    locations: { id: string; name: string; count: number }[]
+    counts: {
+      total_assets: number
+      total_supplies: number
+      archive_count: number
+      trash_count: number
+    }
+  }
+  references: {
+    categories: ReferenceOption[]
+    locations: ReferenceOption[]
+    units: ReferenceOption[]
+  }
+}
+

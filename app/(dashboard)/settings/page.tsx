@@ -4,7 +4,7 @@ import {
   UnitSection,
   ImportSection,
 } from '@/features/settings/components/metadata-sections'
-import { getSettingsData } from '@/features/settings/queries'
+import { getSettingsPageData } from '@/features/settings/queries'
 import { canManageSettings } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
@@ -28,17 +28,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect('/dashboard')
   }
   const params = await searchParams
-  const activeTab = ['categories', 'locations', 'units', 'import'].includes(params.tab ?? '')
-    ? params.tab!
-    : 'categories'
-  const metadataSection =
-    activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units'
-      ? activeTab
-      : 'all'
-
-  const data = activeTab === 'import'
-    ? { categories: [], locations: [], units: [] }
-    : await getSettingsData(metadataSection)
+  const { activeTab, data } = await getSettingsPageData(params.tab)
 
   const tabs = [
     { id: 'categories', label: 'หมวดหมู่พัสดุ', icon: <Tag className="h-4 w-4" /> },

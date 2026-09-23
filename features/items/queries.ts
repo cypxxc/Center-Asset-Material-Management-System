@@ -26,6 +26,7 @@ import {
   ItemDetailPageData,
   ItemEditPageData,
   ItemsExplorerPageData,
+  DashboardLayoutData,
 } from './types'
 import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
@@ -505,6 +506,18 @@ export async function getItemsExplorerPageData(
     items: result.items,
     total: result.total ?? 0,
     nextCursor: result.nextCursor,
+    references,
+  }
+}
+
+export async function getDashboardLayoutData(): Promise<DashboardLayoutData> {
+  const [sidebarData, references] = await Promise.all([
+    getSidebarData(),
+    getItemReferences(),
+  ])
+
+  return {
+    sidebarData,
     references,
   }
 }

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
-import { getItemReferences, getSidebarData } from '@/features/items/queries'
+import { getDashboardLayoutData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
 
@@ -12,11 +12,7 @@ interface DashboardLayoutProps {
 }
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [profile, sidebarData, references] = await Promise.all([
-    getCurrentProfile(),
-    getSidebarData(),
-    getItemReferences(),
-  ])
+  const profile = await getCurrentProfile()
 
   if (!profile) {
     return (
@@ -31,6 +27,8 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   if (!profile.is_active) {
     redirect('/login?error=inactive')
   }
+
+  const { sidebarData, references } = await getDashboardLayoutData()
 
   return (
     <ToastProvider>

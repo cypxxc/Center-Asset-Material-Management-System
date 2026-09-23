@@ -54,3 +54,9 @@ export interface LocationsOverview {
   locations: LocationOverviewRow[]
   items: LocationOverviewItem[]
 }
+
+export interface SettingsPageData {
+  activeTab: string
+  data: SettingsData
+}
+
