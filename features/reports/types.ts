@@ -1,4 +1,5 @@
-import type { ItemListRow } from '@/features/items/types'
+import type { ItemListRow, ReferenceOption, ItemListSearchParams } from '@/features/items/types'
+import type { getDepreciationReport } from '@/features/depreciation/queries'
 
 export interface ReportCountBucket {
   count: number
@@ -27,4 +28,19 @@ export interface ReportListResult {
   totalValue: number
   totalPages: number
   page: number
+}
+
+export interface ReportsOverview {
+  preparedBy: string | null
+  items: ReportItemRow[]
+  totalCount: number
+  totalQuantity: number
+  totalValue: number
+  totalPages: number
+  currentPage: number
+  searchParams: ItemListSearchParams
+  categories: ReferenceOption[]
+  locations: ReferenceOption[]
+  stats: ReportStats
+  depreciationReport: Awaited<ReturnType<typeof getDepreciationReport>>
 }
