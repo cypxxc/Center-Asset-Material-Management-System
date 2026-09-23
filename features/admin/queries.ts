@@ -1,6 +1,13 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
-import type { ProfileListItem, AuditLogListItem } from './types'
+import type {
+  ProfileListItem,
+  AuditLogListItem,
+  UsersPageData,
+  UsersPageSearchParams,
+  AuditLogsPageData,
+  AuditLogsPageSearchParams,
+} from './types'
 import { isPostgresBackend } from '@/lib/backend'
 import { pgGetProfilesList, pgGetAuditLogsList } from './postgres-admin'
 
@@ -137,3 +144,54 @@ export async function getAuditLogsList(params: GetAuditLogsParams = {}) {
     error: error ? (error as { message?: string }).message || String(error) : undefined,
   }
 }
+
+export async function getUsersPageData(rawParams: UsersPageSearchParams = {}): Promise<UsersPageData> {
+  const page = parseInt(rawParams.page || '1', 10) || 1
+  const pageSize = parseInt(rawParams.pageSize || '50', 10) || 50
+
+  const initialData = await getProfilesList({
+    q: rawParams.q,
+    role: rawParams.role,
+    is_active: rawParams.is_active,
+    page,
+    pageSize,
+  })
+
+  return {
+    profiles: initialData.profiles,
+    totalCount: initialData.totalCount,
+    searchParams: {
+      q: rawParams.q || '',
+      role: rawParams.role || 'all',
+      is_active: rawParams.is_active || 'all',
+      page,
+      pageSize,
+    },
+  }
+}
+
+export async function getAuditLogsPageData(rawParams: AuditLogsPageSearchParams = {}): Promise<AuditLogsPageData> {
+  const page = parseInt(rawParams.page || '1', 10) || 1
+  const pageSize = parseInt(rawParams.pageSize || '50', 10) || 50
+
+  const initialData = await getAuditLogsList({
+    q: rawParams.q,
+    action: rawParams.action,
+    target_table: rawParams.target_table,
+    page,
+    pageSize,
+  })
+
+  return {
+    logs: initialData.logs,
+    totalCount: initialData.totalCount,
+    searchParams: {
+      q: rawParams.q || '',
+      action: rawParams.action || 'all',
+      target_table: rawParams.target_table || 'all',
+      page,
+      pageSize,
+    },
+  }
+}
+

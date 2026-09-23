@@ -27,3 +27,43 @@ export interface AuditLogListItem {
     role?: string | null
   } | null
 }
+
+export interface UsersPageSearchParams {
+  q?: string
+  role?: string
+  is_active?: string
+  page?: string
+  pageSize?: string
+}
+
+export interface UsersPageData {
+  profiles: ProfileListItem[]
+  totalCount: number
+  searchParams: {
+    q: string
+    role: string
+    is_active: string
+    page: number
+    pageSize: number
+  }
+}
+
+export interface AuditLogsPageSearchParams {
+  q?: string
+  action?: string
+  target_table?: string
+  page?: string
+  pageSize?: string
+}
+
+export interface AuditLogsPageData {
+  logs: AuditLogListItem[]
+  totalCount: number
+  searchParams: {
+    q: string
+    action: string
+    target_table: string
+    page: number
+    pageSize: number
+  }
+}
