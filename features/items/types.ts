@@ -96,3 +96,9 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   inactive: 'ไม่ใช้งาน',
   disposed: 'จำหน่ายแล้ว',
 }
+
+export interface ItemDetailPageData {
+  item: ItemDetail | null
+  auditLogs: ItemAuditLog[]
+}
+

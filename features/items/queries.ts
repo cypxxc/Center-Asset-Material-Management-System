@@ -23,6 +23,7 @@ import {
   ItemStatus,
   ItemType,
   ReferenceOption,
+  ItemDetailPageData,
 } from './types'
 import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
@@ -464,6 +465,18 @@ export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> 
       new_data: log.new_data as Record<string, unknown> | null,
     }
   })
+}
+
+export async function getItemDetailPageData(id: string): Promise<ItemDetailPageData> {
+  const [itemResult, auditLogResults] = await Promise.all([
+    getItemById(id),
+    getItemAuditLogs(id),
+  ])
+
+  return {
+    item: (itemResult as ItemDetail | null) ?? null,
+    auditLogs: (auditLogResults as ItemAuditLog[]) ?? [],
+  }
 }
 
 export interface LowStockDashboardItem {

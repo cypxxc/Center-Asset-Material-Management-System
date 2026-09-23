@@ -3,10 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
-import { getItemById, getItemAuditLogs } from '@/features/items/queries'
-import type { ItemAuditLog } from '@/features/items/types'
+import { getItemDetailPageData } from '@/features/items/queries'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
-import type { ItemDetail } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
 
@@ -38,12 +36,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
     redirect('/login')
   }
 
-  const [itemResult, auditLogResults] = await Promise.all([
-    getItemById(id),
-    getItemAuditLogs(id)
-  ])
-  const item = itemResult as ItemDetail | null
-  const auditLogs = auditLogResults as ItemAuditLog[]
+  const { item, auditLogs } = await getItemDetailPageData(id)
 
   if (!item) notFound()
 
