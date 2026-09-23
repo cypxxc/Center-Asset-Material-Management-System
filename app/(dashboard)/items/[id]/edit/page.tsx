@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { updateItem } from '@/features/items/actions'
 import { ItemForm } from '@/features/items/components/item-form'
-import { getItemById, getItemReferences } from '@/features/items/queries'
+import { getItemEditPageData } from '@/features/items/queries'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite } from '@/lib/permissions'
 
@@ -21,10 +21,9 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
   }
 
   const { id } = await params
-  const [item, references] = await Promise.all([getItemById(id), getItemReferences()])
+  const { item, references } = await getItemEditPageData(id)
 
   if (!item) notFound()
-
 
   const action = updateItem.bind(null, item.id)
 

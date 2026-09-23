@@ -102,3 +102,12 @@ export interface ItemDetailPageData {
   auditLogs: ItemAuditLog[]
 }
 
+export interface ItemEditPageData {
+  item: ItemDetail | null
+  references: {
+    categories: ReferenceOption[]
+    locations: ReferenceOption[]
+    units: ReferenceOption[]
+  }
+}
+

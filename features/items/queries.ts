@@ -24,6 +24,7 @@ import {
   ItemType,
   ReferenceOption,
   ItemDetailPageData,
+  ItemEditPageData,
 } from './types'
 import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
@@ -476,6 +477,18 @@ export async function getItemDetailPageData(id: string): Promise<ItemDetailPageD
   return {
     item: (itemResult as ItemDetail | null) ?? null,
     auditLogs: (auditLogResults as ItemAuditLog[]) ?? [],
+  }
+}
+
+export async function getItemEditPageData(id: string): Promise<ItemEditPageData> {
+  const [item, references] = await Promise.all([
+    getItemById(id),
+    getItemReferences(),
+  ])
+
+  return {
+    item: (item as ItemDetail | null) ?? null,
+    references,
   }
 }
 
