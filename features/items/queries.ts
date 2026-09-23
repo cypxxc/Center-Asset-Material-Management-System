@@ -25,6 +25,7 @@ import {
   ReferenceOption,
   ItemDetailPageData,
   ItemEditPageData,
+  ItemsExplorerPageData,
 } from './types'
 import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
@@ -488,6 +489,22 @@ export async function getItemEditPageData(id: string): Promise<ItemEditPageData>
 
   return {
     item: (item as ItemDetail | null) ?? null,
+    references,
+  }
+}
+
+export async function getItemsExplorerPageData(
+  params: ItemListSearchParams
+): Promise<ItemsExplorerPageData> {
+  const [references, result] = await Promise.all([
+    getItemReferences(),
+    getItemBatch(params),
+  ])
+
+  return {
+    items: result.items,
+    total: result.total ?? 0,
+    nextCursor: result.nextCursor,
     references,
   }
 }

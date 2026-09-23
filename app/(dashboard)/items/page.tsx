@@ -1,4 +1,4 @@
-import { getItemBatch, getItemReferences } from '@/features/items/queries'
+import { getItemsExplorerPageData } from '@/features/items/queries'
 import { ItemListSearchParams } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
@@ -11,34 +11,24 @@ interface ItemsPageProps {
 
 export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   const params = await searchParams
+  if (params.deleted === 'true') redirect('/items')
 
-  const [profile, references, result] = await Promise.all([
-    getCurrentProfile(),
-    getItemReferences(),
-    getItemBatch(params),
-  ])
-
+  const profile = await getCurrentProfile()
   if (!profile) {
     redirect('/login')
   }
 
-  const userCanWrite = canWrite(profile?.role)
-  const userCanDelete = canDelete(profile?.role)
-  if (params.deleted === 'true') redirect('/items')
-
-  // Normal view
-  const normalResult = result as Awaited<ReturnType<typeof getItemBatch>>
-
+  const { items, total, nextCursor, references } = await getItemsExplorerPageData(params)
 
   return (
     <ItemsExplorerClient
-      items={normalResult.items}
-      total={normalResult.total ?? 0}
-      nextCursor={normalResult.nextCursor}
+      items={items}
+      total={total}
+      nextCursor={nextCursor}
       userId={profile.id}
       params={params}
-      userCanWrite={userCanWrite}
-      userCanDelete={userCanDelete}
+      userCanWrite={canWrite(profile?.role)}
+      userCanDelete={canDelete(profile?.role)}
       locations={references.locations}
       categories={references.categories}
       units={references.units}

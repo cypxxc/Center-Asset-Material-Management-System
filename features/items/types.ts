@@ -111,3 +111,14 @@ export interface ItemEditPageData {
   }
 }
 
+export interface ItemsExplorerPageData {
+  items: ItemListRow[]
+  total: number
+  nextCursor: string | null
+  references: {
+    categories: ReferenceOption[]
+    locations: ReferenceOption[]
+    units: ReferenceOption[]
+  }
+}
+
