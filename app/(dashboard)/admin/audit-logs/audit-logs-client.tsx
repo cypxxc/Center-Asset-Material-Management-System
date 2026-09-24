@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import React, { useState } from 'react'
 import {
   History,
   Search,
@@ -19,6 +18,7 @@ import {
   Code2,
 } from 'lucide-react'
 import type { AuditLogListItem } from '@/features/admin/types'
+import { useAuditLogsFilter } from '@/features/admin/hooks/use-audit-logs-filter'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
@@ -142,14 +142,19 @@ export default function AuditLogsClient({
   initialSearchParams,
 }: AuditLogsClientProps) {
   useRealtimeRefresh(['audit_logs'])
-  const router = useRouter()
-  const pathname = usePathname()
-  const [isPending, startTransition] = useTransition()
-
-  // Filter States
-  const [searchTerm, setSearchTerm] = useState(initialSearchParams.q)
-  const [selectedAction, setSelectedAction] = useState(initialSearchParams.action)
-  const [selectedTable, setSelectedTable] = useState(initialSearchParams.target_table)
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedAction,
+    setSelectedAction,
+    selectedTable,
+    setSelectedTable,
+    isPending,
+    applyFilters,
+    handleSearchSubmit,
+    handleResetFilters,
+    handleRefresh,
+  } = useAuditLogsFilter(initialSearchParams)
 
   // Expanded row IDs
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
@@ -170,45 +175,6 @@ export default function AuditLogsClient({
     }))
   }
 
-  const applyFilters = (updates: {
-    q?: string
-    action?: string
-    target_table?: string
-    page?: number
-    pageSize?: number
-  }) => {
-    const nextQ = updates.q !== undefined ? updates.q : searchTerm
-    const nextAction = updates.action !== undefined ? updates.action : selectedAction
-    const nextTable = updates.target_table !== undefined ? updates.target_table : selectedTable
-    const nextPage = updates.page !== undefined ? updates.page : 1
-    const nextPageSize = updates.pageSize !== undefined ? updates.pageSize : initialSearchParams.pageSize
-
-    const params = new URLSearchParams()
-    if (nextQ.trim()) params.set('q', nextQ.trim())
-    if (nextAction && nextAction !== 'all') params.set('action', nextAction)
-    if (nextTable && nextTable !== 'all') params.set('target_table', nextTable)
-    if (nextPage > 1) params.set('page', nextPage.toString())
-    if (nextPageSize !== 50) params.set('pageSize', nextPageSize.toString())
-
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`)
-    })
-  }
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    applyFilters({ q: searchTerm, page: 1 })
-  }
-
-  const handleResetFilters = () => {
-    setSearchTerm('')
-    setSelectedAction('all')
-    setSelectedTable('all')
-    startTransition(() => {
-      router.push(pathname)
-    })
-  }
-
   // Pagination calculations
   const totalPages = Math.ceil(initialTotalCount / initialSearchParams.pageSize) || 1
   const currentPage = initialSearchParams.page
@@ -224,11 +190,7 @@ export default function AuditLogsClient({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              startTransition(() => {
-                router.refresh()
-              })
-            }}
+            onClick={handleRefresh}
             disabled={isPending}
             className="text-xs h-9 font-medium"
           >

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Users,
   UserPlus,
@@ -20,6 +20,7 @@ import {
   UserX,
 } from 'lucide-react'
 import type { ProfileListItem } from '@/features/admin/types'
+import { useUsersFilter } from '@/features/admin/hooks/use-users-filter'
 import {
   createAuthUser,
   deleteAuthUser,
@@ -74,13 +75,19 @@ export default function UsersClient({
   initialSearchParams,
 }: UsersClientProps) {
   const router = useRouter()
-  const pathname = usePathname()
-  const [isPending, startTransition] = useTransition()
-
-  // Filter States
-  const [searchTerm, setSearchTerm] = useState(initialSearchParams.q)
-  const [selectedRole, setSelectedRole] = useState(initialSearchParams.role)
-  const [selectedStatus, setSelectedStatus] = useState(initialSearchParams.is_active)
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedRole,
+    setSelectedRole,
+    selectedStatus,
+    setSelectedStatus,
+    isPending,
+    startTransition,
+    applyFilters,
+    handleSearchSubmit,
+    handleClearFilters,
+  } = useUsersFilter(initialSearchParams)
 
   // Notification Banner
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -112,31 +119,6 @@ export default function UsersClient({
 
   // Delete User Confirmation
   const [deleteTargetUser, setDeleteTargetUser] = useState<ProfileListItem | null>(null)
-
-  // Apply filters to URL
-  const applyFilters = (q = searchTerm, role = selectedRole, is_active = selectedStatus) => {
-    const params = new URLSearchParams()
-    if (q.trim()) params.set('q', q.trim())
-    if (role && role !== 'all') params.set('role', role)
-    if (is_active && is_active !== 'all') params.set('is_active', is_active)
-    params.set('page', '1')
-
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`)
-    })
-  }
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    applyFilters()
-  }
-
-  const handleClearFilters = () => {
-    setSearchTerm('')
-    setSelectedRole('all')
-    setSelectedStatus('all')
-    applyFilters('', 'all', 'all')
-  }
 
   // Summary Metrics
   const totalCount = initialTotalCount
@@ -380,7 +362,7 @@ export default function UsersClient({
             value={selectedRole}
             onChange={(e) => {
               setSelectedRole(e.target.value)
-              applyFilters(searchTerm, e.target.value, selectedStatus)
+              applyFilters({ role: e.target.value })
             }}
             className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
           >
@@ -394,7 +376,7 @@ export default function UsersClient({
             value={selectedStatus}
             onChange={(e) => {
               setSelectedStatus(e.target.value)
-              applyFilters(searchTerm, selectedRole, e.target.value)
+              applyFilters({ is_active: e.target.value })
             }}
             className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
           >
