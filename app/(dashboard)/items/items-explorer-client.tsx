@@ -21,6 +21,8 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -139,6 +141,25 @@ function ItemsExplorerSession({
     toggleSort,
     buildHref,
   } = useItemsFilter(params)
+  const [isFocusMode, setIsFocusMode] = useState(false)
+
+  // Focus Mode Escape key listener & body scroll lock
+  useEffect(() => {
+    if (!isFocusMode) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFocusMode(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isFocusMode])
+
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
@@ -296,8 +317,22 @@ function ItemsExplorerSession({
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Focus Mode Backdrop Overlay */}
+        {isFocusMode && (
+          <div
+            data-testid="table-focus-overlay"
+            onClick={() => setIsFocusMode(false)}
+            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+          />
+        )}
+
         {/* Main Content Area */}
-        <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
+        <main
+          className={cn(
+            "flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background transition-all duration-200",
+            isFocusMode && "fixed inset-2 sm:inset-4 md:inset-6 z-40 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+          )}
+        >
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-border bg-card px-4 py-5 sm:px-6 md:px-8">
             {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
@@ -314,8 +349,26 @@ function ItemsExplorerSession({
                 <p className="mt-1.5 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
+              {/* View & Focus Mode Controls */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFocusMode((prev) => !prev)}
+                  className={cn(
+                    "flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border transition-all cursor-pointer shadow-2xs",
+                    isFocusMode
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground hover:text-card-foreground hover:bg-muted"
+                  )}
+                  title={isFocusMode ? "ออกจากโหมดโฟกัส" : "เปิดโหมดโฟกัสตาราง"}
+                  aria-label={isFocusMode ? "ออกจากโหมดโฟกัส" : "เปิดโหมดโฟกัสตาราง"}
+                  aria-pressed={isFocusMode}
+                >
+                  {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+
+                {/* View Mode Toggle */}
+                <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
@@ -342,6 +395,7 @@ function ItemsExplorerSession({
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </button>
+                </div>
               </div>
             </div>
 
