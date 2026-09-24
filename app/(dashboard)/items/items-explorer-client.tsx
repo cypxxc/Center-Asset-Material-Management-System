@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useTransition, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -60,6 +60,7 @@ import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
+import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 
 interface ItemsExplorerClientProps {
@@ -130,9 +131,14 @@ function ItemsExplorerSession({
   }
   const { view: viewMode, setView: setViewMode } = windowed
   const [blockingError, setBlockingError] = useState<string | null>(null)
-  const [searchVal, setSearchVal] = useState(params.q ?? '')
-  const [prevQ, setPrevQ] = useState(params.q ?? '')
-  const [isPending, startTransition] = useTransition()
+  const {
+    searchVal,
+    setSearchVal,
+    isPending,
+    handleFilterChange,
+    toggleSort,
+    buildHref,
+  } = useItemsFilter(params)
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
@@ -156,58 +162,7 @@ function ItemsExplorerSession({
       }))
   }, [localItems, selectedItemIds])
 
-  const currentQ = params.q ?? ''
-  if (currentQ !== prevQ) {
-    setPrevQ(currentQ)
-    setSearchVal(currentQ)
-  }
 
-  const handleFilterChange = (updates: {
-    q?: string
-    type?: string
-    status?: string
-    category_id?: string
-    location_id?: string
-    page?: string
-    sort_by?: string
-    sort_dir?: string
-  }) => {
-    const query = new URLSearchParams()
-    
-    const newQ = updates.q !== undefined ? updates.q : searchVal
-    const newType = updates.type !== undefined ? updates.type : (params.type ?? '')
-    const newStatus = updates.status !== undefined ? updates.status : (params.status ?? '')
-    const newCategory = updates.category_id !== undefined ? updates.category_id : (params.category_id ?? '')
-    const newLocation = updates.location_id !== undefined ? updates.location_id : (params.location_id ?? '')
-    const newSortBy = updates.sort_by !== undefined ? updates.sort_by : (params.sort_by ?? '')
-    const newSortDir = updates.sort_dir !== undefined ? updates.sort_dir : (params.sort_dir ?? '')
-    
-    if (newQ) query.set('q', newQ)
-    if (newType) query.set('type', newType)
-    if (newStatus) query.set('status', newStatus)
-    if (newCategory) query.set('category_id', newCategory)
-    if (newLocation) query.set('location_id', newLocation)
-    if (newSortBy) query.set('sort_by', newSortBy)
-    if (newSortDir) query.set('sort_dir', newSortDir)
-    
-    startTransition(() => {
-      router.push(`/items?${query.toString()}`)
-    })
-  }
-
-  const toggleSort = (field: string) => {
-    const currentField = params.sort_by || 'updated_at'
-    const currentDir = params.sort_dir || 'desc'
-    
-    let nextDir: 'asc' | 'desc' = 'asc'
-    if (currentField === field) {
-      nextDir = currentDir === 'asc' ? 'desc' : 'asc'
-    } else {
-      nextDir = field === 'item_name' || field === 'item_type' ? 'asc' : 'desc'
-    }
-    
-    handleFilterChange({ sort_by: field, sort_dir: nextDir })
-  }
 
   const effectiveSelectedItemId = inspectedItem?.id ?? null
   const selectedItem = localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
@@ -304,21 +259,7 @@ function ItemsExplorerSession({
     }
   }
 
-  const buildHref = (overrides: Partial<{ q: string; type: string; status: string; page: string; category_id: string; location_id: string }>) => {
-    const query = new URLSearchParams()
-    const next = { ...params, ...overrides }
 
-    if (next.q) query.set('q', next.q)
-    if (next.type) query.set('type', next.type)
-    if (next.status) query.set('status', next.status)
-    if (next.category_id) query.set('category_id', next.category_id)
-    if (next.location_id) query.set('location_id', next.location_id)
-    if (next.sort_by) query.set('sort_by', next.sort_by)
-    if (next.sort_dir) query.set('sort_dir', next.sort_dir)
-
-    const serialized = query.toString()
-    return serialized ? `/items?${serialized}` : '/items'
-  }
 
 
 
