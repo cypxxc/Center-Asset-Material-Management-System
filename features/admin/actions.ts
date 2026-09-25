@@ -14,6 +14,8 @@ import { pgGetTableData, pgUpsertTableRow, pgDeleteTableRow, pgExportDatabaseDat
 
 
 import { isAdmin } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
+
 
 async function getSupabaseClient() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim() !== '') {
@@ -91,12 +93,13 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     if (error) return { error: error.message }
     
     // Log in audit log
-    await supabase.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'UPDATE',
-      target_table: safeTable,
-      target_id: rowId,
-      new_data: cleanPayload
+    await writeAuditLog({
+      operation: 'UPDATE',
+      feature: 'admin',
+      userId: auth.profile.id,
+      targetType: safeTable,
+      targetId: rowId,
+      newValues: cleanPayload,
     })
 
     revalidatePath('/admin/db-panel')
@@ -114,12 +117,13 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 
     // Log in audit log
     if (newId) {
-      await supabase.from('audit_logs').insert({
-        user_id: auth.profile.id,
-        action: 'INSERT',
-        target_table: safeTable,
-        target_id: newId,
-        new_data: cleanPayload
+      await writeAuditLog({
+        operation: 'INSERT',
+        feature: 'admin',
+        userId: auth.profile.id,
+        targetType: safeTable,
+        targetId: newId,
+        newValues: cleanPayload,
       })
     }
 
@@ -151,12 +155,13 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   if (error) return { error: error.message }
 
   // Log in audit log
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'DELETE',
-    target_table: safeTable,
-    target_id: rowId,
-    old_data: oldRow || null
+  await writeAuditLog({
+    operation: 'DELETE',
+    feature: 'admin',
+    userId: auth.profile.id,
+    targetType: safeTable,
+    targetId: rowId,
+    oldValues: oldRow || null,
   })
 
   revalidatePath('/admin/db-panel')
@@ -181,11 +186,13 @@ export async function runAdminSql(sqlQuery: string) {
   }
 
   // Log SQL execution in audit_logs
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'SQL_EXECUTE',
-    target_table: 'multiple/raw_sql',
-    new_data: { query_hash: await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex')) }
+  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex'))
+  await writeAuditLog({
+    operation: 'SQL_EXECUTE',
+    feature: 'admin',
+    userId: auth.profile.id,
+    targetType: 'multiple/raw_sql',
+    newValues: { query_hash: queryHash },
   })
 
   return data
@@ -385,12 +392,13 @@ export async function createAuthUser(payload: {
     }
 
     // Log in audit_logs
-    await adminClient.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'CREATE_USER',
-      target_table: 'profiles',
-      target_id: userId,
-      new_data: { email, full_name, role },
+    await writeAuditLog({
+      operation: 'CREATE_USER',
+      feature: 'admin',
+      userId: auth.profile.id,
+      targetType: 'profiles',
+      targetId: userId,
+      newValues: { email, full_name, role },
     })
 
     revalidatePath('/admin/db-panel')
@@ -425,11 +433,12 @@ export async function deleteAuthUser(userId: string) {
   // Hard-delete the profile row (safety net if FK doesn't cascade)
   await adminClient.from('profiles').delete().eq('id', userId)
 
-  await adminClient.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'DELETE_USER',
-    target_table: 'profiles',
-    target_id: userId,
+  await writeAuditLog({
+    operation: 'DELETE_USER',
+    feature: 'admin',
+    userId: auth.profile.id,
+    targetType: 'profiles',
+    targetId: userId,
   })
 
   revalidatePath('/admin/db-panel')
@@ -466,12 +475,13 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
       return { error: error.message }
     }
 
-    await adminClient.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'RESET_PASSWORD',
-      target_table: 'profiles',
-      target_id: userId,
-      new_data: { note: 'Password reset by admin' }
+    await writeAuditLog({
+      operation: 'RESET_PASSWORD',
+      feature: 'admin',
+      userId: auth.profile.id,
+      targetType: 'profiles',
+      targetId: userId,
+      newValues: { note: 'Password reset by admin' },
     })
 
     revalidatePath('/admin/db-panel')
@@ -520,12 +530,13 @@ export async function updateUserEmail(userId: string, newEmail: string) {
       .update({ email: trimmedEmail, updated_at: new Date().toISOString() })
       .eq('id', userId)
 
-    await adminClient.from('audit_logs').insert({
-      user_id: auth.profile.id,
-      action: 'UPDATE_EMAIL',
-      target_table: 'profiles',
-      target_id: userId,
-      new_data: { new_email: trimmedEmail }
+    await writeAuditLog({
+      operation: 'UPDATE_EMAIL',
+      feature: 'admin',
+      userId: auth.profile.id,
+      targetType: 'profiles',
+      targetId: userId,
+      newValues: { new_email: trimmedEmail },
     })
 
     revalidatePath('/admin/db-panel')
@@ -629,13 +640,14 @@ export async function updateUserProfileRoleAndStatus(
   }
 
   // Record in audit_logs
-  await supabase.from('audit_logs').insert({
-    user_id: auth.profile.id,
-    action: 'UPDATE_PROFILE',
-    target_table: 'profiles',
-    target_id: userId,
-    old_data: oldProfile || null,
-    new_data: updateData,
+  await writeAuditLog({
+    operation: 'UPDATE_PROFILE',
+    feature: 'admin',
+    userId: auth.profile.id,
+    targetType: 'profiles',
+    targetId: userId,
+    oldValues: oldProfile || null,
+    newValues: updateData,
   })
 
   revalidatePath('/admin/users')
