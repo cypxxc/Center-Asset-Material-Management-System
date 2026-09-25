@@ -9,6 +9,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { categorySchema, locationSchema, unitSchema } from './schema'
 import { pgUpdateUserProfile } from '@/features/admin/postgres-admin'
+import { writeAuditLog } from '@/lib/audit'
 
 const definitions = {
   categories: { schema: categorySchema, reference: 'category_id', columns: ['name', 'description', 'is_active'] },
@@ -69,6 +70,15 @@ export async function mutatePostgresMetadata(table: MetadataTable, operation: 'c
       return undefined
     })
   } catch (error) { message = friendlyError(error) }
+  if (message === undefined) {
+    if (operation === 'create') {
+      await writeAuditLog({ operation: 'create', feature: 'settings', userId: profile.id, targetType: table, newValues: values ?? undefined })
+    } else if (operation === 'update') {
+      await writeAuditLog({ operation: 'update', feature: 'settings', userId: profile.id, targetType: table, targetId: id, newValues: values ?? undefined })
+    } else if (operation === 'delete') {
+      await writeAuditLog({ operation: 'delete', feature: 'settings', userId: profile.id, targetType: table, targetId: id })
+    }
+  }
   finish(table, message)
 }
 
