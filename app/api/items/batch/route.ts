@@ -3,9 +3,6 @@ import { CursorError } from '@/features/items/cursor'
 import { getItemBatch } from '@/features/items/queries'
 import { logger } from '@/lib/logging'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
 const responseHeaders = { 'Cache-Control': 'private, no-store' }
 
 export async function GET(request: Request) {

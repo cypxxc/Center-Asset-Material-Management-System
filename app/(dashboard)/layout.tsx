@@ -7,6 +7,8 @@ import { getDashboardLayoutData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
 
+export const instant = false
+
 interface DashboardLayoutProps {
   children: React.ReactNode
 }

@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { checkLiveness } from '@/lib/health'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   const result = checkLiveness()
 
