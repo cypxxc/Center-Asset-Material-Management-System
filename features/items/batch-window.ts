@@ -38,6 +38,78 @@ export class ItemBatchWindow {
     this.publish({ ...state, loading: false, error: null })
     return this.refresh()
   }
+  snapshot = (): WindowState => {
+    return {
+      batches: this.state.batches.map(b => ({
+        ...b,
+        items: b.items ? b.items.map(item => (item ? { ...item } : null)) : undefined,
+      })),
+      total: this.state.total,
+      loading: this.state.loading,
+      error: this.state.error,
+    }
+  }
+  optimisticDelete = (ids: string[]): WindowState => {
+    const idSet = new Set(ids)
+    let deletedCount = 0
+    let currentStart = this.state.batches[0]?.start ?? 0
+    const batches = this.state.batches.map(batch => {
+      if (batch.items) {
+        const nextItems = batch.items.filter(item => {
+          if (item && idSet.has(item.id)) {
+            deletedCount++
+            return false
+          }
+          return true
+        })
+        const slot: BatchSlot = {
+          ...batch,
+          start: currentStart,
+          length: nextItems.length,
+          items: nextItems,
+        }
+        currentStart += nextItems.length
+        return slot
+      }
+      const slot: BatchSlot = {
+        ...batch,
+        start: currentStart,
+      }
+      currentStart += batch.length
+      return slot
+    })
+
+    const nextState: WindowState = {
+      ...this.state,
+      batches,
+      total: this.state.total !== null ? Math.max(0, this.state.total - deletedCount) : null,
+    }
+    this.publish(nextState)
+    return nextState
+  }
+  optimisticUpdate = (ids: string[], patch: Partial<ItemListRow>): WindowState => {
+    const idSet = new Set(ids)
+    const batches = this.state.batches.map(batch => {
+      if (!batch.items) return batch
+      const items = batch.items.map(item => {
+        if (item && idSet.has(item.id)) {
+          return { ...item, ...patch }
+        }
+        return item
+      })
+      return { ...batch, items }
+    })
+    const nextState: WindowState = {
+      ...this.state,
+      batches,
+    }
+    this.publish(nextState)
+    return nextState
+  }
+  rollback = (saved: WindowState): void => {
+    this.state = saved
+    this.publish(this.state)
+  }
   get count() { const last = this.state.batches.at(-1); return last ? last.start + last.length : 0 }
   get hasMore() { return Boolean(this.state.batches.at(-1)?.nextCursor) }
   at(index: number) { const batch = this.state.batches.find(b => index >= b.start && index < b.start + b.length); return batch?.items ? batch.items[index - batch.start] : undefined }
