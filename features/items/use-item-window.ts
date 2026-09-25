@@ -71,5 +71,10 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
     bottomSpace: Math.max(0, Math.ceil(store.count / columns) - Math.ceil(last / columns)) * rowHeight,
     loaded: state.batches.flatMap(batch => batch.items?.flatMap(item => item ? [item] : []) ?? []),
     save: () => saveItemWindow({ identity, state, view, anchor }),
+    optimisticUpdate: store.optimisticUpdate,
+    optimisticDelete: store.optimisticDelete,
+    rollback: store.rollback,
+    snapshot: store.snapshot,
   }
 }
+

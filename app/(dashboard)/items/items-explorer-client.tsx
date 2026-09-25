@@ -59,6 +59,8 @@ import {
 } from '@/components/ui/data-table'
 import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
+import type { BulkItemUpdates } from '@/features/items/bulk-edit'
+import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
@@ -76,7 +78,10 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
+  bulkUpdateAction?: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse>
+  bulkHardDeleteAction?: (ids: string[]) => Promise<ActionResponse>
 }
+
 
 
 const typeIcons: Record<ItemType, React.ReactNode> = {
@@ -111,11 +116,21 @@ function ItemsExplorerSession({
   locations,
   categories,
   units,
+  bulkUpdateAction = bulkUpdateItems,
+  bulkHardDeleteAction = bulkHardDeleteItems,
 }: ItemsExplorerClientProps & { identity: string }) {
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
-  const { attachScroll, ...windowed } = useItemWindow(identity, params, { items, total, nextCursor })
+  const {
+    attachScroll,
+    optimisticUpdate,
+    optimisticDelete,
+    rollback,
+    snapshot,
+    ...windowed
+  } = useItemWindow(identity, params, { items, total, nextCursor })
   const localItems = windowed.loaded
+
   const { toast } = useToast()
   const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
@@ -560,9 +575,54 @@ function ItemsExplorerSession({
         }}
       />
 
-      {bulkEditOpen && <BulkEditDialog count={selectedItemIds.length} locations={locations} categories={categories} units={units}
-        onClose={() => setBulkEditOpen(false)} onSave={updates => bulkUpdateItems(selectedItemIds, updates)}
-        onSaved={message => { triggerToast(message); setBulkEditOpen(false); setSelectedItemIds([]); router.refresh() }} />}
+      {bulkEditOpen && (
+        <BulkEditDialog
+          count={selectedItemIds.length}
+          locations={locations}
+          categories={categories}
+          units={units}
+          onClose={() => setBulkEditOpen(false)}
+          onSave={async (updates) => {
+            const snap = snapshot()
+            const patch: Partial<ItemListRow> = {}
+            if (updates.status !== undefined) {
+              patch.status = updates.status
+            }
+            if (updates.responsible_person !== undefined) {
+              patch.responsible_person = updates.responsible_person || null
+            }
+            if (updates.location_id !== undefined) {
+              const loc = locations.find((l) => l.id === updates.location_id)
+              patch.location = loc ? { id: loc.id, name: loc.name } : { id: updates.location_id, name: '' }
+            }
+            if (updates.category_id !== undefined) {
+              const cat = categories.find((c) => c.id === updates.category_id)
+              patch.category = cat ? { id: cat.id, name: cat.name } : { id: updates.category_id, name: '' }
+            }
+            if (updates.unit_id !== undefined) {
+              const u = units.find((unit) => unit.id === updates.unit_id)
+              patch.unit = u ? { id: u.id, name: u.name } : { id: updates.unit_id, name: '' }
+            }
+            optimisticUpdate(selectedItemIds, patch)
+            try {
+              const result = await bulkUpdateAction(selectedItemIds, updates)
+              if (!result.success) {
+                rollback(snap)
+              }
+              return result
+            } catch (err) {
+              rollback(snap)
+              throw err
+            }
+          }}
+          onSaved={(message) => {
+            triggerToast(message)
+            setBulkEditOpen(false)
+            setSelectedItemIds([])
+            router.refresh()
+          }}
+        />
+      )}
       {selectedItemIds.length > 0 && (
         <div className="fixed bottom-14 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
           <span className="text-xs font-bold text-card-foreground">
@@ -603,14 +663,25 @@ function ItemsExplorerSession({
               onClick={async () => {
                 if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
 
-                const res = await bulkHardDeleteItems(selectedItemIds)
-                if (res.success) {
-                  triggerToast(res.message || 'ลบเรียบร้อย')
-                  setSelectedItemIds([])
-                  void windowed.store.refresh()
-                  router.refresh()
-                } else {
-                  setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+                const snap = snapshot()
+                optimisticDelete(selectedItemIds)
+                const targetIds = [...selectedItemIds]
+                setSelectedItemIds([])
+
+                try {
+                  const res = await bulkHardDeleteAction(targetIds)
+                  if (!res.success) {
+                    rollback(snap)
+                    setSelectedItemIds(targetIds)
+                    setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+                  } else {
+                    triggerToast(res.message || 'ลบเรียบร้อย')
+                    router.refresh()
+                  }
+                } catch {
+                  rollback(snap)
+                  setSelectedItemIds(targetIds)
+                  setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่')
                 }
               }}
               variant="outline"
