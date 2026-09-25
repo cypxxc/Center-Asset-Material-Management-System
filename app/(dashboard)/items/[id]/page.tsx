@@ -29,8 +29,10 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
-  const { id } = await params
-  const profile = await getCurrentProfile()
+  const [{ id }, profile] = await Promise.all([
+    params,
+    getCurrentProfile(),
+  ])
 
   if (!profile) {
     redirect('/login')
