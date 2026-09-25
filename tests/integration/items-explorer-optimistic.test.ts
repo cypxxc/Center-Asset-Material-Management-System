@@ -5,6 +5,7 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor, within, cleanup, configure, act } from '@testing-library/react'
 import type { ItemListRow } from '../../features/items/types'
 import type { ActionResponse } from '../../lib/actions-helper'
+import type { BulkItemUpdates } from '../../features/items/bulk-edit'
 
 afterEach(() => {
   cleanup()
@@ -29,7 +30,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 import { ItemsExplorerClient } from '../../app/(dashboard)/items/items-explorer-client'
 import { ToastProvider } from '../../components/ui/toast'
 
-let mockBulkUpdateHandler: (ids: string[], updates: any) => Promise<ActionResponse> = async () => ({
+let mockBulkUpdateHandler: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse> = async () => ({
   success: true,
   message: 'แก้ไขสำเร็จ 2 รายการ',
 })
