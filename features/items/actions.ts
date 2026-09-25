@@ -478,6 +478,13 @@ export async function bulkUpdateItems(ids: string[], updates: BulkItemUpdates): 
     }
     const count = Number(data)
     if (!Number.isInteger(count) || count <= 0) return errorResponse('ไม่พบรายการที่สามารถแก้ไขได้ กรุณาเลือกใหม่')
+    await writeAuditLog({
+      operation: 'bulk_update',
+      feature: 'items',
+      userId: auth.profile.id,
+      targetType: 'items',
+      newValues: { ids: parsed.data.ids, updates: parsed.data.updates, count },
+    })
     revalidatePath('/items')
     revalidateSidebarCache()
     return successResponse(`แก้ไขสำเร็จ ${count} จาก ${parsed.data.ids.length} รายการ`)
@@ -559,6 +566,14 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
 
   await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url)))
 
+  await writeAuditLog({
+    operation: 'delete',
+    feature: 'items',
+    userId: profile.id,
+    targetType: 'items',
+    newValues: { ids, count: ids.length },
+  })
+
   logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { count: ids.length } })
 
   revalidatePath('/items')
@@ -599,6 +614,15 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
   if (item?.image_url) {
     await deleteItemStorageImage(item.image_url)
   }
+
+  await writeAuditLog({
+    operation: 'hard_delete',
+    feature: 'items',
+    userId: auth.profile.id,
+    targetType: 'items',
+    targetId: id,
+    oldValues: item,
+  })
 
   logger.info({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } })
 
@@ -643,6 +667,14 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
   if (items) {
     await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url)))
   }
+
+  await writeAuditLog({
+    operation: 'bulk_hard_delete',
+    feature: 'items',
+    userId: auth.profile.id,
+    targetType: 'items',
+    newValues: { ids, count: ids.length },
+  })
 
   logger.info({ operation: 'bulkHardDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
 
