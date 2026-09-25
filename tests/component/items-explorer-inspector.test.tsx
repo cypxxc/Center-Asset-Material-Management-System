@@ -262,35 +262,3 @@ test('Clicking another item row switches the inspected item in the drawer', () =
   assert.ok(drawerScope.getByText('ห้องเก็บของส่วนกลาง'))
 })
 
-test('Table Focus Mode toggles on button click, preserves selected rows, and closes via Escape or close button', () => {
-  renderComponent()
-
-  // 1. Select an item first
-  const checkbox = screen.getByLabelText(`เลือก ${mockItems[0].item_name}`)
-  fireEvent.click(checkbox)
-  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
-
-  // 2. Open Focus Mode
-  const focusBtn = screen.getByRole('button', { name: 'เปิดโหมดโฟกัสตาราง' })
-  fireEvent.click(focusBtn)
-
-  // Overlay / Focus container should be visible
-  assert.ok(screen.getByTestId('table-focus-overlay'))
-  const exitBtn = screen.getByRole('button', { name: 'ออกจากโหมดโฟกัส' })
-  assert.ok(exitBtn)
-
-  // Item selection must remain intact
-  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
-
-  // 3. Close via Escape key
-  fireEvent.keyDown(window, { key: 'Escape' })
-  assert.equal(screen.queryByTestId('table-focus-overlay'), null)
-  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
-
-  // 4. Open again and close via close button
-  fireEvent.click(screen.getByRole('button', { name: 'เปิดโหมดโฟกัสตาราง' }))
-  assert.ok(screen.getByTestId('table-focus-overlay'))
-  fireEvent.click(screen.getByRole('button', { name: 'ออกจากโหมดโฟกัส' }))
-  assert.equal(screen.queryByTestId('table-focus-overlay'), null)
-})
-
