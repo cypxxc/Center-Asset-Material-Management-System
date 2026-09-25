@@ -12,7 +12,10 @@ interface DashboardLayoutProps {
 }
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
-  const profile = await getCurrentProfile()
+  const [profile, layoutData] = await Promise.all([
+    getCurrentProfile(),
+    getDashboardLayoutData(),
+  ])
 
   if (!profile) {
     return (
@@ -28,7 +31,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect('/login?error=inactive')
   }
 
-  const { sidebarData, references } = await getDashboardLayoutData()
+  const { sidebarData, references } = layoutData
 
   return (
     <ToastProvider>
