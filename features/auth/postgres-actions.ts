@@ -2,10 +2,11 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { getPostgresProfile, authenticatePassword, setSessionCookie, replaceCurrentPassword, deleteSession } from '@/lib/postgres/session'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { consumeLoginAttempt } from '@/lib/postgres/login-throttle'
+import { consumeLoginAttempt, pruneLoginAttempts } from '@/lib/postgres/login-throttle'
 
 export async function postgresLogin(formData: FormData) {
   const limit = await checkRateLimit('login', 10, 60000)
@@ -15,6 +16,7 @@ export async function postgresLogin(formData: FormData) {
   const error = 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
   if (!identifier || identifier.length > 320 || !password || password.length > 1024) return { error }
   if (!await consumeLoginAttempt(identifier)) return { error: 'ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอ 1 นาทีแล้วลองใหม่' }
+  after(() => pruneLoginAttempts().catch(() => { /* best-effort cleanup */ }))
   const session = await authenticatePassword(identifier, password)
   if (!session) return { error }
   await setSessionCookie(session)
