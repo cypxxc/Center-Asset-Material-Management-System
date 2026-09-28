@@ -12,6 +12,7 @@ import { updatePersonalProfile, updatePersonalPassword } from '../actions'
 interface ProfileFormProps {
   profile: {
     full_name: string
+    display_name?: string | null
     email: string
     role: string
     is_active: boolean
@@ -29,6 +30,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     viewer: 'ผู้เข้าชม (Viewer)',
   }
 
+  const effectiveDisplayName = profile.display_name?.trim() || profile.full_name
   const displayEmail = formatDisplayEmail(profile.email)
   const internalAccount = isInternalEmail(profile.email)
 
@@ -38,10 +40,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         {/* Profile Summary Card */}
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col items-center text-center space-y-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-3xl font-extrabold text-white shadow-sm">
-            {profile.full_name?.trim()?.charAt(0)?.toUpperCase() || 'U'}
+            {effectiveDisplayName?.trim()?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div>
-            <h3 className="break-words text-base font-semibold text-foreground">{profile.full_name}</h3>
+            <h3 className="break-words text-base font-semibold text-foreground">{effectiveDisplayName}</h3>
+            {profile.display_name && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                ชื่อเข้าสู่ระบบ: <span className="font-semibold text-foreground">{profile.full_name}</span>
+              </p>
+            )}
             <p className={internalAccount ? 'text-xs text-muted-foreground mt-0.5' : 'text-xs text-muted-foreground font-mono mt-0.5 break-all'}>
               {displayEmail}
             </p>
@@ -83,9 +90,56 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             )}
 
             <div className="space-y-4">
+              {/* Display Name Input */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground" htmlFor="display_name">
+                    ชื่อที่ใช้แสดงผลในระบบ (Display Name)
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    กำหนดเองได้
+                  </span>
+                </div>
+                <input
+                  id="display_name"
+                  name="display_name"
+                  type="text"
+                  defaultValue={profile.display_name ?? ''}
+                  placeholder={`หากเว้นว่างจะแสดง "${profile.full_name}"`}
+                  dir="auto"
+                  className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-all shadow-xs"
+                />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  ชื่อนี้จะใช้แสดงในเมนู แถบด้านข้าง และหน้าต่างๆ ในระบบ โดยไม่มีผลกระทบต่อชื่อที่ใช้ Login
+                </p>
+              </div>
+
+              {/* Login Username (full_name) - Locked */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-muted-foreground" htmlFor="full_name_readonly">
+                    ชื่อบัญชีสำหรับเข้าสู่ระบบ (สร้างโดยผู้ดูแลระบบ)
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    คงที่สำหรับ Login
+                  </span>
+                </div>
+                <input
+                  id="full_name_readonly"
+                  type="text"
+                  defaultValue={profile.full_name}
+                  disabled
+                  className="h-10 w-full rounded-lg border border-border bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed focus:outline-none"
+                />
+                <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-900/40 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 leading-relaxed mt-1">
+                  🔒 ชื่อนี้ถูกกำหนดโดยผู้ดูแลระบบและเป็นชื่อประจำตัวในการ Login เข้าสู่ระบบ เพื่อป้องกันปัญหาการลืมหรือเปลี่ยนชื่อจนเข้าสู่ระบบไม่ได้ หากต้องการแก้ไขชื่อนี้ กรุณาติดต่อผู้ดูแลระบบ
+                </p>
+              </div>
+
+              {/* Email / Internal Account ID - Locked */}
               <div className="space-y-1">
                 <label className="text-sm font-medium text-muted-foreground" htmlFor="email">
-                  {internalAccount ? 'บัญชีเข้าสู่ระบบ' : 'อีเมล (ไม่สามารถเปลี่ยนได้)'}
+                  {internalAccount ? 'รหัสบัญชีภายในระบบ (Internal Account)' : 'อีเมลเข้าสู่ระบบ (ไม่สามารถเปลี่ยนได้)'}
                 </label>
                 <input
                   id="email"
@@ -97,19 +151,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                 {internalAccount && (
                   <p className="text-xs text-muted-foreground">{getInternalAccountHint()}</p>
                 )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-muted-foreground" htmlFor="full_name">ชื่อ-นามสกุล *</label>
-                <input
-                  id="full_name"
-                  name="full_name"
-                  type="text"
-                  defaultValue={profile.full_name}
-                  required
-                  dir="auto"
-                  className="h-10 w-full rounded-lg border border-border bg-muted/50 px-3 text-sm text-foreground focus:outline-none focus:border-blue-500 focus:bg-card transition-all"
-                />
               </div>
             </div>
 

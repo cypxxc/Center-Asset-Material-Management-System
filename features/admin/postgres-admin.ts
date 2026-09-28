@@ -8,6 +8,7 @@ import { hashPassword } from '@/lib/postgres/password'
 import { normalizeForStorage } from '@/lib/unicode'
 import { assertAdminTable } from './table-policy'
 import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
+import { generateInternalEmail } from '@/lib/display-email'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
 
@@ -131,7 +132,7 @@ export async function pgCreateAuthUser(raw: { email?: string; password: string; 
     const payload = newUserSchema.parse(raw)
     const fullName = normalizeForStorage(payload.full_name)
     if (!fullName) throw new Error('กรุณากรอกชื่อ-นามสกุล')
-    const email = normalizeForStorage(payload.email || `internal+${crypto.randomUUID()}@registry.internal`).toLowerCase()
+    const email = normalizeForStorage(payload.email || generateInternalEmail()).toLowerCase()
     const passwordHash = await hashPassword(payload.password)
     const userId = crypto.randomUUID()
     await withAdminAuth(async (tx, actorId) => {

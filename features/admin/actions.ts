@@ -15,6 +15,7 @@ import { pgGetTableData, pgUpsertTableRow, pgDeleteTableRow, pgExportDatabaseDat
 
 import { isAdmin } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { generateInternalEmail } from '@/lib/display-email'
 
 
 async function getSupabaseClient() {
@@ -312,8 +313,7 @@ export async function createAuthUser(payload: {
   const emailRegex = /^\S+@\S+\.\S+$/
   // If email not provided, generate a short internal placeholder (Supabase Auth requires an email)
   if (!email) {
-    const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
-    email = `internal+${shortId}@registry.internal`
+    email = generateInternalEmail()
   } else if (!emailRegex.test(email)) {
     return { error: 'อีเมลไม่ถูกต้อง' }
   }
@@ -419,6 +419,15 @@ export async function deleteAuthUser(userId: string) {
   if (isPostgresBackend()) return pgDeleteAuthUser(userId)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
+
+  if (!userId) {
+    return { error: 'ไม่พบรหัสผู้ใช้งาน' }
+  }
+
+  // Prevent admin from deleting their own account
+  if (userId === auth.profile.id) {
+    return { error: 'ไม่สามารถลบบัญชีของตนเองได้' }
+  }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     return { error: 'ต้องตั้งค่า SUPABASE_SERVICE_ROLE_KEY เพื่อลบผู้ใช้' }
