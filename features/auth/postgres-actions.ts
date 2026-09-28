@@ -22,11 +22,32 @@ export async function postgresLogin(formData: FormData) {
 }
 export async function postgresSignOut() { await deleteSession(); redirect('/login') }
 export async function postgresUpdateProfile(formData: FormData) {
-  const fullName = String(formData.get('full_name') ?? '').trim()
-  if (!fullName || fullName.length > 200) return { error: 'กรุณากรอกชื่อ-นามสกุล ไม่เกิน 200 ตัวอักษร' }
+  const displayNameRaw = formData.get('display_name')
+  const fullNameRaw = formData.get('full_name')
+
+  const displayName = displayNameRaw !== null ? String(displayNameRaw).trim() : null
+  const fullName = fullNameRaw !== null ? String(fullNameRaw).trim() : null
+
+  if (displayName && displayName.length > 200) {
+    return { error: 'ชื่อแสดงผลต้องมีความยาวไม่เกิน 200 ตัวอักษร' }
+  }
+
   const profile = await getPostgresProfile()
   if (!profile) return { error: 'กรุณาเข้าสู่ระบบ' }
-  await withUserDatabase((tx) => tx.execute(sql`update public.profiles set full_name=${fullName} where id=${profile.id}`))
+
+  // If display_name is provided in form (even empty string to reset), update display_name.
+  // full_name remains untouched so login identifier is protected from accidental mutation.
+  if (displayNameRaw !== null) {
+    await withUserDatabase((tx) =>
+      tx.execute(sql`update public.profiles set display_name=${displayName || null} where id=${profile.id}`)
+    )
+  } else if (fullName) {
+    // Fallback if legacy form submitting full_name only
+    await withUserDatabase((tx) =>
+      tx.execute(sql`update public.profiles set full_name=${fullName} where id=${profile.id}`)
+    )
+  }
+
   revalidatePath('/', 'layout')
   return { success: 'อัปเดตข้อมูลส่วนตัวเรียบร้อยแล้ว' }
 }

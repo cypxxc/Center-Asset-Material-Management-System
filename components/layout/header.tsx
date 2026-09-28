@@ -13,6 +13,7 @@ interface HeaderProps {
   title?: string
   profile?: {
     full_name: string
+    display_name?: string | null
     role: string
   } | null
 }

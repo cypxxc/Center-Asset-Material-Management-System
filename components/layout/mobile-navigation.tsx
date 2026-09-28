@@ -8,11 +8,12 @@ import { Menu, X, Home, Package, Settings, UserCog, History, Database, LogOut, M
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 
-export function MobileNavigation({ profile }: { profile?: { full_name: string; role: string } | null }) {
+export function MobileNavigation({ profile }: { profile?: { full_name: string; display_name?: string | null; role: string } | null }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const initials = profile?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'U'
+  const effectiveDisplayName = profile?.display_name?.trim() || profile?.full_name
+  const initials = effectiveDisplayName?.trim()?.charAt(0)?.toUpperCase() || 'U'
   return <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
         <Dialog.Trigger asChild><button
           aria-label="เปิดเมนูนำทาง"
@@ -147,15 +148,25 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; r
 
             {/* Footer containing profile & signout */}
             <div className="border-t border-border p-4 bg-muted">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                  {initials}
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <div className="truncate text-xs font-bold text-foreground">{profile?.full_name}</div>
-                  <div className="truncate text-xs font-semibold text-muted-foreground uppercase tracking-wider">{profile?.role}</div>
-                </div>
-              </div>
+              {profile ? (
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 mb-3 p-1.5 rounded-lg transition-colors group",
+                    pathname === '/profile' ? "bg-card shadow-xs" : "hover:bg-card/70"
+                  )}
+                  title="ตั้งค่าบัญชีส่วนบุคคล"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0 leading-tight flex-1">
+                    <div className="truncate text-xs font-bold text-foreground group-hover:text-blue-600">{effectiveDisplayName}</div>
+                    <div className="truncate text-xs font-semibold text-muted-foreground uppercase tracking-wider">{profile.role}</div>
+                  </div>
+                </Link>
+              ) : null}
               <form action={signOut}>
                 <button
                   type="submit"

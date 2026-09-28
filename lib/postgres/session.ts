@@ -6,7 +6,7 @@ import { getAuthDatabase, type PostgresTransaction } from './db'
 import { hashPassword, verifyPassword } from './password'
 
 export const SESSION_COOKIE = 'camms_session'
-export type LocalProfile = { id: string; full_name: string; email: string; role: 'admin' | 'staff' | 'viewer'; is_active: boolean; sidebar_order: string[] | null; created_at: string; updated_at: string }
+export type LocalProfile = { id: string; full_name: string; display_name?: string | null; email: string; role: 'admin' | 'staff' | 'viewer'; is_active: boolean; sidebar_order: string[] | null; created_at: string; updated_at: string }
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex') }
 export async function profileForToken(token: string | undefined): Promise<LocalProfile | null> {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null
