@@ -147,6 +147,10 @@ export function getRateLimiter(): RateLimiter {
   return globalRateLimiter
 }
 
+export function resetRateLimiter(): void {
+  globalRateLimiter = undefined as unknown as RateLimiter
+}
+
 export interface CheckRateLimitResult {
   success: boolean
   error?: string
