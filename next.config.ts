@@ -6,11 +6,11 @@ const nextConfig: NextConfig = {
   compress: true,
   output: 'standalone',
   experimental: {
-    proxyClientMaxBodySize: '52mb',
+    // 10 MB covers normal form submissions and JSON payloads.
+    // Presigned storage URLs should be used for massive data uploads.
+    proxyClientMaxBodySize: '10mb',
     serverActions: {
-      // A 25 MiB JSON backup is itself encoded inside an action string. Escaping
-      // can double its size; business validators still enforce the file limits.
-      bodySizeLimit: '52mb',
+      bodySizeLimit: '10mb',
     },
   },
 }
