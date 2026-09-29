@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -100,7 +100,7 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  const identity = JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)])
+  const identity = useMemo(() => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)]), [props.userId, props.params])
   return <ItemsExplorerSession key={identity} {...props} identity={identity} />
 }
 
@@ -128,6 +128,7 @@ function ItemsExplorerSession({
     optimisticDelete,
     rollback,
     snapshot,
+    save: saveWindow,
     ...windowed
   } = useItemWindow(identity, params, { items, total, nextCursor })
   const localItems = windowed.loaded
@@ -138,7 +139,7 @@ function ItemsExplorerSession({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id])
+  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir])
   const currentFilterKey = useRef(filterKey)
   useEffect(() => { currentFilterKey.current = filterKey }, [filterKey])
   const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
@@ -184,7 +185,10 @@ function ItemsExplorerSession({
 
 
   const effectiveSelectedItemId = inspectedItem?.id ?? null
-  const selectedItem = localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  const selectedItem = useMemo(() => {
+    if (!effectiveSelectedItemId) return inspectedItem
+    return localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  }, [effectiveSelectedItemId, localItems, inspectedItem])
 
   const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
@@ -288,28 +292,33 @@ function ItemsExplorerSession({
     return localItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
   }, [localItems])
 
-  const handleToggleSelectItem = (id: string) => {
+  const handleToggleSelectItem = useCallback((id: string) => {
     setSelectedItemIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
-  }
+  }, [])
 
-  const handleToggleSelectAll = () => {
-    const pageIds = localItems.map(item => item.id)
+  const localItemsRef = useRef(localItems)
+  useEffect(() => {
+    localItemsRef.current = localItems
+  }, [localItems])
+
+  const handleToggleSelectAll = useCallback(() => {
+    const pageIds = localItemsRef.current.map(item => item.id)
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
-  }
+  }, [])
 
-  const handleSelectItem = (item: ItemListRow) => {
+  const handleSelectItem = useCallback((item: ItemListRow) => {
     setInspectedItem(item)
     setIsInspectorOpen(true)
-  }
+  }, [])
 
-  const handleDoubleClickItem = (item: ItemListRow) => {
-    windowed.save()
+  const handleDoubleClickItem = useCallback((item: ItemListRow) => {
+    saveWindow()
     router.push(`/items/${item.id}`)
-  }
+  }, [router, saveWindow])
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
@@ -511,7 +520,7 @@ function ItemsExplorerSession({
 
       {/* Slide-Over Detail Drawer (Inspector Sheet) */}
       <Inspector
-        onOpenDetails={windowed.save}
+        onOpenDetails={saveWindow}
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         item={selectedItem}
@@ -806,62 +815,89 @@ function ItemsList({
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          <tr aria-hidden="true"><td colSpan={7} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={7} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
-            const isSelected = selectedItemId === item.id
-            const isChecked = selectedItemIds.includes(item.id)
+            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             return (
-              <DataTableRow
+              <ItemTableRow
                 key={item.id}
-                tabIndex={0}
-                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
-                title={item.item_name}
-                onClick={() => onSelect(item)}
-                onDoubleClick={() => onDoubleClick?.(item)}
-                className={cn(
-                  'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
-                  isSelected
-                    ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
-                    : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
-                )}
-              >
-                <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={`เลือก ${item.item_name}`}
-                    checked={isChecked}
-                    onChange={() => onToggleSelectItem(item.id)}
-                    className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-                  />
-                </DataTableCell>
-                <DataTableCell className="px-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
-                    {typeIcons[item.item_type]}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="px-3">
-                  <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
-                  <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
-                    {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
-                <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
-                <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
-              </DataTableRow>
+                item={item}
+                isSelected={selectedItemId === item.id}
+                isChecked={selectedItemIds.includes(item.id)}
+                onSelect={onSelect}
+                onDoubleClick={onDoubleClick}
+                onToggleSelectItem={onToggleSelectItem}
+              />
             )
           })}
-          <tr aria-hidden="true"><td colSpan={7} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={9} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
           {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>
     </div>
   )
 }
+
+interface ItemTableRowProps {
+  item: ItemListRow
+  isSelected: boolean
+  isChecked: boolean
+  onSelect: (item: ItemListRow) => void
+  onDoubleClick?: (item: ItemListRow) => void
+  onToggleSelectItem: (id: string) => void
+}
+
+const ItemTableRow = React.memo(function ItemTableRow({
+  item,
+  isSelected,
+  isChecked,
+  onSelect,
+  onDoubleClick,
+  onToggleSelectItem,
+}: ItemTableRowProps) {
+  return (
+    <DataTableRow
+      tabIndex={0}
+      onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
+      title={item.item_name}
+      onClick={() => onSelect(item)}
+      onDoubleClick={() => onDoubleClick?.(item)}
+      className={cn(
+        'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
+        isSelected
+          ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
+          : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
+      )}
+    >
+      <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          aria-label={`เลือก ${item.item_name}`}
+          checked={isChecked}
+          onChange={() => onToggleSelectItem(item.id)}
+          className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
+        />
+      </DataTableCell>
+      <DataTableCell className="px-1">
+        <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
+          {typeIcons[item.item_type]}
+        </div>
+      </DataTableCell>
+      <DataTableCell className="px-3">
+        <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
+        <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
+          {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
+        </div>
+      </DataTableCell>
+      <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
+      <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
+      <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+      <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
+      <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
+      <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
+    </DataTableRow>
+  )
+})
 
 interface ItemsGridProps {
   columns: number
@@ -963,7 +999,7 @@ function ItemsGrid({
 function EmptyRows() {
   return (
     <tr>
-      <td colSpan={7} className="px-5 py-12">
+      <td colSpan={9} className="px-5 py-12">
         <EmptyState
           title="ไม่พบข้อมูลสิ่งของ"
           description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"

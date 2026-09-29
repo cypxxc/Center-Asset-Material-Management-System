@@ -33,6 +33,19 @@ export class ItemBatchWindow {
   getSnapshot = () => this.state
   private publish(state: WindowState) { this.state = state; this.listeners.forEach(listener => listener()) }
   dispose() { this.generation++; this.controller?.abort(); this.controller = undefined }
+  resetSeed(seed: ItemBatchResult) {
+    this.dispose()
+    this.anchor = 0
+    this.publish({
+      batches: [{ start: 0, length: seed.items.length, nextCursor: seed.nextCursor, items: seed.items }],
+      total: seed.total,
+      loading: false,
+      error: null,
+    })
+  }
+  setFetcher(fetcher: BatchFetcher) {
+    this.fetcher = fetcher
+  }
   restore(state: WindowState, anchor: number) {
     this.anchor = anchor
     this.publish({ ...state, loading: false, error: null })
@@ -152,7 +165,7 @@ export class ItemBatchWindow {
     if (this.state.error || this.controller) return
     const index = this.state.batches.findIndex(b => !b.items && b.start < end && b.start + b.length > start)
     if (index >= 0) return this.reload(index)
-    if (end >= this.count - 5) await this.loadMore()
+    if (this.hasMore && end >= this.count - 5) await this.loadMore()
   }
   private reload = async (index: number) => {
     await this.run(async signal => {
@@ -172,8 +185,8 @@ export class ItemBatchWindow {
     const startIndex = Math.max(0, this.state.batches.findIndex(b => this.anchor >= b.start && this.anchor < b.start + b.length))
     await this.run(async signal => {
       const old = this.state.batches
-      let cursor = old[startIndex].requestCursor
-      let start = old[startIndex].start
+      let cursor = old[startIndex]?.requestCursor
+      let start = old[startIndex]?.start ?? 0
       const fresh: BatchSlot[] = []
       const endIndex = Math.min(old.length, startIndex + 2)
       let total = seedTotal ?? this.state.total

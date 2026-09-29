@@ -61,7 +61,12 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
   if (isPostgresBackend()) return pgUpsertTableRow(tableName, rowId, payload)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
-  const safeTable = assertAdminTable(tableName, 'write')
+  let safeTable: import('@/features/admin/table-policy').AdminTable
+  try {
+    safeTable = assertAdminTable(tableName, 'write')
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
 
   const supabase = await getSupabaseClient()
 
@@ -149,7 +154,12 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   if (isPostgresBackend()) return pgDeleteTableRow(tableName, rowId)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
-  const safeTable = assertAdminTable(tableName, 'delete')
+  let safeTable: import('@/features/admin/table-policy').AdminTable
+  try {
+    safeTable = assertAdminTable(tableName, 'delete')
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
 
   if (safeTable === 'profiles') {
     return deleteAuthUser(rowId)
@@ -195,21 +205,38 @@ export async function runAdminSql(sqlQuery: string) {
     return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
   }
 
+  if (!sqlQuery || typeof sqlQuery !== 'string' || !sqlQuery.trim()) {
+    return { error: 'กรุณาระบุคำสั่ง SQL' }
+  }
+
+  const trimmed = sqlQuery.trim()
+  const stripped = trimmed.replace(/;+\s*$/, '')
+  if (stripped.includes(';')) {
+    return { error: 'ไม่อนุญาตให้รันคำสั่งหลายชุดพร้อมกัน (ห้ามใช้เครื่องหมาย ; คั่นคำสั่ง)' }
+  }
+
+  if (!/^(select|with|show|explain)\b/i.test(stripped)) {
+    return { error: 'SQL Runner อนุญาตเฉพาะคำสั่งอ่านข้อมูล (SELECT, WITH, SHOW, EXPLAIN) เท่านั้น' }
+  }
+
   const supabase = createServiceRoleClient()
-  const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: sqlQuery })
+  const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: stripped })
 
   if (error) {
     return { error: error.message }
   }
 
-  // Log SQL execution in audit_logs
-  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sqlQuery)).then((buffer) => Buffer.from(buffer).toString('hex'))
+  // Log SQL execution in audit_logs with sanitized query text and query_hash
+  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(stripped)).then((buffer) => Buffer.from(buffer).toString('hex'))
   await writeAuditLog({
     operation: 'SQL_EXECUTE',
     feature: 'admin',
     userId: auth.profile.id,
     targetType: 'multiple/raw_sql',
-    newValues: { query_hash: queryHash },
+    newValues: {
+      query: stripped.slice(0, 2000),
+      query_hash: queryHash,
+    },
   })
 
   return data
@@ -262,13 +289,13 @@ export async function importDatabaseData(backupJsonStr: string): Promise<{ succe
 
     const cleanStr = stripBom(backupJsonStr)
     const backup = JSON.parse(cleanStr)
-    const tables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs']
+    const businessTables = ['categories', 'locations', 'units', 'items']
 
     if (!backup || typeof backup !== 'object' || Array.isArray(backup)) {
       return { error: 'Invalid backup file format: expected an object.' }
     }
 
-    for (const table of tables) {
+    for (const table of businessTables) {
       const rows = backup[table]
       if (!Array.isArray(rows)) {
         return { error: `Invalid backup file format: ${table} must be an array.` }

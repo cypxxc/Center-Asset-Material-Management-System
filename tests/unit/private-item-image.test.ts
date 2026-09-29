@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolvePrivateItemImageUrl } from '../../lib/supabase/storage'
+import { resolvePrivateItemImageUrl, resolvePrivateItemImageUrlsBatch } from '../../lib/supabase/storage'
 
 test('resolves a stored item image URL to a short-lived signed URL', async () => {
   const calls: Array<{ path: string; expiresIn: number }> = []
@@ -35,4 +35,35 @@ test('keeps null item images without calling storage', async () => {
 
   assert.equal(result, null)
   assert.equal(called, false)
+})
+
+test('resolves multiple item image URLs in a single batch call', async () => {
+  const calls: Array<{ paths: string[]; expiresIn: number }> = []
+
+  const urls = [
+    'https://xyz.supabase.co/storage/v1/object/public/item-images/items/img1.webp',
+    null,
+    'https://xyz.supabase.co/storage/v1/object/public/item-images/items/img2.webp',
+  ]
+
+  const results = await resolvePrivateItemImageUrlsBatch(
+    urls,
+    async (paths, expiresIn) => {
+      calls.push({ paths, expiresIn })
+      return {
+        data: [
+          { error: null, path: 'items/img1.webp', signedUrl: 'https://signed.example/img1' },
+          { error: null, path: 'items/img2.webp', signedUrl: 'https://signed.example/img2' },
+        ],
+        error: null,
+      }
+    }
+  )
+
+  assert.deepEqual(results, [
+    'https://signed.example/img1',
+    null,
+    'https://signed.example/img2',
+  ])
+  assert.deepEqual(calls, [{ paths: ['items/img1.webp', 'items/img2.webp'], expiresIn: 3600 }])
 })

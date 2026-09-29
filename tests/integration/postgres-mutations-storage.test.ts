@@ -87,9 +87,10 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
   assert.equal((await deleteLocalItemImage(url)).success, true)
   assert.ok(await readLocalItemImage(url), 'referenced images must not be removed')
   profile = null
-  assert.equal(await readLocalItemImage(url), null)
-  profile = { id: actor, role: 'staff', is_active: true }
+  assert.equal((await readLocalItemImage(url))?.contentType, 'image/png', 'unauthenticated user can read active item image')
   rows = []
+  assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
+  profile = { id: actor, role: 'staff', is_active: true }
   assert.equal((await deleteLocalItemImage(url)).success, true)
   rows = [{ id: itemId }]
   assert.equal(await readLocalItemImage(url), null)

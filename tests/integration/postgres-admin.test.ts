@@ -99,6 +99,19 @@ test('administrators cannot remove their own access through any profile write', 
   assert.ok(queries.every(query => !/^(delete|update)/.test(query.sql)))
 })
 
+test('cannot delete or demote the last remaining active administrator', async () => {
+  const admin = await actions
+  rowResult = [{ id: target, role: 'admin', is_active: true, count: 1 }]
+  const deleteResult = await admin.pgDeleteAuthUser(target)
+  assert.match(deleteResult.error ?? '', /ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้/)
+
+  const demoteResult = await admin.pgUpdateUserProfile(target, { role: 'staff' })
+  assert.match(demoteResult.error ?? '', /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/)
+
+  const deactivateResult = await admin.pgUpdateUserProfile(target, { is_active: false })
+  assert.match(deactivateResult.error ?? '', /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/)
+})
+
 test('restore replaces only business tables and safely resolves historical account references', async () => {
   const data = backup()
   data.items = [{ id: target, created_by: actor }]

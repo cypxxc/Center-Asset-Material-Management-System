@@ -150,6 +150,12 @@ export async function pgDeleteAuthUser(userId: string): Promise<{ success?: bool
     uuidSchema.parse(userId)
     await withAdminAuth(async (tx, actorId) => {
       assertSelfProtection(actorId, userId, {}, true)
+      const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
+      if (!target.rows.length) throw new Error('ไม่พบผู้ใช้งาน')
+      if (target.rows[0].role === 'admin' && target.rows[0].is_active) {
+        const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+        if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้')
+      }
       const result = await tx.execute(sql`delete from public.profiles where id = ${userId}::uuid returning id`)
       if (!result.rows.length) throw new Error('ไม่พบผู้ใช้งาน')
       // FK cascades revoke sessions and remove credentials in the same transaction.
@@ -207,6 +213,13 @@ export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' 
     if (!Object.keys(payload).length) throw new Error('No editable fields were supplied.')
     const profile = await withAdminAuth(async (tx, actorId) => {
       assertSelfProtection(actorId, userId, payload)
+      if (payload.is_active === false || (payload.role && payload.role !== 'admin')) {
+        const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
+        if (target.rows.length && target.rows[0].role === 'admin' && target.rows[0].is_active) {
+          const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+          if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน')
+        }
+      }
       const result = await tx.execute(sql`update public.profiles set ${assignments(payload)}, updated_at = now() where id = ${userId}::uuid returning *`)
       if (!result.rows[0]) throw new Error('ไม่พบผู้ใช้งาน')
       if (payload.role !== undefined || payload.is_active !== undefined) await tx.execute(sql`delete from private_auth.sessions where user_id = ${userId}::uuid`)

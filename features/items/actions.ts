@@ -10,7 +10,7 @@ import { bulkEditSchema, BULK_EDIT_LIMIT, type BulkItemUpdates } from './bulk-ed
 import { getItems } from './queries'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
-import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
+import { stripBom, normalizeForStorage, normalizeForSearch, preventCSVInjection } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -114,24 +114,43 @@ async function handleImageUpload(
   }
 
   if (hasFile) {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      return { imageUrl: null, error: 'กรุณาอัปโหลดไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น' }
-    }
     if (file.size > 5 * 1024 * 1024) {
       return { imageUrl: null, error: 'ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB' }
     }
 
     try {
-      if (isPostgresBackend()) return { imageUrl: await uploadLocalItemImage(file), oldImageUrlToDelete: currentImageUrl }
       const fileBuffer = await file.arrayBuffer()
-      const safeFilename = normalizeFilename(file.name)
-      const fileExt = safeFilename.split('.').pop() || 'jpg'
-      const fileName = `${crypto.randomUUID()}.${fileExt}`
+      const bytes = Buffer.from(fileBuffer)
+
+      // Strict magic bytes verification to prevent MIME/extension spoofing
+      let detectedExt: 'jpg' | 'png' | 'webp' | null = null
+      let detectedMime = ''
+      if (bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) {
+        detectedExt = 'jpg'
+        detectedMime = 'image/jpeg'
+      } else if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+        detectedExt = 'png'
+        detectedMime = 'image/png'
+      } else if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') {
+        detectedExt = 'webp'
+        detectedMime = 'image/webp'
+      }
+
+      if (!detectedExt) {
+        return { imageUrl: null, error: 'กรุณาอัปโหลดไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น' }
+      }
+
+      if (isPostgresBackend()) {
+        const verifiedFile = new File([fileBuffer], `${crypto.randomUUID()}.${detectedExt}`, { type: detectedMime })
+        return { imageUrl: await uploadLocalItemImage(verifiedFile), oldImageUrlToDelete: currentImageUrl }
+      }
+
+      const fileName = `${crypto.randomUUID()}.${detectedExt}`
       const supabase = await createClient()
 
       await retryStorage(async () => {
-        const result = await supabase.storage.from('item-images').upload(fileName, Buffer.from(fileBuffer), {
-          contentType: file.type,
+        const result = await supabase.storage.from('item-images').upload(fileName, bytes, {
+          contentType: detectedMime,
         })
         if (result.error) throw result.error
         return result
@@ -208,7 +227,7 @@ async function createItemCore(
   async function deleteUploadedImage() {
     if (!uploadResult.imageUrl || uploadedImageDeleted) return
     uploadedImageDeleted = true
-    await deleteItemStorageImage(uploadResult.imageUrl)
+    await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
   }
 
   const parsed = parseFormData(formData)
@@ -225,6 +244,7 @@ async function createItemCore(
 
   const supabase = isPostgresBackend() ? null : await createClient()
   let committedResult: { itemId: string; userId: string }
+  let isCommitted = false
   try {
     const assetNumberSource = parsed.data.item_type === 'asset' ? 'manual' : null
     const result = isPostgresBackend() ? await insertPostgresItem(parsed.data) : await supabase!
@@ -254,6 +274,9 @@ async function createItemCore(
       }
     }
 
+    isCommitted = true
+    committedResult = { itemId: (data as { id: string }).id, userId }
+
     await writeAuditLog({
       operation: 'create',
       feature: 'items',
@@ -264,10 +287,11 @@ async function createItemCore(
       persistToDatabase: false,
     })
 
-    committedResult = { itemId: (data as { id: string }).id, userId }
     await options.onCommitted?.(committedResult)
   } catch (err) {
-    await deleteUploadedImage()
+    if (!isCommitted) {
+      await deleteUploadedImage()
+    }
     return {
       ok: false,
       kind: 'unexpected',
@@ -379,7 +403,7 @@ export async function updateItem(
   const parsed = parseFormData(formData)
   if (!parsed.success) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteItemStorageImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
     }
     return {
       message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
@@ -402,7 +426,7 @@ export async function updateItem(
 
     if (error) {
       if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-        await deleteItemStorageImage(uploadResult.imageUrl)
+        await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
       }
       return { message: friendlyDatabaseError(error.message) }
     }
@@ -439,15 +463,23 @@ export async function updateItem(
     })
   } catch (err) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteItemStorageImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
     }
     const errRes = await handleActionError(err, 'updateItem', 'items', auth.profile.id)
     return { message: errRes.message! }
   }
 
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
-    // Non-blocking image deletion
-    setImmediate(() => deleteItemStorageImage(uploadResult.oldImageUrlToDelete!))
+    // Non-blocking image deletion with resolved profile to avoid cookies() outside request context
+    const oldUrl = uploadResult.oldImageUrlToDelete
+    const profile = auth.profile
+    setImmediate(async () => {
+      try {
+        await deleteItemStorageImage(oldUrl, profile)
+      } catch (err) {
+        logger.warn({ operation: 'deleteOldImage', feature: 'items', details: String(err), imageUrl: oldUrl })
+      }
+    })
   }
 
   revalidatePath('/items')
@@ -565,7 +597,7 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     return errorResponse('ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)')
   }
 
-  await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url)))
+  await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url, auth.profile)))
 
   await writeAuditLog({
     operation: 'delete',
@@ -613,7 +645,7 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 
   // ลบรูปออกจาก Storage (best effort)
   if (item?.image_url) {
-    await deleteItemStorageImage(item.image_url)
+    await deleteItemStorageImage(item.image_url, auth.profile)
   }
 
   await writeAuditLog({
@@ -666,7 +698,7 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
 
   // ลบรูปออกจาก Storage (best effort)
   if (items) {
-    await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url)))
+    await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url, auth.profile)))
   }
 
   await writeAuditLog({
