@@ -329,7 +329,8 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     .is('deleted_at', null)
 
   if (normalized.q) {
-    const pattern = escapePostgrestLiteral(`%${normalized.q}%`)
+    const safeQ = normalized.q.replaceAll(',', ' ')
+    const pattern = escapePostgrestLiteral(`%${safeQ}%`)
     query = query.or([
       'item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person',
     ].map((column) => `${column}.ilike.${pattern}`).join(','))
