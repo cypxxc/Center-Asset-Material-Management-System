@@ -732,6 +732,14 @@ function ItemsList({
   params,
   onToggleSort,
 }: ItemsListProps) {
+  const masterCheckboxRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.indeterminate = selectedItemIds.length > 0 && !allLoadedSelected
+    }
+  }, [selectedItemIds.length, allLoadedSelected])
+
   const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
     const currentField = params.sort_by || 'updated_at'
     const currentDir = params.sort_dir || 'desc'
@@ -762,6 +770,13 @@ function ItemsList({
     )
   }
 
+  const getSortAria = (field: string): 'ascending' | 'descending' | 'none' => {
+    const currentField = params.sort_by || 'updated_at'
+    const currentDir = params.sort_dir || 'desc'
+    if (currentField !== field) return 'none'
+    return currentDir === 'asc' ? 'ascending' : 'descending'
+  }
+
   return (
     <div className="bg-muted/20">
       <DataTable responsive={false} wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible" className="text-card-foreground table-fixed min-w-[768px] sm:min-w-[856px] md:min-w-[960px] xl:min-w-[1100px]">
@@ -769,6 +784,7 @@ function ItemsList({
           <tr>
             <DataTableHead isCheckbox className="w-9 px-2">
               <input
+                ref={masterCheckboxRef}
                 type="checkbox"
                 aria-label="เลือกทุกรายการที่โหลดอยู่"
                 checked={allLoadedSelected}
@@ -777,20 +793,19 @@ function ItemsList({
               />
             </DataTableHead>
             <DataTableHead className="w-10 px-1" />
-            <DataTableHead className="px-3">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
-            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
+            <DataTableHead className="px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
+            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell" aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
             <DataTableHead className="hidden w-28 px-3 md:table-cell">หมวดหมู่</DataTableHead>
-            <DataTableHead className="w-[88px] px-2">{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead className="w-[88px] px-2" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
             <DataTableHead className="w-[136px] px-3">สถานที่</DataTableHead>
             <DataTableHead className="hidden w-[136px] px-3 xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
-            <DataTableHead className="w-28 px-3">{renderSortHeader('status', 'สถานะ')}</DataTableHead>
+            <DataTableHead className="w-28 px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {/* Six columns are always visible; spanning hidden columns creates a phantom column. */}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={7} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={6} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
+            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={7} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
             return (
@@ -837,7 +852,7 @@ function ItemsList({
               </DataTableRow>
             )
           })}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={7} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
           {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>
@@ -945,7 +960,7 @@ function ItemsGrid({
 function EmptyRows() {
   return (
     <tr>
-      <td colSpan={9} className="px-5 py-12">
+      <td colSpan={7} className="px-5 py-12">
         <EmptyState
           title="ไม่พบข้อมูลสิ่งของ"
           description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
