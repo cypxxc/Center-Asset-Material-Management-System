@@ -859,6 +859,10 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
 
 export async function getItemsForExport(params: ItemListSearchParams) {
+  const profile = await getCurrentProfile()
+  if (!profile || !profile.is_active) {
+    throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+  }
   const result = await getReportItemsList(params, true)
   return result.items
 }

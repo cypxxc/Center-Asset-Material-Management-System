@@ -73,7 +73,19 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
   delete cleanPayload.deleted_at
 
   if (safeTable === 'profiles') {
-    delete cleanPayload.email
+    if (!rowId) {
+      return { error: 'กรุณาสร้างบัญชีผู้ใช้งานผ่านเมนูจัดการผู้ใช้' }
+    }
+    const result = await updateUserProfileRoleAndStatus(rowId, {
+      role: cleanPayload.role as 'admin' | 'staff' | 'viewer' | undefined,
+      is_active: cleanPayload.is_active as boolean | undefined,
+      full_name: cleanPayload.full_name as string | undefined,
+    })
+    return {
+      error: result.error,
+      success: result.success,
+      data: result.profile,
+    }
   }
 
   // Normalize empty strings to null for nullable database columns
@@ -138,6 +150,10 @@ export async function deleteTableRow(tableName: string, rowId: string) {
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error }
   const safeTable = assertAdminTable(tableName, 'delete')
+
+  if (safeTable === 'profiles') {
+    return deleteAuthUser(rowId)
+  }
 
   const supabase = await getSupabaseClient()
 
@@ -435,6 +451,25 @@ export async function deleteAuthUser(userId: string) {
 
   const adminClient = await createAdminClient()
 
+  // Ensure at least one active admin remains if deleting an active admin
+  const { data: targetProfile } = await adminClient
+    .from('profiles')
+    .select('id, role, is_active')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (targetProfile && targetProfile.id === userId && targetProfile.role === 'admin' && targetProfile.is_active) {
+    const { count: activeAdminCount } = await adminClient
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'admin')
+      .eq('is_active', true)
+
+    if ((activeAdminCount ?? 0) <= 1) {
+      return { error: 'ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้' }
+    }
+  }
+
   // Delete from auth.users (cascades to profiles if FK is set, or manual below)
   const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
   if (authDeleteError) return { error: authDeleteError.message }
@@ -592,6 +627,27 @@ export async function updateUserProfileRoleAndStatus(
   }
 
   const supabase = await getSupabaseClient()
+
+  // Ensure at least one active admin remains if demoting or deactivating an active admin
+  if (payload.is_active === false || (payload.role && payload.role !== 'admin')) {
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, role, is_active')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (targetProfile && targetProfile.id === userId && targetProfile.role === 'admin' && targetProfile.is_active) {
+      const { count: activeAdminCount } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
+        .eq('is_active', true)
+
+      if ((activeAdminCount ?? 0) <= 1) {
+        return { error: 'ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน' }
+      }
+    }
+  }
 
   // Fetch old data for audit log
   const { data: oldProfile } = await supabase
