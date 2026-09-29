@@ -55,7 +55,7 @@ import {
   DataTableRow,
   DataTableCell
 } from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
+import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import type { BulkItemUpdates } from '@/features/items/bulk-edit'
 import type { ActionResponse } from '@/lib/actions-helper'
@@ -77,6 +77,7 @@ interface ItemsExplorerClientProps {
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
   bulkUpdateAction?: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse>
+  bulkDeleteAction?: (ids: string[]) => Promise<ActionResponse>
   bulkHardDeleteAction?: (ids: string[]) => Promise<ActionResponse>
 }
 
@@ -115,8 +116,10 @@ function ItemsExplorerSession({
   categories,
   units,
   bulkUpdateAction = bulkUpdateItems,
-  bulkHardDeleteAction = bulkHardDeleteItems,
+  bulkDeleteAction,
+  bulkHardDeleteAction,
 }: ItemsExplorerClientProps & { identity: string }) {
+  const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
   const {
@@ -616,7 +619,7 @@ function ItemsExplorerSession({
                 setSelectedItemIds([])
 
                 try {
-                  const res = await bulkHardDeleteAction(targetIds)
+                  const res = await deleteBulkAction(targetIds)
                   if (!res.success) {
                     rollback(snap)
                     setSelectedItemIds(targetIds)
