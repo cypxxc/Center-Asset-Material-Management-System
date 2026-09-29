@@ -960,7 +960,7 @@ function ItemsGrid({
 function EmptyRows() {
   return (
     <tr>
-      <td colSpan={9} className="px-5 py-12">
+      <td colSpan={7} className="px-5 py-12">
         <EmptyState
           title="ไม่พบข้อมูลสิ่งของ"
           description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
