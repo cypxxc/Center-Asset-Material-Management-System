@@ -134,6 +134,18 @@ describe('Items Mutations Audit Logging Integration Tests', () => {
       assert.equal(result.success, false)
       assert.equal(auditLogs.length, 0)
     })
+
+    test('denies bulk delete for staff role (admin only)', async () => {
+      mockSupabaseRegistry.setAuth(
+        { id: 'user-staff-2', email: 'staff@example.com' },
+        { id: 'user-staff-2', email: 'staff@example.com', role: 'staff', is_active: true }
+      )
+
+      const result = await bulkDeleteItems(['item-del-1'])
+      assert.equal(result.success, false)
+      assert.equal(result.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้')
+      assert.equal(auditLogs.length, 0)
+    })
   })
 
   describe('hardDeleteItem', () => {
@@ -181,6 +193,18 @@ describe('Items Mutations Audit Logging Integration Tests', () => {
 
       const result = await hardDeleteItem('item-hard-delete-1')
       assert.equal(result.success, false)
+      assert.equal(auditLogs.length, 0)
+    })
+
+    test('denies hard delete for staff role (admin only)', async () => {
+      mockSupabaseRegistry.setAuth(
+        { id: 'user-staff-3', email: 'staff@example.com' },
+        { id: 'user-staff-3', email: 'staff@example.com', role: 'staff', is_active: true }
+      )
+
+      const result = await hardDeleteItem('item-hard-delete-1')
+      assert.equal(result.success, false)
+      assert.equal(result.message, 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้')
       assert.equal(auditLogs.length, 0)
     })
   })

@@ -56,7 +56,7 @@ async function requireDeletePermission() {
     return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
+  if (profile.role !== 'admin') {
     return { error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
   }
 
@@ -525,12 +525,13 @@ export async function getMatchingItemIds(params: ItemListSearchParams): Promise<
 }
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems(ids, 'delete')
-  const profile = await getCurrentProfile()
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  const auth = await requireDeletePermission()
+  if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
-    return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
+    return errorResponse(auth.error ?? 'Unauthorized')
   }
+
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'delete')
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบ')
@@ -555,12 +556,12 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     .select('id')
 
   if (error) {
-    logger.error({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { ids } }, error)
+    logger.error({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
     return errorResponse('ไม่สามารถลบรายการได้: ' + error.message)
   }
 
   if (!data || data.length === 0) {
-    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: '0 rows updated - RLS block or already deleted' })
+    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: '0 rows updated - RLS block or already deleted' })
     return errorResponse('ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)')
   }
 
@@ -569,12 +570,12 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
   await writeAuditLog({
     operation: 'delete',
     feature: 'items',
-    userId: profile.id,
+    userId: auth.profile.id,
     targetType: 'items',
     newValues: { ids, count: ids.length },
   })
 
-  logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { count: ids.length } })
+  logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
 
   revalidatePath('/items')
   revalidateSidebarCache()
@@ -582,12 +583,12 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
 }
 
 export async function hardDeleteItem(id: string): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems([id], 'delete')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'hardDeleteItem', feature: 'items', details: 'Unauthorized hard delete attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
   }
+  if (isPostgresBackend()) return mutatePostgresItems([id], 'delete')
 
   const supabase = await createClient()
 
@@ -632,12 +633,12 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 }
 
 export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems(ids, 'purge')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkHardDeleteItems', feature: 'items', details: 'Unauthorized bulk hard delete attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
   }
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'purge')
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบถาวร')
