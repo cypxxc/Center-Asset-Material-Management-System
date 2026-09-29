@@ -803,9 +803,9 @@ function ItemsList({
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          <tr aria-hidden="true"><td colSpan={100} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={7} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={100} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
+            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={7} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             const isSelected = selectedItemId === item.id
             const isChecked = selectedItemIds.includes(item.id)
             return (
@@ -852,7 +852,7 @@ function ItemsList({
               </DataTableRow>
             )
           })}
-          <tr aria-hidden="true"><td colSpan={100} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={7} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
           {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>
