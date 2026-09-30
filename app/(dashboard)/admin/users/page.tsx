@@ -9,13 +9,14 @@ interface UsersPageProps {
 }
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
-  const auth = await requireAdmin()
+  const params = await searchParams
+  const [auth, { profiles, totalCount, searchParams: initialSearchParams }] = await Promise.all([
+    requireAdmin(),
+    getUsersPageData(params),
+  ])
   if (auth.error || !auth.profile) {
     redirect('/dashboard')
   }
-
-  const params = await searchParams
-  const { profiles, totalCount, searchParams: initialSearchParams } = await getUsersPageData(params)
 
   return (
     <UsersClient

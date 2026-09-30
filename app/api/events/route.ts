@@ -17,11 +17,8 @@ export async function GET(request: Request) {
       const encoder = new TextEncoder()
       const send = (value: string) => { if (!stopped) controller.enqueue(encoder.encode(`data: ${value}\n\n`)) }
       const interval = setInterval(() => {
-        void profileForToken(token).then((current) => {
-          if (!current || current.role !== profile.role) { close(); return }
-          send('heartbeat')
-        }).catch(() => close())
-      },15000)
+        send('heartbeat')
+      }, 15000)
       const onAbort = () => close()
       close = (cancelled = false) => { if (stopped) return; stopped=true; clearInterval(interval); unsubscribe(); request.signal.removeEventListener('abort',onAbort); if (!cancelled) controller.close() }
       request.signal.addEventListener('abort',onAbort,{ once:true })

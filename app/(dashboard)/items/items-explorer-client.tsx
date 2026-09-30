@@ -166,8 +166,9 @@ function ItemsExplorerSession({
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
 
   const selectedItemsData = useMemo(() => {
+    const selectedSet = new Set(selectedItemIds)
     return localItems
-      .filter((item) => selectedItemIds.includes(item.id))
+      .filter((item) => selectedSet.has(item.id))
       .map((item) => ({
         id: item.id,
         item_name: item.item_name,

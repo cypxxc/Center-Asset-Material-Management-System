@@ -48,3 +48,14 @@ test('20260929160000_items_search_trgm_brand_model_responsible.sql contains trig
   assert.ok(sqlContent.includes('idx_items_trgm_model'), 'Missing idx_items_trgm_model index')
   assert.ok(sqlContent.includes('idx_items_trgm_responsible_person'), 'Missing idx_items_trgm_responsible_person index')
 })
+
+test('20260930080000_audit_logs_and_items_performance_indexes.sql contains audit logs and items performance indexes', () => {
+  const migrationPath = path.join(process.cwd(), 'db/migrations/20260930080000_audit_logs_and_items_performance_indexes.sql')
+  assert.ok(fs.existsSync(migrationPath), 'Migration file 20260930080000_audit_logs_and_items_performance_indexes.sql must exist')
+
+  const sqlContent = fs.readFileSync(migrationPath, 'utf8')
+  assert.ok(sqlContent.includes('idx_audit_logs_created_at_desc'), 'Missing idx_audit_logs_created_at_desc index')
+  assert.ok(sqlContent.includes('idx_audit_logs_user_id'), 'Missing idx_audit_logs_user_id index')
+  assert.ok(sqlContent.includes('idx_items_status'), 'Missing idx_items_status index')
+  assert.ok(sqlContent.includes('idx_items_category_location'), 'Missing idx_items_category_location index')
+})

@@ -132,7 +132,13 @@ export class ItemBatchWindow {
     return batches.map(b => b.items && !keep.has(b) ? { ...b, items: undefined } : b)
   }
   private unique(items: ItemListRow[], batches: BatchSlot[]) {
-    const ids = new Set(batches.flatMap(b => b.items?.flatMap(item => item ? [item.id] : []) ?? []))
+    const ids = new Set<string>()
+    for (const b of batches) {
+      if (!b.items) continue
+      for (const item of b.items) {
+        if (item) ids.add(item.id)
+      }
+    }
     return items.map(item => { if (ids.has(item.id)) return null; ids.add(item.id); return item })
   }
   private async run(action: (signal: AbortSignal) => Promise<WindowState>, retry: () => Promise<void>) {
