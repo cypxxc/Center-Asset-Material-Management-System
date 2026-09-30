@@ -7,28 +7,27 @@ import { getDashboardLayoutData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
 
+export const instant = false
+
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
-  const profile = await getCurrentProfile()
+  const [profile, layoutData] = await Promise.all([
+    getCurrentProfile(),
+    getDashboardLayoutData(),
+  ])
 
   if (!profile) {
-    return (
-      <ToastProvider>
-        <div className="min-h-screen w-screen overflow-y-auto bg-slate-50 text-slate-900">
-          {children}
-        </div>
-      </ToastProvider>
-    )
+    redirect('/login')
   }
 
   if (!profile.is_active) {
     redirect('/login?error=inactive')
   }
 
-  const { sidebarData, references } = await getDashboardLayoutData()
+  const { sidebarData, references } = layoutData
 
   return (
     <ToastProvider>

@@ -10,16 +10,18 @@ For a fresh Docker installation without Supabase, follow [PostgreSQL + Drizzle s
 
 - **Item & Inventory Registry**: Complete CRUD management for office assets and materials with custom asset numbers, serial numbers, locations, categories, and units.
 - **Image Management**: Client-side cropping and compression, with Supabase Storage or authenticated local file storage depending on the selected backend.
-- **Permanent Item Deletion**: Authorized deletion permanently removes items with audit logging.
-- **Reports & Export System**: Full dataset query engine with downloadable **Excel (.xlsx)** and **PDF** report generators.
+- **Permanent Item Deletion**: Administrator-only deletion permanently removes items with audit logging and automatic image storage cleanup; deletion flows include optimistic UI updates with error rollback, and automatic redirect/refresh upon completion.
+- **Reports & Export System**: Full dataset query engine with downloadable **Excel (.xlsx)** and **PDF** report generators, protected by server-side authentication and session verification.
 - **Settings & Metadata Control**: Dynamic management of categories, locations, units, and active profile roles (Admin, Staff, Viewer).
 - **Asset Numbers**: Enter and edit asset numbers directly when registering or updating assets; duplicate numbers are rejected.
 - **Realtime Updates**: Registry, dashboard, reports, audit-log, and database-management views refresh automatically when shared data changes.
 - **Dark Mode & Responsive UI**: Built with 100% semantic CSS theme tokens (`bg-card`, `border-border`, `text-primary`, etc.) for automatic light/dark mode transitions and route-level animated loading skeletons.
-- **Role-Based Access Control (RBAC)**:
-  - **Admin**: Full access including user role assignment, settings management, and permanent item deletion.
-  - **Staff**: Operational access to create and update items and reference metadata.
+- **Role-Based Access Control (RBAC) & Security Hardening**:
+  - **Admin**: Full access including user role assignment, settings management, raw database inspection, and item deletion. Protected by self-protection safeguards against self-demotion/deactivation and last-admin lockout prevention.
+  - **Staff**: Operational access to create and update items, batch operations, and reference metadata. Restricted from item deletion and administrative operations.
   - **Viewer**: Read-only browsing across items, reports, and dashboards.
+  - **Defense-in-Depth Route Guards**: Folder-level layout protection on `/admin/**` ensuring non-admin sessions cannot access administrative views.
+  - **Unified Inactive Account Handling**: Inactive or deactivated sessions fail closed and are redirected to login across both Supabase and PostgreSQL backends.
 - **Unicode & i18n Hardening**: Full NFC normalization, Unicode-aware validation, UTF-8 BOM handling, and database ICU Thai collation (`th-TH-x-icu`).
 - **Health & Monitoring**: Health check endpoints (`/api/health/readiness`, `/api/health/liveness`, `/api/health/status`) and real-time performance bundle budget enforcement.
 - **Local MCP Integration**: Built-in Model Context Protocol server for AI assistant interaction (`npm run mcp`).
@@ -30,7 +32,7 @@ For a fresh Docker installation without Supabase, follow [PostgreSQL + Drizzle s
 
 - **Framework**: Next.js 16.3.4 (App Router, webpack, `proxy.ts` middleware)
 - **UI & Styling**: React 19, Tailwind CSS v4, Radix UI (`radix-ui`), Lucide Icons
-- **Database & Auth**: Supabase PostgreSQL, Supabase Auth, Row Level Security (RLS)
+- **Database & Auth**: Supabase PostgreSQL / Standalone PostgreSQL + Drizzle ORM, Row Level Security (RLS)
 - **Validation**: Zod v4 schemas with custom Unicode preprocessors
 - **Export Engines**: ExcelJS and browser print-to-PDF reports
 - **Runtime & Quality Gate**: Node.js 24.x LTS, TypeScript 5.x (Strict), ESLint 9 (Flat Config), Playwright
@@ -43,7 +45,7 @@ For a fresh Docker installation without Supabase, follow [PostgreSQL + Drizzle s
 
 - Node.js `>=24.0.0 <25`
 - npm `11.14.1`
-- Supabase Project with required environment variables
+- Supabase Project with required environment variables (or local Docker PostgreSQL)
 
 ### 2. Environment Setup
 
@@ -108,8 +110,9 @@ Migration execution is tracked atomically in the `public.app_migrations` databas
 2. **Dual Supabase Clients**:
    - `createClient()`: Anonymous key, RLS-enforced for standard user sessions.
    - `createAdminClient()`: Service role key for admin auth management (bypasses RLS). **Never expose service role key to client-side code.**
-3. **Permanent Item Deletion**: Authorized admin and staff users permanently delete items rather than retaining them for recovery or filtered display.
-4. **Sidebar Cache Revalidation**: Any item/metadata mutation calls `revalidatePath('/', 'layout')` to keep sidebar category counts in sync.
+3. **Permanent Item Deletion**: Authorized administrator users permanently delete items with audit logging and storage image cleanup; staff and viewer roles are restricted from deletion operations.
+4. **Administrative Protection & Anti-Lockout**: Administrators cannot demote, deactivate, or delete themselves; mutations verify that at least one active administrator remains in the system.
+5. **Sidebar Cache Revalidation**: Any item/metadata mutation calls `revalidatePath('/', 'layout')` to keep sidebar category counts in sync.
 
 ---
 

@@ -1,25 +1,38 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { hardDeleteItem } from '../actions'
+import type { ActionResponse } from '@/lib/actions-helper'
 
 const ConfirmDialog = dynamic(
   () => import('@/components/ui/confirm-dialog').then((mod) => mod.ConfirmDialog),
   { ssr: false }
 )
 
-export function DeleteItemButton({ id }: { id: string }) {
+export function DeleteItemButton({
+  id,
+  deleteAction = hardDeleteItem,
+}: {
+  id: string
+  deleteAction?: (id: string) => Promise<ActionResponse>
+}) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
 
   const handleDelete = () => {
     startTransition(async () => {
-      const result = await hardDeleteItem(id)
-      if (result?.message) {
-        alert(result.message)
+      const result = await deleteAction(id)
+      if (result?.success) {
+        setShowConfirm(false)
+        router.refresh()
+        router.push('/items')
+      } else {
+        alert(result?.error || result?.message || 'ไม่สามารถลบรายการได้')
         setShowConfirm(false)
       }
     })

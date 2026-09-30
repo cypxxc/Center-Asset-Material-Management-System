@@ -23,22 +23,12 @@ BEGIN
     RETURN json_build_object('ok', false, 'error', 'Unsupported backup format version');
   END IF;
 
-  IF jsonb_typeof(backup->'profiles') <> 'array'
-     OR jsonb_typeof(backup->'categories') <> 'array'
+  IF jsonb_typeof(backup->'categories') <> 'array'
      OR jsonb_typeof(backup->'locations') <> 'array'
      OR jsonb_typeof(backup->'units') <> 'array'
-     OR jsonb_typeof(backup->'items') <> 'array'
-     OR jsonb_typeof(backup->'audit_logs') <> 'array' THEN
-    RETURN json_build_object('ok', false, 'error', 'Backup is missing one or more required tables');
+     OR jsonb_typeof(backup->'items') <> 'array' THEN
+    RETURN json_build_object('ok', false, 'error', 'Backup is missing one or more required business tables');
   END IF;
-
-  INSERT INTO public.profiles (id, full_name, email, role, is_active, created_at, updated_at)
-  SELECT id, full_name, email, role, is_active, created_at, updated_at
-  FROM jsonb_populate_recordset(NULL::public.profiles, backup->'profiles')
-  ON CONFLICT (id) DO UPDATE SET
-    full_name = EXCLUDED.full_name, email = EXCLUDED.email, role = EXCLUDED.role,
-    is_active = EXCLUDED.is_active, updated_at = EXCLUDED.updated_at;
-  restored_tables := array_append(restored_tables, 'profiles');
 
   INSERT INTO public.categories (id, name, description, is_active, created_at, updated_at)
   SELECT id, name, description, is_active, created_at, updated_at
@@ -76,15 +66,6 @@ BEGIN
     created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by, deleted_by = EXCLUDED.deleted_by,
     deleted_at = EXCLUDED.deleted_at, updated_at = EXCLUDED.updated_at;
   restored_tables := array_append(restored_tables, 'items');
-
-  INSERT INTO public.audit_logs (id, user_id, action, target_table, target_id, old_data, new_data, created_at)
-  SELECT id, user_id, action, target_table, target_id, old_data, new_data, created_at
-  FROM jsonb_populate_recordset(NULL::public.audit_logs, backup->'audit_logs')
-  ON CONFLICT (id) DO UPDATE SET
-    user_id = EXCLUDED.user_id, action = EXCLUDED.action, target_table = EXCLUDED.target_table,
-    target_id = EXCLUDED.target_id, old_data = EXCLUDED.old_data, new_data = EXCLUDED.new_data,
-    created_at = EXCLUDED.created_at;
-  restored_tables := array_append(restored_tables, 'audit_logs');
 
   INSERT INTO public.audit_logs (user_id, action, target_table, new_data)
   VALUES (auth.uid(), 'DATABASE_RESTORE', 'all', jsonb_build_object('tables_restored', restored_tables));

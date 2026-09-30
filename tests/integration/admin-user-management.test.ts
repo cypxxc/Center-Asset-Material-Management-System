@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { updateUserEmail } from '../../features/admin/actions';
+import { updateUserEmail, deleteAuthUser } from '../../features/admin/actions';
 
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-service-role-key-for-test';
 
@@ -55,4 +55,34 @@ test('updateUserEmail syncs Supabase Auth and profiles for admin', async () => {
   const profileUpdatePayload = profileUpdate.operations[0]?.[1] as Record<string, unknown>;
   assert.equal(profileUpdatePayload.email, 'new-email@example.com');
   assert.match(String(profileUpdatePayload.updated_at), /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('deleteAuthUser prevents admin from deleting their own account', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-admin', email: 'admin@example.com' },
+    { id: 'user-admin', email: 'admin@example.com', role: 'admin', is_active: true }
+  );
+
+  const res = await deleteAuthUser('user-admin');
+  assert.ok(res.error);
+  assert.equal(res.error, 'ไม่สามารถลบบัญชีของตนเองได้');
+  assert.equal(mockSupabaseRegistry.getAuthAdminLog().length, 0);
+});
+
+test('deleteAuthUser allows admin to delete other users', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-admin', email: 'admin@example.com' },
+    { id: 'user-admin', email: 'admin@example.com', role: 'admin', is_active: true }
+  );
+
+  const res = await deleteAuthUser('user-other');
+  assert.equal(res.success, true);
+  assert.deepEqual(mockSupabaseRegistry.getAuthAdminLog(), [
+    {
+      operation: 'deleteUser',
+      userId: 'user-other',
+    },
+  ]);
 });

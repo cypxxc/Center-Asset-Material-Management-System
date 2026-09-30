@@ -1,9 +1,6 @@
 import { isPostgresBackend } from '@/lib/backend'
 import { readLocalItemImage } from '@/lib/postgres/storage'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
 export async function GET(_request: Request, context: { params: Promise<{ path: string[] }> }) {
   if (!isPostgresBackend()) return new Response(null, { status: 404 })
   const { path } = await context.params

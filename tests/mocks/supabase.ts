@@ -333,6 +333,11 @@ export function createMockSupabaseClient(clientKind: 'anon' | 'service' = 'anon'
     },
     signInWithPassword: async (credentials: { email?: string; password?: string }) =>
       mockSupabaseRegistry.signInWithPassword(credentials),
+    updateUser: async () => {
+      const { user } = mockSupabaseRegistry.getAuth();
+      if (!user) return { data: { user: null }, error: { message: 'Not authenticated' } };
+      return { data: { user }, error: null };
+    },
     admin: {
       createUser: async (payload: Record<string, unknown>) => {
         const user = mockSupabaseRegistry.createPasswordAccount(payload);

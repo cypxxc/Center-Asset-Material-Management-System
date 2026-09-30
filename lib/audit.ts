@@ -83,7 +83,7 @@ export async function writeAuditLog(payload: AuditLogPayload) {
 
   const persist = async () => {
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'http://127.0.0.1:54321' : undefined)
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
       // Skip database persistence gracefully if Supabase env vars are not set (e.g. in unit tests)

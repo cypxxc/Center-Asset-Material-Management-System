@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { checkReadiness, toPublicReadiness } from '@/lib/health'
 import { logger } from '@/lib/logging'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   const result = await checkReadiness()
 

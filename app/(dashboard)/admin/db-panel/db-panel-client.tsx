@@ -190,6 +190,7 @@ export default function DBPanelClient() {
   
   // Dynamic PageSize
   const pageSize = 15
+  const isReadOnlyTable = activeTab === 'audit' || selectedTable === 'audit_logs'
 
   // Fetch Table Data
   const fetchTable = async (tableName: string, page: number) => {
@@ -225,6 +226,7 @@ export default function DBPanelClient() {
 
   // Handle Edit/Add Row
   const handleOpenForm = (row: Record<string, unknown> | null = null) => {
+    if (isReadOnlyTable) return
     setEditingRow(row)
     setFormData(row ? { ...row } : {})
     // generate a nonce to break browser autofill heuristics for new forms
@@ -252,6 +254,10 @@ export default function DBPanelClient() {
     e.preventDefault()
     setFormError(null)
     const targetTable = activeTab === 'audit' ? 'audit_logs' : selectedTable
+    if (targetTable === 'audit_logs') {
+      setFormError('ตารางประวัติการตรวจสอบ (audit_logs) เป็นแบบอ่านอย่างเดียว')
+      return
+    }
     const rowId = (editingRow && typeof editingRow.id === 'string') ? editingRow.id : null
 
     // Special case: creating a new profile must go through Auth Admin API
@@ -357,6 +363,10 @@ export default function DBPanelClient() {
   const handleDeleteRow = async (rowId: string) => {
     if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบแถวข้อมูลนี้อย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้')) return
     const targetTable = activeTab === 'audit' ? 'audit_logs' : selectedTable
+    if (targetTable === 'audit_logs') {
+      alert('ตารางประวัติการตรวจสอบ (audit_logs) เป็นแบบอ่านอย่างเดียว ไม่สามารถลบได้')
+      return
+    }
 
     // Profiles must be deleted via Auth Admin API (removes auth.users too)
     if (targetTable === 'profiles') {
@@ -404,13 +414,15 @@ export default function DBPanelClient() {
       if (res.error) {
         setBackupResult({ type: 'error', message: res.error })
       } else if (res.backup) {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.backup, null, 2))
+        const blob = new Blob([JSON.stringify(res.backup, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
         const downloadAnchor = document.createElement('a')
-        downloadAnchor.setAttribute("href", dataStr)
-        downloadAnchor.setAttribute("download", `camms_backup_${new Date().toISOString().split('T')[0]}.json`)
+        downloadAnchor.href = url
+        downloadAnchor.download = `camms_backup_${new Date().toISOString().split('T')[0]}.json`
         document.body.appendChild(downloadAnchor)
         downloadAnchor.click()
         downloadAnchor.remove()
+        URL.revokeObjectURL(url)
         setBackupResult({ type: 'success', message: 'สร้างไฟล์สำรองข้อมูลเรียบร้อยแล้ว' })
       }
     } catch (err) {
@@ -598,8 +610,8 @@ export default function DBPanelClient() {
                     <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
                   </button>
 
-                  {/* Add Row Button (Disabled for read-only audit logs) */}
-                  {activeTab !== 'audit' && (
+                  {/* Add Row Button (Disabled for read-only tables) */}
+                  {!isReadOnlyTable && (
                     <button
                       onClick={() => handleOpenForm(null)}
                       className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
@@ -628,7 +640,7 @@ export default function DBPanelClient() {
                           <div className="text-[8px] text-slate-500 font-semibold mt-0.5">{col.name}</div>
                         </th>
                       ))}
-                      {activeTab !== 'audit' && (
+                      {!isReadOnlyTable && (
                         <th className="py-3 px-4 text-center sticky right-0 bg-slate-900 z-20 w-24">จัดการ (Actions)</th>
                       )}
                     </tr>
@@ -671,7 +683,7 @@ export default function DBPanelClient() {
                           )
                         })}
 
-                        {activeTab !== 'audit' && (
+                        {!isReadOnlyTable && (
                           <td className="py-2 px-4 sticky right-0 bg-slate-950/80 backdrop-blur-sm text-center flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenForm(row)}
@@ -694,7 +706,7 @@ export default function DBPanelClient() {
 
                     {filteredData.length === 0 && (
                       <tr>
-                        <td colSpan={activeSchema.length + (activeTab !== 'audit' ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
+                        <td colSpan={activeSchema.length + (!isReadOnlyTable ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
                           ไม่พบแถวข้อมูลในตารางนี้
                         </td>
                       </tr>
@@ -1048,7 +1060,7 @@ export default function DBPanelClient() {
       )}
 
       {/* MODAL FORM: Add / Edit Row */}
-      {isFormOpen && (
+      {!isReadOnlyTable && isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-slate-200">
             

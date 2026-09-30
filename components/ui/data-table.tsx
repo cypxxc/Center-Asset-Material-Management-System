@@ -55,6 +55,7 @@ export const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHea
     return (
       <th
         ref={ref}
+        scope="col"
         className={cn(
           "px-4 py-3 font-semibold",
           isCheckbox && "w-10 px-3",

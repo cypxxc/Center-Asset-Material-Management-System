@@ -7,8 +7,9 @@ import { getAuthDatabase } from './db'
 export async function consumeLoginAttempt(identifier: string): Promise<boolean> {
   const key = createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex')
   return getAuthDatabase().transaction(async tx => {
-    await tx.execute(sql`delete from private_auth.login_attempts where window_started_at < now() - interval '1 day'`)
-    for (const [bucket,limit] of [['global',200],[key,10]] as const) {
+    // NOTE: Cleanup of old rows is intentionally NOT here — call pruneLoginAttempts()
+    // via after() in the login action so it never contends with the login transaction.
+    for (const [bucket, limit] of [['global', 200], [key, 10]] as const) {
       const result = await tx.execute<{ attempts: number }>(sql`
         insert into private_auth.login_attempts(key,attempts) values(${bucket},1)
         on conflict (key) do update set
@@ -19,4 +20,11 @@ export async function consumeLoginAttempt(identifier: string): Promise<boolean> 
     }
     return true
   })
+}
+
+/** Remove expired login-attempt rows. Call via after() so it never blocks the hot path. */
+export async function pruneLoginAttempts(): Promise<void> {
+  await getAuthDatabase().execute(
+    sql`delete from private_auth.login_attempts where window_started_at < now() - interval '1 day'`
+  )
 }
