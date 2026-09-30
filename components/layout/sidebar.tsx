@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils'
 interface SidebarProps {
   profile: {
     full_name: string
+    display_name?: string | null
     email: string
     role: string
   } | null
@@ -405,17 +406,36 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
       <div className="border-t border-border bg-slate-50/70 p-2 mt-auto">
         {profile && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card p-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-slate-100">
-              <User className="h-4 w-4 text-slate-500" />
+          <Link
+            href="/profile"
+            className={cn(
+              'mb-2 flex items-center gap-2 rounded-lg border border-border p-2 transition-all group',
+              pathname === '/profile'
+                ? 'bg-blue-50/80 border-blue-200 shadow-xs'
+                : 'bg-card hover:bg-slate-100/80 hover:border-slate-300'
+            )}
+            title="ตั้งค่าบัญชีส่วนบุคคล"
+          >
+            <div className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors',
+              pathname === '/profile'
+                ? 'border-blue-200 bg-blue-600 text-white'
+                : 'border-border bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-200'
+            )}>
+              <User className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold leading-none text-foreground">{profile.full_name}</p>
+              <p className={cn(
+                'truncate text-xs font-bold leading-none transition-colors',
+                pathname === '/profile' ? 'text-blue-700' : 'text-foreground group-hover:text-blue-600'
+              )}>
+                {profile.display_name?.trim() || profile.full_name}
+              </p>
               <p className="mt-1 truncate text-[10px] font-semibold text-blue-600">
                 {roleLabels[profile.role] ?? profile.role}
               </p>
             </div>
-          </div>
+          </Link>
         )}
 
         <form action={signOut}>

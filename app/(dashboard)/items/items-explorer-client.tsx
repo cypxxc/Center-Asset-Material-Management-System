@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -55,8 +55,10 @@ import {
   DataTableRow,
   DataTableCell
 } from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
+import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
+import type { BulkItemUpdates } from '@/features/items/bulk-edit'
+import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
@@ -74,7 +76,11 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
+  bulkUpdateAction?: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse>
+  bulkDeleteAction?: (ids: string[]) => Promise<ActionResponse>
+  bulkHardDeleteAction?: (ids: string[]) => Promise<ActionResponse>
 }
+
 
 
 const typeIcons: Record<ItemType, React.ReactNode> = {
@@ -94,7 +100,7 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  const identity = JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)])
+  const identity = useMemo(() => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)]), [props.userId, props.params])
   return <ItemsExplorerSession key={identity} {...props} identity={identity} />
 }
 
@@ -109,18 +115,31 @@ function ItemsExplorerSession({
   locations,
   categories,
   units,
+  bulkUpdateAction = bulkUpdateItems,
+  bulkDeleteAction,
+  bulkHardDeleteAction,
 }: ItemsExplorerClientProps & { identity: string }) {
+  const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
-  const { attachScroll, ...windowed } = useItemWindow(identity, params, { items, total, nextCursor })
+  const {
+    attachScroll,
+    optimisticUpdate,
+    optimisticDelete,
+    rollback,
+    snapshot,
+    save: saveWindow,
+    ...windowed
+  } = useItemWindow(identity, params, { items, total, nextCursor })
   const localItems = windowed.loaded
+
   const { toast } = useToast()
   const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id])
+  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir])
   const currentFilterKey = useRef(filterKey)
   useEffect(() => { currentFilterKey.current = filterKey }, [filterKey])
   const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
@@ -139,6 +158,7 @@ function ItemsExplorerSession({
     toggleSort,
     buildHref,
   } = useItemsFilter(params)
+
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
@@ -146,8 +166,9 @@ function ItemsExplorerSession({
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
 
   const selectedItemsData = useMemo(() => {
+    const selectedSet = new Set(selectedItemIds)
     return localItems
-      .filter((item) => selectedItemIds.includes(item.id))
+      .filter((item) => selectedSet.has(item.id))
       .map((item) => ({
         id: item.id,
         item_name: item.item_name,
@@ -165,7 +186,10 @@ function ItemsExplorerSession({
 
 
   const effectiveSelectedItemId = inspectedItem?.id ?? null
-  const selectedItem = localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  const selectedItem = useMemo(() => {
+    if (!effectiveSelectedItemId) return inspectedItem
+    return localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  }, [effectiveSelectedItemId, localItems, inspectedItem])
 
   const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
@@ -269,28 +293,33 @@ function ItemsExplorerSession({
     return localItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
   }, [localItems])
 
-  const handleToggleSelectItem = (id: string) => {
+  const handleToggleSelectItem = useCallback((id: string) => {
     setSelectedItemIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
-  }
+  }, [])
 
-  const handleToggleSelectAll = () => {
-    const pageIds = localItems.map(item => item.id)
+  const localItemsRef = useRef(localItems)
+  useEffect(() => {
+    localItemsRef.current = localItems
+  }, [localItems])
+
+  const handleToggleSelectAll = useCallback(() => {
+    const pageIds = localItemsRef.current.map(item => item.id)
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
-  }
+  }, [])
 
-  const handleSelectItem = (item: ItemListRow) => {
+  const handleSelectItem = useCallback((item: ItemListRow) => {
     setInspectedItem(item)
     setIsInspectorOpen(true)
-  }
+  }, [])
 
-  const handleDoubleClickItem = (item: ItemListRow) => {
-    windowed.save()
+  const handleDoubleClickItem = useCallback((item: ItemListRow) => {
+    saveWindow()
     router.push(`/items/${item.id}`)
-  }
+  }, [router, saveWindow])
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
@@ -342,8 +371,8 @@ function ItemsExplorerSession({
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </button>
+                </div>
               </div>
-            </div>
 
             <nav aria-label="ประเภทพัสดุ" className="mt-5 flex gap-1 border-b border-border">
               {[{ value: '', label: 'ทั้งหมด' }, { value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }].map((type) => (
@@ -492,7 +521,7 @@ function ItemsExplorerSession({
 
       {/* Slide-Over Detail Drawer (Inspector Sheet) */}
       <Inspector
-        onOpenDetails={windowed.save}
+        onOpenDetails={saveWindow}
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         item={selectedItem}
@@ -506,9 +535,54 @@ function ItemsExplorerSession({
         }}
       />
 
-      {bulkEditOpen && <BulkEditDialog count={selectedItemIds.length} locations={locations} categories={categories} units={units}
-        onClose={() => setBulkEditOpen(false)} onSave={updates => bulkUpdateItems(selectedItemIds, updates)}
-        onSaved={message => { triggerToast(message); setBulkEditOpen(false); setSelectedItemIds([]); router.refresh() }} />}
+      {bulkEditOpen && (
+        <BulkEditDialog
+          count={selectedItemIds.length}
+          locations={locations}
+          categories={categories}
+          units={units}
+          onClose={() => setBulkEditOpen(false)}
+          onSave={async (updates) => {
+            const snap = snapshot()
+            const patch: Partial<ItemListRow> = {}
+            if (updates.status !== undefined) {
+              patch.status = updates.status
+            }
+            if (updates.responsible_person !== undefined) {
+              patch.responsible_person = updates.responsible_person || null
+            }
+            if (updates.location_id !== undefined) {
+              const loc = locations.find((l) => l.id === updates.location_id)
+              patch.location = loc ? { id: loc.id, name: loc.name } : { id: updates.location_id, name: '' }
+            }
+            if (updates.category_id !== undefined) {
+              const cat = categories.find((c) => c.id === updates.category_id)
+              patch.category = cat ? { id: cat.id, name: cat.name } : { id: updates.category_id, name: '' }
+            }
+            if (updates.unit_id !== undefined) {
+              const u = units.find((unit) => unit.id === updates.unit_id)
+              patch.unit = u ? { id: u.id, name: u.name } : { id: updates.unit_id, name: '' }
+            }
+            optimisticUpdate(selectedItemIds, patch)
+            try {
+              const result = await bulkUpdateAction(selectedItemIds, updates)
+              if (!result.success) {
+                rollback(snap)
+              }
+              return result
+            } catch (err) {
+              rollback(snap)
+              throw err
+            }
+          }}
+          onSaved={(message) => {
+            triggerToast(message)
+            setBulkEditOpen(false)
+            setSelectedItemIds([])
+            router.refresh()
+          }}
+        />
+      )}
       {selectedItemIds.length > 0 && (
         <div className="fixed bottom-14 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
           <span className="text-xs font-bold text-card-foreground">
@@ -549,14 +623,25 @@ function ItemsExplorerSession({
               onClick={async () => {
                 if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
 
-                const res = await bulkHardDeleteItems(selectedItemIds)
-                if (res.success) {
-                  triggerToast(res.message || 'ลบเรียบร้อย')
-                  setSelectedItemIds([])
-                  void windowed.store.refresh()
-                  router.refresh()
-                } else {
-                  setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+                const snap = snapshot()
+                optimisticDelete(selectedItemIds)
+                const targetIds = [...selectedItemIds]
+                setSelectedItemIds([])
+
+                try {
+                  const res = await deleteBulkAction(targetIds)
+                  if (!res.success) {
+                    rollback(snap)
+                    setSelectedItemIds(targetIds)
+                    setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+                  } else {
+                    triggerToast(res.message || 'ลบเรียบร้อย')
+                    router.refresh()
+                  }
+                } catch {
+                  rollback(snap)
+                  setSelectedItemIds(targetIds)
+                  setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่')
                 }
               }}
               variant="outline"
@@ -660,6 +745,14 @@ function ItemsList({
   params,
   onToggleSort,
 }: ItemsListProps) {
+  const masterCheckboxRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.indeterminate = selectedItemIds.length > 0 && !allLoadedSelected
+    }
+  }, [selectedItemIds.length, allLoadedSelected])
+
   const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
     const currentField = params.sort_by || 'updated_at'
     const currentDir = params.sort_dir || 'desc'
@@ -690,6 +783,13 @@ function ItemsList({
     )
   }
 
+  const getSortAria = (field: string): 'ascending' | 'descending' | 'none' => {
+    const currentField = params.sort_by || 'updated_at'
+    const currentDir = params.sort_dir || 'desc'
+    if (currentField !== field) return 'none'
+    return currentDir === 'asc' ? 'ascending' : 'descending'
+  }
+
   return (
     <div className="bg-muted/20">
       <DataTable responsive={false} wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible" className="text-card-foreground table-fixed min-w-[768px] sm:min-w-[856px] md:min-w-[960px] xl:min-w-[1100px]">
@@ -697,6 +797,7 @@ function ItemsList({
           <tr>
             <DataTableHead isCheckbox className="w-9 px-2">
               <input
+                ref={masterCheckboxRef}
                 type="checkbox"
                 aria-label="เลือกทุกรายการที่โหลดอยู่"
                 checked={allLoadedSelected}
@@ -705,73 +806,99 @@ function ItemsList({
               />
             </DataTableHead>
             <DataTableHead className="w-10 px-1" />
-            <DataTableHead className="px-3">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
-            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
+            <DataTableHead className="px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
+            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell" aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
             <DataTableHead className="hidden w-28 px-3 md:table-cell">หมวดหมู่</DataTableHead>
-            <DataTableHead className="w-[88px] px-2">{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead className="w-[88px] px-2" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
             <DataTableHead className="w-[136px] px-3">สถานที่</DataTableHead>
             <DataTableHead className="hidden w-[136px] px-3 xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
-            <DataTableHead className="w-28 px-3">{renderSortHeader('status', 'สถานะ')}</DataTableHead>
+            <DataTableHead className="w-28 px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {/* Six columns are always visible; spanning hidden columns creates a phantom column. */}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={6} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
-            const isSelected = selectedItemId === item.id
-            const isChecked = selectedItemIds.includes(item.id)
+            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             return (
-              <DataTableRow
+              <ItemTableRow
                 key={item.id}
-                tabIndex={0}
-                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
-                title={item.item_name}
-                onClick={() => onSelect(item)}
-                onDoubleClick={() => onDoubleClick?.(item)}
-                className={cn(
-                  'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
-                  isSelected
-                    ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
-                    : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
-                )}
-              >
-                <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={`เลือก ${item.item_name}`}
-                    checked={isChecked}
-                    onChange={() => onToggleSelectItem(item.id)}
-                    className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-                  />
-                </DataTableCell>
-                <DataTableCell className="px-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
-                    {typeIcons[item.item_type]}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="px-3">
-                  <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
-                  <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
-                    {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
-                <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
-                <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
-              </DataTableRow>
+                item={item}
+                isSelected={selectedItemId === item.id}
+                isChecked={selectedItemIds.includes(item.id)}
+                onSelect={onSelect}
+                onDoubleClick={onDoubleClick}
+                onToggleSelectItem={onToggleSelectItem}
+              />
             )
           })}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          <tr aria-hidden="true"><td colSpan={9} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
           {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>
     </div>
   )
 }
+
+interface ItemTableRowProps {
+  item: ItemListRow
+  isSelected: boolean
+  isChecked: boolean
+  onSelect: (item: ItemListRow) => void
+  onDoubleClick?: (item: ItemListRow) => void
+  onToggleSelectItem: (id: string) => void
+}
+
+const ItemTableRow = React.memo(function ItemTableRow({
+  item,
+  isSelected,
+  isChecked,
+  onSelect,
+  onDoubleClick,
+  onToggleSelectItem,
+}: ItemTableRowProps) {
+  return (
+    <DataTableRow
+      tabIndex={0}
+      onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
+      title={item.item_name}
+      onClick={() => onSelect(item)}
+      onDoubleClick={() => onDoubleClick?.(item)}
+      className={cn(
+        'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
+        isSelected
+          ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
+          : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
+      )}
+    >
+      <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          aria-label={`เลือก ${item.item_name}`}
+          checked={isChecked}
+          onChange={() => onToggleSelectItem(item.id)}
+          className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
+        />
+      </DataTableCell>
+      <DataTableCell className="px-1">
+        <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
+          {typeIcons[item.item_type]}
+        </div>
+      </DataTableCell>
+      <DataTableCell className="px-3">
+        <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
+        <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
+          {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
+        </div>
+      </DataTableCell>
+      <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
+      <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
+      <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+      <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
+      <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
+      <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
+    </DataTableRow>
+  )
+})
 
 interface ItemsGridProps {
   columns: number

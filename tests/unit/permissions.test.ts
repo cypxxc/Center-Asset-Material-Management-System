@@ -19,7 +19,7 @@ test('permissions helper determine correct write rights', () => {
 
 test('permissions helper determine correct delete rights', () => {
   assert.equal(canDelete('admin'), true);
-  assert.equal(canDelete('staff'), true);
+  assert.equal(canDelete('staff'), false);
   assert.equal(canDelete('viewer'), false);
 });
 

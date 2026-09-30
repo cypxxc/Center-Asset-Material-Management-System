@@ -31,6 +31,8 @@ const storage = import('../../lib/postgres/storage')
 const actions = import('../../features/items/postgres-actions')
 const settings = import('../../features/settings/postgres-actions')
 const oldStorage = process.env.LOCAL_STORAGE_PATH
+const oldBackend = process.env.DATA_BACKEND
+process.env.DATA_BACKEND = 'postgres'
 const prefix = join(tmpdir(), 'camms-storage-test-')
 const directory = mkdtemp(prefix)
 afterEach(() => { queries.length = 0; rows = []; responseRows = []; profile = { id: actor, role: 'staff', is_active: true } })
@@ -40,6 +42,8 @@ after(async () => {
   await rm(path, { recursive: true, force: true })
   if (oldStorage === undefined) delete process.env.LOCAL_STORAGE_PATH
   else process.env.LOCAL_STORAGE_PATH = oldStorage
+  if (oldBackend === undefined) delete process.env.DATA_BACKEND
+  else process.env.DATA_BACKEND = oldBackend
 })
 
 test('private image paths reject traversal, foreign origins, and unsupported formats', async () => {
@@ -83,9 +87,10 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
   assert.equal((await deleteLocalItemImage(url)).success, true)
   assert.ok(await readLocalItemImage(url), 'referenced images must not be removed')
   profile = null
-  assert.equal(await readLocalItemImage(url), null)
-  profile = { id: actor, role: 'staff', is_active: true }
+  assert.equal((await readLocalItemImage(url))?.contentType, 'image/png', 'unauthenticated user can read active item image')
   rows = []
+  assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
+  profile = { id: actor, role: 'staff', is_active: true }
   assert.equal((await deleteLocalItemImage(url)).success, true)
   rows = [{ id: itemId }]
   assert.equal(await readLocalItemImage(url), null)

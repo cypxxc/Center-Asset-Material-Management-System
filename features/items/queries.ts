@@ -6,7 +6,7 @@ import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getP
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
-import { resolvePrivateItemImageUrl } from '@/lib/supabase/storage'
+import { resolvePrivateItemImageUrl, resolvePrivateItemImageUrlsBatch } from '@/lib/supabase/storage'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { getDevelopmentSessionUser } from '@/features/auth/dev-auth'
@@ -137,18 +137,96 @@ function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'locati
   }
 }
 
+interface CachedSignedUrl {
+  signedUrl: string
+  expiresAt: number
+}
+
+const signedUrlCache = new Map<string, CachedSignedUrl>()
+const SIGNED_URL_TTL_MS = 50 * 60 * 1000 // 50 minutes (Supabase default is 60 minutes)
+
+function getCachedSignedUrl(rawUrl: string): string | null {
+  const cached = signedUrlCache.get(rawUrl)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.signedUrl
+  }
+  return null
+}
+
+function setCachedSignedUrl(rawUrl: string, signedUrl: string): void {
+  if (signedUrlCache.size > 2000) {
+    const oldestKey = signedUrlCache.keys().next().value
+    if (oldestKey) signedUrlCache.delete(oldestKey)
+  }
+  signedUrlCache.set(rawUrl, {
+    signedUrl,
+    expiresAt: Date.now() + SIGNED_URL_TTL_MS,
+  })
+}
+
 async function signItemImage<T extends { image_url?: string | null }>(
   supabase: Awaited<ReturnType<typeof getEffectiveClient>>,
   item: T
 ): Promise<T> {
   if (!item.image_url) return item
 
+  const cached = getCachedSignedUrl(item.image_url)
+  if (cached) {
+    return { ...item, image_url: cached }
+  }
+
   const imageUrl = await resolvePrivateItemImageUrl(
     item.image_url,
     (path, expiresIn) => supabase.storage.from('item-images').createSignedUrl(path, expiresIn)
   )
 
+  if (imageUrl) {
+    setCachedSignedUrl(item.image_url, imageUrl)
+  }
+
   return { ...item, image_url: imageUrl }
+}
+
+async function signItemImagesBatch<T extends { image_url?: string | null }>(
+  supabase: Awaited<ReturnType<typeof getEffectiveClient>>,
+  items: T[]
+): Promise<T[]> {
+  if (items.length === 0) return items
+
+  const missingIndices: number[] = []
+  const missingUrls: (string | null | undefined)[] = []
+  const resolvedUrls: (string | null)[] = new Array(items.length).fill(null)
+
+  items.forEach((item, index) => {
+    if (!item.image_url) return
+    const cached = getCachedSignedUrl(item.image_url)
+    if (cached) {
+      resolvedUrls[index] = cached
+    } else {
+      missingIndices.push(index)
+      missingUrls.push(item.image_url)
+    }
+  })
+
+  if (missingUrls.length > 0) {
+    const signedUrls = await resolvePrivateItemImageUrlsBatch(
+      missingUrls,
+      (paths, expiresIn) => supabase.storage.from('item-images').createSignedUrls(paths, expiresIn)
+    )
+    signedUrls.forEach((signedUrl, i) => {
+      const originalIndex = missingIndices[i]
+      const rawUrl = missingUrls[i]
+      resolvedUrls[originalIndex] = signedUrl
+      if (signedUrl && rawUrl) {
+        setCachedSignedUrl(rawUrl, signedUrl)
+      }
+    })
+  }
+
+  return items.map((item, index) => ({
+    ...item,
+    image_url: resolvedUrls[index] ?? (item.image_url ? null : item.image_url),
+  }))
 }
 
 /**
@@ -295,10 +373,9 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
 
   const total = count ?? 0
 
-  const items = await Promise.all(
-    ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][])
-      .map(normalizeItemListRow)
-      .map((item) => signItemImage(supabase, item))
+  const items = await signItemImagesBatch(
+    supabase,
+    ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
   )
 
   return {
@@ -329,7 +406,8 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     .is('deleted_at', null)
 
   if (normalized.q) {
-    const pattern = escapePostgrestLiteral(`%${normalized.q}%`)
+    const safeQ = normalized.q.replaceAll(',', ' ')
+    const pattern = escapePostgrestLiteral(`%${safeQ}%`)
     query = query.or([
       'item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person',
     ].map((column) => `${column}.ilike.${pattern}`).join(','))
@@ -356,7 +434,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   const rows = ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
   const hasMore = rows.length > BATCH_SIZE
   const page = rows.slice(0, BATCH_SIZE)
-  const items = await Promise.all(page.map((item) => signItemImage(supabase, item)))
+  const items = await signItemImagesBatch(supabase, page)
   const last = items.at(-1)
   return {
     items,

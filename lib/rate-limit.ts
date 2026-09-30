@@ -92,11 +92,63 @@ export class MemoryRateLimiter implements RateLimiter {
 
 let globalRateLimiter: RateLimiter
 
+export class PostgresRateLimiter implements RateLimiter {
+  async limit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+    const now = Date.now()
+    const windowSec = windowMs / 1000
+    const [{ sql }, { getAuthDatabase }] = await Promise.all([
+      import('drizzle-orm'),
+      import('@/lib/postgres/db'),
+    ])
+    const db = getAuthDatabase()
+
+    const result = await db.execute<{ count: number; window_started_at: string }>(sql`
+      INSERT INTO private_auth.rate_limits(key, window_started_at, count)
+      VALUES (${key}, now(), 1)
+      ON CONFLICT (key) DO UPDATE SET
+        window_started_at = CASE
+          WHEN rate_limits.window_started_at < now() - make_interval(secs => ${windowSec})
+          THEN now()
+          ELSE rate_limits.window_started_at
+        END,
+        count = CASE
+          WHEN rate_limits.window_started_at < now() - make_interval(secs => ${windowSec})
+          THEN 1
+          ELSE least(rate_limits.count + 1, ${limit + 1})
+        END
+      RETURNING count, window_started_at
+    `)
+
+    const row = result.rows[0]
+    if (!row) return { success: false, limit, remaining: 0, reset: now + windowMs }
+
+    const windowStartMs = new Date(row.window_started_at).getTime()
+    const reset = windowStartMs + windowMs
+
+    if (row.count > limit) {
+      return { success: false, limit, remaining: 0, reset }
+    }
+
+    return {
+      success: true,
+      limit,
+      remaining: limit - row.count,
+      reset,
+    }
+  }
+}
+
 export function getRateLimiter(): RateLimiter {
   if (!globalRateLimiter) {
-    globalRateLimiter = new MemoryRateLimiter()
+    globalRateLimiter = process.env.DATA_BACKEND === 'postgres'
+      ? new PostgresRateLimiter()
+      : new MemoryRateLimiter()
   }
   return globalRateLimiter
+}
+
+export function resetRateLimiter(): void {
+  globalRateLimiter = undefined as unknown as RateLimiter
 }
 
 export interface CheckRateLimitResult {

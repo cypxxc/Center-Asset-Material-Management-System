@@ -2,8 +2,6 @@ import { cookies } from 'next/headers'
 import { isPostgresBackend } from '@/lib/backend'
 import { profileForToken, SESSION_COOKIE } from '@/lib/postgres/session'
 import { subscribeChanges } from '@/lib/postgres/events'
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   if (!isPostgresBackend()) return new Response(null,{status:404})
   const token = (await cookies()).get(SESSION_COOKIE)?.value
@@ -23,7 +21,7 @@ export async function GET(request: Request) {
           if (!current || current.role !== profile.role) { close(); return }
           send('heartbeat')
         }).catch(() => close())
-      },15000)
+      }, 15000)
       const onAbort = () => close()
       close = (cancelled = false) => { if (stopped) return; stopped=true; clearInterval(interval); unsubscribe(); request.signal.removeEventListener('abort',onAbort); if (!cancelled) controller.close() }
       request.signal.addEventListener('abort',onAbort,{ once:true })

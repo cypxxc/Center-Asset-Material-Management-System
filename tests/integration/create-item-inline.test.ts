@@ -33,7 +33,7 @@ function validItemFormData(withImage = false) {
     image_url: '',
   }
   for (const [key, value] of Object.entries(values)) formData.set(key, value)
-  if (withImage) formData.set('image_file', new File(['image-bytes'], 'item.jpg', { type: 'image/jpeg' }))
+  if (withImage) formData.set('image_file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70])], 'item.jpg', { type: 'image/jpeg' }))
   return formData
 }
 

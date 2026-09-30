@@ -16,6 +16,11 @@ type SignedUrlResult = {
   error: unknown | null
 }
 
+type BatchSignedUrlsResult = {
+  data: { error: string | null; path: string | null; signedUrl: string | null }[] | null
+  error: unknown | null
+}
+
 export async function resolvePrivateItemImageUrl(
   imageUrl: string | null | undefined,
   createSignedUrl: (path: string, expiresIn: number) => Promise<SignedUrlResult>
@@ -31,10 +36,63 @@ export async function resolvePrivateItemImageUrl(
   return error || !data?.signedUrl ? null : data.signedUrl
 }
 
-export async function deleteItemStorageImage(imageUrl: string | null | undefined): Promise<{ success: boolean; error?: string }> {
+export async function resolvePrivateItemImageUrlsBatch(
+  imageUrls: (string | null | undefined)[],
+  createSignedUrls: (paths: string[], expiresIn: number) => Promise<BatchSignedUrlsResult>
+): Promise<(string | null)[]> {
+  if (isPostgresBackend()) {
+    const { resolveLocalItemImageUrl } = await import('@/lib/postgres/storage')
+    return Promise.all(imageUrls.map((url) => resolveLocalItemImageUrl(url)))
+  }
+
+  const pathMap = new Map<number, string>()
+  const uniquePaths: string[] = []
+
+  imageUrls.forEach((url, index) => {
+    const filePath = parseStoragePathFromUrl(url)
+    if (filePath) {
+      pathMap.set(index, filePath)
+      if (!uniquePaths.includes(filePath)) {
+        uniquePaths.push(filePath)
+      }
+    }
+  })
+
+  if (uniquePaths.length === 0) {
+    return imageUrls.map(() => null)
+  }
+
+  const { data, error } = await createSignedUrls(uniquePaths, 60 * 60)
+  const signedUrlMap = new Map<string, string>()
+
+  if (!error && data) {
+    for (let i = 0; i < data.length; i++) {
+      const entry = data[i]
+      if (entry && entry.signedUrl && !entry.error) {
+        if (entry.path) {
+          signedUrlMap.set(entry.path, entry.signedUrl)
+        }
+        if (uniquePaths[i]) {
+          signedUrlMap.set(uniquePaths[i], entry.signedUrl)
+        }
+      }
+    }
+  }
+
+  return imageUrls.map((_, index) => {
+    const path = pathMap.get(index)
+    if (!path) return null
+    return signedUrlMap.get(path) ?? null
+  })
+}
+
+export async function deleteItemStorageImage(
+  imageUrl: string | null | undefined,
+  profile?: { id: string; role: string; is_active: boolean } | null
+): Promise<{ success: boolean; error?: string }> {
   if (isPostgresBackend()) {
     const { deleteLocalItemImage } = await import('@/lib/postgres/storage')
-    return deleteLocalItemImage(imageUrl)
+    return deleteLocalItemImage(imageUrl, profile)
   }
   const filePath = parseStoragePathFromUrl(imageUrl)
   if (!filePath) return { success: true }
