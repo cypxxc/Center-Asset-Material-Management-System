@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { ArrowLeft, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
@@ -11,6 +11,7 @@ import { canWrite, canDelete } from '@/lib/permissions'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
 import { ItemDetailActions } from './item-detail-actions'
+import { PublicItemView } from './public-item-view'
 import { calculateStraightLineDepreciation } from '@/features/depreciation/calculation'
 
 interface ItemDetailPageProps {
@@ -34,13 +35,13 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
     getCurrentProfile(),
   ])
 
-  if (!profile) {
-    redirect('/login')
-  }
-
   const { item, auditLogs } = await getItemDetailPageData(id)
 
   if (!item) notFound()
+
+  if (!profile) {
+    return <PublicItemView item={item} />
+  }
 
   const userCanWrite = canWrite(profile.role)
   const userCanDelete = canDelete(profile.role)
