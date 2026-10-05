@@ -40,7 +40,9 @@
     "postgres:backup:job": "tsx scripts/postgres-backup-job.ts",
     "audit:release": "npm audit --omit=dev --audit-level=high",
     "audit:security": "tsx scripts/verify-security.ts",
-    "mcp": "tsx scripts/mcp-server.ts"
+    "mcp": "tsx scripts/mcp-server.ts",
+    "health:diagnose": "tsx scripts/self-healing-job.ts --diagnose",
+    "health:heal": "tsx scripts/self-healing-job.ts --heal"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.3",
