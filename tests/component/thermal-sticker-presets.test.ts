@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { STICKER_PRESETS, type StickerSizePreset } from '../../components/ui/asset-tag-layout'
+import { STICKER_PRESETS } from '../../components/ui/asset-tag-layout'
 
 test('STICKER_PRESETS includes thermal roll presets with isSheet false', () => {
   const thermal50x30 = STICKER_PRESETS['thermal_50x30']

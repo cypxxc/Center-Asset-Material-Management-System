@@ -35,6 +35,7 @@ test('QrScannerModal renders title, input fallback, and handles manual code subm
   assert.ok(scannedResult)
   assert.equal(scannedResult.type, 'item_id')
   assert.equal(scannedResult.value, 'item-uuid-777')
+  assert.equal(isClosed, true)
 })
 
 test('QrScannerModal renders null when isOpen is false', () => {

@@ -1,7 +1,6 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
 
 function mockModule(path: string, exports: object) {
   const filename = require.resolve(path)
@@ -19,7 +18,7 @@ mockModule('../../features/auth/queries', {
 })
 
 mockModule('../../features/items/queries', {
-  getItemDetailPageData: async (id: string) => mockItemData,
+  getItemDetailPageData: async (_id: string) => mockItemData,
 })
 
 mockModule('next/navigation', {

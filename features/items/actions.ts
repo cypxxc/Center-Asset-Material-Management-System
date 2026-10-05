@@ -954,7 +954,7 @@ export async function recordPhysicalAuditAction(
     timestamp,
   })
 
-  revalidateTag(CACHE_TAGS.ITEM_DETAIL, 'max')
+  revalidateTag(CACHE_TAGS.ITEMS, 'max')
   revalidatePath(`/items/${itemId}`)
 
   return {
