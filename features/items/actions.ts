@@ -923,3 +923,43 @@ export async function createItemInline(
   // Return successResponse — caller handles close + refresh
   return successResponse('สร้างพัสดุสำเร็จ')
 }
+
+/**
+ * Records a physical inventory inspection / audit check-in for an asset.
+ */
+export async function recordPhysicalAuditAction(
+  itemId: string,
+  note?: string
+): Promise<{ success: boolean; error?: string; message?: string }> {
+  const profile = await getCurrentProfile()
+  if (!profile || !profile.is_active) {
+    return { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' }
+  }
+
+  const timestamp = new Date().toISOString()
+  const auditNote = note?.trim() || 'ตรวจนับสภาพปกติ'
+
+  await writeAuditLog({
+    operation: 'PHYSICAL_AUDIT',
+    feature: 'items',
+    targetType: 'items',
+    targetId: itemId,
+    userId: profile.id,
+    newValues: {
+      status: 'verified',
+      note: auditNote,
+      inspector: profile.full_name,
+      audited_at: timestamp,
+    },
+    timestamp,
+  })
+
+  revalidateTag(CACHE_TAGS.ITEM_DETAIL, 'max')
+  revalidatePath(`/items/${itemId}`)
+
+  return {
+    success: true,
+    message: 'บันทึกการตรวจนับครุภัณฑ์สำเร็จ',
+  }
+}
+

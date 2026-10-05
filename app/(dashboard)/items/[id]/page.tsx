@@ -11,6 +11,7 @@ import { canWrite, canDelete } from '@/lib/permissions'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
 import { ItemDetailActions } from './item-detail-actions'
+import { ItemAuditCheckin } from './item-audit-checkin'
 import { PublicItemView } from './public-item-view'
 import { calculateStraightLineDepreciation } from '@/features/depreciation/calculation'
 
@@ -52,6 +53,12 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
     startDate: item.depreciation_start_date ?? null,
     residualValue: item.depreciation_residual_value ?? 1,
   })
+
+  const latestAudit = auditLogs.find((l) => l.action === 'PHYSICAL_AUDIT' || l.action === 'physical_audit')
+  const lastAuditedNote = latestAudit?.new_data && typeof latestAudit.new_data === 'object'
+    ? ((latestAudit.new_data as Record<string, unknown>).note as string | undefined) ||
+      ((latestAudit.new_data as Record<string, Record<string, unknown>>).values?.note as string | undefined)
+    : null
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50 p-6 md:p-8">
@@ -96,6 +103,14 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           </div>
         </div>
 
+        {/* Physical Inventory Audit Check-in */}
+        <ItemAuditCheckin
+          itemId={item.id}
+          itemName={item.item_name}
+          lastAuditedAt={latestAudit?.created_at}
+          lastAuditedBy={latestAudit?.user_name}
+          lastAuditedNote={lastAuditedNote}
+        />
 
         <div className={item.image_url ? "grid gap-6 md:grid-cols-[1fr_280px]" : "grid gap-6"}>
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
