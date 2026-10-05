@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { hardDeleteItem } from '../actions'
 import type { ActionResponse } from '@/lib/actions-helper'
 
@@ -23,6 +24,7 @@ export function DeleteItemButton({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
+  const { toast } = useToast()
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -32,7 +34,7 @@ export function DeleteItemButton({
         router.refresh()
         router.push('/items')
       } else {
-        alert(result?.error || result?.message || 'ไม่สามารถลบรายการได้')
+        toast(result?.error || result?.message || 'ไม่สามารถลบรายการได้', 'error')
         setShowConfirm(false)
       }
     })

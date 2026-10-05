@@ -51,39 +51,38 @@ test('DeleteItemButton refreshes and redirects to /items on successful deletion'
   })
 })
 
-test('DeleteItemButton alerts and does not redirect on deletion failure', async () => {
+import { ToastProvider } from '../../components/ui/toast'
+
+test('DeleteItemButton shows toast notification and does not redirect on deletion failure', async () => {
   refreshed = false
   pushedUrl = null
-  let alertMessage: string | null = null
-  const originalAlert = global.alert
-  global.alert = (msg: string) => { alertMessage = msg }
 
-  try {
-    render(
+  render(
+    React.createElement(
+      ToastProvider,
+      null,
       React.createElement(DeleteItemButton, {
         id: 'test-item-2',
         deleteAction: async () => ({ success: false, message: 'ไม่สามารถลบรายการได้' }),
       })
     )
+  )
 
-    const deleteButton = screen.getByRole('button', { name: /ลบรายการ/ })
-    fireEvent.click(deleteButton)
+  const deleteButton = screen.getByRole('button', { name: /ลบรายการ/ })
+  fireEvent.click(deleteButton)
 
-    let dialog!: HTMLElement
-    await waitFor(() => {
-      dialog = screen.getByRole('dialog') as HTMLElement
-      assert.ok(dialog)
-    })
+  let dialog!: HTMLElement
+  await waitFor(() => {
+    dialog = screen.getByRole('dialog') as HTMLElement
+    assert.ok(dialog)
+  })
 
-    const confirmButton = within(dialog).getByRole('button', { name: 'ลบรายการ' })
-    fireEvent.click(confirmButton)
+  const confirmButton = within(dialog).getByRole('button', { name: 'ลบรายการ' })
+  fireEvent.click(confirmButton)
 
-    await waitFor(() => {
-      assert.equal(alertMessage, 'ไม่สามารถลบรายการได้')
-      assert.equal(refreshed, false)
-      assert.equal(pushedUrl, null)
-    })
-  } finally {
-    global.alert = originalAlert
-  }
+  await waitFor(() => {
+    assert.ok(screen.getByText('ไม่สามารถลบรายการได้'))
+    assert.equal(refreshed, false)
+    assert.equal(pushedUrl, null)
+  })
 })
