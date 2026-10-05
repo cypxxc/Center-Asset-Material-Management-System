@@ -8,7 +8,7 @@ function mockModule(path: string, exports: object) {
 }
 
 let mockProfile: { id: string; role: string; is_active: boolean } | null = null
-let mockItemData: { item: any; auditLogs: any[] } = {
+let mockItemData: { item: unknown; auditLogs: unknown[] } = {
   item: null,
   auditLogs: [],
 }
@@ -18,18 +18,18 @@ mockModule('../../features/auth/queries', {
 })
 
 mockModule('../../features/items/queries', {
-  getItemDetailPageData: async (_id: string) => mockItemData,
+  getItemDetailPageData: async () => mockItemData,
 })
 
 mockModule('next/navigation', {
   notFound: () => {
-    const error = new Error('NEXT_NOT_FOUND')
-    ;(error as any).digest = 'NEXT_NOT_FOUND'
+    const error = new Error('NEXT_NOT_FOUND') as Error & { digest?: string }
+    error.digest = 'NEXT_NOT_FOUND'
     throw error
   },
   redirect: (url: string) => {
-    const error = new Error(`NEXT_REDIRECT:${url}`)
-    ;(error as any).digest = `NEXT_REDIRECT;replace;${url}`
+    const error = new Error(`NEXT_REDIRECT:${url}`) as Error & { digest?: string }
+    error.digest = `NEXT_REDIRECT;replace;${url}`
     throw error
   },
 })
@@ -79,6 +79,6 @@ test('ItemDetailPage calls notFound when unauthenticated and item does not exist
         params: Promise.resolve({ id: 'non-existent' }),
       })
     },
-    (err: any) => err.message === 'NEXT_NOT_FOUND',
+    (err: unknown) => err instanceof Error && err.message === 'NEXT_NOT_FOUND',
   )
 })

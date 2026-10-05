@@ -96,5 +96,5 @@ test('healer quarantines orphaned items and records audit with affected count', 
   assert.equal(quarantinedCount, 2)
   assert.equal(auditLogs.length, 1)
   assert.equal(auditLogs[0].action, 'SYSTEM_SELF_HEAL')
-  assert.equal((auditLogs[0].details as any).quarantinedCount, 2)
+  assert.equal((auditLogs[0].details as Record<string, unknown>).quarantinedCount, 2)
 })

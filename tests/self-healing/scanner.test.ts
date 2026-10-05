@@ -66,8 +66,8 @@ test('scanner detects DUPLICATE_IDENTIFIER for duplicate asset_no or serial_no a
     getCachedCount: async () => 3,
   })
 
-  const assetDup = report.issues.find((i) => i.code === 'DUPLICATE_IDENTIFIER' && (i.details as any).type === 'asset_no')
-  const serialDup = report.issues.find((i) => i.code === 'DUPLICATE_IDENTIFIER' && (i.details as any).type === 'serial_no')
+  const assetDup = report.issues.find((i) => i.code === 'DUPLICATE_IDENTIFIER' && (i.details as Record<string, unknown>).type === 'asset_no')
+  const serialDup = report.issues.find((i) => i.code === 'DUPLICATE_IDENTIFIER' && (i.details as Record<string, unknown>).type === 'serial_no')
 
   assert.ok(assetDup, 'Should detect duplicate asset_no')
   assert.ok(serialDup, 'Should detect duplicate serial_no')

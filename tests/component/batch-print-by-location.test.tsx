@@ -49,8 +49,8 @@ const mockItems = [
 test('LocationsClient shows batch print button when location is selected and triggers modal', () => {
   render(
     React.createElement(LocationsClient, {
-      locations: mockLocations as any,
-      items: mockItems as any,
+      locations: mockLocations as unknown as React.ComponentProps<typeof LocationsClient>['locations'],
+      items: mockItems as unknown as React.ComponentProps<typeof LocationsClient>['items'],
     }),
   )
 

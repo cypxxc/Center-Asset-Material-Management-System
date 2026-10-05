@@ -15,7 +15,7 @@ test('handleGetSelfHealing returns 401 when unauthenticated', async () => {
 
 test('handleGetSelfHealing returns 403 when user is not admin', async () => {
   const res = await handleGetSelfHealing({
-    getProfile: async () => ({ id: 'u1', role: 'viewer', is_active: true } as any),
+    getProfile: async () => ({ id: 'u1', role: 'viewer', is_active: true }),
     runDiag: async () => ({ timestamp: '', healthScore: 100, totalIssues: 0, issues: [] }),
   })
 
@@ -26,7 +26,7 @@ test('handleGetSelfHealing returns 403 when user is not admin', async () => {
 
 test('handleGetSelfHealing returns diagnostics for admin user', async () => {
   const res = await handleGetSelfHealing({
-    getProfile: async () => ({ id: 'admin1', role: 'admin', is_active: true } as any),
+    getProfile: async () => ({ id: 'admin1', role: 'admin', is_active: true }),
     runDiag: async () => ({
       timestamp: '2026-10-05T00:00:00.000Z',
       healthScore: 95,
@@ -45,7 +45,7 @@ test('handleGetSelfHealing returns diagnostics for admin user', async () => {
 
 test('handlePostSelfHealing heals issues and returns results for admin', async () => {
   const res = await handlePostSelfHealing({
-    getProfile: async () => ({ id: 'admin1', role: 'admin', is_active: true } as any),
+    getProfile: async () => ({ id: 'admin1', role: 'admin', is_active: true }),
     runDiag: async () => ({
       timestamp: '2026-10-05T00:00:00.000Z',
       healthScore: 95,

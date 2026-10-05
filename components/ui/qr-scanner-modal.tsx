@@ -41,8 +41,6 @@ export function QrScannerModal({ isOpen, onClose, onScanSuccess }: QrScannerModa
   // Manage Camera stream
   React.useEffect(() => {
     if (!isOpen) {
-      setHasCamera(null)
-      setCameraError(null)
       return
     }
 
@@ -122,6 +120,9 @@ export function QrScannerModal({ isOpen, onClose, onScanSuccess }: QrScannerModa
       if (stream) {
         stream.getTracks().forEach((track) => track.stop())
       }
+      setHasCamera(null)
+      setCameraError(null)
+      setIsScanning(false)
     }
   }, [isOpen, onClose, onScanSuccess])
 
