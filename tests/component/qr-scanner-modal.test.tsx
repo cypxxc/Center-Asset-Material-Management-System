@@ -4,9 +4,10 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QrScannerModal } from '../../components/ui/qr-scanner-modal'
+import type { ParsedScanResult } from '../../lib/qr-scan-parser'
 
 test('QrScannerModal renders title, input fallback, and handles manual code submission', () => {
-  let scannedResult: any = null
+  let scannedResult: ParsedScanResult | null = null
   let isClosed = false
 
   render(
@@ -32,9 +33,10 @@ test('QrScannerModal renders title, input fallback, and handles manual code subm
   const submitButton = screen.getByRole('button', { name: /ค้นหา/ })
   fireEvent.click(submitButton)
 
-  assert.ok(scannedResult)
-  assert.equal(scannedResult.type, 'item_id')
-  assert.equal(scannedResult.value, 'item-uuid-777')
+  const result = scannedResult as ParsedScanResult | null
+  assert.ok(result)
+  assert.equal(result.type, 'item_id')
+  assert.equal(result.value, 'item-uuid-777')
   assert.equal(isClosed, true)
 })
 

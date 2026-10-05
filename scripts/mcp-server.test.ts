@@ -63,7 +63,7 @@ test('MCP stdio exposes write tools only when enabled and rejects disabled write
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'diagnose_system_health', arguments: {} } },
   ], false)
   assert.equal(diagnoseCall[0].id, 3)
-  const contentText = (diagnoseCall[0].result as any)?.content?.[0]?.text
+  const contentText = (diagnoseCall[0].result as { content?: Array<{ text?: string }> })?.content?.[0]?.text
   assert.ok(contentText, 'Should have content text in result')
   const report = JSON.parse(contentText)
   assert.ok(typeof report.healthScore === 'number')

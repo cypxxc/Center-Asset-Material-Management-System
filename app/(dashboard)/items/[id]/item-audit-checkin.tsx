@@ -16,7 +16,7 @@ interface ItemAuditCheckinProps {
 
 export function ItemAuditCheckin({
   itemId,
-  itemName: _itemName,
+  itemName,
   lastAuditedAt,
   lastAuditedBy,
   lastAuditedNote,
@@ -32,7 +32,10 @@ export function ItemAuditCheckin({
     startTransition(async () => {
       const res = await recordPhysicalAuditAction(itemId, note)
       if (res.success) {
-        setStatusMessage({ type: 'success', text: res.message || 'บันทึกการตรวจนับสำเร็จ' })
+        setStatusMessage({
+          type: 'success',
+          text: res.message ? `${res.message} (${itemName})` : `บันทึกการตรวจนับ ${itemName} สำเร็จ`,
+        })
         setShowNoteInput(false)
         setNote('')
         router.refresh()

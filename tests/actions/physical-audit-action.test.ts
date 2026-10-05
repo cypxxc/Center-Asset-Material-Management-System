@@ -56,7 +56,7 @@ describe('recordPhysicalAuditAction', () => {
     const auditEntry = auditLogs.find((l) => l.operation === 'PHYSICAL_AUDIT')
     assert.ok(auditEntry, 'PHYSICAL_AUDIT log should be emitted')
     assert.equal(auditEntry.userId, 'staff-user-001')
-    assert.equal((auditEntry.details as any)?.targetId, 'item-123')
+    assert.equal((auditEntry.details as Record<string, unknown>)?.targetId, 'item-123')
   })
 
   test('rejects audit check-in when user is unauthenticated', async () => {
