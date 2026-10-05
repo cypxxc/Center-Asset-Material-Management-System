@@ -417,7 +417,7 @@ export function AssetTagModal({
       <style>{`
         @media print {
           @page {
-            size: A4 portrait;
+            size: ${activeConfig.isSheet ? 'A4 portrait' : `${activeConfig.width} ${activeConfig.height}`};
             margin: 0;
           }
           /* Hide EVERYTHING on the page: Navbar, Sidebar, Page Headers, Data Tables, Modals */
@@ -506,7 +506,31 @@ export function AssetTagModal({
             border: 1px solid #0f172a !important;
           }
           ${
-            activeConfig.isSheet && selectedPreset === "custom_grid"
+            !activeConfig.isSheet
+              ? `
+          .print-thermal-roll {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .print-thermal-roll > div,
+          .thermal-roll-tag {
+            width: ${activeConfig.width} !important;
+            height: ${activeConfig.height} !important;
+            max-width: ${activeConfig.width} !important;
+            max-height: ${activeConfig.height} !important;
+            box-sizing: border-box !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            overflow: hidden !important;
+            background: white !important;
+          }
+          .print-thermal-roll > div:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          `
+              : selectedPreset === "custom_grid"
               ? `
           .a4-sheet,
           .print-page-a4 {
@@ -569,10 +593,10 @@ export function AssetTagModal({
                   รูปแบบและขนาดลาเบล (Label Preset)
                 </label>
                 <span className="text-[11px] text-slate-500 font-medium">
-                  กระดาษ A4 สติกเกอร์
+                  {activeConfig.isSheet ? "กระดาษ A4 สติกเกอร์" : "เครื่องพิมพ์สติ๊กเกอร์ม้วนความร้อน"}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {(Object.keys(STICKER_PRESETS) as StickerSizePreset[]).map((key) => {
                   const p = STICKER_PRESETS[key]
                   const isSelected = selectedPreset === key
@@ -590,7 +614,9 @@ export function AssetTagModal({
                       <span className="truncate font-bold">{p.label}</span>
                       <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
                         {key === "custom_grid"
-                          ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม. (${customDimensions.width}×${customDimensions.height} มม.)`
+                          ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม.`
+                          : !p.isSheet
+                          ? `${p.width} × ${p.height} (ม้วนความร้อนเดี่ยว)`
                           : "9.6 × 5.4 ซม. (10 ดวง/แผ่น)"}
                       </span>
                     </button>

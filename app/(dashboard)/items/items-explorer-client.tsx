@@ -21,6 +21,7 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  Camera,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -43,6 +44,8 @@ const NewItemSheet = dynamic(
 
 import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
+import { QrScannerModal } from '@/components/ui/qr-scanner-modal'
+import type { ParsedScanResult } from '@/lib/qr-scan-parser'
 
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -164,6 +167,17 @@ function ItemsExplorerSession({
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
+  const [locationPrintItems, setLocationPrintItems] = useState<ItemStickerData[] | null>(null)
+
+  const handleScanSuccess = useCallback((result: ParsedScanResult) => {
+    if (result.type === 'item_id') {
+      router.push(`/items/${result.value}`)
+    } else {
+      setSearchVal(result.value)
+      handleFilterChange({ q: result.value })
+    }
+  }, [router, setSearchVal, handleFilterChange])
 
   const selectedItemsData = useMemo(() => {
     const selectedSet = new Set(selectedItemIds)
@@ -406,6 +420,17 @@ function ItemsExplorerSession({
                       placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
                       className="w-full sm:w-80"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsQrScannerOpen(true)}
+                      className="h-9 px-2.5 flex items-center gap-1.5 text-xs font-semibold cursor-pointer border-slate-300 hover:bg-slate-100 text-slate-700 shrink-0"
+                      title="สแกน QR Code หรือบาร์โค้ดด้วยกล้อง"
+                    >
+                      <Camera className="h-4 w-4 text-emerald-600" />
+                      <span className="hidden md:inline">สแกน</span>
+                    </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -436,6 +461,49 @@ function ItemsExplorerSession({
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
+
+                    {/* Location Filter */}
+                    <select
+                      name="location_id"
+                      aria-label="กรองตามสถานที่"
+                      value={params.location_id ?? ''}
+                      onChange={(e) => handleFilterChange({ location_id: e.target.value })}
+                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
+                    >
+                      <option value="">กรองตามสถานที่</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+
+                    {/* Batch Print by Location Button */}
+                    {params.location_id && localItems.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const stickers: ItemStickerData[] = localItems.map((itm) => ({
+                            id: itm.id,
+                            item_name: itm.item_name,
+                            asset_no: itm.asset_no,
+                            serial_no: itm.serial_no,
+                            brand: itm.brand,
+                            model: itm.model,
+                            location_name: itm.location?.name,
+                            category_name: itm.category?.name,
+                            responsible_person: itm.responsible_person,
+                            unit_price: itm.unit_price,
+                          }))
+                          setLocationPrintItems(stickers)
+                        }}
+                        className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer shadow-2xs"
+                        title="พิมพ์ป้ายครุภัณฑ์ทั้งหมดในสถานที่นี้"
+                      >
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>พิมพ์ป้ายทั้งสถานที่ ({localItems.length} ชิ้น)</span>
+                      </Button>
+                    )}
                   </div>
                 </form>
               </div>
@@ -664,13 +732,20 @@ function ItemsExplorerSession({
       )}
 
       <AssetTagModal
-        isOpen={isBatchPrintOpen || Boolean(singlePrintItem)}
+        isOpen={isBatchPrintOpen || Boolean(singlePrintItem) || Boolean(locationPrintItems)}
         onClose={() => {
           setIsBatchPrintOpen(false)
           setSinglePrintItem(null)
+          setLocationPrintItems(null)
         }}
         item={singlePrintItem ?? undefined}
-        items={isBatchPrintOpen ? selectedItemsData : undefined}
+        items={locationPrintItems ?? (isBatchPrintOpen ? selectedItemsData : undefined)}
+      />
+
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
       />
 
       {/* Blocking Error Modal */}

@@ -30,6 +30,8 @@ const ACTION_LABELS: Record<string, string> = {
   EXPORT_EXCEL: 'ส่งออก Excel',
   EXPORT_CSV: 'ส่งออก CSV',
   EXPORT_PDF: 'ส่งออก PDF',
+  PHYSICAL_AUDIT: 'ตรวจนับครุภัณฑ์ประจำปี (Physical Audit)',
+  physical_audit: 'ตรวจนับครุภัณฑ์ประจำปี (Physical Audit)',
 }
 
 const TABLE_LABELS: Record<string, string> = {

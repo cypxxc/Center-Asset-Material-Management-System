@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { handleGetSelfHealing, handlePostSelfHealing } from '@/app/api/admin/self-healing/route'
+import { handleGetSelfHealing, handlePostSelfHealing } from '@/lib/self-healing/api-handler'
 
 test('handleGetSelfHealing returns 401 when unauthenticated', async () => {
   const res = await handleGetSelfHealing({
