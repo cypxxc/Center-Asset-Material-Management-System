@@ -21,6 +21,7 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  Camera,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -43,6 +44,8 @@ const NewItemSheet = dynamic(
 
 import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
+import { QrScannerModal } from '@/components/ui/qr-scanner-modal'
+import type { ParsedScanResult } from '@/lib/qr-scan-parser'
 
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -164,6 +167,16 @@ function ItemsExplorerSession({
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
+
+  const handleScanSuccess = useCallback((result: ParsedScanResult) => {
+    if (result.type === 'item_id') {
+      router.push(`/items/${result.value}`)
+    } else {
+      setSearchVal(result.value)
+      handleFilterChange({ q: result.value })
+    }
+  }, [router, setSearchVal, handleFilterChange])
 
   const selectedItemsData = useMemo(() => {
     const selectedSet = new Set(selectedItemIds)
@@ -406,6 +419,17 @@ function ItemsExplorerSession({
                       placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
                       className="w-full sm:w-80"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsQrScannerOpen(true)}
+                      className="h-9 px-2.5 flex items-center gap-1.5 text-xs font-semibold cursor-pointer border-slate-300 hover:bg-slate-100 text-slate-700 shrink-0"
+                      title="สแกน QR Code หรือบาร์โค้ดด้วยกล้อง"
+                    >
+                      <Camera className="h-4 w-4 text-emerald-600" />
+                      <span className="hidden md:inline">สแกน</span>
+                    </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -671,6 +695,12 @@ function ItemsExplorerSession({
         }}
         item={singlePrintItem ?? undefined}
         items={isBatchPrintOpen ? selectedItemsData : undefined}
+      />
+
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
       />
 
       {/* Blocking Error Modal */}
