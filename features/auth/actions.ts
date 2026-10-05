@@ -27,7 +27,7 @@ export async function signOut() {
     trace.complete('success')
     redirect('/login')
   } catch (err) {
-    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) throw err
     trace.complete('failure')
     throw err
   }
@@ -141,7 +141,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
       }
     }
   } catch (err) {
-    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) throw err
 
     if (developmentSeedAccount) {
       const adminClient = await createAdminClient()

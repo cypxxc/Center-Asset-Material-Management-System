@@ -732,13 +732,17 @@ export async function recordPhysicalAuditAction(
   itemId: string,
   note?: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
+  if (!itemId || typeof itemId !== 'string' || !itemId.trim()) {
+    return { success: false, error: 'รหัสพัสดุไม่ถูกต้อง' }
+  }
+
   const profile = await getCurrentProfile()
   if (!profile || !profile.is_active) {
     return { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' }
   }
 
   const timestamp = new Date().toISOString()
-  const auditNote = note?.trim() || 'ตรวจนับสภาพปกติ'
+  const auditNote = typeof note === 'string' ? note.trim() || 'ตรวจนับสภาพปกติ' : 'ตรวจนับสภาพปกติ'
 
   await writeAuditLog({
     operation: 'PHYSICAL_AUDIT',

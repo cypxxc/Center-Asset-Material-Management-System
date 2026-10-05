@@ -23,6 +23,13 @@ export async function GET(request: Request) {
     if (error instanceof CursorError) {
       return Response.json({ error: 'Invalid cursor' }, { status: 400, headers: responseHeaders })
     }
+    if (
+      error instanceof Error &&
+      (error.message.includes('During prerendering') ||
+        (error as { digest?: string }).digest?.startsWith('DYNAMIC_SERVER_USAGE'))
+    ) {
+      throw error
+    }
     logger.error({ operation: 'getItemBatch', feature: 'items' }, error)
     return Response.json({ error: 'Unable to load item data' }, { status: 500, headers: responseHeaders })
   }

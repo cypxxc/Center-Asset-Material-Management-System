@@ -1,6 +1,5 @@
 'use server'
 
-import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
@@ -13,7 +12,7 @@ import { isPostgresBackend } from '@/lib/backend'
 import { pgGetTableData, pgUpsertTableRow, pgDeleteTableRow, pgExportDatabaseData, pgImportDatabaseData, pgCreateAuthUser, pgDeleteAuthUser, pgResetAuthPassword, pgUpdateUserEmail, pgUpdateUserProfile } from './postgres-admin'
 
 
-import { isAdmin } from '@/lib/permissions'
+import { requireAdmin as requireAdminGuard } from '@/features/auth/guards'
 import { writeAuditLog } from '@/lib/audit'
 import { generateInternalEmail } from '@/lib/display-email'
 
@@ -26,12 +25,7 @@ async function getSupabaseClient() {
 }
 
 export async function requireAdmin() {
-  const profile = await getCurrentProfile()
-  if (!profile || !isAdmin(profile.role) || !profile.is_active) {
-    logger.warn({ operation: 'requireAdmin', feature: 'admin', details: 'Access denied: admin required or inactive profile' })
-    return { error: 'Access Denied: Admin role required and profile must be active' }
-  }
-  return { profile }
+  return requireAdminGuard()
 }
 
 export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
