@@ -1,7 +1,6 @@
 import type {
   DiagnosticDependencies,
   DiagnosticIssue,
-  DiagnosticItem,
   DiagnosticReport,
 } from './types'
 
@@ -150,21 +149,22 @@ export async function runDiagnostics(
   }
 
   // Rule 3: Duplicate Identifier Check
-  const assetNoMap = new Map<string, DiagnosticItem[]>()
-  const serialNoMap = new Map<string, DiagnosticItem[]>()
+  type DupEntry = { id: string; item_name: string }
+  const assetNoMap = new Map<string, DupEntry[]>()
+  const serialNoMap = new Map<string, DupEntry[]>()
 
   for (const item of items) {
     const assetNo = item.asset_no ? item.asset_no.trim() : ''
     if (assetNo) {
       const existing = assetNoMap.get(assetNo) ?? []
-      existing.push(item)
+      existing.push({ id: item.id, item_name: item.item_name })
       assetNoMap.set(assetNo, existing)
     }
 
     const serialNo = item.serial_no ? item.serial_no.trim() : ''
     if (serialNo) {
       const existing = serialNoMap.get(serialNo) ?? []
-      existing.push(item)
+      existing.push({ id: item.id, item_name: item.item_name })
       serialNoMap.set(serialNo, existing)
     }
   }
@@ -181,7 +181,7 @@ export async function runDiagnostics(
           field: 'asset_no',
           value: assetNo,
           itemIds: dupItems.map((i) => i.id),
-          items: dupItems.map((i) => ({ id: i.id, item_name: i.item_name })),
+          items: dupItems,
           count: dupItems.length,
         },
       })
@@ -200,7 +200,7 @@ export async function runDiagnostics(
           field: 'serial_no',
           value: serialNo,
           itemIds: dupItems.map((i) => i.id),
-          items: dupItems.map((i) => ({ id: i.id, item_name: i.item_name })),
+          items: dupItems,
           count: dupItems.length,
         },
       })

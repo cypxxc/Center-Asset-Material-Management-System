@@ -31,12 +31,12 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
-  const [{ id }, profile] = await Promise.all([
-    params,
-    getCurrentProfile(),
+  const profilePromise = getCurrentProfile()
+  const { id } = await params
+  const [profile, { item, auditLogs }] = await Promise.all([
+    profilePromise,
+    getItemDetailPageData(id),
   ])
-
-  const { item, auditLogs } = await getItemDetailPageData(id)
 
   if (!item) notFound()
 

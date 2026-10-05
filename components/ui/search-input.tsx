@@ -114,6 +114,8 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
               type="button"
               onClick={handleClear}
               disabled={disabled}
+              aria-label="ล้างคำค้นหา"
+              title="ล้างคำค้นหา"
               className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="h-3 w-3" />

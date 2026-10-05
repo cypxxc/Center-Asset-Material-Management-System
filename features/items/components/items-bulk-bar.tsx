@@ -33,7 +33,7 @@ export function ItemsBulkBar({
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-14 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
+    <div className="fixed bottom-[max(3.5rem,calc(1rem+env(safe-area-inset-bottom)))] left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
       <span className="text-xs font-bold text-card-foreground">
         เลือกอยู่ <span className="text-primary font-black">{selectedCount}</span> รายการ
       </span>

@@ -98,6 +98,8 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       <button
         type="button"
         onClick={onClose}
+        aria-label="ปิดการแจ้งเตือน"
+        title="ปิดการแจ้งเตือน"
         className="flex-shrink-0 text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors cursor-pointer"
       >
         <X className="h-3 w-3" />
