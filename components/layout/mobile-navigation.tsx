@@ -7,6 +7,7 @@ import { Dialog } from 'radix-ui'
 import { Menu, X, Home, Package, Settings, UserCog, History, Database, LogOut, MapPin, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function MobileNavigation({ profile }: { profile?: { full_name: string; display_name?: string | null; role: string } | null }) {
   const pathname = usePathname()
@@ -30,14 +31,17 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
             {/* Header */}
             <div className="flex h-16 items-center justify-between border-b border-border px-4">
               <Dialog.Title className="text-base font-semibold">เมนูนำทาง</Dialog.Title>
-              <button
-                onClick={() => setMobileOpen(false)}
-                aria-label="ปิดเมนูนำทาง"
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-slate-100 hover:text-foreground cursor-pointer"
-                type="button"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="ปิดเมนูนำทาง"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer"
+                  type="button"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Links */}

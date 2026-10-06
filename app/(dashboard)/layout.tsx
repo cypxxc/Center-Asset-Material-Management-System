@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       >
         ข้ามไปเนื้อหาหลัก
       </a>
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-slate-900">
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
         <NewItemDialogProvider
           categories={references.categories}
           locations={references.locations}

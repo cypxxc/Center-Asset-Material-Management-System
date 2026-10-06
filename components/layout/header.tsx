@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { ITEM_TYPE_LABELS, ITEM_STATUS_LABELS, ItemType, ItemStatus } from '@/features/items/types'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/theme-toggle'
 const MobileNavigation = dynamic(() => import('./mobile-navigation').then((module) => module.MobileNavigation), { ssr: false })
 
 interface HeaderProps {
@@ -133,7 +134,9 @@ export function Header({ profile }: HeaderProps) {
         <MobileNavigation profile={profile} />
         {renderBreadcrumbs()}
       </div>
-
+      <div className="flex items-center gap-2 shrink-0">
+        <ThemeToggle />
+      </div>
     </header>
   )
 }
