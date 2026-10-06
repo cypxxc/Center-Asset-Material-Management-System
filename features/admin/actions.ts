@@ -8,6 +8,7 @@ import { beginActionTrace } from '@/lib/tracing'
 import { handleActionError } from '@/lib/error-handler'
 import { retrySupabase } from '@/lib/retry'
 import { assertAdminTable } from '@/features/admin/table-policy'
+import { pageBounds, searchColumns, tableColumns } from '@/features/admin/postgres-policy'
 import { isPostgresBackend } from '@/lib/backend'
 import { pgGetTableData, pgUpsertTableRow, pgDeleteTableRow, pgExportDatabaseData, pgImportDatabaseData, pgCreateAuthUser, pgDeleteAuthUser, pgResetAuthPassword, pgUpdateUserEmail, pgUpdateUserProfile } from './postgres-admin'
 
@@ -28,22 +29,39 @@ export async function requireAdmin() {
   return requireAdminGuard()
 }
 
-export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50) {
-  if (isPostgresBackend()) return pgGetTableData(tableName, page, pageSize)
+export async function getTableData(tableName: string, page: number = 1, pageSize: number = 50, search: string = '') {
+  if (isPostgresBackend()) return pgGetTableData(tableName, page, pageSize, search)
   const auth = await requireAdmin()
   if (auth.error) return { error: auth.error, data: [], count: 0 }
-  const safeTable = assertAdminTable(tableName, 'read')
+  let safeTable: import('@/features/admin/table-policy').AdminTable
+  try {
+    safeTable = assertAdminTable(tableName, 'read')
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err), data: [], count: 0 }
+  }
 
-  const supabase = await getSupabaseClient()
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+  const { limit, offset } = pageBounds(page, pageSize)
+  const from = offset
+  const to = offset + limit - 1
 
   // Handle audit_logs sorting by created_at, others can sort by name or created_at if exists
   const sortBy = safeTable === 'audit_logs' || safeTable === 'items' ? 'created_at' : 'id'
 
-  const { data, error, count } = await supabase
+  const supabase = await getSupabaseClient()
+  let query = supabase
     .from(safeTable)
     .select('*', { count: 'exact' })
+
+  const term = (search || '').trim().replace(/[,()]/g, '')
+  if (term) {
+    const cols = searchColumns[safeTable] || []
+    if (cols.length > 0) {
+      const orFilter = cols.map(col => `${col}.ilike.%${term}%`).join(',')
+      query = query.or(orFilter)
+    }
+  }
+
+  const { data, error, count } = await query
     .order(sortBy, { ascending: false })
     .range(from, to)
 
@@ -62,14 +80,17 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     return { error: err instanceof Error ? err.message : String(err) }
   }
 
-  const supabase = await getSupabaseClient()
-
-  // Clean up payload fields that are empty or shouldn't be edited directly
-  const cleanPayload = { ...payload }
-  delete cleanPayload.id
-  delete cleanPayload.created_at
-  delete cleanPayload.updated_at
-  delete cleanPayload.deleted_at
+  // Filter against allowlisted table columns
+  const allowed = tableColumns[safeTable]
+  const cleanPayload: Record<string, unknown> = {}
+  const ignored = ['id', 'created_at', 'updated_at', 'deleted_at', 'created_by', 'updated_by', 'deleted_by']
+  for (const [key, value] of Object.entries(payload || {})) {
+    if (ignored.includes(key)) continue
+    if (!allowed.includes(key)) {
+      return { error: `ฟิลด์ข้อมูลไม่ถูกต้อง: ${key}` }
+    }
+    cleanPayload[key] = value === '' ? null : value
+  }
 
   if (safeTable === 'profiles') {
     if (!rowId) {
@@ -79,6 +100,7 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
       role: cleanPayload.role as 'admin' | 'staff' | 'viewer' | undefined,
       is_active: cleanPayload.is_active as boolean | undefined,
       full_name: cleanPayload.full_name as string | undefined,
+      display_name: cleanPayload.display_name as string | null | undefined,
     })
     return {
       error: result.error,
@@ -87,14 +109,20 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
     }
   }
 
-  // Normalize empty strings to null for nullable database columns
-  for (const key in cleanPayload) {
-    if (cleanPayload[key] === '') {
-      cleanPayload[key] = null
-    }
+  if (Object.keys(cleanPayload).length === 0) {
+    return { error: 'ไม่มีข้อมูลที่ต้องบันทึก' }
   }
 
+  const supabase = await getSupabaseClient()
+
   if (rowId) {
+    // Fetch old data for audit log first
+    const { data: oldRow } = await supabase
+      .from(safeTable)
+      .select('*')
+      .eq('id', rowId)
+      .maybeSingle()
+
     // Update
     const { data, error } = await supabase
       .from(safeTable)
@@ -104,13 +132,14 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
 
     if (error) return { error: error.message }
     
-    // Log in audit log
+    // Log in audit log with captured oldValues
     await writeAuditLog({
       operation: 'UPDATE',
       feature: 'admin',
       userId: auth.profile.id,
       targetType: safeTable,
       targetId: rowId,
+      oldValues: oldRow || null,
       newValues: cleanPayload,
     })
 
@@ -623,6 +652,7 @@ export async function updateUserProfileRoleAndStatus(
     role?: 'admin' | 'staff' | 'viewer'
     is_active?: boolean
     full_name?: string
+    display_name?: string | null
   }
 ) {
   if (isPostgresBackend()) return pgUpdateUserProfile(userId, payload)
@@ -689,6 +719,9 @@ export async function updateUserProfileRoleAndStatus(
   }
   if (payload.full_name !== undefined) {
     updateData.full_name = normalizeForStorage(payload.full_name.trim())
+  }
+  if (payload.display_name !== undefined) {
+    updateData.display_name = payload.display_name ? normalizeForStorage(payload.display_name.trim()) : null
   }
 
   const { data, error } = await supabase

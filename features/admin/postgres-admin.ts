@@ -7,7 +7,7 @@ import { withUserDatabase } from '@/lib/postgres/request'
 import { hashPassword } from '@/lib/postgres/password'
 import { normalizeForStorage } from '@/lib/unicode'
 import { assertAdminTable } from './table-policy'
-import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
+import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, searchColumns, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
 import { generateInternalEmail } from '@/lib/display-email'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
@@ -70,14 +70,19 @@ function assignments(payload: Record<string, unknown>) {
 }
 function serializable<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T }
 
-export async function pgGetTableData(tableName: string, page = 1, pageSize = 50) {
+export async function pgGetTableData(tableName: string, page = 1, pageSize = 50, search = '') {
   try {
     const data = await withAdmin(async tx => {
       const table = assertAdminTable(tableName, 'read')
       const { limit, offset } = pageBounds(page, pageSize)
       const sort = table === 'items' || table === 'audit_logs' ? 'created_at' : 'id'
-      const count = await tx.execute(sql`select count(*)::integer as count from ${tableSql(table)}`)
-      const rows = await tx.execute(sql`select * from ${tableSql(table)} order by ${sql.identifier(sort)} desc limit ${limit} offset ${offset}`)
+      const term = (search || '').trim()
+      const cols = searchColumns[table] || []
+      const whereClause = term && cols.length > 0
+        ? sql` where ${sql.join(cols.map(c => sql`coalesce(${sql.identifier(c)}::text, '') ilike ${'%' + term + '%'}`), sql` or `)}`
+        : sql``
+      const count = await tx.execute(sql`select count(*)::integer as count from ${tableSql(table)}${whereClause}`)
+      const rows = await tx.execute(sql`select * from ${tableSql(table)}${whereClause} order by ${sql.identifier(sort)} desc limit ${limit} offset ${offset}`)
       return { data: serializable(rows.rows), count: Number(count.rows[0]?.count ?? 0) }
     })
     return data

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useCallback, useTransition } from 'react'
 import {
   Database,
   Terminal,
@@ -112,6 +112,18 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
     ]},
     { name: 'responsible_person', label: 'ผู้รับผิดชอบ', type: 'text' },
     { name: 'note', label: 'หมายเหตุ', type: 'textarea' },
+    { name: 'depreciation_enabled', label: 'คิดค่าเสื่อมราคา', type: 'boolean' },
+    { name: 'depreciation_method', label: 'วิธีคิดค่าเสื่อม', type: 'select', options: [
+      { value: 'straight_line', label: 'เส้นตรง (Straight-Line)' }
+    ]},
+    { name: 'depreciation_cost', label: 'ราคาทุนสำหรับคิดค่าเสื่อม', type: 'number' },
+    { name: 'depreciation_useful_life_years', label: 'อายุการใช้งาน (ปี)', type: 'number' },
+    { name: 'depreciation_start_basis', label: 'เกณฑ์วันเริ่มคิดค่าเสื่อม', type: 'select', options: [
+      { value: 'fiscal_year_oct_1', label: '1 ต.ค. ปีงบประมาณ' },
+      { value: 'custom_start_date', label: 'กำหนดวันที่เอง' }
+    ]},
+    { name: 'depreciation_start_date', label: 'วันที่เริ่มคิดค่าเสื่อม (YYYY-MM-DD)', type: 'text' },
+    { name: 'depreciation_residual_value', label: 'มูลค่าซาก (Residual Value)', type: 'number' },
     { name: 'created_at', label: 'เวลาลงทะเบียน', type: 'readonly' },
     { name: 'updated_at', label: 'เวลาอัปเดต', type: 'readonly' }
   ],
@@ -194,9 +206,9 @@ export default function DBPanelClient() {
   const isReadOnlyTable = activeTab === 'audit' || selectedTable === 'audit_logs'
 
   // Fetch Table Data
-  const fetchTable = async (tableName: string, page: number) => {
+  const fetchTable = useCallback(async (tableName: string, page: number, search: string = searchTerm) => {
     setIsLoading(true)
-    const res = await getTableData(tableName, page, pageSize)
+    const res = await getTableData(tableName, page, pageSize, search)
     setIsLoading(false)
     if (res.error) {
       setSqlError(res.error)
@@ -204,19 +216,22 @@ export default function DBPanelClient() {
       setTableData(res.data as Record<string, unknown>[])
       setTotalCount(res.count)
     }
-  }
+  }, [pageSize, searchTerm])
 
-  // Reload current table data
+  // Reload current table data with debounce for search
   useEffect(() => {
-    const runFetch = async () => {
-      if (activeTab === 'browser') {
-        await fetchTable(selectedTable, currentPage)
-      } else if (activeTab === 'audit') {
-        await fetchTable('audit_logs', currentPage)
+    const timer = setTimeout(() => {
+      const runFetch = async () => {
+        if (activeTab === 'browser') {
+          await fetchTable(selectedTable, currentPage, searchTerm)
+        } else if (activeTab === 'audit') {
+          await fetchTable('audit_logs', currentPage, searchTerm)
+        }
       }
-    }
-    runFetch()
-  }, [selectedTable, currentPage, activeTab])
+      void runFetch()
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [selectedTable, currentPage, activeTab, searchTerm, fetchTable])
 
   // Reset pagination on table change
   const handleTableChange = (name: string) => {
@@ -316,16 +331,16 @@ export default function DBPanelClient() {
         }
       }
 
-      const { _new_password, _password, ...payload } = formData
-      void _new_password
-      void _password
+      const payload = { ...formData }
+      delete payload._new_password
+      delete payload._password
 
       const res = await upsertTableRow(targetTable, rowId, payload)
       if (res.error) {
         setFormError(res.error)
       } else {
         setIsFormOpen(false)
-        fetchTable(targetTable, currentPage)
+        fetchTable(targetTable, currentPage, searchTerm)
       }
     })
   }
@@ -478,14 +493,6 @@ export default function DBPanelClient() {
     }
   }
 
-  // Local filtering based on SearchTerm
-  const filteredData = tableData.filter(row => {
-    if (!searchTerm) return true
-    return Object.values(row).some(val => 
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })
-
   const activeSchema = TABLE_SCHEMAS[activeTab === 'audit' ? 'audit_logs' : selectedTable] || []
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -591,17 +598,20 @@ export default function DBPanelClient() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Local Grid Search */}
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="ค้นหาข้อมูลในหน้านี้..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-8 w-52 rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
+                    {/* Server-side Search */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="ค้นหาข้อมูล..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="h-8 w-52 rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
 
                   <button
                     onClick={() => fetchTable(activeTab === 'audit' ? 'audit_logs' : selectedTable, currentPage)}
@@ -647,7 +657,7 @@ export default function DBPanelClient() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-slate-300 font-semibold font-mono">
-                    {filteredData.map((row, idx) => (
+                    {tableData.map((row, idx) => (
                       <tr key={(typeof row.id === 'string' || typeof row.id === 'number') ? row.id : idx} className="hover:bg-slate-900/30 transition-colors">
                         {activeSchema.map(col => {
                           const rawVal = row[col.name]
@@ -705,10 +715,10 @@ export default function DBPanelClient() {
                       </tr>
                     ))}
 
-                    {filteredData.length === 0 && (
+                    {tableData.length === 0 && (
                       <tr>
                         <td colSpan={activeSchema.length + (!isReadOnlyTable ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
-                          ไม่พบแถวข้อมูลในตารางนี้
+                          {searchTerm ? 'ไม่พบข้อมูลที่ตรงกับคำค้นหา' : 'ไม่พบแถวข้อมูลในตารางนี้'}
                         </td>
                       </tr>
                     )}
