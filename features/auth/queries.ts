@@ -41,6 +41,7 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
       .eq('id', devSessionUser.id)
       .maybeSingle()
 
+    if (!profile || !profile.is_active) return null
     return profile
   }
 
@@ -55,5 +56,6 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
       .single()
   )
 
+  if (!profile || !profile.is_active) return null
   return profile
 })

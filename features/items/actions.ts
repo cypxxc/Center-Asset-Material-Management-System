@@ -8,9 +8,8 @@ import { deleteItemStorageImage } from '@/lib/supabase/storage'
 import { itemFormSchema } from './schema'
 import { bulkEditSchema, BULK_EDIT_LIMIT, type BulkItemUpdates } from './bulk-edit'
 import { getItems } from './queries'
-import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
-import { stripBom, normalizeForStorage, normalizeForSearch, normalizeFilename, preventCSVInjection } from '@/lib/unicode'
+import { normalizeForSearch } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -22,45 +21,28 @@ import { retryStorage } from '@/lib/retry'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { isPostgresBackend } from '@/lib/backend'
-import { insertPostgresItem, getPostgresItemForUpdate, updatePostgresItem, mutatePostgresItems, importPostgresItems } from './postgres-actions'
+import { insertPostgresItem, getPostgresItemForUpdate, updatePostgresItem, mutatePostgresItems } from './postgres-actions'
 import { uploadLocalItemImage } from '@/lib/postgres/storage'
+import { requireEditor, requireDeletePermission } from './auth-guard'
+import {
+  importItemsBulk as importItemsBulkCore,
+  getItemsForExport as getItemsForExportCore,
+} from './import-export-actions'
+
+export type ItemActionState = ActionResponse
+
+export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> {
+  return importItemsBulkCore(csvContent)
+}
+
+export async function getItemsForExport(params: ItemListSearchParams) {
+  return getItemsForExportCore(params)
+}
 
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
   revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
   revalidatePath('/', 'layout')
-}
-
-
-
-export type ItemActionState = ActionResponse
-
-async function requireEditor() {
-  const profile = await getCurrentProfile()
-
-  if (!profile || !profile.is_active) {
-    return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
-  }
-
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
-    return { error: 'คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ', profile: null }
-  }
-
-  return { error: null, profile }
-}
-
-async function requireDeletePermission() {
-  const profile = await getCurrentProfile()
-
-  if (!profile || !profile.is_active) {
-    return { error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ', profile: null }
-  }
-
-  if (profile.role !== 'admin' && profile.role !== 'staff') {
-    return { error: 'เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้', profile: null }
-  }
-
-  return { error: null, profile }
 }
 
 function parseFormData(formData: FormData) {
@@ -114,24 +96,43 @@ async function handleImageUpload(
   }
 
   if (hasFile) {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      return { imageUrl: null, error: 'กรุณาอัปโหลดไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น' }
-    }
     if (file.size > 5 * 1024 * 1024) {
       return { imageUrl: null, error: 'ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB' }
     }
 
     try {
-      if (isPostgresBackend()) return { imageUrl: await uploadLocalItemImage(file), oldImageUrlToDelete: currentImageUrl }
       const fileBuffer = await file.arrayBuffer()
-      const safeFilename = normalizeFilename(file.name)
-      const fileExt = safeFilename.split('.').pop() || 'jpg'
-      const fileName = `${crypto.randomUUID()}.${fileExt}`
+      const bytes = Buffer.from(fileBuffer)
+
+      // Strict magic bytes verification to prevent MIME/extension spoofing
+      let detectedExt: 'jpg' | 'png' | 'webp' | null = null
+      let detectedMime = ''
+      if (bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) {
+        detectedExt = 'jpg'
+        detectedMime = 'image/jpeg'
+      } else if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+        detectedExt = 'png'
+        detectedMime = 'image/png'
+      } else if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') {
+        detectedExt = 'webp'
+        detectedMime = 'image/webp'
+      }
+
+      if (!detectedExt) {
+        return { imageUrl: null, error: 'กรุณาอัปโหลดไฟล์รูปภาพประเภท JPEG, PNG หรือ WEBP เท่านั้น' }
+      }
+
+      if (isPostgresBackend()) {
+        const verifiedFile = new File([fileBuffer], `${crypto.randomUUID()}.${detectedExt}`, { type: detectedMime })
+        return { imageUrl: await uploadLocalItemImage(verifiedFile), oldImageUrlToDelete: currentImageUrl }
+      }
+
+      const fileName = `${crypto.randomUUID()}.${detectedExt}`
       const supabase = await createClient()
 
       await retryStorage(async () => {
-        const result = await supabase.storage.from('item-images').upload(fileName, Buffer.from(fileBuffer), {
-          contentType: file.type,
+        const result = await supabase.storage.from('item-images').upload(fileName, bytes, {
+          contentType: detectedMime,
         })
         if (result.error) throw result.error
         return result
@@ -208,7 +209,7 @@ async function createItemCore(
   async function deleteUploadedImage() {
     if (!uploadResult.imageUrl || uploadedImageDeleted) return
     uploadedImageDeleted = true
-    await deleteItemStorageImage(uploadResult.imageUrl)
+    await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
   }
 
   const parsed = parseFormData(formData)
@@ -225,6 +226,7 @@ async function createItemCore(
 
   const supabase = isPostgresBackend() ? null : await createClient()
   let committedResult: { itemId: string; userId: string }
+  let isCommitted = false
   try {
     const assetNumberSource = parsed.data.item_type === 'asset' ? 'manual' : null
     const result = isPostgresBackend() ? await insertPostgresItem(parsed.data) : await supabase!
@@ -254,6 +256,9 @@ async function createItemCore(
       }
     }
 
+    isCommitted = true
+    committedResult = { itemId: (data as { id: string }).id, userId }
+
     await writeAuditLog({
       operation: 'create',
       feature: 'items',
@@ -264,10 +269,11 @@ async function createItemCore(
       persistToDatabase: false,
     })
 
-    committedResult = { itemId: (data as { id: string }).id, userId }
     await options.onCommitted?.(committedResult)
   } catch (err) {
-    await deleteUploadedImage()
+    if (!isCommitted) {
+      await deleteUploadedImage()
+    }
     return {
       ok: false,
       kind: 'unexpected',
@@ -379,7 +385,7 @@ export async function updateItem(
   const parsed = parseFormData(formData)
   if (!parsed.success) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteItemStorageImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
     }
     return {
       message: 'กรุณาตรวจสอบข้อมูลในฟอร์ม',
@@ -402,7 +408,7 @@ export async function updateItem(
 
     if (error) {
       if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-        await deleteItemStorageImage(uploadResult.imageUrl)
+        await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
       }
       return { message: friendlyDatabaseError(error.message) }
     }
@@ -439,15 +445,23 @@ export async function updateItem(
     })
   } catch (err) {
     if (uploadResult.imageUrl && uploadResult.imageUrl !== currentImageUrl) {
-      await deleteItemStorageImage(uploadResult.imageUrl)
+      await deleteItemStorageImage(uploadResult.imageUrl, auth.profile)
     }
     const errRes = await handleActionError(err, 'updateItem', 'items', auth.profile.id)
     return { message: errRes.message! }
   }
 
   if (uploadResult.oldImageUrlToDelete && uploadResult.oldImageUrlToDelete !== uploadResult.imageUrl) {
-    // Non-blocking image deletion
-    setImmediate(() => deleteItemStorageImage(uploadResult.oldImageUrlToDelete!))
+    // Non-blocking image deletion with resolved profile to avoid cookies() outside request context
+    const oldUrl = uploadResult.oldImageUrlToDelete
+    const profile = auth.profile
+    setImmediate(async () => {
+      try {
+        await deleteItemStorageImage(oldUrl, profile)
+      } catch (err) {
+        logger.warn({ operation: 'deleteOldImage', feature: 'items', details: String(err), imageUrl: oldUrl })
+      }
+    })
   }
 
   revalidatePath('/items')
@@ -478,6 +492,13 @@ export async function bulkUpdateItems(ids: string[], updates: BulkItemUpdates): 
     }
     const count = Number(data)
     if (!Number.isInteger(count) || count <= 0) return errorResponse('ไม่พบรายการที่สามารถแก้ไขได้ กรุณาเลือกใหม่')
+    await writeAuditLog({
+      operation: 'bulk_update',
+      feature: 'items',
+      userId: auth.profile.id,
+      targetType: 'items',
+      newValues: { ids: parsed.data.ids, updates: parsed.data.updates, count },
+    })
     revalidatePath('/items')
     revalidateSidebarCache()
     return successResponse(`แก้ไขสำเร็จ ${count} จาก ${parsed.data.ids.length} รายการ`)
@@ -518,12 +539,13 @@ export async function getMatchingItemIds(params: ItemListSearchParams): Promise<
 }
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems(ids, 'delete')
-  const profile = await getCurrentProfile()
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  const auth = await requireDeletePermission()
+  if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkDeleteItems', feature: 'items', details: 'Unauthorized bulk delete attempt' })
-    return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบรายการได้')
+    return errorResponse(auth.error ?? 'Unauthorized')
   }
+
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'delete')
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบ')
@@ -548,18 +570,26 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
     .select('id')
 
   if (error) {
-    logger.error({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { ids } }, error)
+    logger.error({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: { ids } }, error)
     return errorResponse('ไม่สามารถลบรายการได้: ' + error.message)
   }
 
   if (!data || data.length === 0) {
-    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: '0 rows updated - RLS block or already deleted' })
+    logger.warn({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: '0 rows updated - RLS block or already deleted' })
     return errorResponse('ไม่สามารถลบรายการได้ (สิทธิ์ไม่เพียงพอหรือไม่พบรายการ)')
   }
 
-  await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url)))
+  await Promise.allSettled((itemsToDelete ?? []).map((item) => deleteItemStorageImage(item.image_url, auth.profile)))
 
-  logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: profile.id, details: { count: ids.length } })
+  await writeAuditLog({
+    operation: 'delete',
+    feature: 'items',
+    userId: auth.profile.id,
+    targetType: 'items',
+    newValues: { ids, count: ids.length },
+  })
+
+  logger.info({ operation: 'bulkDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
 
   revalidatePath('/items')
   revalidateSidebarCache()
@@ -567,12 +597,12 @@ export async function bulkDeleteItems(ids: string[]): Promise<ActionResponse> {
 }
 
 export async function hardDeleteItem(id: string): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems([id], 'delete')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'hardDeleteItem', feature: 'items', details: 'Unauthorized hard delete attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
   }
+  if (isPostgresBackend()) return mutatePostgresItems([id], 'delete')
 
   const supabase = await createClient()
 
@@ -597,8 +627,17 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 
   // ลบรูปออกจาก Storage (best effort)
   if (item?.image_url) {
-    await deleteItemStorageImage(item.image_url)
+    await deleteItemStorageImage(item.image_url, auth.profile)
   }
+
+  await writeAuditLog({
+    operation: 'hard_delete',
+    feature: 'items',
+    userId: auth.profile.id,
+    targetType: 'items',
+    targetId: id,
+    oldValues: item,
+  })
 
   logger.info({ operation: 'hardDeleteItem', feature: 'items', userId: auth.profile.id, details: { id } })
 
@@ -608,12 +647,12 @@ export async function hardDeleteItem(id: string): Promise<ActionResponse> {
 }
 
 export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse> {
-  if (isPostgresBackend()) return mutatePostgresItems(ids, 'purge')
   const auth = await requireDeletePermission()
   if (auth.error || !auth.profile) {
     logger.warn({ operation: 'bulkHardDeleteItems', feature: 'items', details: 'Unauthorized bulk hard delete attempt' })
     return errorResponse(auth.error ?? 'Unauthorized')
   }
+  if (isPostgresBackend()) return mutatePostgresItems(ids, 'purge')
 
   if (!ids.length) {
     return errorResponse('กรุณาเลือกรายการที่ต้องการลบถาวร')
@@ -641,8 +680,16 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
 
   // ลบรูปออกจาก Storage (best effort)
   if (items) {
-    await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url)))
+    await Promise.allSettled(items.map((item) => deleteItemStorageImage(item.image_url, auth.profile)))
   }
+
+  await writeAuditLog({
+    operation: 'bulk_hard_delete',
+    feature: 'items',
+    userId: auth.profile.id,
+    targetType: 'items',
+    newValues: { ids, count: ids.length },
+  })
 
   logger.info({ operation: 'bulkHardDeleteItems', feature: 'items', userId: auth.profile.id, details: { count: ids.length } })
 
@@ -651,184 +698,7 @@ export async function bulkHardDeleteItems(ids: string[]): Promise<ActionResponse
   return successResponse(`ลบถาวรเรียบร้อย ${ids.length} รายการ`)
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
-  let current = ''
-  let inQuotes = false
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-
-    if (char === '"') {
-      inQuotes = !inQuotes
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  result.push(current.trim())
-
-  return result.map((val) => {
-    if (val.startsWith('"') && val.endsWith('"')) {
-      return val.substring(1, val.length - 1).trim()
-    }
-    return val
-  })
-}
-
-export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> {
-  const timer = startTimer()
-  const auth = await requireEditor()
-  if (auth.error || !auth.profile) {
-    logger.warn({ operation: 'importItemsBulk', feature: 'items', details: 'Unauthorized bulk import attempt' })
-    return errorResponse(auth.error ?? 'Unauthorized')
-  }
-
-  // 1. Rate Limiting
-  const rateLimitCheck = await checkRateLimit('importItemsBulk', 10, 60000)
-  if (!rateLimitCheck.success) {
-    return errorResponse(rateLimitCheck.error!)
-  }
-
-  // 2. Input size limits check (5MB)
-  if (Buffer.byteLength(csvContent, 'utf8') > 5 * 1024 * 1024) {
-    return errorResponse('ขนาดไฟล์ข้อมูลนำเข้าใหญ่เกินกำหนด (สูงสุด 5MB)')
-  }
-
-  // Strip UTF-8 BOM if present
-  const cleanContent = stripBom(csvContent)
-  const lines = cleanContent.split(/\r?\n/).filter((line) => line.trim())
-  if (lines.length <= 1) {
-    return errorResponse('ไม่พบข้อมูลในไฟล์ CSV')
-  }
-
-  // 3. Rows count check (1,000 data rows max)
-  if (lines.length > 1001) {
-    return errorResponse('จำนวนแถวข้อมูลเกินขีดจำกัด (สูงสุด 1,000 แถวต่อการนำเข้าหนึ่งครั้ง)')
-  }
-
-  try {
-    const headers = parseCSVLine(lines[0]).map((h) => normalizeForSearch(h))
-    if (!headers.includes('item_name')) {
-      return errorResponse('ไม่พบหัวคอลัมน์ "item_name" (ชื่อสิ่งของ) กรุณาตรวจสอบไฟล์ของคุณว่ามีหัวตารางที่ถูกต้อง')
-    }
-
-    const rows = lines.slice(1)
-
-    const itemsToInsert = []
-    let lineNum = 1
-
-    for (const row of rows) {
-      lineNum++
-      const cols = parseCSVLine(row)
-      if (cols.length < headers.length) {
-        return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนคอลัมน์ไม่ครบถ้วน (พบ ${cols.length} คอลัมน์, ต้องการอย่างน้อย ${headers.length} คอลัมน์)`)
-      }
-
-      const getVal = (name: string) => {
-        const idx = headers.indexOf(name)
-        return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
-      }
-
-      // Neutralize CSV injection formula characters
-      const itemName = preventCSVInjection(getVal('item_name'))
-      if (!itemName) {
-        return errorResponse(`บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง`)
-      }
-
-      const itemType = getVal('item_type').toLowerCase() || 'asset'
-      if (itemType !== 'asset' && itemType !== 'material') {
-        return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
-      }
-
-      const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
-      const rawUnitPrice = getVal('unit_price')
-      const parsedUnitPrice = rawUnitPrice === '' ? null : Number(rawUnitPrice)
-      if (
-        parsedUnitPrice !== null &&
-        (!Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0)
-      ) {
-        return errorResponse(`บรรทัดที่ ${lineNum}: ราคาต่อหน่วย (unit_price) ต้องเป็นตัวเลขที่ไม่ติดลบ`)
-      }
-      const unitPrice = parsedUnitPrice
-      const status = getVal('status').toLowerCase() || 'active'
-
-      itemsToInsert.push({
-        item_name: itemName,
-        item_type: itemType,
-        category_name: preventCSVInjection(getVal('category_name')),
-        location_name: preventCSVInjection(getVal('location_name')),
-        unit_name: preventCSVInjection(getVal('unit_name')),
-        quantity,
-        unit_price: unitPrice,
-        status,
-        asset_no: preventCSVInjection(getVal('asset_no')) || null,
-        serial_no: preventCSVInjection(getVal('serial_no')) || null,
-        brand: preventCSVInjection(getVal('brand')) || null,
-        model: preventCSVInjection(getVal('model')) || null,
-        responsible_person: preventCSVInjection(getVal('responsible_person')) || null,
-        note: preventCSVInjection(getVal('note')) || null,
-      })
-    }
-
-    if (itemsToInsert.length === 0) {
-      return errorResponse('ไม่พบแถวข้อมูลที่สามารถนำเข้าได้')
-    }
-
-    const supabase = isPostgresBackend() ? null : await createClient()
-    const { data, error } = isPostgresBackend() ? await importPostgresItems(itemsToInsert) : await supabase!.rpc('import_items_bulk_tx', {
-      items_json: itemsToInsert,
-      creator_id: auth.profile.id,
-    })
-
-    if (error) {
-      logger.error({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id }, error)
-      return errorResponse('เกิดข้อผิดพลาดในการประมวลผลฐานข้อมูล: ' + error.message)
-    }
-
-    const res = data as { ok: boolean; count?: number; error?: string }
-    if (!res.ok) {
-      logger.warn({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id, details: res.error })
-      return errorResponse('เกิดข้อผิดพลาดขณะนำเข้าข้อมูล: ' + (res.error || 'ข้อผิดพลาดภายใน'))
-    }
-
-    // PostgreSQL records each row through database audit triggers.
-    if (!isPostgresBackend()) await writeAuditLog({
-      operation: 'import',
-      feature: 'items',
-      userId: auth.profile.id,
-      targetType: 'items',
-      newValues: { count: res.count },
-    })
-
-    const durationMs = timer.stop()
-    const ctx = await getRequestContext(auth.profile.id)
-    metrics.csvImport(res.count ?? 0)
-    logger.info(withTraceContext(ctx, {
-      operation: 'importItemsBulk',
-      feature: 'items',
-      action: 'importItemsBulk',
-      userId: auth.profile.id,
-      latency: durationMs,
-      status: 'success',
-      details: { count: res.count },
-    }))
-
-    revalidatePath('/items')
-    revalidateSidebarCache()
-    return successResponse(`นำเข้าพัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
-  } catch (err) {
-    return handleActionError<{ count: number }>(err, 'importItemsBulk', 'items', auth.profile.id)
-  }
-}
-
-
-export async function getItemsForExport(params: ItemListSearchParams) {
-  const result = await getReportItemsList(params, true)
-  return result.items
-}
 
 /**
  * Modal-friendly variant of createItem.
@@ -854,3 +724,47 @@ export async function createItemInline(
   // Return successResponse — caller handles close + refresh
   return successResponse('สร้างพัสดุสำเร็จ')
 }
+
+/**
+ * Records a physical inventory inspection / audit check-in for an asset.
+ */
+export async function recordPhysicalAuditAction(
+  itemId: string,
+  note?: string
+): Promise<{ success: boolean; error?: string; message?: string }> {
+  if (!itemId || typeof itemId !== 'string' || !itemId.trim()) {
+    return { success: false, error: 'รหัสพัสดุไม่ถูกต้อง' }
+  }
+
+  const profile = await getCurrentProfile()
+  if (!profile || !profile.is_active) {
+    return { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' }
+  }
+
+  const timestamp = new Date().toISOString()
+  const auditNote = typeof note === 'string' ? note.trim() || 'ตรวจนับสภาพปกติ' : 'ตรวจนับสภาพปกติ'
+
+  await writeAuditLog({
+    operation: 'PHYSICAL_AUDIT',
+    feature: 'items',
+    targetType: 'items',
+    targetId: itemId,
+    userId: profile.id,
+    newValues: {
+      status: 'verified',
+      note: auditNote,
+      inspector: profile.full_name,
+      audited_at: timestamp,
+    },
+    timestamp,
+  })
+
+  revalidateTag(CACHE_TAGS.ITEMS, 'max')
+  revalidatePath(`/items/${itemId}`)
+
+  return {
+    success: true,
+    message: 'บันทึกการตรวจนับครุภัณฑ์สำเร็จ',
+  }
+}
+

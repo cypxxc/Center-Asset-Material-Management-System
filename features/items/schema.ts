@@ -27,7 +27,7 @@ const optionalTextLimit = (maxLen: number) => z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
   z
     .string()
-    .max(maxLen, `ความยาวต้องไม่เกิน ${maxLen} ตัวอักษร`)
+    .refine((val) => getGraphemeLength(val) <= maxLen, `ความยาวต้องไม่เกิน ${maxLen} ตัวอักษร`)
     .optional()
     .transform((value) => (value && value.length > 0 ? value : null))
 )

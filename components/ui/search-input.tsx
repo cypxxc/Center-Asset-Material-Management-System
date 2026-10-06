@@ -88,7 +88,7 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 
     return (
       <div className="relative flex-1 max-w-sm group">
-        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-600 transition-colors">
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-foreground transition-colors">
           <Search className="h-3.5 w-3.5" />
         </div>
         <input
@@ -100,21 +100,23 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "w-full h-8 pl-9 pr-8 bg-slate-50 border border-slate-200 rounded-lg text-[11px] placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-slate-300 focus:ring-1 focus:ring-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+            "w-full h-8 pl-9 pr-8 bg-muted/50 border border-input text-foreground rounded-lg text-[11px] placeholder:text-muted-foreground focus:outline-none focus:bg-background focus:border-ring focus:ring-1 focus:ring-ring transition-all disabled:opacity-50 disabled:cursor-not-allowed",
             className
           )}
           {...props}
         />
         <div className="absolute inset-y-0 right-2 flex items-center gap-1.5">
           {showLoading && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           )}
           {!showLoading && localValue && (
             <button
               type="button"
               onClick={handleClear}
               disabled={disabled}
-              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              aria-label="ล้างคำค้นหา"
+              title="ล้างคำค้นหา"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="h-3 w-3" />
             </button>

@@ -16,12 +16,12 @@ export function stripBom(str: string): string {
 
 /**
  * Strips invisible characters like Zero-Width Space (ZWSP), Word Joiner (WJ),
- * and text direction markers.
+ * text direction markers, and Unicode BiDi isolates (Trojan Source defense).
  * Note: Zero-Width Joiner (ZWJ) and Zero-Width Non-Joiner (ZWNJ) are preserved
  * because they are used in emoji sequences (e.g. family emojis) and script-specific ligatures.
  */
 export function stripInvisibleCharacters(str: string): string {
-  return str.replace(/[\u200B\u2060\uFEFF\u200E\u200F\u202A-\u202E]/g, '')
+  return str.replace(/[\u200B\u2060\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
 }
 
 /**
@@ -32,13 +32,18 @@ export function stripControlCharacters(str: string): string {
   return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
 }
 
+const graphemeSegmenter =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new Intl.Segmenter('th', { granularity: 'grapheme' })
+    : null
+
 /**
  * Returns the exact visual length of a string in grapheme clusters (emojis, combining characters).
- * Uses standard Intl.Segmenter when available, falls back to codepoint array conversion.
+ * Uses cached standard Intl.Segmenter when available, falls back to codepoint array conversion.
  */
 export function getGraphemeLength(str: string): number {
-  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-    return [...new Intl.Segmenter().segment(str)].length
+  if (graphemeSegmenter) {
+    return [...graphemeSegmenter.segment(str)].length
   }
   // Fallback to splitting by codepoint (handles surrogate pairs but not all complex ZWJ emojis/combining marks)
   return Array.from(str).length
@@ -100,12 +105,17 @@ export function normalizeFilename(filename: string): string {
 
 /**
  * Prevents CSV Injection by neutralizing formula prefix characters.
- * If a string starts with =, +, -, @, \t, or \r, we prefix it with a single quote '.
+ * If a string starts with =, +, -, @, \t, or \r (including leading whitespace bypass), we prefix it with a single quote '.
  */
 export function preventCSVInjection(str: string): string {
   if (!str) return ''
   const formulaChars = ['=', '+', '-', '@', '\t', '\r']
   if (formulaChars.some((char) => str.startsWith(char))) {
+    return `'${str}`
+  }
+  // Also guard against leading space bypass where formula starts after whitespace (e.g. "   =1+2")
+  const trimmed = str.replace(/^[\s\uFEFF\xA0]+/g, '')
+  if (trimmed && formulaChars.some((char) => trimmed.startsWith(char))) {
     return `'${str}`
   }
   return str

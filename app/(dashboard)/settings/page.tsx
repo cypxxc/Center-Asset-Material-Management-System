@@ -23,11 +23,15 @@ interface SettingsPageProps {
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  const currentProfile = await getCurrentProfile()
+  const [currentProfile, params] = await Promise.all([
+    getCurrentProfile(),
+    searchParams,
+  ])
+
   if (!canManageSettings(currentProfile?.role)) {
     redirect('/dashboard')
   }
-  const params = await searchParams
+
   const { activeTab, data } = await getSettingsPageData(params.tab)
 
   const tabs = [

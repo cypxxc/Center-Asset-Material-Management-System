@@ -100,3 +100,29 @@ test('importItemsBulk returns readable custom RPC error message', async () => {
   assert.equal(res.success, false);
   assert.equal(res.error, 'เกิดข้อผิดพลาดขณะนำเข้าข้อมูล: แถวที่ 3: เลขครุภัณฑ์ "AS-001" ซ้ำกับที่มีอยู่ในระบบ');
 });
+
+test('importItemsBulk parses RFC 4180 quotes and preserves legitimate symbols without prepending quotes', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  mockSupabaseRegistry.setRpcResponse('import_items_bulk_tx', {
+    ok: true,
+    count: 1,
+  });
+
+  const csv = 'item_name,brand,model,quantity\n"-10-B Adapter","Dell ""Pro"" Series",+5V Supply,1';
+  const res = await importItemsBulk(csv);
+  assert.equal(res.success, true);
+  
+  const rpcLog = mockSupabaseRegistry.getRpcLog();
+  const txCall = rpcLog.find((c) => c.name === 'import_items_bulk_tx');
+  assert.ok(txCall);
+  const items = (txCall.args as { items_json: Array<{ item_name: string; brand: string; model: string }> }).items_json;
+  assert.equal(items[0].item_name, '-10-B Adapter'); // NOT prepended with single quote
+  assert.equal(items[0].brand, 'Dell "Pro" Series'); // RFC 4180 quotes correctly unescaped
+  assert.equal(items[0].model, '+5V Supply');
+});
+

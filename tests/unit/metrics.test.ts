@@ -21,3 +21,17 @@ test('domain metric helpers increment expected names', () => {
   assert.ok(snapshots.some((s) => s.name === 'items.created'))
   assert.ok(snapshots.some((s) => s.name === 'login.failure'))
 })
+
+test('MemoryMetricsExporter bounds memory usage via ring buffer and tracks aggregates', () => {
+  resetMetricsExporter()
+  for (let i = 0; i < 600; i++) {
+    metrics.counter('stress.counter', 1)
+  }
+  const exporter = metrics._getMemoryExporter()
+  const snapshots = exporter.getSnapshots()
+  assert.ok(snapshots.length <= 500, `Expected <= 500 snapshots in ring buffer, got ${snapshots.length}`)
+  const agg = exporter.getAggregates()
+  assert.equal(agg['counter:stress.counter']?.count, 600)
+  assert.equal(agg['counter:stress.counter']?.sum, 600)
+})
+

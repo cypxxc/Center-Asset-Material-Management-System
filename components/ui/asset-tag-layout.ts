@@ -1,4 +1,4 @@
-export type StickerSizePreset = "standard" | "custom_grid"
+export type StickerSizePreset = "standard" | "thermal_50x30" | "thermal_40x20" | "thermal_70x40" | "custom_grid"
 
 export interface CustomGridConfig {
   cols: number
@@ -122,6 +122,48 @@ export const STICKER_PRESETS: Record<StickerSizePreset, PresetConfig> = {
     barcodeHeight: "h-7",
     codeSize: "text-[10px]",
     qrSize: "h-14 w-14",
+  },
+  thermal_50x30: {
+    id: "thermal_50x30",
+    label: "สติ๊กเกอร์ม้วนความร้อน (50×30 มม.)",
+    isSheet: false,
+    width: "50mm",
+    height: "30mm",
+    padding: "p-1.5",
+    titleSize: "text-[7.5px]",
+    nameSize: "text-[9.5px] font-bold",
+    metaSize: "text-[7.5px]",
+    barcodeHeight: "h-4.5",
+    codeSize: "text-[8px]",
+    qrSize: "h-9 w-9",
+  },
+  thermal_40x20: {
+    id: "thermal_40x20",
+    label: "สติ๊กเกอร์ม้วนความร้อนจิ๋ว (40×20 มม.)",
+    isSheet: false,
+    width: "40mm",
+    height: "20mm",
+    padding: "p-1",
+    titleSize: "text-[6.5px]",
+    nameSize: "text-[8px] font-bold",
+    metaSize: "text-[6.5px]",
+    barcodeHeight: "h-3.5",
+    codeSize: "text-[7px]",
+    qrSize: "h-7 w-7",
+  },
+  thermal_70x40: {
+    id: "thermal_70x40",
+    label: "สติ๊กเกอร์ม้วนความร้อนใหญ่ (70×40 มม.)",
+    isSheet: false,
+    width: "70mm",
+    height: "40mm",
+    padding: "p-2",
+    titleSize: "text-[8.5px]",
+    nameSize: "text-[11px] font-bold",
+    metaSize: "text-[8.5px]",
+    barcodeHeight: "h-5.5",
+    codeSize: "text-[9px]",
+    qrSize: "h-11 w-11",
   },
   custom_grid: {
     id: "custom_grid",

@@ -114,15 +114,32 @@ jobs:
           echo 'PostgreSQL app did not become ready'
           exit 1
 
-      - name: Verify real authenticated CRUD and private files and session events
-        run: |
-          npm run postgres:verify:browser
-          npm run postgres:verify:http
-          npm run postgres:verify:limits
-          npm run postgres:verify:recovery
+      - name: Verify PostgreSQL browser journey
+        run: npm run postgres:verify:browser
+
+      - name: Verify PostgreSQL HTTP and SSE
+        run: npm run postgres:verify:http
+
+      - name: Verify PostgreSQL payload limits
+        run: npm run postgres:verify:limits
+
+      - name: Verify PostgreSQL full recovery drill
+        run: npm run postgres:verify:recovery
 
       - name: Build deployable image without credentials
         run: docker build --tag camms-ci:${{ github.sha }} .
+
+      - name: Dump PostgreSQL failure log
+        if: failure()
+        run: |
+          if [ -f .cache/postgres/ci-app.log ]; then
+            echo "==== TAIL OF .cache/postgres/ci-app.log ===="
+            tail -n 150 .cache/postgres/ci-app.log
+          fi
+          if [ -f .cache/postgres/browser-edit-diagnostics.json ]; then
+            echo "==== browser-edit-diagnostics.json ===="
+            cat .cache/postgres/browser-edit-diagnostics.json
+          fi
 
       - name: Retain PostgreSQL failure diagnostics
         if: failure()
@@ -132,6 +149,7 @@ jobs:
           path: |
             .cache/postgres/ci-app.log
             .cache/postgres/browser-item.png
+            .cache/postgres/browser-edit-diagnostics.json
           retention-days: 7
           if-no-files-found: ignore
 

@@ -12,8 +12,6 @@ import { CategoryListSkeleton } from '@/components/dashboard/dashboard-category-
 import { LowStockSkeleton } from '@/components/dashboard/dashboard-low-stock-panel'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
-import { getReportStats } from '@/features/reports/queries'
-import { getLowStockItems } from '@/features/items/queries'
 
 const DashboardMetricsGrid = dynamic(
   () => import('@/components/dashboard/dashboard-metrics-grid').then((mod) => mod.DashboardMetricsGrid)
@@ -26,12 +24,7 @@ const DashboardLowStockPanel = dynamic(
 )
 
 export default async function DashboardPage() {
-  // Start independent RLS-protected reads together; child components reuse React cache.
-  const [profile] = await Promise.all([
-    getCurrentProfile(),
-    getReportStats(),
-    getLowStockItems(),
-  ])
+  const profile = await getCurrentProfile()
 
   if (!profile) {
     redirect('/login')
