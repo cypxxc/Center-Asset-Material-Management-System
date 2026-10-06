@@ -1,6 +1,7 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import React from 'react'
 
 function mockModule(path: string, exports: object) {
   const filename = require.resolve(path)
@@ -81,4 +82,18 @@ test('ItemDetailPage calls notFound when unauthenticated and item does not exist
     },
     (err: unknown) => err instanceof Error && err.message === 'NEXT_NOT_FOUND',
   )
+})
+
+test('DashboardLayout renders children directly when unauthenticated and pathname matches public item UUID', async () => {
+  mockProfile = null
+  const publicUuid = '11111111-2222-3333-4444-555555555555'
+  mockModule('next/headers', {
+    headers: async () => new Map([['x-pathname', `/items/${publicUuid}`]]),
+  })
+
+  const { default: DashboardLayout } = await import('../../app/(dashboard)/layout')
+  const dummyChild = React.createElement('div', { id: 'public-child' }, 'Public Content')
+  const result = await DashboardLayout({ children: dummyChild })
+
+  assert.ok(result)
 })

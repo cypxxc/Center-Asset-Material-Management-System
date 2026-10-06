@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
 
+import { AuthorizationError } from '../../lib/errors'
+
 const actor = '11111111-1111-4111-8111-111111111111'
 const itemId = '22222222-2222-4222-8222-222222222222'
 let profile: { id: string; role: string; is_active: boolean } | null = { id: actor, role: 'staff', is_active: true }
@@ -18,12 +20,29 @@ function mockModule(path: string, exports: unknown) {
   require.cache[filename] = { id: filename, filename, loaded: true, exports } as NodeJS.Module
 }
 mockModule('../../features/auth/queries', { getCurrentProfile: async () => profile })
-mockModule('../../lib/postgres/request', { withUserDatabase: async (callback: (tx: unknown) => unknown) => callback({
-  execute: async (query: SQL) => {
-    queries.push(new PgDialect().sqlToQuery(query))
-    return { rows: responseRows.shift() ?? rows }
-  },
-}) })
+mockModule('../../lib/postgres/request', { withUserDatabase: async (callback: (tx: unknown) => unknown) => {
+  if (!profile?.is_active) throw new AuthorizationError('กรุณาเข้าสู่ระบบ')
+  return callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  })
+} })
+mockModule('../../lib/postgres/db', {
+  getDatabase: () => ({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+  withIdentity: async (_userId: string, callback: (tx: unknown) => unknown) => callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+})
 mockModule('../../lib/rate-limit', { checkRateLimit: async () => ({ success: true }) })
 mockModule('../../features/admin/postgres-admin', { pgUpdateUserProfile: async () => ({ success: true }) })
 
@@ -88,6 +107,10 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
   assert.ok(await readLocalItemImage(url), 'referenced images must not be removed')
   profile = null
   assert.equal((await readLocalItemImage(url))?.contentType, 'image/png', 'unauthenticated user can read active item image')
+  rows = [{ id: itemId, item_name: 'กล้องจุลทรรศน์', item_type: 'asset', quantity: 1, status: 'active', image_url: null }]
+  const { getPostgresItemById } = await import('../../features/items/postgres-queries')
+  const publicItem = await getPostgresItemById(itemId)
+  assert.equal(publicItem?.item_name, 'กล้องจุลทรรศน์', 'unauthenticated user can query public active item via getPostgresItemById fallback')
   rows = []
   assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
   profile = { id: actor, role: 'staff', is_active: true }

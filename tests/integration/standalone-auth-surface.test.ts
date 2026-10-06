@@ -43,6 +43,16 @@ test('middleware redirects anonymous item-detail requests to login', async () =>
   assert.equal(response.headers.get('location'), 'http://localhost:3000/login')
 })
 
+test('middleware permits anonymous public asset passport scans with valid UUID', async () => {
+  const { updateSession } = await import('../../lib/supabase/middleware')
+  const request = new NextRequest('http://localhost:3000/items/a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+
+  const response = await updateSession(request)
+
+  assert.equal(response.status, 200)
+  assert.notEqual(response.headers.get('location'), 'http://localhost:3000/login')
+})
+
 test('middleware does not treat a dotted protected path as a static asset', async () => {
   const { updateSession } = await import('../../lib/supabase/middleware')
   const request = new NextRequest('http://localhost:3000/items/restricted.asset.record')

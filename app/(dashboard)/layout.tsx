@@ -1,4 +1,5 @@
 import React from 'react'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -9,13 +10,32 @@ import { ToastProvider } from '@/components/ui/toast'
 
 export const instant = false
 
+const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
+  const profilePromise = getCurrentProfile()
+  let pathname = ''
+  try {
+    const headerList = await headers()
+    pathname = headerList.get('x-pathname') || ''
+  } catch {
+    // headers() called outside request context (e.g. in isolated unit tests)
+  }
+  const isPublicItem = PUBLIC_ITEM_PATTERN.test(pathname)
+
+  if (isPublicItem) {
+    const profile = await profilePromise
+    if (!profile) {
+      return <>{children}</>
+    }
+  }
+
   const [profile, layoutData] = await Promise.all([
-    getCurrentProfile(),
+    profilePromise,
     getDashboardLayoutData(),
   ])
 
