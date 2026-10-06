@@ -14,6 +14,15 @@ export const tableColumns: Record<BackupTable, readonly string[]> = {
   audit_logs: ['id', 'user_id', 'action', 'target_table', 'target_id', 'old_data', 'new_data', 'created_at'],
 }
 
+export const searchColumns: Record<AdminTable, readonly string[]> = {
+  profiles: ['full_name', 'email', 'display_name'],
+  categories: ['name', 'description'],
+  locations: ['name', 'building', 'room', 'department'],
+  units: ['name'],
+  items: ['item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person'],
+  audit_logs: ['action', 'target_table', 'target_id'],
+}
+
 export const profileUpdateSchema = z.object({
   full_name: z.string().trim().min(1).max(255).optional(),
   display_name: z.string().trim().max(255).nullable().optional(),

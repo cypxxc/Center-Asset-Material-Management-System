@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { mockSupabaseRegistry } from '../mocks/supabase'
 import { logger, type LogPayload } from '@/lib/logging'
 import {
+  getTableData,
   upsertTableRow,
   deleteTableRow,
   createAuthUser,
@@ -126,10 +127,45 @@ describe('Admin Actions Audit Logging Integration Tests', () => {
       assert.equal(details.audit, true)
       assert.equal(details.targetType, 'categories')
       assert.equal(details.targetId, 'cat-existing-1')
+      assert.deepEqual(details.oldValues, {
+        id: 'cat-existing-1',
+        name: 'IT Equipment Updated',
+        description: 'Updated description',
+      })
       assert.deepEqual(details.newValues, {
         name: 'IT Equipment Updated',
         description: 'Updated description',
       })
+    })
+
+    test('upsertTableRow rejects fields outside the allowlist contract', async () => {
+      mockSupabaseRegistry.setAuth(adminUser, adminProfile)
+
+      const result = await upsertTableRow('categories', 'cat-existing-1', {
+        name: 'IT Equipment',
+        injected_sql_column: 'bad',
+      })
+
+      assert.equal(result.success, undefined)
+      assert.match(String(result.error), /ฟิลด์ข้อมูลไม่ถูกต้อง: injected_sql_column/)
+    })
+
+    test('getTableData executes search filter and respects page bounds', async () => {
+      mockSupabaseRegistry.setAuth(adminUser, adminProfile)
+      mockSupabaseRegistry.setTableResponse('items', [
+        { id: 'item-1', item_name: 'Dell Latitude', asset_no: 'AS-001' },
+      ])
+
+      const result = await getTableData('items', 1, 15, 'Dell')
+      assert.equal(result.data.length, 1)
+      assert.equal(result.count, 1)
+
+      const queryLog = mockSupabaseRegistry.getQueryLog()
+      const itemQuery = queryLog.find((q) => q.table === 'items')
+      assert.ok(itemQuery, 'Expected query on items table')
+      const orOp = itemQuery.operations.find((op) => op[0] === 'or')
+      assert.ok(orOp, 'Expected .or() search filter on items query')
+      assert.match(String(orOp[1]), /item_name\.ilike\./)
     })
 
     test('deleteTableRow records structured audit log with old values', async () => {

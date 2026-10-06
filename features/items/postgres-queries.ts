@@ -4,6 +4,7 @@ import { sql, type SQL } from 'drizzle-orm'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { resolveLocalItemImageUrl } from '@/lib/postgres/storage'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { AuthorizationError } from '@/lib/errors'
 import { normalizeForSearch } from '@/lib/unicode'
 import type { ItemAuditLog, ItemBatchResult, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption } from './types'
 import type { LowStockDashboardItem } from './queries'
@@ -109,14 +110,24 @@ export async function getPostgresItemBatch(
 }
 
 export async function getPostgresItemById(id: string): Promise<ItemDetail | null> {
-  return withUserDatabase(async (tx) => {
-    const rows = await tx.execute<ItemDetail & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url,
-      i.depreciation_enabled, i.depreciation_method, i.depreciation_cost, i.depreciation_useful_life_years,
-      i.depreciation_start_basis, i.depreciation_start_date, i.depreciation_residual_value, i.created_at
-      from public.items i ${itemRelations} where i.id = ${id}::uuid and i.deleted_at is null limit 1`)
+  const query = sql`select ${itemListColumns}, i.note, i.image_url,
+    i.depreciation_enabled, i.depreciation_method, i.depreciation_cost, i.depreciation_useful_life_years,
+    i.depreciation_start_basis, i.depreciation_start_date, i.depreciation_residual_value, i.created_at
+    from public.items i ${itemRelations} where i.id = ${id}::uuid and i.deleted_at is null limit 1`
+
+  try {
+    return await withUserDatabase(async (tx) => {
+      const rows = await tx.execute<ItemDetail & Record<string, unknown>>(query)
+      const item = rows.rows[0]
+      return item ? { ...item, image_url: resolveLocalItemImageUrl(item.image_url) } : null
+    })
+  } catch (err) {
+    if (!(err instanceof AuthorizationError)) throw err
+    const { getDatabase } = await import('@/lib/postgres/db')
+    const rows = await getDatabase().execute<ItemDetail & Record<string, unknown>>(query)
     const item = rows.rows[0]
     return item ? { ...item, image_url: resolveLocalItemImageUrl(item.image_url) } : null
-  })
+  }
 }
 
 export async function getPostgresSidebarData() {

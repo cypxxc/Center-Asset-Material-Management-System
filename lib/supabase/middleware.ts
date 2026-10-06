@@ -24,12 +24,14 @@ function isKnownStaticAssetPath(pathname: string) {
     )
 }
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  request.headers.set('x-pathname', pathname)
+  let supabaseResponse = NextResponse.next({
+    request: { headers: request.headers },
+  })
 
   // Exclude assets, public files, and api routes from auth checks immediately
   // to avoid establishing Supabase clients and making auth getUser network calls
@@ -126,7 +128,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user) {
     // If not logged in and trying to access protected page
-    if (!isLoginPage) {
+    if (!isLoginPage && !PUBLIC_ITEM_PATTERN.test(pathname)) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return redirectWithSession(url)

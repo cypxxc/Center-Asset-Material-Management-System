@@ -4,6 +4,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { resolve, dirname, sep } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { AuthorizationError } from '@/lib/errors'
 import { withUserDatabase } from './request'
 import { withIdentity } from './db'
 
@@ -43,24 +44,22 @@ export async function uploadLocalItemImage(file: File): Promise<string> {
 
 export async function readLocalItemImage(url: string) {
   if (!resolveLocalItemImageUrl(url)) return null
-  const profile = await getCurrentProfile().catch(() => null)
   const query = sql`select id from public.items where image_url = ${url} and deleted_at is null limit 1`
 
   // A file is visible if referenced by an active (non-deleted) item in the registry
   // This allows scanning public QR codes while preserving access restrictions.
   let isReferenced = false
-  if (profile?.is_active) {
+  try {
     const exists = await withUserDatabase(async tx => tx.execute(query))
     isReferenced = exists.rows.length > 0
-  } else {
-    try {
-      const exists = await withUserDatabase(async tx => tx.execute(query))
-      isReferenced = exists.rows.length > 0
-    } catch {
-      const { getDatabase } = await import('./db')
-      const exists = await getDatabase().execute(query)
-      isReferenced = exists.rows.length > 0
-    }
+  } catch (err) {
+    // Only allow the unauthenticated fallback for auth errors (no session / inactive account).
+    // Any other error (DB timeout, connection failure, etc.) is re-thrown to prevent
+    // infrastructure failures from inadvertently opening public image access.
+    if (!(err instanceof AuthorizationError)) throw err
+    const { getDatabase } = await import('./db')
+    const exists = await getDatabase().execute(query)
+    isReferenced = exists.rows.length > 0
   }
 
   if (!isReferenced) return null
