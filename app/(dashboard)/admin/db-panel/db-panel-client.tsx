@@ -42,6 +42,7 @@ import {
   getAuditTableLabel,
   summarizeAuditPayload,
 } from '@/features/audit-log-display/format'
+import { formatDateTime } from '@/lib/date'
 
 interface ColumnSchema {
   name: string
@@ -985,7 +986,7 @@ export default function DBPanelClient() {
                   {String(selectedAuditRow.target_id ?? 'ไม่ระบุแถว')}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {selectedAuditRow.created_at ? new Date(String(selectedAuditRow.created_at)).toLocaleString('th-TH') : 'ไม่ระบุเวลา'}
+                  {selectedAuditRow.created_at ? formatDateTime(String(selectedAuditRow.created_at)) : 'ไม่ระบุเวลา'}
                 </p>
               </div>
               <button

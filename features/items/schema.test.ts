@@ -119,6 +119,27 @@ test('itemFormSchema rejects brand/model exceeding limit', () => {
     const fields = result.error.flatten().fieldErrors
     assert.ok(fields.brand?.length)
   }
+
+  // Thai text with diacritics: 100 graphemes, but 175 UTF-16 code units
+  // Should succeed because grapheme count <= 150
+  const thaiValid = itemFormSchema.safeParse({
+    item_name: 'Dell Laptop',
+    item_type: 'asset',
+    quantity: '1',
+    status: 'active',
+    brand: 'เก้าอี้'.repeat(25),
+  })
+  assert.equal(thaiValid.success, true)
+
+  // Thai text exceeding grapheme limit: 160 graphemes
+  const thaiInvalid = itemFormSchema.safeParse({
+    item_name: 'Dell Laptop',
+    item_type: 'asset',
+    quantity: '1',
+    status: 'active',
+    brand: 'เก้าอี้'.repeat(40),
+  })
+  assert.equal(thaiInvalid.success, false)
 })
 
 test('itemFormSchema accepts comma-formatted numbers for quantity and unit_price', () => {

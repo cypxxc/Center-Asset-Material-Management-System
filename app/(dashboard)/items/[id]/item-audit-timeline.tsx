@@ -6,6 +6,7 @@ import {
   buildAuditDiff,
   getAuditActionLabel,
 } from '@/features/audit-log-display/format'
+import { formatDateTime } from '@/lib/date'
 import type { ItemAuditLog } from '@/features/items/types'
 
 interface ItemAuditTimelineProps {
@@ -70,7 +71,7 @@ export function ItemAuditTimeline({ logs }: ItemAuditTimelineProps) {
                         )}
                       </div>
                       <div className="text-right text-[10px] whitespace-nowrap text-slate-400 font-semibold">
-                        {new Date(log.created_at).toLocaleString('th-TH')}
+                        {formatDateTime(log.created_at)}
                       </div>
                     </div>
                   </div>

@@ -41,6 +41,7 @@ import {
   DataTableCell,
 } from '@/components/ui/data-table'
 import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/date'
 
 interface UsersClientProps {
   currentUserId: string
@@ -250,19 +251,6 @@ export default function UsersClient({
     })
   }
 
-  const formatDate = (isoString?: string | null) => {
-    if (!isoString) return '-'
-    try {
-      const date = new Date(isoString)
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    } catch {
-      return isoString
-    }
-  }
 
   return (
     <PageContainer>
@@ -536,7 +524,7 @@ export default function UsersClient({
 
                 {/* Created Date */}
                 <DataTableCell className="text-muted-foreground text-[11px]">
-                  {formatDate(user.created_at)}
+                  {formatDate(user.created_at) || '-'}
                 </DataTableCell>
 
                 {/* Action buttons */}

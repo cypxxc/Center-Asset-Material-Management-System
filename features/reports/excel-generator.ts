@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs'
 import type { ReportItemRow } from '@/features/reports/types'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import { formatDate } from '@/lib/date'
+import { preventCSVInjection } from '@/lib/unicode'
 
 export interface ReportExcelOptions {
   filterSummary?: string
@@ -121,19 +122,19 @@ export async function buildReportExcelWorkbook(
 
     const row = worksheet.addRow([
       index + 1,
-      item.item_name,
+      preventCSVInjection(item.item_name),
       typeLabel,
-      item.category?.name || '-',
-      item.location?.name || '-',
+      preventCSVInjection(item.category?.name || '-'),
+      preventCSVInjection(item.location?.name || '-'),
       item.quantity,
-      item.unit?.name || '-',
+      preventCSVInjection(item.unit?.name || '-'),
       unitPrice,
       totalRowVal,
-      item.asset_no || '-',
-      item.serial_no || '-',
-      item.brand || '-',
-      item.model || '-',
-      item.responsible_person || '-',
+      preventCSVInjection(item.asset_no || '-'),
+      preventCSVInjection(item.serial_no || '-'),
+      preventCSVInjection(item.brand || '-'),
+      preventCSVInjection(item.model || '-'),
+      preventCSVInjection(item.responsible_person || '-'),
       statusLabel,
     ])
 
