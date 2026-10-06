@@ -8,13 +8,6 @@ function getGlobalsCss(): string {
   return fs.readFileSync(cssPath, 'utf-8');
 }
 
-function extractBlock(css: string, selectorRegex: RegExp): string {
-  const match = css.match(selectorRegex);
-  if (!match) {
-    return '';
-  }
-  return match[0];
-}
 
 test('globals.css defines light theme design tokens in :root', () => {
   const css = getGlobalsCss();
