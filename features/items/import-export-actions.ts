@@ -5,7 +5,7 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
-import { stripBom, normalizeForStorage, normalizeForSearch, preventCSVInjection } from '@/lib/unicode'
+import { stripBom, normalizeForStorage, normalizeForSearch } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -33,7 +33,12 @@ function parseCSVLine(line: string): string[] {
     const char = line[i]
 
     if (char === '"') {
-      inQuotes = !inQuotes
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++ // Skip the escaped quote
+      } else {
+        inQuotes = !inQuotes
+      }
     } else if (char === ',' && !inQuotes) {
       result.push(current.trim())
       current = ''
@@ -43,12 +48,7 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(current.trim())
 
-  return result.map((val) => {
-    if (val.startsWith('"') && val.endsWith('"')) {
-      return val.substring(1, val.length - 1).trim()
-    }
-    return val
-  })
+  return result
 }
 
 export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> {
@@ -105,8 +105,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
       }
 
-      // Neutralize CSV injection formula characters
-      const itemName = preventCSVInjection(getVal('item_name'))
+      const itemName = getVal('item_name')
       if (!itemName) {
         return errorResponse(`บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง`)
       }
@@ -131,18 +130,18 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       itemsToInsert.push({
         item_name: itemName,
         item_type: itemType,
-        category_name: preventCSVInjection(getVal('category_name')),
-        location_name: preventCSVInjection(getVal('location_name')),
-        unit_name: preventCSVInjection(getVal('unit_name')),
+        category_name: getVal('category_name'),
+        location_name: getVal('location_name'),
+        unit_name: getVal('unit_name'),
         quantity,
         unit_price: unitPrice,
         status,
-        asset_no: preventCSVInjection(getVal('asset_no')) || null,
-        serial_no: preventCSVInjection(getVal('serial_no')) || null,
-        brand: preventCSVInjection(getVal('brand')) || null,
-        model: preventCSVInjection(getVal('model')) || null,
-        responsible_person: preventCSVInjection(getVal('responsible_person')) || null,
-        note: preventCSVInjection(getVal('note')) || null,
+        asset_no: getVal('asset_no') || null,
+        serial_no: getVal('serial_no') || null,
+        brand: getVal('brand') || null,
+        model: getVal('model') || null,
+        responsible_person: getVal('responsible_person') || null,
+        note: getVal('note') || null,
       })
     }
 

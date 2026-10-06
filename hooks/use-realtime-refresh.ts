@@ -11,7 +11,7 @@ export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true) {
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const maxWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastRefreshTime = useRef<number>(0)
-  const tableKey = tables.join(',')
+  const tableKey = [...tables].sort().join(',')
 
   useEffect(() => {
     if (!enabled || !tableKey) return

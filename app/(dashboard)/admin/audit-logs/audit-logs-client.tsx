@@ -38,6 +38,7 @@ import {
   getAuditTableLabel,
   formatJsonForDisplay,
 } from '@/features/audit-log-display/format'
+import { formatDateTime } from '@/lib/date'
 
 interface AuditLogsClientProps {
   currentUserId?: string
@@ -377,14 +378,7 @@ export default function AuditLogsClient({
               const badge = getActionBadge(log.action)
               const tableLabel = getAuditTableLabel(log.target_table)
               const diff = buildAuditDiff(log.old_data, log.new_data)
-              const formattedDate = new Date(log.created_at).toLocaleString('th-TH', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })
+              const formattedDate = formatDateTime(log.created_at)
 
               return (
                 <React.Fragment key={log.id}>

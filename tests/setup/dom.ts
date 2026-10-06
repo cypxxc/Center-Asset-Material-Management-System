@@ -11,6 +11,7 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
 Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
+  localStorage: dom.window.localStorage,
 });
 
 // Use defineProperty with enumerable: true for navigator to avoid read-only collisions
