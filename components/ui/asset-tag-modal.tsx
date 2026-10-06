@@ -561,13 +561,13 @@ export function AssetTagModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="asset-tag-modal-title"
-          className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[92vh]"
+          className="relative w-full max-w-xl bg-card text-card-foreground rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-border animate-in zoom-in-95 duration-200 max-h-[92vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/80">
-            <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
-              <div className="p-1.5 bg-slate-900 text-white rounded-lg">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/50">
+            <div className="flex items-center gap-2 text-card-foreground font-semibold text-sm">
+              <div className="p-1.5 bg-primary text-primary-foreground rounded-lg">
                 <Tag className="h-4 w-4" />
               </div>
               <span id="asset-tag-modal-title">
@@ -577,7 +577,7 @@ export function AssetTagModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted transition-colors cursor-pointer"
               aria-label="ปิดหน้าต่าง"
             >
               <X className="h-4 w-4" />
@@ -585,14 +585,14 @@ export function AssetTagModal({
           </div>
 
           {/* Modal Body */}
-          <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
+          <div className="p-5 space-y-4 bg-muted/20 overflow-y-auto">
             {/* Preset Selector - 2 Presets */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700">
+                <label className="text-xs font-semibold text-card-foreground">
                   รูปแบบและขนาดลาเบล (Label Preset)
                 </label>
-                <span className="text-[11px] text-slate-500 font-medium">
+                <span className="text-[11px] text-muted-foreground font-medium">
                   {activeConfig.isSheet ? "กระดาษ A4 สติกเกอร์" : "เครื่องพิมพ์สติ๊กเกอร์ม้วนความร้อน"}
                 </span>
               </div>
@@ -607,12 +607,12 @@ export function AssetTagModal({
                       onClick={() => setSelectedPreset(key)}
                       className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all text-left flex flex-col justify-center cursor-pointer ${
                         isSelected
-                          ? "border-slate-900 bg-slate-900 text-white shadow-xs font-semibold"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                          ? "border-primary bg-primary text-primary-foreground shadow-xs font-semibold"
+                          : "border-border bg-card text-card-foreground hover:bg-muted"
                       }`}
                     >
                       <span className="truncate font-bold">{p.label}</span>
-                      <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
+                      <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                         {key === "custom_grid"
                           ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม.`
                           : !p.isSheet
@@ -627,13 +627,13 @@ export function AssetTagModal({
 
             {/* Custom Grid Interactive Configuration Controls */}
             {selectedPreset === "custom_grid" && (
-              <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs space-y-3 animate-in fade-in-50 duration-150">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <SlidersHorizontal className="h-3.5 w-3.5 text-slate-700" />
+              <div className="p-3.5 bg-card rounded-xl border border-border shadow-2xs space-y-3 animate-in fade-in-50 duration-150">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-border">
+                  <span className="text-xs font-bold text-card-foreground flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                     ตั้งค่าตาราง Grid (คอลัมน์ × แถว บน A4)
                   </span>
-                  <span className="text-[11px] font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70 inline-block self-start sm:self-auto">
+                  <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 inline-block self-start sm:self-auto">
                     ขนาดต่อดวง: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม. ({customDimensions.width.toFixed(1)} × {customDimensions.height.toFixed(1)} มม.) | รวม {customGrid.cols * customGrid.rows} ดวง/แผ่น
                   </span>
                 </div>
@@ -643,10 +643,10 @@ export function AssetTagModal({
                   {/* Columns (1 to 3) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <label htmlFor="custom-grid-cols-range" className="font-semibold text-slate-700">
+                      <label htmlFor="custom-grid-cols-range" className="font-semibold text-card-foreground">
                         จำนวนคอลัมน์ (Columns: 1–3)
                       </label>
-                      <span className="font-bold text-slate-900">{customGrid.cols} คอลัมน์</span>
+                      <span className="font-bold text-card-foreground">{customGrid.cols} คอลัมน์</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -662,7 +662,7 @@ export function AssetTagModal({
                             cols: parseInt(e.target.value, 10) || 1,
                           }))
                         }
-                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        className="flex-1 accent-primary cursor-pointer h-2 bg-muted rounded-lg"
                         aria-label="แถบเลื่อนจำนวนคอลัมน์ (1-3)"
                       />
                       <input
@@ -678,7 +678,7 @@ export function AssetTagModal({
                             cols: isNaN(val) ? 1 : Math.max(1, Math.min(3, val)),
                           }))
                         }}
-                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        className="w-12 h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                         aria-label="ช่องกรอกจำนวนคอลัมน์"
                       />
                     </div>
@@ -687,10 +687,10 @@ export function AssetTagModal({
                   {/* Rows (2 to 10) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <label htmlFor="custom-grid-rows-range" className="font-semibold text-slate-700">
+                      <label htmlFor="custom-grid-rows-range" className="font-semibold text-card-foreground">
                         จำนวนแถว (Rows: 2–10)
                       </label>
-                      <span className="font-bold text-slate-900">{customGrid.rows} แถว</span>
+                      <span className="font-bold text-card-foreground">{customGrid.rows} แถว</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -706,7 +706,7 @@ export function AssetTagModal({
                             rows: parseInt(e.target.value, 10) || 2,
                           }))
                         }
-                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        className="flex-1 accent-primary cursor-pointer h-2 bg-muted rounded-lg"
                         aria-label="แถบเลื่อนจำนวนแถว (2-10)"
                       />
                       <input
@@ -722,7 +722,7 @@ export function AssetTagModal({
                             rows: isNaN(val) ? 2 : Math.max(2, Math.min(10, val)),
                           }))
                         }}
-                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        className="w-12 h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                         aria-label="ช่องกรอกจำนวนแถว"
                       />
                     </div>
@@ -730,14 +730,14 @@ export function AssetTagModal({
                 </div>
 
                 {/* Gap & Margins Controls */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
                   {/* Gap */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <label htmlFor="custom-grid-gap-range" className="font-semibold text-slate-700">
+                      <label htmlFor="custom-grid-gap-range" className="font-semibold text-card-foreground">
                         ระยะห่างระหว่างป้าย (Gap)
                       </label>
-                      <span className="font-bold text-slate-900">{customGrid.gap} mm</span>
+                      <span className="font-bold text-card-foreground">{customGrid.gap} mm</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -753,7 +753,7 @@ export function AssetTagModal({
                             gap: parseFloat(e.target.value) || 0,
                           }))
                         }
-                        className="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                        className="flex-1 accent-primary cursor-pointer h-2 bg-muted rounded-lg"
                         aria-label="แถบเลื่อนระยะห่างระหว่างป้าย (0-10 mm)"
                       />
                       <input
@@ -770,7 +770,7 @@ export function AssetTagModal({
                             gap: isNaN(val) ? 0 : Math.max(0, Math.min(10, val)),
                           }))
                         }}
-                        className="w-12 h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        className="w-12 h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                         aria-label="ช่องกรอกระยะห่างระหว่างป้าย"
                       />
                     </div>
@@ -779,13 +779,13 @@ export function AssetTagModal({
                   {/* Margins */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">
+                      <span className="font-semibold text-card-foreground">
                         ระยะขอบกระดาษ (Margins: 0-20mm)
                       </span>
                     </div>
                     <div className="grid grid-cols-4 gap-1.5">
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-slate-500 font-medium">บน</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">บน</span>
                         <input
                           type="number"
                           min="0"
@@ -799,12 +799,12 @@ export function AssetTagModal({
                               marginTop: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
                             }))
                           }}
-                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          className="w-full h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                           aria-label="ระยะขอบบน (mm)"
                         />
                       </div>
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-slate-500 font-medium">ล่าง</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">ล่าง</span>
                         <input
                           type="number"
                           min="0"
@@ -818,12 +818,12 @@ export function AssetTagModal({
                               marginBottom: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
                             }))
                           }}
-                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          className="w-full h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                           aria-label="ระยะขอบล่าง (mm)"
                         />
                       </div>
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-slate-500 font-medium">ซ้าย</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">ซ้าย</span>
                         <input
                           type="number"
                           min="0"
@@ -837,12 +837,12 @@ export function AssetTagModal({
                               marginLeft: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
                             }))
                           }}
-                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          className="w-full h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                           aria-label="ระยะขอบซ้าย (mm)"
                         />
                       </div>
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-slate-500 font-medium">ขวา</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">ขวา</span>
                         <input
                           type="number"
                           min="0"
@@ -856,7 +856,7 @@ export function AssetTagModal({
                               marginRight: isNaN(val) ? 0 : Math.max(0, Math.min(20, val)),
                             }))
                           }}
-                          className="w-full h-7 text-center text-xs font-bold border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          className="w-full h-7 text-center text-xs font-bold border border-input bg-background text-foreground rounded-lg focus:outline-hidden focus:ring-1 focus:ring-ring"
                           aria-label="ระยะขอบขวา (mm)"
                         />
                       </div>
@@ -869,16 +869,16 @@ export function AssetTagModal({
             {/* Copy Multiplier & Toggle Settings Header */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {/* Copy Multiplier */}
-              <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div className="p-3 bg-card rounded-xl border border-border shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-slate-800">จำนวนดวงต่อรายการ</div>
-                  <div className="text-[11px] text-slate-500">สำเนาลาเบล (Copies)</div>
+                  <div className="text-xs font-semibold text-card-foreground">จำนวนดวงต่อรายการ</div>
+                  <div className="text-[11px] text-muted-foreground">สำเนาลาเบล (Copies)</div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
-                    className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
                     disabled={copyCount <= 1}
                     aria-label="ลดจำนวนสำเนา"
                   >
@@ -893,13 +893,13 @@ export function AssetTagModal({
                       const val = parseInt(e.target.value, 10)
                       setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
                     }}
-                    className="w-12 h-7 rounded-lg border border-slate-300 text-center font-bold text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                    className="w-12 h-7 rounded-lg border border-input bg-background text-foreground text-center font-bold text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
                     aria-label="จำนวนสำเนาลาเบล"
                   />
                   <button
                     type="button"
                     onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
-                    className="w-7 h-7 rounded-lg border border-slate-300 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-40"
+                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
                     disabled={copyCount >= 50}
                     aria-label="เพิ่มจำนวนสำเนา"
                   >
@@ -909,10 +909,10 @@ export function AssetTagModal({
               </div>
 
               {/* Field Visibility Config Toggle Button */}
-              <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div className="p-3 bg-card rounded-xl border border-border shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-slate-800">ข้อมูลบนลาเบล</div>
-                  <div className="text-[11px] text-slate-500">เลือกฟิลด์ที่ต้องการแสดง</div>
+                  <div className="text-xs font-semibold text-card-foreground">ข้อมูลบนลาเบล</div>
+                  <div className="text-[11px] text-muted-foreground">เลือกฟิลด์ที่ต้องการแสดง</div>
                 </div>
                 <Button
                   type="button"
@@ -920,7 +920,7 @@ export function AssetTagModal({
                   size="sm"
                   onClick={() => setShowAdvancedToggles((prev) => !prev)}
                   className={`h-7 px-2.5 text-xs font-semibold rounded-lg cursor-pointer ${
-                    showAdvancedToggles ? "bg-slate-100 text-slate-900" : ""
+                    showAdvancedToggles ? "bg-muted text-card-foreground" : ""
                   }`}
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
@@ -931,81 +931,81 @@ export function AssetTagModal({
 
             {/* Collapsible Field Toggles */}
             {showAdvancedToggles && (
-              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
-                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <div className="p-3.5 bg-card rounded-xl border border-border space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
+                <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   ตัวเลือกการแสดงผลข้อมูล (Field Visibility)
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showOrg}
                       onChange={() => toggleField("showOrg")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>ชื่อระบบ / CAMMS</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showLocation}
                       onChange={() => toggleField("showLocation")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>สถานที่จัดเก็บ</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showResponsible}
                       onChange={() => toggleField("showResponsible")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>ผู้รับผิดชอบ</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showPrice}
                       onChange={() => toggleField("showPrice")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>ราคาทรัพย์สิน</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showBarcode}
                       onChange={() => toggleField("showBarcode")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>Barcode (Code128)</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showQr}
                       onChange={() => toggleField("showQr")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span>QR Code ลิงก์</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={fieldVisibility.showCutLines}
                       onChange={() => toggleField("showCutLines")}
-                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <span className="flex items-center gap-1">
                       <span>เส้นประสำหรับตัด</span>
-                      <span className="text-[10px] text-slate-400 font-normal">(Cut lines)</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">(Cut lines)</span>
                     </span>
                   </label>
                 </div>
@@ -1015,20 +1015,20 @@ export function AssetTagModal({
             {/* Sticker Preview Container */}
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <label className="text-xs font-semibold text-slate-700">
+                <label className="text-xs font-semibold text-card-foreground">
                   ตัวอย่างสติกเกอร์ (Live Preview)
                 </label>
 
                 <div className="flex items-center gap-2">
                   {activeConfig.isSheet && (
-                    <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/80 text-xs">
+                    <div className="flex items-center bg-muted p-0.5 rounded-lg border border-border text-xs">
                       <button
                         type="button"
                         onClick={() => setPreviewMode("single")}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                           previewMode === "single"
-                            ? "bg-white text-slate-900 shadow-xs font-semibold"
-                            : "text-slate-600 hover:text-slate-900"
+                            ? "bg-card text-card-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-card-foreground"
                         }`}
                         aria-label="ดูตัวอย่างแบบดวงเดี่ยว (Single)"
                       >
@@ -1040,8 +1040,8 @@ export function AssetTagModal({
                         onClick={() => setPreviewMode("sheet")}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                           previewMode === "sheet"
-                            ? "bg-white text-slate-900 shadow-xs font-semibold"
-                            : "text-slate-600 hover:text-slate-900"
+                            ? "bg-card text-card-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-card-foreground"
                         }`}
                         aria-label="ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)"
                       >
@@ -1051,17 +1051,17 @@ export function AssetTagModal({
                     </div>
                   )}
 
-                  <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                  <span className="text-[11px] text-muted-foreground font-medium hidden sm:inline">
                     รวมพิมพ์ {expandedPrintList.length} ดวง
                   </span>
 
                   {previewMode === "single" && isMultiItem && (
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-card-foreground bg-card px-2 py-0.5 rounded-lg border border-border">
                       <button
                         type="button"
                         disabled={currentIndex === 0}
                         onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-muted-foreground hover:text-card-foreground"
                         aria-label="รายการก่อนหน้า"
                       >
                         <ChevronLeft className="h-3.5 w-3.5" />
@@ -1073,7 +1073,7 @@ export function AssetTagModal({
                         type="button"
                         disabled={currentIndex === rawItemList.length - 1}
                         onClick={() => setCurrentIndex((prev) => Math.min(rawItemList.length - 1, prev + 1))}
-                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-muted-foreground hover:text-card-foreground"
                         aria-label="รายการถัดไป"
                       >
                         <ChevronRight className="h-3.5 w-3.5" />
@@ -1082,12 +1082,12 @@ export function AssetTagModal({
                   )}
 
                   {previewMode === "sheet" && activeConfig.isSheet && totalPages > 1 && (
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-card-foreground bg-card px-2 py-0.5 rounded-lg border border-border">
                       <button
                         type="button"
                         disabled={safeSheetPageIndex === 0}
                         onClick={() => setSheetPageIndex((prev) => Math.max(0, prev - 1))}
-                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-muted-foreground hover:text-card-foreground"
                         aria-label="แผ่นก่อนหน้า"
                       >
                         <ChevronLeft className="h-3.5 w-3.5" />
@@ -1099,7 +1099,7 @@ export function AssetTagModal({
                         type="button"
                         disabled={safeSheetPageIndex >= totalPages - 1}
                         onClick={() => setSheetPageIndex((prev) => Math.min(totalPages - 1, prev + 1))}
-                        className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-muted-foreground hover:text-card-foreground"
                         aria-label="แผ่นถัดไป"
                       >
                         <ChevronRight className="h-3.5 w-3.5" />
@@ -1109,7 +1109,7 @@ export function AssetTagModal({
                 </div>
               </div>
 
-              <div className="p-6 bg-slate-200/70 rounded-xl flex items-center justify-center min-h-[220px] border border-slate-300/60 shadow-inner overflow-x-auto">
+              <div className="p-6 bg-muted/60 rounded-xl flex items-center justify-center min-h-[220px] border border-border shadow-inner overflow-x-auto">
                 {previewMode === "sheet" && activeConfig.isSheet ? (
                   <A4SheetPreview
                     items={expandedPrintList}
@@ -1135,8 +1135,8 @@ export function AssetTagModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="px-5 py-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
-            <div className="text-xs text-slate-500 font-medium hidden sm:block">
+          <div className="px-5 py-3 bg-card border-t border-border flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground font-medium hidden sm:block">
               {activeConfig.isSheet
                 ? `แผ่น A4 (${totalPages} แผ่น | ${labelsPerPage} ป้าย/แผ่น)`
                 : `ขนาดกระดาษ ${activeConfig.width} × ${activeConfig.height}`}
@@ -1153,7 +1153,7 @@ export function AssetTagModal({
               <Button
                 type="button"
                 onClick={handlePrint}
-                className="h-9 px-4 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+                className="h-9 px-4 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
               >
                 <Printer className="h-3.5 w-3.5 mr-1.5" />
                 พิมพ์ลาเบล ({expandedPrintList.length} ดวง)
