@@ -30,6 +30,10 @@ export type RunTestFileOptions = {
 
 export function createNodeTestArgs(testFile: string, coverage: boolean): string[] {
   const nodeArgs = ['--import', 'tsx'];
+  // Integration and component tests render React+jsdom and can exhaust the default V8 heap
+  // when running multiple tests sequentially. Increase the heap limit for those files.
+  const needsExtraHeap = /tests[\\/](integration|component)[\\/]/.test(testFile);
+  if (needsExtraHeap) nodeArgs.unshift('--max-old-space-size=2048');
   if (coverage) nodeArgs.push('--experimental-test-coverage');
   nodeArgs.push('--test', testFile);
   return nodeArgs;

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MemoryRateLimiter, RATE_LIMIT_TIERS, getRateLimiter, checkRateLimit } from './rate-limit'
+import { MemoryRateLimiter, PostgresRateLimiter, RATE_LIMIT_TIERS, getRateLimiter, resetRateLimiter, checkRateLimit } from './rate-limit'
 
 test('MemoryRateLimiter enforces sliding window limits and resets properly', async () => {
   const limiter = new MemoryRateLimiter(100)
@@ -102,4 +102,21 @@ test('MemoryRateLimiter accurately tracks remaining requests count', async () =>
   const r4 = await limiter.limit(key, 3, 5000)
   assert.equal(r4.success, false)
   assert.equal(r4.remaining, 0)
+})
+
+test('PostgresRateLimiter class is exported', () => {
+  assert.equal(typeof PostgresRateLimiter, 'function')
+})
+
+test('getRateLimiter returns PostgresRateLimiter when DATA_BACKEND=postgres', () => {
+  const original = process.env.DATA_BACKEND
+  try {
+    process.env.DATA_BACKEND = 'postgres'
+    resetRateLimiter()
+    const limiter = getRateLimiter()
+    assert.ok(limiter instanceof PostgresRateLimiter)
+  } finally {
+    process.env.DATA_BACKEND = original
+    resetRateLimiter()
+  }
 })

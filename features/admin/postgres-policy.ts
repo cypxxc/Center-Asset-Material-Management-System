@@ -6,7 +6,7 @@ export const backupTables = ['profiles', 'categories', 'locations', 'units', 'it
 export type BackupTable = typeof backupTables[number]
 const timestamps = ['created_at', 'updated_at']
 export const tableColumns: Record<BackupTable, readonly string[]> = {
-  profiles: ['id', 'full_name', 'email', 'role', 'is_active', 'sidebar_order', ...timestamps],
+  profiles: ['id', 'full_name', 'display_name', 'email', 'role', 'is_active', 'sidebar_order', ...timestamps],
   categories: ['id', 'name', 'description', 'is_active', ...timestamps],
   locations: ['id', 'name', 'building', 'floor', 'room', 'department', 'description', 'is_active', ...timestamps],
   units: ['id', 'name', 'is_active', ...timestamps],
@@ -14,15 +14,29 @@ export const tableColumns: Record<BackupTable, readonly string[]> = {
   audit_logs: ['id', 'user_id', 'action', 'target_table', 'target_id', 'old_data', 'new_data', 'created_at'],
 }
 
+export const searchColumns: Record<AdminTable, readonly string[]> = {
+  profiles: ['full_name', 'email', 'display_name'],
+  categories: ['name', 'description'],
+  locations: ['name', 'building', 'room', 'department'],
+  units: ['name'],
+  items: ['item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person'],
+  audit_logs: ['action', 'target_table', 'target_id'],
+}
+
 export const profileUpdateSchema = z.object({
   full_name: z.string().trim().min(1).max(255).optional(),
+  display_name: z.string().trim().max(255).nullable().optional(),
   role: z.enum(['admin', 'staff', 'viewer']).optional(),
   is_active: z.boolean().optional(),
 }).strict()
-export const newUserSchema = profileUpdateSchema.required().extend({
+export const newUserSchema = z.object({
+  full_name: z.string().trim().min(1).max(255),
+  display_name: z.string().trim().max(255).nullable().optional(),
+  role: z.enum(['admin', 'staff', 'viewer']),
+  is_active: z.boolean(),
   email: z.string().trim().email().max(320).optional().or(z.literal('')),
   password: z.string().min(6).max(1024),
-})
+}).strict()
 export const uuidSchema = z.string().uuid()
 
 export function assertSelfProtection(actorId: string, userId: string, payload: { role?: string; is_active?: boolean }, deleting = false) {
@@ -47,7 +61,7 @@ export function writablePayload(tableName: string, payload: Record<string, unkno
   for (const [key, value] of Object.entries(payload)) {
     if (ignored.includes(key)) continue
     if (!tableColumns[table].includes(key)) throw new Error(`Unsupported field: ${key}`)
-    if (table === 'profiles' && !['full_name', 'role', 'is_active'].includes(key)) {
+    if (table === 'profiles' && !['full_name', 'display_name', 'role', 'is_active'].includes(key)) {
       throw new Error('Use user management to change account details.')
     }
     clean[key] = value === '' ? null : value

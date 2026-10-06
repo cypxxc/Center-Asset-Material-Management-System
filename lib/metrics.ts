@@ -15,39 +15,69 @@ export interface MetricsExporter {
   flush?(): Promise<void>
 }
 
-/** In-memory exporter — pluggable; swap for Prometheus/Datadog without changing call sites. */
+interface MetricAggregate {
+  count: number
+  sum: number
+  min: number
+  max: number
+}
+
+/** In-memory exporter — pluggable; swap for Prometheus/Datadog without changing call sites.
+ *  Maintains O(1) aggregates and a bounded ring of raw snapshots (default 500) for debugging.
+ */
 class MemoryMetricsExporter implements MetricsExporter {
-  private snapshots: MetricSnapshot[] = []
-  private readonly maxSnapshots = 10_000
+  private readonly maxSnapshots: number
+  /** Circular buffer for raw snapshots (debug only). */
+  private ring: (MetricSnapshot | undefined)[]
+  private ringHead = 0
+  private ringCount = 0
+  /** Pre-computed aggregates — O(1) read, no snapshot scan needed. */
+  private aggregates: Record<string, MetricAggregate> = {}
+
+  constructor(maxSnapshots = 500) {
+    this.maxSnapshots = maxSnapshots
+    this.ring = new Array(maxSnapshots)
+  }
 
   record(snapshot: MetricSnapshot): void {
-    this.snapshots.push(snapshot)
-    if (this.snapshots.length > this.maxSnapshots) {
-      this.snapshots.shift()
+    // Write into circular buffer (overwrites oldest when full)
+    this.ring[this.ringHead] = snapshot
+    this.ringHead = (this.ringHead + 1) % this.maxSnapshots
+    if (this.ringCount < this.maxSnapshots) this.ringCount++
+
+    // Update running aggregates — O(1)
+    const key = `${snapshot.type}:${snapshot.name}`
+    const agg = this.aggregates[key]
+    if (!agg) {
+      this.aggregates[key] = { count: 1, sum: snapshot.value, min: snapshot.value, max: snapshot.value }
+    } else {
+      agg.count++
+      agg.sum += snapshot.value
+      if (snapshot.value < agg.min) agg.min = snapshot.value
+      if (snapshot.value > agg.max) agg.max = snapshot.value
     }
   }
 
   getSnapshots(): MetricSnapshot[] {
-    return [...this.snapshots]
+    if (this.ringCount < this.maxSnapshots) {
+      return this.ring.slice(0, this.ringCount).filter((s): s is MetricSnapshot => Boolean(s))
+    }
+    // Reconstruct chronological order from circular buffer
+    return [
+      ...this.ring.slice(this.ringHead),
+      ...this.ring.slice(0, this.ringHead),
+    ].filter((s): s is MetricSnapshot => Boolean(s))
   }
 
-  getAggregates(): Record<string, { count: number; sum: number; min: number; max: number }> {
-    const agg: Record<string, { count: number; sum: number; min: number; max: number }> = {}
-    for (const s of this.snapshots) {
-      const key = `${s.type}:${s.name}`
-      if (!agg[key]) {
-        agg[key] = { count: 0, sum: 0, min: Infinity, max: -Infinity }
-      }
-      agg[key].count += 1
-      agg[key].sum += s.value
-      agg[key].min = Math.min(agg[key].min, s.value)
-      agg[key].max = Math.max(agg[key].max, s.value)
-    }
-    return agg
+  getAggregates(): Record<string, MetricAggregate> {
+    return { ...this.aggregates }
   }
 
   reset(): void {
-    this.snapshots = []
+    this.ring = new Array(this.maxSnapshots)
+    this.ringHead = 0
+    this.ringCount = 0
+    this.aggregates = {}
   }
 }
 

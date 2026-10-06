@@ -500,20 +500,22 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
             <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] w-[240px] h-[180px] bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
               <ImageIcon className="h-8 w-8 text-slate-400 mb-1" />
               <span className="text-xs text-slate-400 font-medium text-center">ไม่สามารถโหลดรูปภาพได้</span>
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all cursor-pointer"
                   title="เปลี่ยนรูปภาพ"
+                  aria-label="เปลี่ยนรูปภาพ"
                 >
                   <Upload className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all cursor-pointer"
                   title="ลบรูปภาพ"
+                  aria-label="ลบรูปภาพ"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -530,20 +532,22 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
                 onError={handlePreviewError}
                 className="object-cover w-full h-full max-w-[240px] max-h-[180px] rounded-lg"
               />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all"
+                  className="p-2 bg-white/90 hover:bg-white rounded-full text-foreground shadow-sm transition-all cursor-pointer"
                   title="เปลี่ยนรูปภาพ"
+                  aria-label="เปลี่ยนรูปภาพ"
                 >
                   <Upload className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all"
+                  className="p-2 bg-rose-50 hover:bg-rose-100 rounded-full text-destructive shadow-sm transition-all cursor-pointer"
                   title="ลบรูปภาพ"
+                  aria-label="ลบรูปภาพ"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

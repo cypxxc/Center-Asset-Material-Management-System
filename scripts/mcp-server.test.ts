@@ -50,8 +50,21 @@ test('MCP stdio exposes write tools only when enabled and rejects disabled write
   const enabledNames = enabled[0].result?.tools?.map((tool) => tool.name) ?? []
   assert.equal(disabledNames.includes('create_item'), false)
   assert.equal(disabledNames.includes('list_items'), true)
+  assert.equal(disabledNames.includes('diagnose_system_health'), true)
+  assert.equal(disabledNames.includes('heal_system_issues'), false)
   assert.equal(enabledNames.includes('create_item'), true)
   assert.equal(enabledNames.includes('update_item'), true)
   assert.equal(enabledNames.includes('delete_item'), true)
+  assert.equal(enabledNames.includes('diagnose_system_health'), true)
+  assert.equal(enabledNames.includes('heal_system_issues'), true)
   assert.deepEqual(disabled[1].error, { code: -32603, message: 'MCP write tools are disabled' })
+
+  const diagnoseCall = await runMcp([
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'diagnose_system_health', arguments: {} } },
+  ], false)
+  assert.equal(diagnoseCall[0].id, 3)
+  const contentText = (diagnoseCall[0].result as { content?: Array<{ text?: string }> })?.content?.[0]?.text
+  assert.ok(contentText, 'Should have content text in result')
+  const report = JSON.parse(contentText)
+  assert.ok(typeof report.healthScore === 'number')
 })

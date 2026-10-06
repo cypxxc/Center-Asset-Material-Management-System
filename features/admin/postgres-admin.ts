@@ -7,7 +7,8 @@ import { withUserDatabase } from '@/lib/postgres/request'
 import { hashPassword } from '@/lib/postgres/password'
 import { normalizeForStorage } from '@/lib/unicode'
 import { assertAdminTable } from './table-policy'
-import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
+import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, searchColumns, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
+import { generateInternalEmail } from '@/lib/display-email'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
 
@@ -69,14 +70,19 @@ function assignments(payload: Record<string, unknown>) {
 }
 function serializable<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T }
 
-export async function pgGetTableData(tableName: string, page = 1, pageSize = 50) {
+export async function pgGetTableData(tableName: string, page = 1, pageSize = 50, search = '') {
   try {
     const data = await withAdmin(async tx => {
       const table = assertAdminTable(tableName, 'read')
       const { limit, offset } = pageBounds(page, pageSize)
       const sort = table === 'items' || table === 'audit_logs' ? 'created_at' : 'id'
-      const count = await tx.execute(sql`select count(*)::integer as count from ${tableSql(table)}`)
-      const rows = await tx.execute(sql`select * from ${tableSql(table)} order by ${sql.identifier(sort)} desc limit ${limit} offset ${offset}`)
+      const term = (search || '').trim()
+      const cols = searchColumns[table] || []
+      const whereClause = term && cols.length > 0
+        ? sql` where ${sql.join(cols.map(c => sql`coalesce(${sql.identifier(c)}::text, '') ilike ${'%' + term + '%'}`), sql` or `)}`
+        : sql``
+      const count = await tx.execute(sql`select count(*)::integer as count from ${tableSql(table)}${whereClause}`)
+      const rows = await tx.execute(sql`select * from ${tableSql(table)}${whereClause} order by ${sql.identifier(sort)} desc limit ${limit} offset ${offset}`)
       return { data: serializable(rows.rows), count: Number(count.rows[0]?.count ?? 0) }
     })
     return data
@@ -131,7 +137,7 @@ export async function pgCreateAuthUser(raw: { email?: string; password: string; 
     const payload = newUserSchema.parse(raw)
     const fullName = normalizeForStorage(payload.full_name)
     if (!fullName) throw new Error('กรุณากรอกชื่อ-นามสกุล')
-    const email = normalizeForStorage(payload.email || `internal+${crypto.randomUUID()}@registry.internal`).toLowerCase()
+    const email = normalizeForStorage(payload.email || generateInternalEmail()).toLowerCase()
     const passwordHash = await hashPassword(payload.password)
     const userId = crypto.randomUUID()
     await withAdminAuth(async (tx, actorId) => {
@@ -149,6 +155,12 @@ export async function pgDeleteAuthUser(userId: string): Promise<{ success?: bool
     uuidSchema.parse(userId)
     await withAdminAuth(async (tx, actorId) => {
       assertSelfProtection(actorId, userId, {}, true)
+      const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
+      if (!target.rows.length) throw new Error('ไม่พบผู้ใช้งาน')
+      if (target.rows[0].role === 'admin' && target.rows[0].is_active) {
+        const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+        if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้')
+      }
       const result = await tx.execute(sql`delete from public.profiles where id = ${userId}::uuid returning id`)
       if (!result.rows.length) throw new Error('ไม่พบผู้ใช้งาน')
       // FK cascades revoke sessions and remove credentials in the same transaction.
@@ -206,6 +218,13 @@ export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' 
     if (!Object.keys(payload).length) throw new Error('No editable fields were supplied.')
     const profile = await withAdminAuth(async (tx, actorId) => {
       assertSelfProtection(actorId, userId, payload)
+      if (payload.is_active === false || (payload.role && payload.role !== 'admin')) {
+        const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
+        if (target.rows.length && target.rows[0].role === 'admin' && target.rows[0].is_active) {
+          const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+          if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน')
+        }
+      }
       const result = await tx.execute(sql`update public.profiles set ${assignments(payload)}, updated_at = now() where id = ${userId}::uuid returning *`)
       if (!result.rows[0]) throw new Error('ไม่พบผู้ใช้งาน')
       if (payload.role !== undefined || payload.is_active !== undefined) await tx.execute(sql`delete from private_auth.sessions where user_id = ${userId}::uuid`)

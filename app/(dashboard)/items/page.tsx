@@ -13,12 +13,13 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   const params = await searchParams
   if (params.deleted === 'true') redirect('/items')
 
-  const profile = await getCurrentProfile()
+  const [profile, { items, total, nextCursor, references }] = await Promise.all([
+    getCurrentProfile(),
+    getItemsExplorerPageData(params),
+  ])
   if (!profile) {
     redirect('/login')
   }
-
-  const { items, total, nextCursor, references } = await getItemsExplorerPageData(params)
 
   return (
     <ItemsExplorerClient

@@ -5,6 +5,12 @@ export function isInternalEmail(email: string): boolean {
   return email.trim().toLowerCase().endsWith(INTERNAL_EMAIL_DOMAIN)
 }
 
+/** Generates a safe internal email placeholder for accounts created without an email. */
+export function generateInternalEmail(): string {
+  const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+  return `internal+${shortId}${INTERNAL_EMAIL_DOMAIN}`
+}
+
 /** User-facing label for profile and admin lists. */
 export function formatDisplayEmail(email: string): string {
   if (isInternalEmail(email)) {

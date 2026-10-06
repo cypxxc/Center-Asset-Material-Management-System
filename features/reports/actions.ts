@@ -14,6 +14,10 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
   totalQuantity: number
   totalValue: number
 }> {
+  const profile = await getCurrentProfile()
+  if (!profile || !profile.is_active) {
+    throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+  }
   return await queryExportReportItems(params)
 }
 
@@ -46,4 +50,3 @@ export async function recordReportExportAudit(
     return errorResponse('ไม่สามารถบันทึกประวัติการส่งออกได้')
   }
 }
-

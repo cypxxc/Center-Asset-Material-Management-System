@@ -5,15 +5,15 @@ const requiredName = z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
   z
     .string()
-    .refine((val) => getGraphemeLength(val) >= 1, 'Name is required')
-    .refine((val) => getGraphemeLength(val) <= 120, 'Name must be 120 characters or fewer')
+    .refine((val) => getGraphemeLength(val) >= 1, 'กรุณากรอกชื่อ')
+    .refine((val) => getGraphemeLength(val) <= 120, 'ชื่อต้องมีความยาวไม่เกิน 120 ตัวอักษร')
 )
 
 const optionalText = z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
   z
     .string()
-    .max(1000, 'ความยาวต้องไม่เกิน 1,000 ตัวอักษร')
+    .refine((val) => getGraphemeLength(val) <= 1000, 'ความยาวต้องไม่เกิน 1,000 ตัวอักษร')
     .optional()
     .nullable()
     .transform((value) => (value && value.length > 0 ? value : null))

@@ -17,9 +17,9 @@ test('stripBom removes UTF-8 BOM if present', () => {
   assert.equal(stripBom('\uFEFF'), '')
 })
 
-test('stripInvisibleCharacters removes ZWSP, WJ, and BOM but keeps ZWJ', () => {
-  const input = 'hello\u200Bworld\uFEFFtest\u2060'
-  assert.equal(stripInvisibleCharacters(input), 'helloworldtest')
+test('stripInvisibleCharacters removes ZWSP, WJ, BOM, and BiDi isolates but keeps ZWJ', () => {
+  const input = 'hello\u200Bworld\uFEFFtest\u2060\u2066hidden\u2069'
+  assert.equal(stripInvisibleCharacters(input), 'helloworldtesthidden')
 
   // Keep Zero Width Joiner (ZWJ) and Zero Width Non-Joiner (ZWNJ) for emojis/Arabic
   const familyEmoji = '👨\u200D👩\u200D👧\u200D👦'
@@ -84,6 +84,8 @@ test('preventCSVInjection prefixes spreadsheet formula characters with a single 
   assert.equal(preventCSVInjection('@1+2'), "'@1+2")
   assert.equal(preventCSVInjection('\t1+2'), "'\t1+2")
   assert.equal(preventCSVInjection('\r1+2'), "'\r1+2")
+  assert.equal(preventCSVInjection('   =1+2'), "'   =1+2")
+  assert.equal(preventCSVInjection('  @SUM(A1)'), "'  @SUM(A1)")
   assert.equal(preventCSVInjection('hello'), 'hello')
   assert.equal(preventCSVInjection('1+2'), '1+2')
   assert.equal(preventCSVInjection(''), '')

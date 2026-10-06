@@ -79,10 +79,21 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
       ctx.fillStyle = '#FFFFFF'
       ctx.fillRect(0, 0, targetWidth, targetHeight)
 
+      // Calculate scale ratio between container preview and target export canvas
+      const container = containerRef.current
+      const containerWidth = container?.clientWidth || 400
+      const containerHeight = container?.clientHeight || 300
+      const scaleX = targetWidth / containerWidth
+      const scaleY = targetHeight / containerHeight
+      const canvasOffsetX = offset.x * scaleX
+      const canvasOffsetY = offset.y * scaleY
+
       ctx.save()
-      ctx.translate(targetWidth / 2, targetHeight / 2)
-      ctx.rotate((rotation * Math.PI) / 180)
+      // Move to canvas center and apply user drag translation in screen (unrotated) space
+      ctx.translate(targetWidth / 2 + canvasOffsetX, targetHeight / 2 + canvasOffsetY)
+      // Apply scale (zoom) and rotation around the translated center
       ctx.scale(zoom, zoom)
+      ctx.rotate((rotation * Math.PI) / 180)
 
       const scale = Math.max(targetWidth / img.width, targetHeight / img.height)
       const drawWidth = img.width * scale
@@ -90,8 +101,8 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
 
       ctx.drawImage(
         img,
-        -drawWidth / 2 + offset.x,
-        -drawHeight / 2 + offset.y,
+        -drawWidth / 2,
+        -drawHeight / 2,
         drawWidth,
         drawHeight
       )
