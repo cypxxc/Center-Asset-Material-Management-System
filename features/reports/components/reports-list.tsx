@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import type { ReportItemRow } from '../types'
 import { recordReportExportAudit, getExportReportItems } from '../actions'
-import { generateReportPdf } from '@/lib/reports-pdf-generator'
+import { generateReportPdf } from '../pdf-generator'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
@@ -140,7 +140,7 @@ export function ReportsList({
       const { items: exportItems, totalQuantity: exportQty, totalValue: exportVal } =
         await getExportReportItems(searchParams)
 
-      const { generateReportExcel } = await import('@/lib/reports-excel-generator')
+      const { generateReportExcel } = await import('../excel-generator')
       const buffer = await generateReportExcel(exportItems, {
         filterSummary,
         totalQuantity: exportQty,

@@ -130,7 +130,7 @@ function validItemFormData(withImage = false) {
     image_url: '',
   }
   for (const [key, value] of Object.entries(values)) formData.set(key, value)
-  if (withImage) formData.set('image_file', new File(['image-bytes'], 'item.jpg', { type: 'image/jpeg' }))
+  if (withImage) formData.set('image_file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70])], 'item.jpg', { type: 'image/jpeg' }))
   return formData
 }
 
@@ -374,7 +374,7 @@ test('only createItem applies the existing create rate limit contract', async ()
   assert.deepEqual(rateLimitCalls, [['createItem', 30, 60000]])
 })
 
-test('createItem safely handles each committed telemetry failure and removes the upload exactly once', async () => {
+test('createItem safely handles each committed telemetry failure without removing the committed upload', async () => {
   const originalConsoleError = console.error
 
   for (const failure of ['context', 'metric', 'log'] as const) {
@@ -396,8 +396,7 @@ test('createItem safely handles each committed telemetry failure and removes the
       assert.match(output, /\[KEY_REDACTED\]/)
       assert.equal(output.includes(secret), false)
       const storageLog = mockSupabaseRegistry.getStorageLog()
-      assert.deepEqual(storageLog.map(({ operation }) => operation), ['upload', 'remove'])
-      assert.equal(storageLog[1].path, storageLog[0].path)
+      assert.deepEqual(storageLog.map(({ operation }) => operation), ['upload'])
       assert.deepEqual(cacheCalls, [])
     } finally {
       telemetryFailure = null

@@ -89,6 +89,9 @@ export async function updatePostgresItem(id: string, data: ItemInput) {
 export async function mutatePostgresItems(ids: string[], operation: 'update' | 'delete' | 'purge', updates?: Record<string, unknown>): Promise<ActionResponse> {
   try {
     const profile = await editor()
+    if ((operation === 'delete' || operation === 'purge') && profile.role !== 'admin') {
+      return errorResponse('เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้')
+    }
     const rate = await checkRateLimit(`items-${operation}`, 30, 60000)
     if (!rate.success) return errorResponse(rate.error!)
     const validIds = z.array(uuid).min(1).max(1000).parse(ids)

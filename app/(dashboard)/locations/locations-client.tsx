@@ -9,6 +9,7 @@ import {
   Package,
   FileText,
   Folder,
+  Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageContainer } from '@/components/ui/page-container'
@@ -16,6 +17,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SearchInput } from '@/components/ui/search-input'
+import { Button } from '@/components/ui/button'
+import { AssetTagModal, type ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 const typeIcons: Record<string, React.ReactNode> = {
   asset: <Package className="w-4 h-4 text-blue-600" />,
@@ -52,18 +55,29 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
     locations[0]?.id || null
   )
   const [searchQuery, setSearchQuery] = useState('')
+  const [isBatchPrintModalOpen, setIsBatchPrintModalOpen] = useState(false)
 
   const getItemsInLocation = (locationId: string) => {
     return items.filter((item) => item.locationId === locationId)
   }
 
   const selectedLocation = locations.find((l) => l.id === selectedLocationId) ?? null
+  const selectedLocationRawItems = selectedLocation ? getItemsInLocation(selectedLocation.id) : []
   const selectedLocationItems = selectedLocation
-    ? getItemsInLocation(selectedLocation.id).filter((item) =>
+    ? selectedLocationRawItems.filter((item) =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : []
+
+  const locationStickerItems: ItemStickerData[] = selectedLocationRawItems.map((itm) => ({
+    id: itm.id,
+    item_name: itm.name,
+    asset_no: itm.serialNumber && itm.serialNumber !== '-' ? itm.serialNumber : undefined,
+    serial_no: itm.serialNumber && itm.serialNumber !== '-' ? itm.serialNumber : undefined,
+    location_name: itm.locationName,
+    category_name: itm.categoryName,
+  }))
 
   return (
     <PageContainer maxWidth="full">
@@ -138,9 +152,23 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                     แสดงรายการเครื่องมือ อุปกรณ์ และวัสดุที่ผู้รับผิดชอบดูแลอยู่ที่สถานที่นี้
                   </p>
                 </div>
-                <span className="bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full text-xs">
-                  {getItemsInLocation(selectedLocation.id).length} รายการ
-                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsBatchPrintModalOpen(true)}
+                    disabled={locationStickerItems.length === 0}
+                    className="h-8 px-2.5 text-xs font-semibold flex items-center gap-1.5 border-slate-300 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                    title="พิมพ์ป้ายลาเบลสิ่งของทั้งหมดในสถานที่นี้"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>พิมพ์ป้ายทั้งสถานที่ ({locationStickerItems.length} ชิ้น)</span>
+                  </Button>
+                  <span className="bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full text-xs">
+                    {selectedLocationRawItems.length} รายการ
+                  </span>
+                </div>
               </div>
 
               {/* Search bar inside selected location */}
@@ -204,6 +232,12 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
           )}
         </div>
       </div>
+
+      <AssetTagModal
+        isOpen={isBatchPrintModalOpen}
+        onClose={() => setIsBatchPrintModalOpen(false)}
+        items={locationStickerItems}
+      />
     </PageContainer>
   )
 }

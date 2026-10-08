@@ -43,6 +43,16 @@ test('middleware redirects anonymous item-detail requests to login', async () =>
   assert.equal(response.headers.get('location'), 'http://localhost:3000/login')
 })
 
+test('middleware permits anonymous public asset passport scans with valid UUID', async () => {
+  const { updateSession } = await import('../../lib/supabase/middleware')
+  const request = new NextRequest('http://localhost:3000/items/a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+
+  const response = await updateSession(request)
+
+  assert.equal(response.status, 200)
+  assert.notEqual(response.headers.get('location'), 'http://localhost:3000/login')
+})
+
 test('middleware does not treat a dotted protected path as a static asset', async () => {
   const { updateSession } = await import('../../lib/supabase/middleware')
   const request = new NextRequest('http://localhost:3000/items/restricted.asset.record')
@@ -111,25 +121,15 @@ test('middleware preserves API and known static asset exclusions', async () => {
   }
 })
 
-test('item-detail page rejects an anonymous request before reading the item record', async () => {
+test('item-detail page renders public view for anonymous requests', async () => {
   mockSupabaseRegistry.clear()
   mockSupabaseRegistry.setTableResponse('items', [
     { id: 'item-1', item_name: 'Restricted Item', item_type: 'asset', quantity: 1, status: 'active' },
   ])
   const { default: ItemDetailPage } = await import('../../app/(dashboard)/items/[id]/page')
 
-  await assert.rejects(
-    ItemDetailPage({ params: Promise.resolve({ id: 'item-1' }) }),
-    (error: unknown) => {
-      const redirectError = error as Error & { digest?: string }
-      return redirectError.message === 'NEXT_REDIRECT'
-        && redirectError.digest?.includes('/login') === true
-    },
-  )
-  assert.equal(
-    mockSupabaseRegistry.getQueryLog().some((entry) => entry.table === 'items'),
-    false,
-  )
+  const result = await ItemDetailPage({ params: Promise.resolve({ id: 'item-1' }) })
+  assert.ok(result, 'ItemDetailPage should render PublicItemView for anonymous request')
 })
 
 test('getItemById honors session RLS denial instead of bypassing it with service credentials', async () => {

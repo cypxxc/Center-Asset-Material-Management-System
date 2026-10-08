@@ -2,10 +2,11 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { getPostgresProfile, authenticatePassword, setSessionCookie, replaceCurrentPassword, deleteSession } from '@/lib/postgres/session'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { consumeLoginAttempt } from '@/lib/postgres/login-throttle'
+import { consumeLoginAttempt, pruneLoginAttempts } from '@/lib/postgres/login-throttle'
 
 export async function postgresLogin(formData: FormData) {
   const limit = await checkRateLimit('login', 10, 60000)
@@ -15,6 +16,7 @@ export async function postgresLogin(formData: FormData) {
   const error = 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
   if (!identifier || identifier.length > 320 || !password || password.length > 1024) return { error }
   if (!await consumeLoginAttempt(identifier)) return { error: 'ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอ 1 นาทีแล้วลองใหม่' }
+  after(() => pruneLoginAttempts().catch(() => { /* best-effort cleanup */ }))
   const session = await authenticatePassword(identifier, password)
   if (!session) return { error }
   await setSessionCookie(session)
@@ -22,11 +24,32 @@ export async function postgresLogin(formData: FormData) {
 }
 export async function postgresSignOut() { await deleteSession(); redirect('/login') }
 export async function postgresUpdateProfile(formData: FormData) {
-  const fullName = String(formData.get('full_name') ?? '').trim()
-  if (!fullName || fullName.length > 200) return { error: 'กรุณากรอกชื่อ-นามสกุล ไม่เกิน 200 ตัวอักษร' }
+  const displayNameRaw = formData.get('display_name')
+  const fullNameRaw = formData.get('full_name')
+
+  const displayName = displayNameRaw !== null ? String(displayNameRaw).trim() : null
+  const fullName = fullNameRaw !== null ? String(fullNameRaw).trim() : null
+
+  if (displayName && displayName.length > 200) {
+    return { error: 'ชื่อแสดงผลต้องมีความยาวไม่เกิน 200 ตัวอักษร' }
+  }
+
   const profile = await getPostgresProfile()
   if (!profile) return { error: 'กรุณาเข้าสู่ระบบ' }
-  await withUserDatabase((tx) => tx.execute(sql`update public.profiles set full_name=${fullName} where id=${profile.id}`))
+
+  // If display_name is provided in form (even empty string to reset), update display_name.
+  // full_name remains untouched so login identifier is protected from accidental mutation.
+  if (displayNameRaw !== null) {
+    await withUserDatabase((tx) =>
+      tx.execute(sql`update public.profiles set display_name=${displayName || null} where id=${profile.id}`)
+    )
+  } else if (fullName) {
+    // Fallback if legacy form submitting full_name only
+    await withUserDatabase((tx) =>
+      tx.execute(sql`update public.profiles set full_name=${fullName} where id=${profile.id}`)
+    )
+  }
+
   revalidatePath('/', 'layout')
   return { success: 'อัปเดตข้อมูลส่วนตัวเรียบร้อยแล้ว' }
 }

@@ -9,13 +9,14 @@ interface AuditLogsPageProps {
 }
 
 export default async function AuditLogsPage({ searchParams }: AuditLogsPageProps) {
-  const auth = await requireAdmin()
+  const params = await searchParams
+  const [auth, { logs, totalCount, searchParams: initialSearchParams }] = await Promise.all([
+    requireAdmin(),
+    getAuditLogsPageData(params),
+  ])
   if (auth.error || !auth.profile) {
     redirect('/dashboard')
   }
-
-  const params = await searchParams
-  const { logs, totalCount, searchParams: initialSearchParams } = await getAuditLogsPageData(params)
 
   return (
     <AuditLogsClient

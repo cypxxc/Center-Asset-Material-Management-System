@@ -7,7 +7,7 @@ export function canWrite(role?: string | null): boolean {
 }
 
 export function canDelete(role?: string | null): boolean {
-  return role === 'admin' || role === 'staff';
+  return role === 'admin';
 }
 
 export function canManageSettings(role?: string | null): boolean {

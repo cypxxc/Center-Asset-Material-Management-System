@@ -3,9 +3,6 @@ import { CursorError } from '@/features/items/cursor'
 import { getItemBatch } from '@/features/items/queries'
 import { logger } from '@/lib/logging'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
 const responseHeaders = { 'Cache-Control': 'private, no-store' }
 
 export async function GET(request: Request) {
@@ -25,6 +22,13 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof CursorError) {
       return Response.json({ error: 'Invalid cursor' }, { status: 400, headers: responseHeaders })
+    }
+    if (
+      error instanceof Error &&
+      (error.message.includes('During prerendering') ||
+        (error as { digest?: string }).digest?.startsWith('DYNAMIC_SERVER_USAGE'))
+    ) {
+      throw error
     }
     logger.error({ operation: 'getItemBatch', feature: 'items' }, error)
     return Response.json({ error: 'Unable to load item data' }, { status: 500, headers: responseHeaders })

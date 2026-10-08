@@ -31,7 +31,6 @@ export interface PresetConfig {
   titleSize: string
   nameSize: string
   metaSize: string
-  barcodeHeight: string
   codeSize: string
   qrSize: string
 }
@@ -50,29 +49,26 @@ export function getTypographyForHeight(heightMm: number): {
   titleSize: string
   nameSize: string
   metaSize: string
-  barcodeHeight: string
   codeSize: string
   qrSize: string
 } {
   if (heightMm >= 45) {
     return {
-      padding: "p-3",
-      titleSize: "text-[10px]",
-      nameSize: "text-xs font-bold",
-      metaSize: "text-[9.5px]",
-      barcodeHeight: "h-7",
-      codeSize: "text-[10px]",
+      padding: "px-3 py-2",
+      titleSize: "text-[8.5px]",
+      nameSize: "text-[11px] font-bold",
+      metaSize: "text-[8.5px]",
+      codeSize: "text-[10.5px]",
       qrSize: "h-14 w-14",
     }
   } else if (heightMm >= 35) {
     return {
-      padding: "p-2",
-      titleSize: "text-[8.5px]",
-      nameSize: "text-[10.5px] font-bold",
-      metaSize: "text-[8.5px]",
-      barcodeHeight: "h-5",
-      codeSize: "text-[9px]",
-      qrSize: "h-11 w-11",
+      padding: "px-2 py-1.5",
+      titleSize: "text-[8px]",
+      nameSize: "text-[10px] font-bold",
+      metaSize: "text-[8px]",
+      codeSize: "text-[9.5px]",
+      qrSize: "h-12 w-12",
     }
   } else if (heightMm >= 25) {
     return {
@@ -80,9 +76,8 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[7.5px]",
       nameSize: "text-[9.5px] font-bold",
       metaSize: "text-[7.5px]",
-      barcodeHeight: "h-4.5",
-      codeSize: "text-[8px]",
-      qrSize: "h-9 w-9",
+      codeSize: "text-[9px]",
+      qrSize: "h-10 w-10",
     }
   } else {
     return {
@@ -90,9 +85,8 @@ export function getTypographyForHeight(heightMm: number): {
       titleSize: "text-[6.5px]",
       nameSize: "text-[8.5px] font-bold",
       metaSize: "text-[6.5px]",
-      barcodeHeight: "h-3.5",
-      codeSize: "text-[7px]",
-      qrSize: "h-7 w-7",
+      codeSize: "text-[8px]",
+      qrSize: "h-8 w-8",
     }
   }
 }
@@ -106,21 +100,20 @@ export const STICKER_PRESETS: Record<StickerSizePreset, PresetConfig> = {
       cols: 2,
       rows: 5,
       labelWidth: "96mm",
-      labelHeight: "54mm",
-      gap: "3mm 4mm",
-      marginTop: 8,
-      marginBottom: 8,
-      marginLeft: 6,
-      marginRight: 6,
+      labelHeight: "55mm",
+      gap: "2.5mm 4mm",
+      marginTop: 6,
+      marginBottom: 6,
+      marginLeft: 7,
+      marginRight: 7,
     },
     width: "96mm",
-    height: "54mm",
-    padding: "p-3",
-    titleSize: "text-[10px]",
-    nameSize: "text-xs font-bold",
-    metaSize: "text-[9.5px]",
-    barcodeHeight: "h-7",
-    codeSize: "text-[10px]",
+    height: "55mm",
+    padding: "px-3 py-2",
+    titleSize: "text-[8.5px]",
+    nameSize: "text-[11px] font-bold",
+    metaSize: "text-[8.5px]",
+    codeSize: "text-[10.5px]",
     qrSize: "h-14 w-14",
   },
   custom_grid: {
@@ -131,21 +124,20 @@ export const STICKER_PRESETS: Record<StickerSizePreset, PresetConfig> = {
       cols: 2,
       rows: 5,
       labelWidth: "96.0mm",
-      labelHeight: "54.0mm",
-      gap: "3mm 4mm",
-      marginTop: 8,
-      marginBottom: 8,
-      marginLeft: 6,
-      marginRight: 6,
+      labelHeight: "55.0mm",
+      gap: "2.5mm 4mm",
+      marginTop: 6,
+      marginBottom: 6,
+      marginLeft: 7,
+      marginRight: 7,
     },
     width: "96.0mm",
-    height: "54.0mm",
-    padding: "p-3",
-    titleSize: "text-[10px]",
-    nameSize: "text-xs font-bold",
-    metaSize: "text-[9.5px]",
-    barcodeHeight: "h-7",
-    codeSize: "text-[10px]",
+    height: "55.0mm",
+    padding: "px-3 py-2",
+    titleSize: "text-[8.5px]",
+    nameSize: "text-[11px] font-bold",
+    metaSize: "text-[8.5px]",
+    codeSize: "text-[10.5px]",
     qrSize: "h-14 w-14",
   },
 }

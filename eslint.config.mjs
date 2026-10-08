@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "prototype/**",
     "scratch/**",
     ".agent/**",
+    ".agents/**",
+    ".superpowers/**",
     ".cache/**",
     ".worktrees/**",
   ]),

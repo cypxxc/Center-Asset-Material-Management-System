@@ -15,13 +15,16 @@ interface EditItemPageProps {
 }
 
 export default async function EditItemPage({ params }: EditItemPageProps) {
-  const profile = await getCurrentProfile()
+  const profilePromise = getCurrentProfile()
+  const { id } = await params
+  const [profile, { item, references }] = await Promise.all([
+    profilePromise,
+    getItemEditPageData(id),
+  ])
+
   if (!canWrite(profile?.role)) {
     redirect('/items')
   }
-
-  const { id } = await params
-  const { item, references } = await getItemEditPageData(id)
 
   if (!item) notFound()
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useCallback, useTransition } from 'react'
 import {
   Database,
   Terminal,
@@ -42,6 +42,7 @@ import {
   getAuditTableLabel,
   summarizeAuditPayload,
 } from '@/features/audit-log-display/format'
+import { formatDateTime } from '@/lib/date'
 
 interface ColumnSchema {
   name: string
@@ -111,6 +112,18 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
     ]},
     { name: 'responsible_person', label: 'ผู้รับผิดชอบ', type: 'text' },
     { name: 'note', label: 'หมายเหตุ', type: 'textarea' },
+    { name: 'depreciation_enabled', label: 'คิดค่าเสื่อมราคา', type: 'boolean' },
+    { name: 'depreciation_method', label: 'วิธีคิดค่าเสื่อม', type: 'select', options: [
+      { value: 'straight_line', label: 'เส้นตรง (Straight-Line)' }
+    ]},
+    { name: 'depreciation_cost', label: 'ราคาทุนสำหรับคิดค่าเสื่อม', type: 'number' },
+    { name: 'depreciation_useful_life_years', label: 'อายุการใช้งาน (ปี)', type: 'number' },
+    { name: 'depreciation_start_basis', label: 'เกณฑ์วันเริ่มคิดค่าเสื่อม', type: 'select', options: [
+      { value: 'fiscal_year_oct_1', label: '1 ต.ค. ปีงบประมาณ' },
+      { value: 'custom_start_date', label: 'กำหนดวันที่เอง' }
+    ]},
+    { name: 'depreciation_start_date', label: 'วันที่เริ่มคิดค่าเสื่อม (YYYY-MM-DD)', type: 'text' },
+    { name: 'depreciation_residual_value', label: 'มูลค่าซาก (Residual Value)', type: 'number' },
     { name: 'created_at', label: 'เวลาลงทะเบียน', type: 'readonly' },
     { name: 'updated_at', label: 'เวลาอัปเดต', type: 'readonly' }
   ],
@@ -190,11 +203,12 @@ export default function DBPanelClient() {
   
   // Dynamic PageSize
   const pageSize = 15
+  const isReadOnlyTable = activeTab === 'audit' || selectedTable === 'audit_logs'
 
   // Fetch Table Data
-  const fetchTable = async (tableName: string, page: number) => {
+  const fetchTable = useCallback(async (tableName: string, page: number, search: string = searchTerm) => {
     setIsLoading(true)
-    const res = await getTableData(tableName, page, pageSize)
+    const res = await getTableData(tableName, page, pageSize, search)
     setIsLoading(false)
     if (res.error) {
       setSqlError(res.error)
@@ -202,19 +216,22 @@ export default function DBPanelClient() {
       setTableData(res.data as Record<string, unknown>[])
       setTotalCount(res.count)
     }
-  }
+  }, [pageSize, searchTerm])
 
-  // Reload current table data
+  // Reload current table data with debounce for search
   useEffect(() => {
-    const runFetch = async () => {
-      if (activeTab === 'browser') {
-        await fetchTable(selectedTable, currentPage)
-      } else if (activeTab === 'audit') {
-        await fetchTable('audit_logs', currentPage)
+    const timer = setTimeout(() => {
+      const runFetch = async () => {
+        if (activeTab === 'browser') {
+          await fetchTable(selectedTable, currentPage, searchTerm)
+        } else if (activeTab === 'audit') {
+          await fetchTable('audit_logs', currentPage, searchTerm)
+        }
       }
-    }
-    runFetch()
-  }, [selectedTable, currentPage, activeTab])
+      void runFetch()
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [selectedTable, currentPage, activeTab, searchTerm, fetchTable])
 
   // Reset pagination on table change
   const handleTableChange = (name: string) => {
@@ -225,6 +242,7 @@ export default function DBPanelClient() {
 
   // Handle Edit/Add Row
   const handleOpenForm = (row: Record<string, unknown> | null = null) => {
+    if (isReadOnlyTable) return
     setEditingRow(row)
     setFormData(row ? { ...row } : {})
     // generate a nonce to break browser autofill heuristics for new forms
@@ -252,6 +270,10 @@ export default function DBPanelClient() {
     e.preventDefault()
     setFormError(null)
     const targetTable = activeTab === 'audit' ? 'audit_logs' : selectedTable
+    if (targetTable === 'audit_logs') {
+      setFormError('ตารางประวัติการตรวจสอบ (audit_logs) เป็นแบบอ่านอย่างเดียว')
+      return
+    }
     const rowId = (editingRow && typeof editingRow.id === 'string') ? editingRow.id : null
 
     // Special case: creating a new profile must go through Auth Admin API
@@ -309,16 +331,16 @@ export default function DBPanelClient() {
         }
       }
 
-      const { _new_password, _password, ...payload } = formData
-      void _new_password
-      void _password
+      const payload = { ...formData }
+      delete payload._new_password
+      delete payload._password
 
       const res = await upsertTableRow(targetTable, rowId, payload)
       if (res.error) {
         setFormError(res.error)
       } else {
         setIsFormOpen(false)
-        fetchTable(targetTable, currentPage)
+        fetchTable(targetTable, currentPage, searchTerm)
       }
     })
   }
@@ -357,6 +379,10 @@ export default function DBPanelClient() {
   const handleDeleteRow = async (rowId: string) => {
     if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบแถวข้อมูลนี้อย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้')) return
     const targetTable = activeTab === 'audit' ? 'audit_logs' : selectedTable
+    if (targetTable === 'audit_logs') {
+      alert('ตารางประวัติการตรวจสอบ (audit_logs) เป็นแบบอ่านอย่างเดียว ไม่สามารถลบได้')
+      return
+    }
 
     // Profiles must be deleted via Auth Admin API (removes auth.users too)
     if (targetTable === 'profiles') {
@@ -404,13 +430,15 @@ export default function DBPanelClient() {
       if (res.error) {
         setBackupResult({ type: 'error', message: res.error })
       } else if (res.backup) {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.backup, null, 2))
+        const blob = new Blob([JSON.stringify(res.backup, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
         const downloadAnchor = document.createElement('a')
-        downloadAnchor.setAttribute("href", dataStr)
-        downloadAnchor.setAttribute("download", `camms_backup_${new Date().toISOString().split('T')[0]}.json`)
+        downloadAnchor.href = url
+        downloadAnchor.download = `camms_backup_${new Date().toISOString().split('T')[0]}.json`
         document.body.appendChild(downloadAnchor)
         downloadAnchor.click()
         downloadAnchor.remove()
+        URL.revokeObjectURL(url)
         setBackupResult({ type: 'success', message: 'สร้างไฟล์สำรองข้อมูลเรียบร้อยแล้ว' })
       }
     } catch (err) {
@@ -464,14 +492,6 @@ export default function DBPanelClient() {
       e.target.value = ''
     }
   }
-
-  // Local filtering based on SearchTerm
-  const filteredData = tableData.filter(row => {
-    if (!searchTerm) return true
-    return Object.values(row).some(val => 
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })
 
   const activeSchema = TABLE_SCHEMAS[activeTab === 'audit' ? 'audit_logs' : selectedTable] || []
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -578,17 +598,20 @@ export default function DBPanelClient() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Local Grid Search */}
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="ค้นหาข้อมูลในหน้านี้..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-8 w-52 rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
+                    {/* Server-side Search */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="ค้นหาข้อมูล..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="h-8 w-52 rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
 
                   <button
                     onClick={() => fetchTable(activeTab === 'audit' ? 'audit_logs' : selectedTable, currentPage)}
@@ -598,8 +621,8 @@ export default function DBPanelClient() {
                     <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
                   </button>
 
-                  {/* Add Row Button (Disabled for read-only audit logs) */}
-                  {activeTab !== 'audit' && (
+                  {/* Add Row Button (Disabled for read-only tables) */}
+                  {!isReadOnlyTable && (
                     <button
                       onClick={() => handleOpenForm(null)}
                       className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
@@ -628,13 +651,13 @@ export default function DBPanelClient() {
                           <div className="text-[8px] text-slate-500 font-semibold mt-0.5">{col.name}</div>
                         </th>
                       ))}
-                      {activeTab !== 'audit' && (
+                      {!isReadOnlyTable && (
                         <th className="py-3 px-4 text-center sticky right-0 bg-slate-900 z-20 w-24">จัดการ (Actions)</th>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-slate-300 font-semibold font-mono">
-                    {filteredData.map((row, idx) => (
+                    {tableData.map((row, idx) => (
                       <tr key={(typeof row.id === 'string' || typeof row.id === 'number') ? row.id : idx} className="hover:bg-slate-900/30 transition-colors">
                         {activeSchema.map(col => {
                           const rawVal = row[col.name]
@@ -671,7 +694,7 @@ export default function DBPanelClient() {
                           )
                         })}
 
-                        {activeTab !== 'audit' && (
+                        {!isReadOnlyTable && (
                           <td className="py-2 px-4 sticky right-0 bg-slate-950/80 backdrop-blur-sm text-center flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenForm(row)}
@@ -692,10 +715,10 @@ export default function DBPanelClient() {
                       </tr>
                     ))}
 
-                    {filteredData.length === 0 && (
+                    {tableData.length === 0 && (
                       <tr>
-                        <td colSpan={activeSchema.length + (activeTab !== 'audit' ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
-                          ไม่พบแถวข้อมูลในตารางนี้
+                        <td colSpan={activeSchema.length + (!isReadOnlyTable ? 1 : 0)} className="py-12 text-center text-slate-500 font-semibold italic">
+                          {searchTerm ? 'ไม่พบข้อมูลที่ตรงกับคำค้นหา' : 'ไม่พบแถวข้อมูลในตารางนี้'}
                         </td>
                       </tr>
                     )}
@@ -973,7 +996,7 @@ export default function DBPanelClient() {
                   {String(selectedAuditRow.target_id ?? 'ไม่ระบุแถว')}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {selectedAuditRow.created_at ? new Date(String(selectedAuditRow.created_at)).toLocaleString('th-TH') : 'ไม่ระบุเวลา'}
+                  {selectedAuditRow.created_at ? formatDateTime(String(selectedAuditRow.created_at)) : 'ไม่ระบุเวลา'}
                 </p>
               </div>
               <button
@@ -1048,7 +1071,7 @@ export default function DBPanelClient() {
       )}
 
       {/* MODAL FORM: Add / Edit Row */}
-      {isFormOpen && (
+      {!isReadOnlyTable && isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-slate-200">
             

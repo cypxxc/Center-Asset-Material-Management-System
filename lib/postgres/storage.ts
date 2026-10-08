@@ -4,7 +4,9 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { resolve, dirname, sep } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { getCurrentProfile } from '@/features/auth/queries'
+import { AuthorizationError } from '@/lib/errors'
 import { withUserDatabase } from './request'
+import { withIdentity } from './db'
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const localImagePattern = new RegExp(`^/api/files/item-images/${uuid}/${uuid}\\.(jpg|png|webp)$`)
@@ -42,11 +44,26 @@ export async function uploadLocalItemImage(file: File): Promise<string> {
 
 export async function readLocalItemImage(url: string) {
   if (!resolveLocalItemImageUrl(url)) return null
-  const profile = await getCurrentProfile()
-  if (!profile?.is_active) return null
-  // A file is visible only through a registry row the authenticated user can read.
-  const exists = await withUserDatabase(async tx => tx.execute(sql`select id from public.items where image_url = ${url} and deleted_at is null limit 1`))
-  if (!exists.rows.length) return null
+  const query = sql`select id from public.items where image_url = ${url} and deleted_at is null limit 1`
+
+  // A file is visible if referenced by an active (non-deleted) item in the registry
+  // This allows scanning public QR codes while preserving access restrictions.
+  let isReferenced = false
+  try {
+    const exists = await withUserDatabase(async tx => tx.execute(query))
+    isReferenced = exists.rows.length > 0
+  } catch (err) {
+    // Only allow the unauthenticated fallback for auth errors (no session / inactive account).
+    // Any other error (DB timeout, connection failure, etc.) is re-thrown to prevent
+    // infrastructure failures from inadvertently opening public image access.
+    if (!(err instanceof AuthorizationError)) throw err
+    const { getDatabase } = await import('./db')
+    const exists = await getDatabase().execute(query)
+    isReferenced = exists.rows.length > 0
+  }
+
+  if (!isReferenced) return null
+
   try {
     const data = await readFile(imageFilePath(url))
     const extension = url.split('.').pop() as keyof typeof types
@@ -57,12 +74,18 @@ export async function readLocalItemImage(url: string) {
   }
 }
 
-export async function deleteLocalItemImage(url: string | null | undefined): Promise<{ success: boolean; error?: string }> {
+export async function deleteLocalItemImage(
+  url: string | null | undefined,
+  callerProfile?: { id: string; role: string; is_active: boolean } | null
+): Promise<{ success: boolean; error?: string }> {
   if (!resolveLocalItemImageUrl(url)) return { success: true }
   try {
-    const profile = await getCurrentProfile()
+    const profile = callerProfile ?? await getCurrentProfile()
     if (!profile?.is_active || !['admin', 'staff'].includes(profile.role)) return { success: false, error: 'Unauthorized' }
-    const referenced = await withUserDatabase(tx => tx.execute(sql`select id from public.items where image_url = ${url!} limit 1`))
+    const query = sql`select id from public.items where image_url = ${url!} limit 1`
+    const referenced = callerProfile
+      ? await withIdentity(callerProfile.id, tx => tx.execute(query))
+      : await withUserDatabase(tx => tx.execute(query))
     if (referenced.rows.length) return { success: true }
     await unlink(imageFilePath(url!))
     return { success: true }

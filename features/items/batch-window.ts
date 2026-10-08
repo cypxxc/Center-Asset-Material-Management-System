@@ -33,10 +33,95 @@ export class ItemBatchWindow {
   getSnapshot = () => this.state
   private publish(state: WindowState) { this.state = state; this.listeners.forEach(listener => listener()) }
   dispose() { this.generation++; this.controller?.abort(); this.controller = undefined }
+  resetSeed(seed: ItemBatchResult) {
+    this.dispose()
+    this.anchor = 0
+    this.publish({
+      batches: [{ start: 0, length: seed.items.length, nextCursor: seed.nextCursor, items: seed.items }],
+      total: seed.total,
+      loading: false,
+      error: null,
+    })
+  }
+  setFetcher(fetcher: BatchFetcher) {
+    this.fetcher = fetcher
+  }
   restore(state: WindowState, anchor: number) {
     this.anchor = anchor
     this.publish({ ...state, loading: false, error: null })
     return this.refresh()
+  }
+  snapshot = (): WindowState => {
+    return {
+      batches: this.state.batches.map(b => ({
+        ...b,
+        items: b.items ? b.items.map(item => (item ? { ...item } : null)) : undefined,
+      })),
+      total: this.state.total,
+      loading: this.state.loading,
+      error: this.state.error,
+    }
+  }
+  optimisticDelete = (ids: string[]): WindowState => {
+    const idSet = new Set(ids)
+    let deletedCount = 0
+    let currentStart = this.state.batches[0]?.start ?? 0
+    const batches = this.state.batches.map(batch => {
+      if (batch.items) {
+        const nextItems = batch.items.filter(item => {
+          if (item && idSet.has(item.id)) {
+            deletedCount++
+            return false
+          }
+          return true
+        })
+        const slot: BatchSlot = {
+          ...batch,
+          start: currentStart,
+          length: nextItems.length,
+          items: nextItems,
+        }
+        currentStart += nextItems.length
+        return slot
+      }
+      const slot: BatchSlot = {
+        ...batch,
+        start: currentStart,
+      }
+      currentStart += batch.length
+      return slot
+    })
+
+    const nextState: WindowState = {
+      ...this.state,
+      batches,
+      total: this.state.total !== null ? Math.max(0, this.state.total - deletedCount) : null,
+    }
+    this.publish(nextState)
+    return nextState
+  }
+  optimisticUpdate = (ids: string[], patch: Partial<ItemListRow>): WindowState => {
+    const idSet = new Set(ids)
+    const batches = this.state.batches.map(batch => {
+      if (!batch.items) return batch
+      const items = batch.items.map(item => {
+        if (item && idSet.has(item.id)) {
+          return { ...item, ...patch }
+        }
+        return item
+      })
+      return { ...batch, items }
+    })
+    const nextState: WindowState = {
+      ...this.state,
+      batches,
+    }
+    this.publish(nextState)
+    return nextState
+  }
+  rollback = (saved: WindowState): void => {
+    this.state = saved
+    this.publish(this.state)
   }
   get count() { const last = this.state.batches.at(-1); return last ? last.start + last.length : 0 }
   get hasMore() { return Boolean(this.state.batches.at(-1)?.nextCursor) }
@@ -47,7 +132,13 @@ export class ItemBatchWindow {
     return batches.map(b => b.items && !keep.has(b) ? { ...b, items: undefined } : b)
   }
   private unique(items: ItemListRow[], batches: BatchSlot[]) {
-    const ids = new Set(batches.flatMap(b => b.items?.flatMap(item => item ? [item.id] : []) ?? []))
+    const ids = new Set<string>()
+    for (const b of batches) {
+      if (!b.items) continue
+      for (const item of b.items) {
+        if (item) ids.add(item.id)
+      }
+    }
     return items.map(item => { if (ids.has(item.id)) return null; ids.add(item.id); return item })
   }
   private async run(action: (signal: AbortSignal) => Promise<WindowState>, retry: () => Promise<void>) {
@@ -80,7 +171,7 @@ export class ItemBatchWindow {
     if (this.state.error || this.controller) return
     const index = this.state.batches.findIndex(b => !b.items && b.start < end && b.start + b.length > start)
     if (index >= 0) return this.reload(index)
-    if (end >= this.count - 5) await this.loadMore()
+    if (this.hasMore && end >= this.count - 5) await this.loadMore()
   }
   private reload = async (index: number) => {
     await this.run(async signal => {
@@ -100,8 +191,8 @@ export class ItemBatchWindow {
     const startIndex = Math.max(0, this.state.batches.findIndex(b => this.anchor >= b.start && this.anchor < b.start + b.length))
     await this.run(async signal => {
       const old = this.state.batches
-      let cursor = old[startIndex].requestCursor
-      let start = old[startIndex].start
+      let cursor = old[startIndex]?.requestCursor
+      let start = old[startIndex]?.start ?? 0
       const fresh: BatchSlot[] = []
       const endIndex = Math.min(old.length, startIndex + 2)
       let total = seedTotal ?? this.state.total

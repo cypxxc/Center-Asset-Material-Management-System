@@ -16,7 +16,6 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
  *   curl -X POST http://localhost:3000/api/revalidate \
  *     -H "Authorization: Bearer <REVALIDATE_SECRET>"
  */
-export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const secret = process.env.REVALIDATE_SECRET

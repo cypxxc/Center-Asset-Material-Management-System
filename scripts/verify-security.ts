@@ -68,6 +68,10 @@ const checks: AuditCheck[] = [
       const sanitizedCsv = preventCSVInjection(formulaInjection)
       if (sanitizedCsv !== "'=1+1") return false
 
+      const whitespaceFormula = '   =cmd|'
+      const sanitizedWhitespace = preventCSVInjection(whitespaceFormula)
+      if (sanitizedWhitespace !== "'   =cmd|") return false
+
       const maliciousFilename = '../../etc/passwd.jpg'
       const normalized = normalizeFilename(maliciousFilename)
       if (normalized.includes('..') || normalized.includes('/')) return false

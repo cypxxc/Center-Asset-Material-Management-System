@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
 
+import { AuthorizationError } from '../../lib/errors'
+
 const actor = '11111111-1111-4111-8111-111111111111'
 const itemId = '22222222-2222-4222-8222-222222222222'
 let profile: { id: string; role: string; is_active: boolean } | null = { id: actor, role: 'staff', is_active: true }
@@ -18,12 +20,29 @@ function mockModule(path: string, exports: unknown) {
   require.cache[filename] = { id: filename, filename, loaded: true, exports } as NodeJS.Module
 }
 mockModule('../../features/auth/queries', { getCurrentProfile: async () => profile })
-mockModule('../../lib/postgres/request', { withUserDatabase: async (callback: (tx: unknown) => unknown) => callback({
-  execute: async (query: SQL) => {
-    queries.push(new PgDialect().sqlToQuery(query))
-    return { rows: responseRows.shift() ?? rows }
-  },
-}) })
+mockModule('../../lib/postgres/request', { withUserDatabase: async (callback: (tx: unknown) => unknown) => {
+  if (!profile?.is_active) throw new AuthorizationError('กรุณาเข้าสู่ระบบ')
+  return callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  })
+} })
+mockModule('../../lib/postgres/db', {
+  getDatabase: () => ({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+  withIdentity: async (_userId: string, callback: (tx: unknown) => unknown) => callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+})
 mockModule('../../lib/rate-limit', { checkRateLimit: async () => ({ success: true }) })
 mockModule('../../features/admin/postgres-admin', { pgUpdateUserProfile: async () => ({ success: true }) })
 
@@ -31,6 +50,8 @@ const storage = import('../../lib/postgres/storage')
 const actions = import('../../features/items/postgres-actions')
 const settings = import('../../features/settings/postgres-actions')
 const oldStorage = process.env.LOCAL_STORAGE_PATH
+const oldBackend = process.env.DATA_BACKEND
+process.env.DATA_BACKEND = 'postgres'
 const prefix = join(tmpdir(), 'camms-storage-test-')
 const directory = mkdtemp(prefix)
 afterEach(() => { queries.length = 0; rows = []; responseRows = []; profile = { id: actor, role: 'staff', is_active: true } })
@@ -40,6 +61,8 @@ after(async () => {
   await rm(path, { recursive: true, force: true })
   if (oldStorage === undefined) delete process.env.LOCAL_STORAGE_PATH
   else process.env.LOCAL_STORAGE_PATH = oldStorage
+  if (oldBackend === undefined) delete process.env.DATA_BACKEND
+  else process.env.DATA_BACKEND = oldBackend
 })
 
 test('private image paths reject traversal, foreign origins, and unsupported formats', async () => {
@@ -83,9 +106,14 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
   assert.equal((await deleteLocalItemImage(url)).success, true)
   assert.ok(await readLocalItemImage(url), 'referenced images must not be removed')
   profile = null
-  assert.equal(await readLocalItemImage(url), null)
-  profile = { id: actor, role: 'staff', is_active: true }
+  assert.equal((await readLocalItemImage(url))?.contentType, 'image/png', 'unauthenticated user can read active item image')
+  rows = [{ id: itemId, item_name: 'กล้องจุลทรรศน์', item_type: 'asset', quantity: 1, status: 'active', image_url: null }]
+  const { getPostgresItemById } = await import('../../features/items/postgres-queries')
+  const publicItem = await getPostgresItemById(itemId)
+  assert.equal(publicItem?.item_name, 'กล้องจุลทรรศน์', 'unauthenticated user can query public active item via getPostgresItemById fallback')
   rows = []
+  assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
+  profile = { id: actor, role: 'staff', is_active: true }
   assert.equal((await deleteLocalItemImage(url)).success, true)
   rows = [{ id: itemId }]
   assert.equal(await readLocalItemImage(url), null)

@@ -11,6 +11,7 @@ AS $$
 DECLARE
     result_json json;
     affected_rows integer;
+    cleaned_query text;
 BEGIN
     IF auth.role() <> 'service_role' THEN
         RETURN json_build_object('error', 'Forbidden: raw SQL is server-only', 'ok', false);
@@ -20,11 +21,17 @@ BEGIN
         RETURN json_build_object('error', 'SQL query is required', 'ok', false);
     END IF;
 
-    IF lower(btrim(sql_query)) LIKE 'select%'
-       OR lower(btrim(sql_query)) LIKE 'with%'
-       OR lower(btrim(sql_query)) LIKE 'show%'
-       OR lower(btrim(sql_query)) LIKE 'explain%' THEN
-        EXECUTE 'SELECT json_agg(t) FROM (' || sql_query || ') t' INTO result_json;
+    -- Strip trailing semicolons and whitespace
+    cleaned_query := regexp_replace(btrim(sql_query), ';+\s*$', '');
+
+    -- Prevent statement stacking outside of DO blocks
+    IF lower(cleaned_query) NOT LIKE 'do %' AND cleaned_query LIKE '%;%' THEN
+        RETURN json_build_object('error', 'Multiple SQL statements are not permitted', 'ok', false);
+    END IF;
+
+    IF lower(cleaned_query) ~ '^(select|with|show|explain)\M' THEN
+        SET TRANSACTION READ ONLY;
+        EXECUTE 'SELECT json_agg(t) FROM (' || cleaned_query || ') t' INTO result_json;
         RETURN json_build_object('rows', COALESCE(result_json, '[]'::json), 'command', 'SELECT', 'ok', true);
     END IF;
 
@@ -32,6 +39,6 @@ BEGIN
     GET DIAGNOSTICS affected_rows = ROW_COUNT;
     RETURN json_build_object('rows', '[]'::json, 'command', 'COMMAND_OK', 'affected_rows', affected_rows, 'ok', true);
 EXCEPTION WHEN OTHERS THEN
-    RETURN json_build_object('error', 'SQL execution failed', 'code', SQLSTATE, 'ok', false);
+    RETURN json_build_object('error', 'SQL execution failed: ' || SQLERRM, 'code', SQLSTATE, 'ok', false);
 END;
 $$;

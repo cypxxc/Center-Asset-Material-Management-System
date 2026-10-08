@@ -10,9 +10,10 @@ import { config } from '@/lib/config'
 import { retrySupabase } from '@/lib/retry'
 import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
-import { resolveUniqueProfileEmail } from './login-identifier'
+import { resolveUniqueProfileEmail, classifyLoginIdentifier } from './login-identifier'
 import { getDevelopmentSeedAccount, setDevelopmentSessionUser } from './dev-auth'
 import { isPostgresBackend } from '@/lib/backend'
+import { writeAuditLog } from '@/lib/audit'
 
 
 export async function signOut() {
@@ -26,7 +27,7 @@ export async function signOut() {
     trace.complete('success')
     redirect('/login')
   } catch (err) {
-    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) throw err
     trace.complete('failure')
     throw err
   }
@@ -58,20 +59,18 @@ export async function login(_prevState: { error?: string } | null, formData: For
 
   const supabase = await createClient()
   
-  const isEmail = identifier.includes('@')
-  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
-  const isUUID = uuidRegex.test(identifier)
+  const identifierType = classifyLoginIdentifier(identifier)
 
   let email: string | null = null
 
   try {
-    if (isEmail) {
+    if (identifierType === 'email') {
       email = identifier
     } else {
       // Only create admin client when needed (non-email login)
       const adminClient = await createAdminClient()
       
-      if (isUUID) {
+      if (identifierType === 'uuid') {
         const userResult = await retrySupabase(async () => {
           const result = await adminClient.auth.admin.getUserById(identifier)
           if (result.error) throw result.error
@@ -142,7 +141,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
       }
     }
   } catch (err) {
-    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    if (err instanceof Error && (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))) throw err
 
     if (developmentSeedAccount) {
       const adminClient = await createAdminClient()
@@ -195,15 +194,30 @@ export async function updatePersonalProfile(_prevState: PersonalProfileActionSta
 
     trace.context.userId = user.id
 
-    const fullName = formData.get('full_name') as string
-    if (!fullName?.trim()) {
+    const displayNameRaw = formData.get('display_name')
+    const fullNameRaw = formData.get('full_name')
+
+    const displayName = displayNameRaw !== null ? String(displayNameRaw).trim() : null
+    const fullName = fullNameRaw !== null ? String(fullNameRaw).trim() : null
+
+    if (displayName && displayName.length > 200) {
       trace.complete('failure', { reason: 'validation' })
-      return { error: 'กรุณากรอกชื่อ-นามสกุล' }
+      return { error: 'ชื่อแสดงผลต้องมีความยาวไม่เกิน 200 ตัวอักษร' }
+    }
+
+    const updatePayload: Record<string, unknown> = {}
+    if (displayNameRaw !== null) {
+      updatePayload.display_name = displayName || null
+    } else if (fullName) {
+      updatePayload.full_name = fullName
+    } else {
+      trace.complete('failure', { reason: 'validation' })
+      return { error: 'กรุณาระบุข้อมูลที่ต้องการแก้ไข' }
     }
 
     const { error } = await supabase
       .from('profiles')
-      .update({ full_name: fullName.trim() })
+      .update(updatePayload)
       .eq('id', user.id)
 
     if (error) {
@@ -258,6 +272,15 @@ export async function updatePersonalPassword(_prevState: PersonalProfileActionSt
       trace.complete('failure', { reason: 'auth_error' })
       return { error: 'ไม่สามารถเปลี่ยนรหัสผ่านได้: ' + message }
     }
+
+    await writeAuditLog({
+      operation: 'UPDATE_PASSWORD',
+      feature: 'auth',
+      userId: user.id,
+      targetType: 'profiles',
+      targetId: user.id,
+      newValues: { note: 'Password updated by user' },
+    })
 
     trace.complete('success')
     return { success: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' }

@@ -207,7 +207,29 @@ async function handleRequest(request: { id?: string | number | null; method: str
               },
               required: ['id'],
             },
+          },
+          {
+            name: 'heal_system_issues',
+            description: 'Safely and automatically remediate auto-healable issues (stale caches, orphaned relations) detected by diagnostics',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_codes: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Optional list of specific issue codes to heal (defaults to all auto-healable)',
+                },
+              },
+            },
           }] : []),
+          {
+            name: 'diagnose_system_health',
+            description: 'Run automated diagnostics across CAMMS registry, returning health score (0-100%) and detected issues',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+            },
+          },
           {
             name: 'list_categories',
             description: 'List all active categories in CAMMS',
@@ -318,6 +340,25 @@ async function writeMcpAudit(action: string, targetId: string, values: unknown) 
 }
 
 async function executeTool(name: string, args: McpToolArguments | undefined): Promise<string> {
+  if (name === 'diagnose_system_health') {
+    const { runDiagnostics } = await import('../lib/self-healing/scanner');
+    const report = await runDiagnostics();
+    return JSON.stringify(report, null, 2);
+  }
+
+  if (name === 'heal_system_issues') {
+    requireMcpWriteCapability();
+    const { runDiagnostics } = await import('../lib/self-healing/scanner');
+    const { healIssues } = await import('../lib/self-healing/healer');
+    const report = await runDiagnostics();
+    const issueCodes = (args as { issue_codes?: string[] })?.issue_codes;
+    const issuesToHeal = issueCodes && issueCodes.length > 0
+      ? report.issues.filter((i) => issueCodes.includes(i.code))
+      : report.issues;
+    const results = await healIssues(issuesToHeal);
+    return JSON.stringify(results, null, 2);
+  }
+
   if (postgres) {
     if (name === 'revalidate_cache') return 'PostgreSQL changes refresh through the application live updates. Reload the browser if needed.';
     return postgres.execute(name, args);

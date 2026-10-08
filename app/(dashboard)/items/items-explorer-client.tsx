@@ -1,30 +1,15 @@
 'use client'
 
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Check,
-  Copy,
   Download,
-  Edit,
-  ExternalLink,
-  FileText,
   LayoutGrid,
   List,
-  MapPin,
-  Package,
-  StickyNote,
-  User,
   Tag,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { ZoomableImage } from '@/components/ui/zoomable-image'
 import {
   ITEM_STATUS_LABELS,
   ITEM_TYPE_LABELS,
@@ -34,7 +19,6 @@ import {
   ItemDetail,
 } from '@/features/items/types'
 import dynamic from 'next/dynamic'
-import { DeleteItemButton } from '@/features/items/components/delete-item-button'
 
 const NewItemSheet = dynamic(
   () => import('@/features/items/components/new-item-sheet').then((mod) => mod.NewItemSheet),
@@ -45,23 +29,20 @@ import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 import { SearchInput } from '@/components/ui/search-input'
-import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'
-import {
-  DataTable,
-  DataTableHeader,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableCell
-} from '@/components/ui/data-table'
-import { bulkUpdateItems, bulkHardDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
+import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
+import type { BulkItemUpdates } from '@/features/items/bulk-edit'
+import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
+import { ItemsList } from '@/features/items/components/items-list-view'
+import { ItemsGrid } from '@/features/items/components/items-grid-view'
+import { Inspector } from '@/features/items/components/item-inspector-drawer'
+import { ItemsBulkBar } from '@/features/items/components/items-bulk-bar'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -74,12 +55,9 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
-}
-
-
-const typeIcons: Record<ItemType, React.ReactNode> = {
-  asset: <Package className="h-4 w-4 text-blue-600" />,
-  material: <FileText className="h-4 w-4 text-emerald-600" />,
+  bulkUpdateAction?: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse>
+  bulkDeleteAction?: (ids: string[]) => Promise<ActionResponse>
+  bulkHardDeleteAction?: (ids: string[]) => Promise<ActionResponse>
 }
 
 function toItemDetail(item: ItemListRow): ItemDetail {
@@ -94,7 +72,7 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  const identity = JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)])
+  const identity = useMemo(() => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)]), [props.userId, props.params])
   return <ItemsExplorerSession key={identity} {...props} identity={identity} />
 }
 
@@ -106,21 +84,34 @@ function ItemsExplorerSession({
   params,
   userCanWrite,
   userCanDelete,
-  locations,
-  categories,
-  units,
+  locations = [],
+  categories = [],
+  units = [],
+  bulkUpdateAction = bulkUpdateItems,
+  bulkDeleteAction,
+  bulkHardDeleteAction,
 }: ItemsExplorerClientProps & { identity: string }) {
+  const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
-  const { attachScroll, ...windowed } = useItemWindow(identity, params, { items, total, nextCursor })
+  const {
+    attachScroll,
+    optimisticUpdate,
+    optimisticDelete,
+    rollback,
+    snapshot,
+    save: saveWindow,
+    ...windowed
+  } = useItemWindow(identity, params, { items, total, nextCursor })
   const localItems = windowed.loaded
+
   const { toast } = useToast()
   const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id])
+  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir])
   const currentFilterKey = useRef(filterKey)
   useEffect(() => { currentFilterKey.current = filterKey }, [filterKey])
   const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
@@ -139,15 +130,18 @@ function ItemsExplorerSession({
     toggleSort,
     buildHref,
   } = useItemsFilter(params)
+
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
+  const [locationPrintItems, setLocationPrintItems] = useState<ItemStickerData[] | null>(null)
 
   const selectedItemsData = useMemo(() => {
+    const selectedSet = new Set(selectedItemIds)
     return localItems
-      .filter((item) => selectedItemIds.includes(item.id))
+      .filter((item) => selectedSet.has(item.id))
       .map((item) => ({
         id: item.id,
         item_name: item.item_name,
@@ -162,10 +156,11 @@ function ItemsExplorerSession({
       }))
   }, [localItems, selectedItemIds])
 
-
-
   const effectiveSelectedItemId = inspectedItem?.id ?? null
-  const selectedItem = localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  const selectedItem = useMemo(() => {
+    if (!effectiveSelectedItemId) return inspectedItem
+    return localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  }, [effectiveSelectedItemId, localItems, inspectedItem])
 
   const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
@@ -259,49 +254,83 @@ function ItemsExplorerSession({
     }
   }
 
-
-
-
-
-
-
   const folderValuation = useMemo(() => {
     return localItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
   }, [localItems])
 
-  const handleToggleSelectItem = (id: string) => {
+  const handleToggleSelectItem = useCallback((id: string) => {
     setSelectedItemIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
-  }
+  }, [])
 
-  const handleToggleSelectAll = () => {
-    const pageIds = localItems.map(item => item.id)
+  const localItemsRef = useRef(localItems)
+  useEffect(() => {
+    localItemsRef.current = localItems
+  }, [localItems])
+
+  const handleToggleSelectAll = useCallback(() => {
+    const pageIds = localItemsRef.current.map(item => item.id)
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
-  }
+  }, [])
 
-  const handleSelectItem = (item: ItemListRow) => {
+  const handleSelectItem = useCallback((item: ItemListRow) => {
     setInspectedItem(item)
     setIsInspectorOpen(true)
+  }, [])
+
+  const handleDoubleClickItem = useCallback((item: ItemListRow) => {
+    saveWindow()
+    router.push(`/items/${item.id}`)
+  }, [router, saveWindow])
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
+
+    const snap = snapshot()
+    optimisticDelete(selectedItemIds)
+    const targetIds = [...selectedItemIds]
+    setSelectedItemIds([])
+
+    try {
+      const res = await deleteBulkAction(targetIds)
+      if (!res.success) {
+        rollback(snap)
+        setSelectedItemIds(targetIds)
+        setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+      } else {
+        triggerToast(res.message || 'ลบเรียบร้อย')
+        router.refresh()
+      }
+    } catch {
+      rollback(snap)
+      setSelectedItemIds(targetIds)
+      setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่')
+    }
   }
 
-  const handleDoubleClickItem = (item: ItemListRow) => {
-    windowed.save()
-    router.push(`/items/${item.id}`)
+  const handleSelectAllMatching = async () => {
+    setSelectingAll(true)
+    try {
+      const result = await getMatchingItemIds(params)
+      if (currentFilterKey.current !== filterKey) return
+      if (result.success && result.data) setSelectedItemIds(result.data)
+      else setBlockingError(result.message || 'เลือกรายการไม่สำเร็จ')
+    } catch { setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่') }
+    finally { setSelectingAll(false) }
   }
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Main Content Area */}
         <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-border bg-card px-4 py-5 sm:px-6 md:px-8">
-            {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
-            <div className="flex items-center justify-between gap-4">
+            {/* Row 1: Title (Left) + Segmented Tabs (Center/Integrated) + View Mode Toggle (Right) */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col min-w-0">
                 {/* Dynamic Main Title */}
                 <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-card-foreground leading-snug">
@@ -311,49 +340,73 @@ function ItemsExplorerSession({
                     ? 'รายการทะเบียนครุภัณฑ์'
                     : 'รายการทะเบียนสิ่งของ'}
                 </h1>
-                <p className="mt-1.5 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
+                <p className="mt-1 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'list' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
-                  )}
-                  title="List view"
-                  aria-label="แสดงรายการแบบลิสต์"
-                  aria-pressed={viewMode === 'list'}
-                >
-                  <List className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'grid' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
-                  )}
-                  title="Grid view"
-                  aria-label="แสดงรายการแบบตาราง"
-                  aria-pressed={viewMode === 'grid'}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                </button>
+              {/* Segmented Type Switcher & View Controls */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Segmented Pill Tabs */}
+                <nav aria-label="ประเภทพัสดุ" className="flex items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
+                  {[
+                    { value: '', label: 'ทั้งหมด' },
+                    { value: 'asset', label: 'ครุภัณฑ์' },
+                    { value: 'material', label: 'วัสดุ' }
+                  ].map((type) => {
+                    const isActive = (params.type || '') === type.value
+                    return (
+                      <Link
+                        key={type.value}
+                        href={buildHref({ type: type.value, category_id: '', page: '1' })}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all select-none',
+                          isActive
+                            ? 'bg-card text-foreground font-semibold shadow-xs border border-border/50'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                        )}
+                      >
+                        <span>{type.label}</span>
+                      </Link>
+                    )
+                  })}
+                </nav>
+
+                {/* View Mode Toggle */}
+                <div className="flex shrink-0 items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      viewMode === 'list'
+                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title="List view"
+                    aria-label="แสดงรายการแบบลิสต์"
+                    aria-pressed={viewMode === 'list'}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      viewMode === 'grid'
+                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title="Grid view"
+                    aria-label="แสดงรายการแบบตาราง"
+                    aria-pressed={viewMode === 'grid'}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <nav aria-label="ประเภทพัสดุ" className="mt-5 flex gap-1 border-b border-border">
-              {[{ value: '', label: 'ทั้งหมด' }, { value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }].map((type) => (
-                <Link key={type.value} href={buildHref({ type: type.value, category_id: '', page: '1' })}
-                  aria-current={(params.type || '') === type.value ? 'page' : undefined}
-                  className={cn('border-b-2 px-4 py-3 text-sm font-medium transition-colors', (params.type || '') === type.value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border')}>
-                  {type.label}
-                </Link>
-              ))}
-            </nav>
             {/* Row 2: Action Bar (Bottom Row) */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
               {/* Left Side: Search + Category + Status Filters */}
@@ -407,6 +460,49 @@ function ItemsExplorerSession({
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
+
+                    {/* Location Filter */}
+                    <select
+                      name="location_id"
+                      aria-label="กรองตามสถานที่"
+                      value={params.location_id ?? ''}
+                      onChange={(e) => handleFilterChange({ location_id: e.target.value })}
+                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
+                    >
+                      <option value="">กรองตามสถานที่</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+
+                    {/* Batch Print by Location Button */}
+                    {params.location_id && localItems.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const stickers: ItemStickerData[] = localItems.map((itm) => ({
+                            id: itm.id,
+                            item_name: itm.item_name,
+                            asset_no: itm.asset_no,
+                            serial_no: itm.serial_no,
+                            brand: itm.brand,
+                            model: itm.model,
+                            location_name: itm.location?.name,
+                            category_name: itm.category?.name,
+                            responsible_person: itm.responsible_person,
+                            unit_price: itm.unit_price,
+                          }))
+                          setLocationPrintItems(stickers)
+                        }}
+                        className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer shadow-2xs"
+                        title="พิมพ์ป้ายครุภัณฑ์ทั้งหมดในสถานที่นี้"
+                      >
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>พิมพ์ป้ายทั้งสถานที่ ({localItems.length} ชิ้น)</span>
+                      </Button>
+                    )}
                   </div>
                 </form>
               </div>
@@ -452,7 +548,8 @@ function ItemsExplorerSession({
                   onToggleSort={toggleSort}
                 />
               ) : (
-                <ItemsGrid columns={windowed.columns}
+                <ItemsGrid
+                  columns={windowed.columns}
                   items={windowed.slots}
                   topSpace={windowed.topSpace}
                   bottomSpace={windowed.bottomSpace}
@@ -484,7 +581,6 @@ function ItemsExplorerSession({
             <div className="flex items-center gap-3">
               <span role="status" aria-live="polite">{windowed.state.error ?? (windowed.state.loading ? 'กำลังโหลด...' : !windowed.store.hasMore ? 'ครบทุกข้อมูลแล้ว' : '')}</span>
               {(windowed.state.error || windowed.store.hasMore) && <Button variant="outline" disabled={windowed.state.loading} onClick={() => void (windowed.state.error ? windowed.store.retry() : windowed.store.loadMore())}>{windowed.state.error ? 'ลองใหม่' : 'โหลดเพิ่มเติม'}</Button>}
-
             </div>
           </footer>
         </main>
@@ -492,7 +588,7 @@ function ItemsExplorerSession({
 
       {/* Slide-Over Detail Drawer (Inspector Sheet) */}
       <Inspector
-        onOpenDetails={windowed.save}
+        onOpenDetails={saveWindow}
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         item={selectedItem}
@@ -506,86 +602,79 @@ function ItemsExplorerSession({
         }}
       />
 
-      {bulkEditOpen && <BulkEditDialog count={selectedItemIds.length} locations={locations} categories={categories} units={units}
-        onClose={() => setBulkEditOpen(false)} onSave={updates => bulkUpdateItems(selectedItemIds, updates)}
-        onSaved={message => { triggerToast(message); setBulkEditOpen(false); setSelectedItemIds([]); router.refresh() }} />}
-      {selectedItemIds.length > 0 && (
-        <div className="fixed bottom-14 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
-          <span className="text-xs font-bold text-card-foreground">
-            เลือกอยู่ <span className="text-primary font-black">{selectedItemIds.length}</span> รายการ
-          </span>
-
-          <div className="h-4 w-px bg-border" />
-
-          {userCanWrite && <>
-            <Button id="bulk-edit-trigger" disabled={selectingAll} onClick={() => setBulkEditOpen(true)} className="h-9 text-sm">แก้ไขหลายรายการ</Button>
-            <Button variant="outline" disabled={selectingAll} onClick={async () => {
-              setSelectingAll(true)
-              try {
-                const result = await getMatchingItemIds(params)
-                if (currentFilterKey.current !== filterKey) return
-                if (result.success && result.data) setSelectedItemIds(result.data)
-                else setBlockingError(result.message || 'เลือกรายการไม่สำเร็จ')
-              } catch { setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่') }
-              finally { setSelectingAll(false) }
-            }} className="h-9 text-sm">{selectingAll ? 'กำลังเลือก...' : `เลือกทั้งหมดตามผลค้นหา (${total})`}</Button>
-          </>}
-
-          {/* Bulk Print Asset Tag */}
-          <Button
-            disabled={selectedItemsData.length !== selectedItemIds.length}
-            title={selectedItemsData.length !== selectedItemIds.length ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
-            onClick={() => setIsBatchPrintOpen(true)}
-            variant="outline"
-            className="h-8 rounded-lg px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
-          >
-            <Tag className="h-3.5 w-3.5" />
-            <span>พิมพ์ลาเบล ({selectedItemIds.length})</span>
-          </Button>
-
-          {/* Bulk Delete - Admin Only */}
-          {userCanDelete && (
-            <Button
-              onClick={async () => {
-                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
-
-                const res = await bulkHardDeleteItems(selectedItemIds)
-                if (res.success) {
-                  triggerToast(res.message || 'ลบเรียบร้อย')
-                  setSelectedItemIds([])
-                  void windowed.store.refresh()
-                  router.refresh()
-                } else {
-                  setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
-                }
-              }}
-              variant="outline"
-              className="h-8 rounded-lg px-3 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
-            >
-              ลบทั้งหมด
-            </Button>
-          )}
-
-          <div className="h-4 w-px bg-border" />
-
-          {/* Clear Selection */}
-          <button
-            onClick={() => setSelectedItemIds([])}
-            className="text-xs text-muted-foreground hover:text-card-foreground font-bold transition-colors cursor-pointer"
-          >
-            ยกเลิก
-          </button>
-        </div>
+      {bulkEditOpen && (
+        <BulkEditDialog
+          count={selectedItemIds.length}
+          locations={locations}
+          categories={categories}
+          units={units}
+          onClose={() => setBulkEditOpen(false)}
+          onSave={async (updates) => {
+            const snap = snapshot()
+            const patch: Partial<ItemListRow> = {}
+            if (updates.status !== undefined) {
+              patch.status = updates.status
+            }
+            if (updates.responsible_person !== undefined) {
+              patch.responsible_person = updates.responsible_person || null
+            }
+            if (updates.location_id !== undefined) {
+              const loc = locations.find((l) => l.id === updates.location_id)
+              patch.location = loc ? { id: loc.id, name: loc.name } : { id: updates.location_id, name: '' }
+            }
+            if (updates.category_id !== undefined) {
+              const cat = categories.find((c) => c.id === updates.category_id)
+              patch.category = cat ? { id: cat.id, name: cat.name } : { id: updates.category_id, name: '' }
+            }
+            if (updates.unit_id !== undefined) {
+              const u = units.find((unit) => unit.id === updates.unit_id)
+              patch.unit = u ? { id: u.id, name: u.name } : { id: updates.unit_id, name: '' }
+            }
+            optimisticUpdate(selectedItemIds, patch)
+            try {
+              const result = await bulkUpdateAction(selectedItemIds, updates)
+              if (!result.success) {
+                rollback(snap)
+              }
+              return result
+            } catch (err) {
+              rollback(snap)
+              throw err
+            }
+          }}
+          onSaved={(message) => {
+            triggerToast(message)
+            setBulkEditOpen(false)
+            setSelectedItemIds([])
+            router.refresh()
+          }}
+        />
       )}
 
+      {/* Floating Bulk Actions Toolbar */}
+      <ItemsBulkBar
+        selectedCount={selectedItemIds.length}
+        total={total}
+        userCanWrite={userCanWrite}
+        userCanDelete={userCanDelete}
+        selectingAll={selectingAll}
+        canPrintBatch={selectedItemsData.length === selectedItemIds.length}
+        onBulkEdit={() => setBulkEditOpen(true)}
+        onSelectAllMatching={handleSelectAllMatching}
+        onBatchPrint={() => setIsBatchPrintOpen(true)}
+        onBulkDelete={handleBulkDelete}
+        onClearSelection={() => setSelectedItemIds([])}
+      />
+
       <AssetTagModal
-        isOpen={isBatchPrintOpen || Boolean(singlePrintItem)}
+        isOpen={isBatchPrintOpen || Boolean(singlePrintItem) || Boolean(locationPrintItems)}
         onClose={() => {
           setIsBatchPrintOpen(false)
           setSinglePrintItem(null)
+          setLocationPrintItems(null)
         }}
         item={singlePrintItem ?? undefined}
-        items={isBatchPrintOpen ? selectedItemsData : undefined}
+        items={locationPrintItems ?? (isBatchPrintOpen ? selectedItemsData : undefined)}
       />
 
       {/* Blocking Error Modal */}
@@ -630,546 +719,6 @@ function ItemsExplorerSession({
         locations={locations}
         units={units}
       />
-    </div>
-  )
-}
-
-interface ItemsListProps {
-  items: (ItemListRow | null | undefined)[]
-  topSpace: number
-  bottomSpace: number
-  selectedItemId: string | null
-  selectedItemIds: string[]
-  onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
-  onToggleSelectItem: (id: string) => void
-  onToggleSelectAll: () => void
-  allLoadedSelected: boolean
-  params: ItemListSearchParams
-  onToggleSort: (field: string) => void
-}
-
-function ItemsList({
-  items, topSpace, bottomSpace, allLoadedSelected,
-  selectedItemId,
-  selectedItemIds,
-  onSelect,
-  onDoubleClick,
-  onToggleSelectItem,
-  onToggleSelectAll,
-  params,
-  onToggleSort,
-}: ItemsListProps) {
-  const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
-    const currentField = params.sort_by || 'updated_at'
-    const currentDir = params.sort_dir || 'desc'
-    const isSorted = currentField === field
-
-    const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : ''
-
-    return (
-      <button
-        type="button"
-        onClick={() => onToggleSort(field)}
-        className={cn(
-          "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
-          alignClass
-        )}
-      >
-        <span>{label}</span>
-        {isSorted ? (
-          currentDir === 'asc' ? (
-            <ArrowUp className="w-3 h-3 text-primary shrink-0" />
-          ) : (
-            <ArrowDown className="w-3 h-3 text-primary shrink-0" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-        )}
-      </button>
-    )
-  }
-
-  return (
-    <div className="bg-muted/20">
-      <DataTable responsive={false} wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible" className="text-card-foreground table-fixed min-w-[768px] sm:min-w-[856px] md:min-w-[960px] xl:min-w-[1100px]">
-        <DataTableHeader className="bg-muted border-b border-border">
-          <tr>
-            <DataTableHead isCheckbox className="w-9 px-2">
-              <input
-                type="checkbox"
-                aria-label="เลือกทุกรายการที่โหลดอยู่"
-                checked={allLoadedSelected}
-                onChange={onToggleSelectAll}
-                className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-              />
-            </DataTableHead>
-            <DataTableHead className="w-10 px-1" />
-            <DataTableHead className="px-3">{renderSortHeader('item_name', 'ชื่อพัสดุ')}</DataTableHead>
-            <DataTableHead className="hidden w-[88px] px-3 sm:table-cell">{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
-            <DataTableHead className="hidden w-28 px-3 md:table-cell">หมวดหมู่</DataTableHead>
-            <DataTableHead className="w-[88px] px-2">{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
-            <DataTableHead className="w-[136px] px-3">สถานที่</DataTableHead>
-            <DataTableHead className="hidden w-[136px] px-3 xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
-            <DataTableHead className="w-28 px-3">{renderSortHeader('status', 'สถานะ')}</DataTableHead>
-          </tr>
-        </DataTableHeader>
-        <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {/* Six columns are always visible; spanning hidden columns creates a phantom column. */}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
-          {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={6} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
-            const isSelected = selectedItemId === item.id
-            const isChecked = selectedItemIds.includes(item.id)
-            return (
-              <DataTableRow
-                key={item.id}
-                tabIndex={0}
-                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
-                title={item.item_name}
-                onClick={() => onSelect(item)}
-                onDoubleClick={() => onDoubleClick?.(item)}
-                className={cn(
-                  'h-16 max-h-16 [&>td]:h-16 [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1 cursor-pointer transition-colors',
-                  isSelected
-                    ? 'border-b border-primary/30 bg-primary/10 text-card-foreground'
-                    : 'border-b border-border/60 text-card-foreground hover:bg-muted/40'
-                )}
-              >
-                <DataTableCell isCheckbox className="px-2" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={`เลือก ${item.item_name}`}
-                    checked={isChecked}
-                    onChange={() => onToggleSelectItem(item.id)}
-                    className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-                  />
-                </DataTableCell>
-                <DataTableCell className="px-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-muted text-muted-foreground">
-                    {typeIcons[item.item_type]}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="px-3">
-                  <div className="line-clamp-2 whitespace-normal break-words text-[13px] leading-[18px] font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</div>
-                  <div className="mt-0.5 truncate font-mono text-xs leading-[14px] text-muted-foreground" title={item.asset_no || item.serial_no || undefined}>
-                    {item.asset_no || item.serial_no || '- ไม่มีเลขอ้างอิง -'}
-                  </div>
-                </DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground sm:table-cell">{ITEM_TYPE_LABELS[item.item_type]}</DataTableCell>
-                <DataTableCell className="hidden px-3 text-muted-foreground md:table-cell" title={item.category?.name}>{item.category?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="px-2 text-center font-extrabold text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
-                <DataTableCell className="px-3 font-semibold text-muted-foreground" title={item.location?.name}>{item.location?.name ?? '-'}</DataTableCell>
-                <DataTableCell className="hidden px-3 font-semibold text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>{item.responsible_person ?? '-'}</DataTableCell>
-                <DataTableCell className="px-3"><StatusBadge status={item.status} /></DataTableCell>
-              </DataTableRow>
-            )
-          })}
-          <tr aria-hidden="true"><td colSpan={6} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
-          {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
-        </DataTableBody>
-      </DataTable>
-    </div>
-  )
-}
-
-interface ItemsGridProps {
-  columns: number
-  items: (ItemListRow | null | undefined)[]
-  topSpace: number
-  bottomSpace: number
-  selectedItemId: string | null
-  selectedItemIds: string[]
-  onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
-  onToggleSelectItem: (id: string) => void
-}
-
-function ItemsGrid({
-  items, columns, topSpace, bottomSpace,
-  selectedItemId,
-  selectedItemIds,
-  onSelect,
-  onDoubleClick,
-  onToggleSelectItem,
-}: ItemsGridProps) {
-  return (
-    <div className="bg-muted/20 p-4" style={{ paddingTop: topSpace + 16, paddingBottom: bottomSpace + 16 }}>
-      {items.length ? (
-        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: 208 }}>
-          {items.map((item, slot) => {
-            if (!item) return <div key={`slot-${slot}`} className="p-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</div>
-            const isSelected = selectedItemId === item.id
-            const isChecked = selectedItemIds.includes(item.id)
-            return (
-              <div
-                key={item.id}
-                tabIndex={0}
-                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
-                title={item.item_name}
-                onClick={() => onSelect(item)}
-                onDoubleClick={() => onDoubleClick?.(item)}
-                className={cn(
-                  'group relative flex h-[208px] min-w-0 overflow-hidden flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
-                  isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
-                )}
-              >
-                {/* Checkbox Overlay */}
-                <div className="absolute top-3 right-3 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => onToggleSelectItem(item.id)}
-                    type="button"
-                    aria-label={`เลือก ${item.item_name}`}
-                    aria-pressed={isChecked}
-                    className={cn(
-                      'flex h-11 w-11 items-center justify-center rounded border transition-colors cursor-pointer',
-                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-                    )}
-                  >
-                    {isChecked && <Check className="w-4 h-4 stroke-[3px]" />}
-                  </button>
-                </div>
-
-                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-muted-foreground shadow-inner transition-transform group-hover:scale-105">
-                  {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.image_url}
-                      alt={item.item_name}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    typeIcons[item.item_type]
-                  )}
-                </div>
-                <p className="line-clamp-2 text-xs font-extrabold leading-snug text-card-foreground pr-4">{item.item_name}</p>
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{item.asset_no || item.serial_no || '-'}</p>
-                <div className="mt-auto flex items-center justify-between pt-3">
-                  <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                    {ITEM_TYPE_LABELS[item.item_type]}
-                  </span>
-                  <span className="text-xs font-bold text-muted-foreground">{item.quantity} {item.unit?.name ?? ''}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="flex h-full items-center justify-center p-8">
-          <EmptyState
-            title="ไม่พบข้อมูลสิ่งของในทะเบียน"
-            description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
-            icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
-            className="border-0 shadow-none bg-transparent"
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function EmptyRows() {
-  return (
-    <tr>
-      <td colSpan={9} className="px-5 py-12">
-        <EmptyState
-          title="ไม่พบข้อมูลสิ่งของ"
-          description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
-          icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
-          className="border-0 shadow-none bg-transparent"
-        />
-      </td>
-    </tr>
-  )
-}
-
-function Inspector({ onOpenDetails,
-  isOpen,
-  onClose,
-  item,
-  userCanWrite,
-  userCanDelete,
-  onCopy,
-  onPrint,
-  onEdit,
-}: {
-  onOpenDetails: () => void
-  isOpen: boolean
-  onClose: () => void
-  item: ItemListRow | null
-  userCanWrite: boolean
-  userCanDelete: boolean
-  onCopy: (value: string | null | undefined) => void
-  onPrint: (item: ItemStickerData) => void
-  onEdit: (item: ItemListRow) => void
-}) {
-  useEffect(() => {
-    if (!isOpen) return
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
-
-  if (!isOpen || !item) {
-    return null
-  }
-
-  const stickerData: ItemStickerData = {
-    id: item.id,
-    item_name: item.item_name,
-    asset_no: item.asset_no,
-    serial_no: item.serial_no,
-    brand: item.brand,
-    model: item.model,
-    location_name: item.location?.name,
-    category_name: item.category?.name,
-    responsible_person: item.responsible_person,
-    unit_price: item.unit_price,
-  }
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
-        onClick={onClose}
-        aria-hidden="true"
-        data-testid="inspector-backdrop"
-      />
-
-      {/* Drawer Panel */}
-      <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col border-l border-border bg-card shadow-2xl overflow-hidden animate-in slide-in-from-right duration-250"
-        aria-label="รายละเอียดรายการ"
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-5 py-4">
-          <div className="flex flex-col min-w-0 pr-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">รายละเอียดสิ่งของ</span>
-            <h3 className="truncate text-base font-extrabold text-card-foreground">{item.item_name}</h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-card-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="ปิดแถบรายละเอียด"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-          {/* Image preview */}
-          <div className="relative h-52 shrink-0 overflow-hidden border-b border-border bg-muted">
-            {item.image_url ? (
-              <ZoomableImage
-                src={item.image_url}
-                alt={item.item_name}
-                className="h-full w-full"
-                imgClassName="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
-                <Package className="h-12 w-12 stroke-[1.25] text-muted-foreground/50" />
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">No Image Available</span>
-              </div>
-            )}
-
-            <Link
-              href={`/items/${item.id}`} onClick={onOpenDetails}
-              className="absolute right-3 top-3 rounded-full bg-card/95 p-2 text-primary shadow-md transition-transform hover:scale-105 hover:bg-card"
-              title="เปิดหน้ารายละเอียดเต็ม"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="flex flex-col gap-4 p-5">
-            {/* Title card */}
-            <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="text-base font-extrabold leading-tight text-card-foreground">{item.item_name}</h4>
-                <StatusBadge status={item.status} />
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-md border border-border bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-                  {item.category?.name || 'หมวดหมู่ทั่วไป'}
-                </span>
-                <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                  {ITEM_TYPE_LABELS[item.item_type]}
-                </span>
-              </div>
-            </div>
-
-            {/* Asset No / Serial Number */}
-            {item.asset_no && (
-              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="เลขครุภัณฑ์">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
-                    {item.asset_no}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onCopy(item.asset_no)}
-                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary cursor-pointer"
-                    title="คัดลอกเลขครุภัณฑ์"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </InspectorBox>
-            )}
-
-            {item.serial_no && (
-              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="Serial Number">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground">
-                    {item.serial_no}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onCopy(item.serial_no)}
-                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary cursor-pointer"
-                    title="คัดลอก Serial Number"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </InspectorBox>
-            )}
-
-            {!item.asset_no && !item.serial_no && (
-              <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary" />} label="เลขอ้างอิง">
-                <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
-                  - ไม่มีเลขอ้างอิง -
-                </p>
-              </InspectorBox>
-            )}
-
-            {/* Quantity & Unit Price */}
-            <div className="grid grid-cols-2 gap-3">
-              <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary" />} label="จำนวนคงเหลือ">
-                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-bold text-card-foreground">
-                  {item.quantity} {item.unit?.name ?? ''}
-                </div>
-              </InspectorBox>
-
-              <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-primary">payments</span>} label="ราคาต่อหน่วย">
-                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-bold text-card-foreground">
-                  {item.unit_price !== null && item.unit_price !== undefined ? `฿${item.unit_price.toLocaleString()}` : '-'}
-                </div>
-              </InspectorBox>
-            </div>
-
-            {/* Location */}
-            <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary" />} label="สถานที่จัดเก็บ">
-              <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
-                {item.location?.name || 'ไม่ได้ระบุ'}
-              </div>
-            </InspectorBox>
-
-            {/* Responsible Person */}
-            <InspectorBox icon={<User className="h-3.5 w-3.5 text-primary" />} label="ผู้รับผิดชอบ">
-              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
-                <div className="mr-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
-                  {(item.responsible_person || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="font-bold text-card-foreground">{item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}</span>
-              </div>
-            </InspectorBox>
-
-            {/* Brand / Model */}
-            {(item.brand || item.model) && (
-              <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary" />} label="ยี่ห้อ / รุ่น">
-                <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs font-medium text-card-foreground">
-                  {[item.brand, item.model].filter(Boolean).join(' - ') || '-'}
-                </div>
-              </InspectorBox>
-            )}
-
-            {/* Note */}
-            <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-primary" />} label="หมายเหตุ">
-              <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2.5 text-xs leading-relaxed text-muted-foreground">
-                {item.note || '- ไม่มีหมายเหตุ -'}
-              </p>
-            </InspectorBox>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="shrink-0 border-t border-border bg-card p-4">
-          <div className="flex flex-col gap-2 w-full">
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onPrint(stickerData)}
-                className="h-10 rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Tag className="h-4 w-4" />
-                <span>พิมพ์ป้ายบาร์โค้ด</span>
-              </Button>
-              <Link href={`/items/${item.id}`} onClick={onOpenDetails} className="w-full">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>ดูหน้ารายละเอียดเต็ม</span>
-                </Button>
-              </Link>
-            </div>
-
-            {userCanWrite && (
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => onEdit(item)}
-                className="h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                  <Edit className="h-4 w-4" />
-                  <span>แก้ไขข้อมูล</span>
-              </Button>
-            )}
-
-            {userCanDelete && (
-              <div className="w-full">
-                <DeleteItemButton id={item.id} />
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
-    </>
-  )
-}
-
-function InspectorBox({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-      <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary">
-        {icon}
-        <span>{label}</span>
-      </p>
-      {children}
     </div>
   )
 }

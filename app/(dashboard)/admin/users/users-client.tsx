@@ -32,7 +32,16 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  DataTable,
+  DataTableHeader,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableCell,
+} from '@/components/ui/data-table'
 import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/date'
 
 interface UsersClientProps {
   currentUserId: string
@@ -242,19 +251,6 @@ export default function UsersClient({
     })
   }
 
-  const formatDate = (isoString?: string | null) => {
-    if (!isoString) return '-'
-    try {
-      const date = new Date(isoString)
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    } catch {
-      return isoString
-    }
-  }
 
   return (
     <PageContainer>
@@ -401,206 +397,201 @@ export default function UsersClient({
       </div>
 
       {/* Users Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
-                <th className="py-3 px-4">ผู้ใช้งาน (User)</th>
-                <th className="py-3 px-4">อีเมล (Email)</th>
-                <th className="py-3 px-4">บทบาทสิทธิ์ (Role)</th>
-                <th className="py-3 px-4 text-center">สถานะบัญชี (Status)</th>
-                <th className="py-3 px-4">วันที่ลงทะเบียน</th>
-                <th className="py-3 px-4 text-right">การจัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {initialProfiles.map((user) => {
-                const isSelf = user.id === currentUserId
-                const roleInfo = ROLE_CONFIG[user.role] || ROLE_CONFIG.viewer
-                const initial = (user.full_name || user.email || 'U').charAt(0).toUpperCase()
+      <DataTable>
+        <DataTableHeader>
+          <tr>
+            <DataTableHead>ผู้ใช้งาน (User)</DataTableHead>
+            <DataTableHead>อีเมล (Email)</DataTableHead>
+            <DataTableHead>บทบาทสิทธิ์ (Role)</DataTableHead>
+            <DataTableHead className="text-center">สถานะบัญชี (Status)</DataTableHead>
+            <DataTableHead>วันที่ลงทะเบียน</DataTableHead>
+            <DataTableHead isActions>การจัดการ</DataTableHead>
+          </tr>
+        </DataTableHeader>
+        <DataTableBody className="font-medium">
+          {initialProfiles.map((user) => {
+            const isSelf = user.id === currentUserId
+            const roleInfo = ROLE_CONFIG[user.role] || ROLE_CONFIG.viewer
+            const initial = (user.full_name || user.email || 'U').charAt(0).toUpperCase()
 
-                return (
-                  <tr
-                    key={user.id}
-                    className="hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/40"
-                  >
-                    {/* User Name & Avatar */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs shadow-2xs dark:bg-blue-900/50 dark:text-blue-300">
-                          {initial}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-900 dark:text-slate-100">
-                              {user.full_name || '(ไม่ระบุชื่อ)'}
-                            </span>
-                            {isSelf && (
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                                บัญชีคุณ
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] font-mono text-slate-400 mt-0.5">{user.id.slice(0, 8)}...</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Email */}
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-slate-600 dark:text-slate-300 text-[11px]">
-                        {user.email || '-'}
-                      </span>
-                    </td>
-
-                    {/* Role Dropdown */}
-                    <td className="py-3 px-4">
-                      {isSelf ? (
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold',
-                            roleInfo.badgeClass
-                          )}
-                        >
-                          {roleInfo.icon}
-                          {roleInfo.label}
+            return (
+              <DataTableRow
+                key={user.id}
+              >
+                {/* User Name & Avatar */}
+                <DataTableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs shadow-2xs dark:bg-blue-900/50 dark:text-blue-300">
+                      {initial}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-foreground">
+                          {user.full_name || '(ไม่ระบุชื่อ)'}
                         </span>
-                      ) : (
-                        <select
-                          value={user.role}
-                          disabled={isPending}
-                          onChange={(e) => {
-                            const newRole = e.target.value as 'admin' | 'staff' | 'viewer'
-                            if (newRole !== user.role) {
-                              setPendingRoleStatusUpdate({
-                                profile: user,
-                                newRole,
-                                newStatus: user.is_active,
-                              })
-                            }
-                          }}
-                          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
-                        >
-                          <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-                          <option value="staff">เจ้าหน้าที่ (Staff)</option>
-                          <option value="viewer">ผู้เข้าชม (Viewer)</option>
-                        </select>
-                      )}
-                    </td>
-
-                    {/* Active Status */}
-                    <td className="py-3 px-4 text-center">
-                      {isSelf ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-                          <UserCheck className="h-3.5 w-3.5" />
-                          <span>เปิดใช้งาน</span>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            setPendingRoleStatusUpdate({
-                              profile: user,
-                              newRole: user.role,
-                              newStatus: !user.is_active,
-                            })
-                          }}
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer',
-                            user.is_active
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                          )}
-                        >
-                          {user.is_active ? (
-                            <>
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              <span>เปิดใช้งาน</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                              <span>ปิดใช้งาน</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </td>
-
-                    {/* Created Date */}
-                    <td className="py-3 px-4 text-slate-500 dark:text-slate-400 text-[11px]">
-                      {formatDate(user.created_at)}
-                    </td>
-
-                    {/* Action buttons */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          title="รีเซ็ตรหัสผ่าน"
-                          onClick={() => {
-                            setNotice(null)
-                            setResetTargetUser(user)
-                            setNewPasswordInput('')
-                          }}
-                          className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer"
-                        >
-                          <KeyRound className="h-3.5 w-3.5" />
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          title="แก้ไขอีเมล"
-                          onClick={() => {
-                            setNotice(null)
-                            setEmailTargetUser(user)
-                            setNewEmailInput(user.email || '')
-                          }}
-                          className="h-7 w-7 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 cursor-pointer"
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                        </Button>
-
-                        {!isSelf && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            title="ลบบัญชีผู้ใช้"
-                            onClick={() => {
-                              setNotice(null)
-                              setDeleteTargetUser(user)
-                            }}
-                            className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                        {isSelf && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            บัญชีคุณ
+                          </span>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                )
-              })}
+                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{user.id.slice(0, 8)}...</p>
+                    </div>
+                  </div>
+                </DataTableCell>
 
-              {initialProfiles.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
-                    <UserX className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">ไม่พบข้อมูลผู้ใช้งาน</p>
-                    <p className="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองบทบาท</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                {/* Email */}
+                <DataTableCell>
+                  <span className="font-mono text-muted-foreground text-[11px]">
+                    {user.email || '-'}
+                  </span>
+                </DataTableCell>
+
+                {/* Role Dropdown */}
+                <DataTableCell>
+                  {isSelf ? (
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-bold',
+                        roleInfo.badgeClass
+                      )}
+                    >
+                      {roleInfo.icon}
+                      {roleInfo.label}
+                    </span>
+                  ) : (
+                    <select
+                      value={user.role}
+                      disabled={isPending}
+                      onChange={(e) => {
+                        const newRole = e.target.value as 'admin' | 'staff' | 'viewer'
+                        if (newRole !== user.role) {
+                          setPendingRoleStatusUpdate({
+                            profile: user,
+                            newRole,
+                            newStatus: user.is_active,
+                          })
+                        }
+                      }}
+                      className="h-8 rounded-lg border border-input bg-card px-2 text-xs font-semibold text-foreground focus:border-ring focus:outline-none cursor-pointer"
+                    >
+                      <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                      <option value="staff">เจ้าหน้าที่ (Staff)</option>
+                      <option value="viewer">ผู้เข้าชม (Viewer)</option>
+                    </select>
+                  )}
+                </DataTableCell>
+
+                {/* Active Status */}
+                <DataTableCell className="text-center">
+                  {isSelf ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                      <UserCheck className="h-3.5 w-3.5" />
+                      <span>เปิดใช้งาน</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setPendingRoleStatusUpdate({
+                          profile: user,
+                          newRole: user.role,
+                          newStatus: !user.is_active,
+                        })
+                      }}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer',
+                        user.is_active
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border-border bg-muted text-muted-foreground hover:bg-muted/80'
+                      )}
+                    >
+                      {user.is_active ? (
+                        <>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span>เปิดใช้งาน</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                          <span>ปิดใช้งาน</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </DataTableCell>
+
+                {/* Created Date */}
+                <DataTableCell className="text-muted-foreground text-[11px]">
+                  {formatDate(user.created_at) || '-'}
+                </DataTableCell>
+
+                {/* Action buttons */}
+                <DataTableCell isActions>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="รีเซ็ตรหัสผ่าน"
+                      onClick={() => {
+                        setNotice(null)
+                        setResetTargetUser(user)
+                        setNewPasswordInput('')
+                      }}
+                      className="h-7 w-7 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="แก้ไขอีเมล"
+                      onClick={() => {
+                        setNotice(null)
+                        setEmailTargetUser(user)
+                        setNewEmailInput(user.email || '')
+                      }}
+                      className="h-7 w-7 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                    </Button>
+
+                    {!isSelf && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="ลบบัญชีผู้ใช้"
+                        onClick={() => {
+                          setNotice(null)
+                          setDeleteTargetUser(user)
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </DataTableCell>
+              </DataTableRow>
+            )
+          })}
+
+          {initialProfiles.length === 0 && (
+            <tr>
+              <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                <UserX className="mx-auto h-8 w-8 text-muted-foreground mb-2 opacity-60" />
+                <p className="text-sm font-bold text-foreground">ไม่พบข้อมูลผู้ใช้งาน</p>
+                <p className="text-xs text-muted-foreground mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองบทบาท</p>
+              </td>
+            </tr>
+          )}
+        </DataTableBody>
+      </DataTable>
 
       {/* Modal: Create User */}
       {showCreateModal && (

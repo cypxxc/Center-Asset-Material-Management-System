@@ -261,3 +261,4 @@ test('Clicking another item row switches the inspected item in the drawer', () =
   assert.ok(drawerScope.getByText('฿135'))
   assert.ok(drawerScope.getByText('ห้องเก็บของส่วนกลาง'))
 })
+
