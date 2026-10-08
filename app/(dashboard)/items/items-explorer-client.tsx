@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   List,
   Tag,
-  Camera,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,8 +27,6 @@ const NewItemSheet = dynamic(
 
 import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
-import { QrScannerModal } from '@/components/ui/qr-scanner-modal'
-import type { ParsedScanResult } from '@/lib/qr-scan-parser'
 
 import { SearchInput } from '@/components/ui/search-input'
 import { useToast } from '@/components/ui/toast'
@@ -139,17 +136,7 @@ function ItemsExplorerSession({
   const [editingItem, setEditingItem] = useState<ItemDetail | null>(null)
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
-  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false)
   const [locationPrintItems, setLocationPrintItems] = useState<ItemStickerData[] | null>(null)
-
-  const handleScanSuccess = useCallback((result: ParsedScanResult) => {
-    if (result.type === 'item_id') {
-      router.push(`/items/${result.value}`)
-    } else {
-      setSearchVal(result.value)
-      handleFilterChange({ q: result.value })
-    }
-  }, [router, setSearchVal, handleFilterChange])
 
   const selectedItemsData = useMemo(() => {
     const selectedSet = new Set(selectedItemIds)
@@ -342,8 +329,8 @@ function ItemsExplorerSession({
         <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-border bg-card px-4 py-5 sm:px-6 md:px-8">
-            {/* Row 1: Title (Left) & View Mode Toggle (Right) */}
-            <div className="flex items-center justify-between gap-4">
+            {/* Row 1: Title (Left) + Segmented Tabs (Center/Integrated) + View Mode Toggle (Right) */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col min-w-0">
                 {/* Dynamic Main Title */}
                 <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-card-foreground leading-snug">
@@ -353,57 +340,72 @@ function ItemsExplorerSession({
                     ? 'รายการทะเบียนครุภัณฑ์'
                     : 'รายการทะเบียนสิ่งของ'}
                 </h1>
-                <p className="mt-1.5 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
+                <p className="mt-1 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'list' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
-                  )}
-                  title="List view"
-                  aria-label="แสดงรายการแบบลิสต์"
-                  aria-pressed={viewMode === 'list'}
-                >
-                  <List className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all cursor-pointer',
-                    viewMode === 'grid' ? 'bg-card text-primary shadow-2xs' : 'text-muted-foreground hover:text-card-foreground'
-                  )}
-                  title="Grid view"
-                  aria-label="แสดงรายการแบบตาราง"
-                  aria-pressed={viewMode === 'grid'}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                </button>
+              {/* Segmented Type Switcher & View Controls */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Segmented Pill Tabs */}
+                <nav aria-label="ประเภทพัสดุ" className="flex items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
+                  {[
+                    { value: '', label: 'ทั้งหมด' },
+                    { value: 'asset', label: 'ครุภัณฑ์' },
+                    { value: 'material', label: 'วัสดุ' }
+                  ].map((type) => {
+                    const isActive = (params.type || '') === type.value
+                    return (
+                      <Link
+                        key={type.value}
+                        href={buildHref({ type: type.value, category_id: '', page: '1' })}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all select-none',
+                          isActive
+                            ? 'bg-card text-foreground font-semibold shadow-xs border border-border/50'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                        )}
+                      >
+                        <span>{type.label}</span>
+                      </Link>
+                    )
+                  })}
+                </nav>
+
+                {/* View Mode Toggle */}
+                <div className="flex shrink-0 items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      viewMode === 'list'
+                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title="List view"
+                    aria-label="แสดงรายการแบบลิสต์"
+                    aria-pressed={viewMode === 'list'}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      viewMode === 'grid'
+                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title="Grid view"
+                    aria-label="แสดงรายการแบบตาราง"
+                    aria-pressed={viewMode === 'grid'}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
-
-            <nav aria-label="ประเภทพัสดุ" className="mt-5 flex gap-1 border-b border-border">
-              {[{ value: '', label: 'ทั้งหมด' }, { value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }].map((type) => (
-                <Link
-                  key={type.value}
-                  href={buildHref({ type: type.value, category_id: '', page: '1' })}
-                  aria-current={(params.type || '') === type.value ? 'page' : undefined}
-                  className={cn(
-                    'border-b-2 px-4 py-3 text-sm font-medium transition-colors',
-                    (params.type || '') === type.value
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                  )}
-                >
-                  {type.label}
-                </Link>
-              ))}
-            </nav>
 
             {/* Row 2: Action Bar (Bottom Row) */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
@@ -428,17 +430,6 @@ function ItemsExplorerSession({
                       placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
                       className="w-full sm:w-80"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsQrScannerOpen(true)}
-                      className="h-9 px-2.5 flex items-center gap-1.5 text-xs font-semibold cursor-pointer border-slate-300 hover:bg-slate-100 text-slate-700 shrink-0"
-                      title="สแกน QR Code หรือบาร์โค้ดด้วยกล้อง"
-                    >
-                      <Camera className="h-4 w-4 text-emerald-600" />
-                      <span className="hidden md:inline">สแกน</span>
-                    </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -684,12 +675,6 @@ function ItemsExplorerSession({
         }}
         item={singlePrintItem ?? undefined}
         items={locationPrintItems ?? (isBatchPrintOpen ? selectedItemsData : undefined)}
-      />
-
-      <QrScannerModal
-        isOpen={isQrScannerOpen}
-        onClose={() => setIsQrScannerOpen(false)}
-        onScanSuccess={handleScanSuccess}
       />
 
       {/* Blocking Error Modal */}
