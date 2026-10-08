@@ -506,31 +506,7 @@ export function AssetTagModal({
             border: 1px solid #0f172a !important;
           }
           ${
-            !activeConfig.isSheet
-              ? `
-          .print-thermal-roll {
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .print-thermal-roll > div,
-          .thermal-roll-tag {
-            width: ${activeConfig.width} !important;
-            height: ${activeConfig.height} !important;
-            max-width: ${activeConfig.width} !important;
-            max-height: ${activeConfig.height} !important;
-            box-sizing: border-box !important;
-            page-break-after: always !important;
-            break-after: page !important;
-            overflow: hidden !important;
-            background: white !important;
-          }
-          .print-thermal-roll > div:last-child {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
-          }
-          `
-              : selectedPreset === "custom_grid"
+            selectedPreset === "custom_grid"
               ? `
           .a4-sheet,
           .print-page-a4 {
@@ -593,10 +569,10 @@ export function AssetTagModal({
                   รูปแบบและขนาดลาเบล (Label Preset)
                 </label>
                 <span className="text-[11px] text-muted-foreground font-medium">
-                  {activeConfig.isSheet ? "กระดาษ A4 สติกเกอร์" : "เครื่องพิมพ์สติ๊กเกอร์ม้วนความร้อน"}
+                  กระดาษ A4 สติกเกอร์
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {(Object.keys(STICKER_PRESETS) as StickerSizePreset[]).map((key) => {
                   const p = STICKER_PRESETS[key]
                   const isSelected = selectedPreset === key
@@ -615,8 +591,6 @@ export function AssetTagModal({
                       <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                         {key === "custom_grid"
                           ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม.`
-                          : !p.isSheet
-                          ? `${p.width} × ${p.height} (ม้วนความร้อนเดี่ยว)`
                           : "9.6 × 5.4 ซม. (10 ดวง/แผ่น)"}
                       </span>
                     </button>
@@ -1137,9 +1111,7 @@ export function AssetTagModal({
           {/* Footer Actions */}
           <div className="px-5 py-3 bg-card border-t border-border flex items-center justify-between gap-2">
             <div className="text-xs text-muted-foreground font-medium hidden sm:block">
-              {activeConfig.isSheet
-                ? `แผ่น A4 (${totalPages} แผ่น | ${labelsPerPage} ป้าย/แผ่น)`
-                : `ขนาดกระดาษ ${activeConfig.width} × ${activeConfig.height}`}
+              แผ่น A4 ({totalPages} แผ่น | {labelsPerPage} ป้าย/แผ่น)
             </div>
             <div className="flex items-center gap-2 ml-auto">
               <Button
@@ -1165,64 +1137,50 @@ export function AssetTagModal({
 
       {/* Hidden printable container for window.print() — Clean sibling element */}
       <div id="printable-asset-tag" className="hidden">
-        {activeConfig.isSheet ? (
-          Array.from({ length: totalPages }).map((_, pageIdx) => {
-            const pageItems = expandedPrintList.slice(
-              pageIdx * labelsPerPage,
-              (pageIdx + 1) * labelsPerPage
-            )
-            return (
-              <div
-                key={pageIdx}
-                className="a4-sheet print-page-a4"
-                style={{
-                  width: "210mm",
-                  height: "297mm",
-                  maxHeight: "297mm",
-                  boxSizing: "border-box",
-                  padding: selectedPreset === "custom_grid"
-                    ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
-                    : "8mm 6mm",
-                  display: "grid",
-                  gridTemplateColumns: selectedPreset === "custom_grid"
-                    ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
-                    : `repeat(${sheetCols}, 96mm)`,
-                  gridTemplateRows: selectedPreset === "custom_grid"
-                    ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
-                    : `repeat(${sheetRows}, 54mm)`,
-                  gap: selectedPreset === "custom_grid"
-                    ? `${customGrid.gap}mm`
-                    : "3mm 4mm",
-                  justifyContent: "center",
-                  alignContent: "start",
-                  overflow: "hidden",
-                }}
-              >
-                {pageItems.map((itm, idx) => (
-                  <SingleStickerItem
-                    key={idx}
-                    itemData={itm}
-                    presetConfig={activeConfig}
-                    visibility={fieldVisibility}
-                    isSheetCell={true}
-                  />
-                ))}
-              </div>
-            )
-          })
-        ) : (
-          <div className="print-thermal-roll">
-            {expandedPrintList.map((itm, idx) => (
-              <SingleStickerItem
-                key={idx}
-                itemData={itm}
-                presetConfig={activeConfig}
-                visibility={fieldVisibility}
-                isSheetCell={false}
-              />
-            ))}
-          </div>
-        )}
+        {Array.from({ length: totalPages }).map((_, pageIdx) => {
+          const pageItems = expandedPrintList.slice(
+            pageIdx * labelsPerPage,
+            (pageIdx + 1) * labelsPerPage
+          )
+          return (
+            <div
+              key={pageIdx}
+              className="a4-sheet print-page-a4"
+              style={{
+                width: "210mm",
+                height: "297mm",
+                maxHeight: "297mm",
+                boxSizing: "border-box",
+                padding: selectedPreset === "custom_grid"
+                  ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
+                  : "8mm 6mm",
+                display: "grid",
+                gridTemplateColumns: selectedPreset === "custom_grid"
+                  ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
+                  : `repeat(${sheetCols}, 96mm)`,
+                gridTemplateRows: selectedPreset === "custom_grid"
+                  ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
+                  : `repeat(${sheetRows}, 54mm)`,
+                gap: selectedPreset === "custom_grid"
+                  ? `${customGrid.gap}mm`
+                  : "3mm 4mm",
+                justifyContent: "center",
+                alignContent: "start",
+                overflow: "hidden",
+              }}
+            >
+              {pageItems.map((itm, idx) => (
+                <SingleStickerItem
+                  key={idx}
+                  itemData={itm}
+                  presetConfig={activeConfig}
+                  visibility={fieldVisibility}
+                  isSheetCell={true}
+                />
+              ))}
+            </div>
+          )
+        })}
       </div>
     </>
   )

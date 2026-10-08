@@ -2,39 +2,28 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { STICKER_PRESETS } from '../../components/ui/asset-tag-layout'
 
-test('STICKER_PRESETS includes thermal roll presets with isSheet false', () => {
-  const thermal50x30 = STICKER_PRESETS['thermal_50x30']
-  assert.ok(thermal50x30, 'thermal_50x30 preset should be defined')
-  assert.equal(thermal50x30.isSheet, false, 'thermal roll should not be a sheet grid')
-  assert.equal(thermal50x30.width, '50mm')
-  assert.equal(thermal50x30.height, '30mm')
+test('STICKER_PRESETS includes only standard and custom_grid presets', () => {
+  const keys = Object.keys(STICKER_PRESETS)
+  assert.deepEqual(keys.sort(), ['custom_grid', 'standard'])
 
-  const thermal40x20 = STICKER_PRESETS['thermal_40x20']
-  assert.ok(thermal40x20, 'thermal_40x20 preset should be defined')
-  assert.equal(thermal40x20.isSheet, false)
-  assert.equal(thermal40x20.width, '40mm')
-  assert.equal(thermal40x20.height, '20mm')
+  const standard = STICKER_PRESETS['standard']
+  assert.ok(standard, 'standard preset should be defined')
+  assert.equal(standard.isSheet, true, 'standard preset should be an A4 sheet')
+  assert.equal(standard.sheetGrid?.cols, 2)
+  assert.equal(standard.sheetGrid?.rows, 5)
+  assert.equal(standard.width, '96mm')
+  assert.equal(standard.height, '54mm')
 
-  const thermal70x40 = STICKER_PRESETS['thermal_70x40']
-  assert.ok(thermal70x40, 'thermal_70x40 preset should be defined')
-  assert.equal(thermal70x40.isSheet, false)
-  assert.equal(thermal70x40.width, '70mm')
-  assert.equal(thermal70x40.height, '40mm')
+  const custom = STICKER_PRESETS['custom_grid']
+  assert.ok(custom, 'custom_grid preset should be defined')
+  assert.equal(custom.isSheet, true, 'custom_grid should be an A4 sheet')
 })
 
-test('thermal roll presets define compact typography and dimensions', () => {
-  const p40 = STICKER_PRESETS['thermal_40x20']
-  assert.ok(p40.padding)
-  assert.ok(p40.qrSize)
-  assert.ok(p40.barcodeHeight)
-  assert.ok(p40.titleSize)
-
-  const p50 = STICKER_PRESETS['thermal_50x30']
-  assert.ok(p50.padding)
-  assert.ok(p50.qrSize)
-  assert.ok(p50.barcodeHeight)
-
-  const p70 = STICKER_PRESETS['thermal_70x40']
-  assert.ok(p70.padding)
-  assert.ok(p70.qrSize)
+test('standard preset defines readable typography and dimensions', () => {
+  const standard = STICKER_PRESETS['standard']
+  assert.ok(standard.padding)
+  assert.ok(standard.qrSize)
+  assert.ok(standard.barcodeHeight)
+  assert.ok(standard.titleSize)
+  assert.ok(standard.nameSize)
 })
