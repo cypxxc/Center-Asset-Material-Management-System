@@ -31,7 +31,7 @@ test('AssetTagModal renders null when isOpen is false', () => {
 
   assert.equal(container.innerHTML, '')
 })
-test('AssetTagModal renders title, item info, and barcode when open', () => {
+test('AssetTagModal renders title, item info, and QR without barcode when open', () => {
   render(
     React.createElement(AssetTagModal, {
       isOpen: true,
@@ -43,12 +43,13 @@ test('AssetTagModal renders title, item info, and barcode when open', () => {
   assert.ok(screen.getByText('พิมพ์ลาเบลติดครุภัณฑ์'))
   assert.ok(screen.getAllByText('เก้าอี้สำนักงานเพื่อสุขภาพ').length >= 1)
   assert.ok(screen.getAllByText('AST-2026-008').length >= 1)
-  assert.ok(screen.getAllByText('Ergonomic Pro 2026').length >= 1)
+  assert.ok(screen.getAllByText('ยี่ห้อ: Ergonomic').length >= 1)
   assert.ok(screen.getAllByText('สถานที่: ห้องทำงาน 302').length >= 1)
 
-  // Verify barcode SVG is rendered
-  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด AST-2026-008' })
-  assert.ok(barcodeSvgs.length >= 1)
+  // Verify barcode is not rendered and QR code is rendered
+  assert.equal(screen.queryByRole('img', { name: 'บาร์โค้ด AST-2026-008' }), null)
+  const qrSvgs = screen.getAllByRole('img', { name: /QR Code ลิงก์/ })
+  assert.ok(qrSvgs.length >= 1)
 })
 
 test('AssetTagModal supports standard and custom presets', () => {
@@ -76,8 +77,8 @@ test('AssetTagModal supports standard and custom presets', () => {
   const stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.ok(stickerBoxes.length >= 1)
   const firstBox = stickerBoxes[0] as HTMLElement
-  assert.equal(firstBox.style.width, '100%')
-  assert.equal(firstBox.style.height, '100%')
+  assert.equal(firstBox.style.width, '96mm')
+  assert.equal(firstBox.style.height, 'auto')
 
   // Click Custom Grid preset
   fireEvent.click(customGridBtn)
@@ -146,10 +147,6 @@ test('AssetTagModal toggles field visibility (price, responsible person, organiz
     })
   )
 
-  // Open field visibility customize panel
-  const customizeBtn = screen.getByRole('button', { name: /ปรับแต่งฟิลด์/ })
-  fireEvent.click(customizeBtn)
-
   // Responsible person is default OFF
   assert.equal(screen.queryByText('ผู้รับผิดชอบ: สมชาย ใจดี'), null)
 
@@ -162,12 +159,12 @@ test('AssetTagModal toggles field visibility (price, responsible person, organiz
   assert.equal(screen.queryByText(/ราคา: 15,500 บาท/), null)
 
   // Toggle Price checkbox to ON
-  const priceCheckbox = screen.getByLabelText('ราคาทรัพย์สิน')
+  const priceCheckbox = screen.getByLabelText('ราคาซื้อ')
   fireEvent.click(priceCheckbox)
   assert.ok(screen.getAllByText(/ราคา: 15,500 บาท/).length >= 1)
 
   // Toggle Org Header to OFF
-  const orgCheckbox = screen.getByLabelText('ชื่อระบบ / CAMMS')
+  const orgCheckbox = screen.getByLabelText('หัวเรื่อง CAMMS')
   fireEvent.click(orgCheckbox)
   assert.equal(screen.queryByText('CAMMS — ระบบบริหารจัดการทรัพย์สิน'), null)
 })
@@ -188,8 +185,9 @@ test('AssetTagModal falls back to serial_no when asset_no is missing', () => {
   )
 
   assert.ok(screen.getAllByText('SN-MONITOR-99').length >= 1)
-  const barcodeSvgs = screen.getAllByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' })
-  assert.ok(barcodeSvgs.length >= 1)
+  assert.equal(screen.queryByRole('img', { name: 'บาร์โค้ด SN-MONITOR-99' }), null)
+  const qrSvgs = screen.getAllByRole('img', { name: /QR Code ลิงก์ SN-MONITOR-99/ })
+  assert.ok(qrSvgs.length >= 1)
 })
 
 test('AssetTagModal triggers onClose callback when clicking close button or cancel button', () => {
@@ -315,10 +313,10 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   fireEvent.change(colInput, { target: { value: '2' } })
   fireEvent.change(rowInput, { target: { value: '6' } })
 
-  // Default margins (top:8, bottom:8, left:6, right:6) and gap (3):
-  // width = (210 - 12 - 1 * 3) / 2 = 195 / 2 = 97.5 mm
-  // height = (297 - 16 - 5 * 3) / 6 = 266 / 6 = 44.33 -> 44.3 mm
-  assert.ok(screen.getAllByText(/97.5 × 44.3 มม/).length >= 1)
+  // Default margins (top:6, bottom:6, left:7, right:7) and gap (2.5):
+  // width = (210 - 14 - 1 * 2.5) / 2 = 193.5 / 2 = 96.75 -> 96.8 mm
+  // height = (297 - 12 - 5 * 2.5) / 6 = 272.5 / 6 = 45.41 -> 45.4 mm
+  assert.ok(screen.getAllByText(/96.8 × 45.4 มม/).length >= 1)
   assert.ok(screen.getAllByText(/รวม 12 ดวง\/แผ่น/).length >= 1)
 
   // Verify printable asset tag updates with computed styles
@@ -327,8 +325,8 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
 
   const stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   const firstBox = stickerBoxes[0] as HTMLElement
-  assert.equal(firstBox.style.width, '100%')
-  assert.equal(firstBox.style.height, '100%')
+  assert.equal(firstBox.style.width, '96.8mm')
+  assert.equal(firstBox.style.height, 'auto')
 
   // Adjust margin and gap
   const gapInput = screen.getByRole('spinbutton', { name: 'ช่องกรอกระยะห่างระหว่างป้าย' })
@@ -337,9 +335,9 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   const topMarginInput = screen.getByRole('spinbutton', { name: 'ระยะขอบบน (mm)' })
   fireEvent.change(topMarginInput, { target: { value: '10' } })
 
-  // width = (210 - 12 - 1 * 5) / 2 = 193 / 2 = 96.5 mm
-  // height = (297 - 18 - 5 * 5) / 6 = 254 / 6 = 42.33 -> 42.3 mm
-  assert.ok(screen.getAllByText(/96.5 × 42.3 มม/).length >= 1)
+  // width = (210 - 14 - 1 * 5) / 2 = 191 / 2 = 95.5 mm
+  // height = (297 - 16 - 5 * 5) / 6 = 256 / 6 = 42.66 -> 42.7 mm
+  assert.ok(screen.getAllByText(/95.5 × 42.7 มม/).length >= 1)
 })
 
 test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
@@ -410,19 +408,19 @@ test('calculateCustomGridDimensions correctly calculates label dimensions', () =
 
 test('getTypographyForHeight returns scalable text styles and heights', () => {
   const large = getTypographyForHeight(50)
-  assert.equal(large.barcodeHeight, 'h-7')
-  assert.equal(large.nameSize, 'text-xs font-bold')
+  assert.equal(large.qrSize, 'h-14 w-14')
+  assert.equal(large.nameSize, 'text-[11px] font-bold')
 
   const medium = getTypographyForHeight(38)
-  assert.equal(medium.barcodeHeight, 'h-5')
-  assert.equal(medium.nameSize, 'text-[10.5px] font-bold')
+  assert.equal(medium.qrSize, 'h-12 w-12')
+  assert.equal(medium.nameSize, 'text-[10px] font-bold')
 
   const small = getTypographyForHeight(28)
-  assert.equal(small.barcodeHeight, 'h-4.5')
+  assert.equal(small.qrSize, 'h-10 w-10')
   assert.equal(small.nameSize, 'text-[9.5px] font-bold')
 
   const compact = getTypographyForHeight(20)
-  assert.equal(compact.barcodeHeight, 'h-3.5')
+  assert.equal(compact.qrSize, 'h-8 w-8')
   assert.equal(compact.nameSize, 'text-[8.5px] font-bold')
 })
 
@@ -441,11 +439,7 @@ test('AssetTagModal renders dashed cut guide lines by default and supports toggl
   assert.ok(printableCard.classList.contains('cut-guide-dashed'))
   assert.ok(printableCard.classList.contains('border-dashed'))
 
-  // Open customize fields panel
-  const customizeBtn = screen.getByRole('button', { name: /ปรับแต่งฟิลด์/ })
-  fireEvent.click(customizeBtn)
-
-  // Find Cut Lines checkbox
+  // Find Cut Lines checkbox (panel open by default)
   const cutLinesCheckbox = screen.getByLabelText(/เส้นประสำหรับตัด/)
   assert.ok(cutLinesCheckbox)
   assert.equal((cutLinesCheckbox as HTMLInputElement).checked, true)
@@ -458,5 +452,120 @@ test('AssetTagModal renders dashed cut guide lines by default and supports toggl
   assert.ok(printableCard.classList.contains('cut-guide-solid'))
   assert.ok(!printableCard.classList.contains('cut-guide-dashed'))
 })
+
+test('AssetTagModal supports dynamic fields: adding renders immediately and removing leaves no placeholder', () => {
+  const dynamicMockItem: ItemStickerData = {
+    id: 'item-dyn-1',
+    item_name: 'โต๊ะทำงานไฟฟ้า',
+    asset_no: 'AST-DYN-001',
+    brand: 'IKEA',
+    model: 'BEKANT',
+    category_name: 'ครุภัณฑ์สำนักงาน',
+    location_name: 'ห้อง 501',
+    received_date: '01/10/2026',
+  }
+
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: dynamicMockItem,
+    })
+  )
+
+  // Primary fields are rendered by default
+  assert.ok(screen.getAllByText('โต๊ะทำงานไฟฟ้า').length >= 1)
+  assert.ok(screen.getAllByText('AST-DYN-001').length >= 1)
+  assert.ok(screen.getAllByText('สถานที่: ห้อง 501').length >= 1)
+
+  // Brand is ON by default, Model/Category/ReceivedDate are OFF
+  assert.ok(screen.getAllByText('ยี่ห้อ: IKEA').length >= 1)
+  assert.equal(screen.queryByText('รุ่น: BEKANT'), null)
+  assert.equal(screen.queryByText('หมวดหมู่: ครุภัณฑ์สำนักงาน'), null)
+  assert.equal(screen.queryByText('วันที่จัดซื้อ: 01/10/2026'), null)
+
+  // Toggle Model ON -> renders immediately
+  const modelCheckbox = screen.getByLabelText(/รุ่น/)
+  fireEvent.click(modelCheckbox)
+  assert.ok(screen.getAllByText('รุ่น: BEKANT').length >= 1)
+
+  // Toggle Category ON -> renders immediately
+  const categoryCheckbox = screen.getByLabelText(/หมวดหมู่/)
+  fireEvent.click(categoryCheckbox)
+  assert.ok(screen.getAllByText('หมวดหมู่: ครุภัณฑ์สำนักงาน').length >= 1)
+
+  // Toggle Received Date ON -> renders immediately
+  const dateCheckbox = screen.getByLabelText(/วันที่จัดซื้อ/)
+  fireEvent.click(dateCheckbox)
+  assert.ok(screen.getAllByText('วันที่จัดซื้อ: 01/10/2026').length >= 1)
+
+  // Verify Preview label card uses auto height (content-driven, zero empty space)
+  const previewCard = document.querySelector('.asset-tag-modal-overlay .print-tag-card') as HTMLElement
+  assert.ok(previewCard)
+  assert.equal(previewCard.style.height, 'auto')
+  assert.ok(!previewCard.classList.contains('justify-between'))
+  assert.ok(previewCard.classList.contains('justify-start'))
+
+  // Toggle Brand OFF -> should remove brand entirely without leaving any placeholder
+  const brandCheckbox = screen.getByLabelText(/ยี่ห้อ/)
+  fireEvent.click(brandCheckbox)
+  assert.equal(screen.queryByText('ยี่ห้อ: IKEA'), null)
+  assert.ok(screen.getAllByText('รุ่น: BEKANT').length >= 1)
+})
+
+test('AssetTagModal correctly batches 25 items across A4 pages without stretching labels or inflating heights', () => {
+  const mock25Items: ItemStickerData[] = Array.from({ length: 25 }, (_, idx) => ({
+    id: `item-batch-${idx + 1}`,
+    item_name: `ครุภัณฑ์ทดสอบ รายการที่ ${idx + 1}`,
+    asset_no: `AST-2026-${String(idx + 1).padStart(3, '0')}`,
+    brand: `Brand-${idx + 1}`,
+    location_name: `ห้อง ${100 + idx}`,
+  }))
+
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      items: mock25Items,
+    })
+  )
+
+  // 25 items with 10 per page -> exactly 3 pages
+  const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
+  assert.equal(pages.length, 3)
+
+  // Page 1: 10 items
+  const page1Items = pages[0].querySelectorAll('.print-tag-card')
+  assert.equal(page1Items.length, 10)
+
+  // Page 2: 10 items
+  const page2Items = pages[1].querySelectorAll('.print-tag-card')
+  assert.equal(page2Items.length, 10)
+
+  // Page 3: 5 items
+  const page3Items = pages[2].querySelectorAll('.print-tag-card')
+  assert.equal(page3Items.length, 5)
+
+  // Every page container must use gridAutoRows: max-content, alignContent: start, alignItems: start
+  pages.forEach((page) => {
+    const pageEl = page as HTMLElement
+    assert.equal(pageEl.style.gridAutoRows, 'max-content')
+    assert.equal(pageEl.style.alignContent, 'start')
+    assert.equal(pageEl.style.alignItems, 'start')
+  })
+
+  // Every sticker card across all pages must use width: 96mm, height: auto (NEVER height: 100%)
+  const allStickers = document.querySelectorAll('#printable-asset-tag .print-tag-card')
+  assert.equal(allStickers.length, 25)
+  allStickers.forEach((stk) => {
+    const el = stk as HTMLElement
+    assert.equal(el.style.width, '96mm')
+    assert.equal(el.style.height, 'auto')
+    assert.notEqual(el.style.height, '100%')
+    assert.ok(el.classList.contains('justify-start'))
+    assert.ok(!el.classList.contains('justify-between'))
+  })
+})
+
 
 

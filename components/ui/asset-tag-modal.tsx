@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Printer, X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal, LayoutGrid, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { generateCode128Bars } from "@/lib/barcode"
 import { generateQrCodeSvgPath } from "@/lib/qr-code"
 
 import {
@@ -26,6 +25,8 @@ export interface ItemStickerData {
   category_name?: string | null
   responsible_person?: string | null
   unit_price?: number | null
+  received_date?: string | null
+  purchase_date?: string | null
 }
 export interface AssetTagModalProps {
   isOpen: boolean
@@ -34,41 +35,99 @@ export interface AssetTagModalProps {
   items?: ItemStickerData[]
 }
 
-interface FieldVisibilityConfig {
+export interface FieldVisibilityConfig {
   showOrg: boolean
-  showResponsible: boolean
+  showCode: boolean
+  showName: boolean
   showLocation: boolean
+  showBrand: boolean
+  showModel: boolean
+  showCategory: boolean
+  showResponsible: boolean
   showPrice: boolean
-  showBarcode: boolean
+  showReceivedDate: boolean
   showQr: boolean
   showCutLines: boolean
 }
+
+export interface DynamicFieldDef {
+  key: keyof FieldVisibilityConfig
+  label: string
+  isPrimary?: boolean
+  render: (item: ItemStickerData) => string | null | undefined
+}
+
+export const ASSET_TAG_FIELD_DEFINITIONS: DynamicFieldDef[] = [
+  {
+    key: "showCode",
+    label: "รหัสครุภัณฑ์",
+    isPrimary: true,
+    render: (item) => item.asset_no || item.serial_no || null,
+  },
+  {
+    key: "showName",
+    label: "ชื่อครุภัณฑ์",
+    isPrimary: true,
+    render: (item) => item.item_name || null,
+  },
+  {
+    key: "showLocation",
+    label: "สถานที่",
+    isPrimary: true,
+    render: (item) => (item.location_name ? `สถานที่: ${item.location_name}` : null),
+  },
+  {
+    key: "showBrand",
+    label: "ยี่ห้อ",
+    render: (item) => (item.brand ? `ยี่ห้อ: ${item.brand}` : null),
+  },
+  {
+    key: "showModel",
+    label: "รุ่น",
+    render: (item) => (item.model ? `รุ่น: ${item.model}` : null),
+  },
+  {
+    key: "showCategory",
+    label: "หมวดหมู่",
+    render: (item) => (item.category_name ? `หมวดหมู่: ${item.category_name}` : null),
+  },
+  {
+    key: "showResponsible",
+    label: "ผู้รับผิดชอบ",
+    render: (item) => (item.responsible_person ? `ผู้รับผิดชอบ: ${item.responsible_person}` : null),
+  },
+  {
+    key: "showReceivedDate",
+    label: "วันที่จัดซื้อ",
+    render: (item) => {
+      const d = item.received_date || item.purchase_date
+      return d ? `วันที่จัดซื้อ: ${d}` : null
+    },
+  },
+  {
+    key: "showPrice",
+    label: "ราคาซื้อ",
+    render: (item) =>
+      item.unit_price != null && !isNaN(Number(item.unit_price))
+        ? `ราคา: ${Number(item.unit_price).toLocaleString('th-TH')} บาท`
+        : null,
+  },
+]
 
 function SingleStickerItem({
   itemData,
   presetConfig,
   visibility,
-  isSheetCell = false,
 }: {
   itemData: ItemStickerData
   presetConfig: PresetConfig
   visibility: FieldVisibilityConfig
-  isSheetCell?: boolean
 }) {
-  const barcodeText = itemData.asset_no || itemData.serial_no || ""
+  const assetCode = itemData.asset_no || itemData.serial_no || ""
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
   const itemUrl = itemData.id
     ? `${baseUrl}/items/${itemData.id}`
-    : (itemData.asset_no || itemData.serial_no || "")
-
-  let barcodeData = null
-  if (visibility.showBarcode && barcodeText) {
-    try {
-      barcodeData = generateCode128Bars(barcodeText)
-    } catch {
-      barcodeData = null
-    }
-  }
+    : assetCode
 
   let qrCodeData = null
   if (visibility.showQr && itemUrl) {
@@ -79,109 +138,97 @@ function SingleStickerItem({
     }
   }
 
-  const brandModel = [itemData.brand, itemData.model].filter(Boolean).join(" ")
+  // Dynamic metadata fields: assemble sequentially only for selected fields with available data
+  const dynamicFields: { id: string; text: string }[] = []
+
+  for (const def of ASSET_TAG_FIELD_DEFINITIONS) {
+    if (def.key === "showCode" || def.key === "showName") continue
+    if (visibility[def.key]) {
+      const val = def.render(itemData)
+      if (val && val.trim()) {
+        dynamicFields.push({ id: def.key, text: val.trim() })
+      }
+    }
+  }
 
   return (
     <div
       style={{
-        width: isSheetCell ? "100%" : presetConfig.width,
-        height: isSheetCell ? "100%" : presetConfig.height,
+        width: presetConfig.width,
+        height: "auto",
+        maxHeight: presetConfig.height,
       }}
       className={`print-tag-card label-card bg-white text-slate-900 ${
         visibility.showCutLines
           ? "border border-dashed border-slate-400 cut-guide-dashed"
           : "border border-solid border-slate-900 cut-guide-solid"
-      } rounded-xs shadow-2xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
+      } rounded-xs shadow-2xs flex flex-col justify-start overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
     >
-      {/* Sticker Header */}
+      {/* Sticker Header: Modern Enterprise Header */}
       {visibility.showOrg && (
-        <div className="border-b border-slate-900 pb-0.5 mb-1 text-center shrink-0">
-          <div className={`font-bold tracking-tight text-slate-900 ${presetConfig.titleSize}`}>
+        <div className="border-b border-slate-200/90 pb-0.5 mb-1 flex items-center justify-between shrink-0">
+          <div className={`font-bold tracking-tight text-slate-800 ${presetConfig.titleSize}`}>
             CAMMS — ระบบบริหารจัดการทรัพย์สิน
           </div>
+          {assetCode && (
+            <div className="text-[7px] font-mono font-bold tracking-wider text-slate-500 bg-slate-100 px-1 py-0.2 rounded-[2px] border border-slate-200/60">
+              ASSET TAG
+            </div>
+          )}
         </div>
       )}
 
-      {/* Sticker Content Area: Dual Column (Left 75-80% Details + Barcode, Right 20-25% QR Code) */}
-      <div className="flex-1 flex items-stretch justify-between gap-1.5 min-h-0 min-w-0 w-full">
-        {/* Left Column (75-80%): Details & Code 128 Barcode with Bold Asset ID */}
-        <div className="flex-[4] flex flex-col justify-between min-w-0">
-          <div className="space-y-0.5 min-h-0 min-w-0">
-            <div className={`truncate leading-tight ${presetConfig.nameSize}`} title={itemData.item_name}>
+      {/* Sticker Content Area: Balanced 2-Column Layout */}
+      <div className="flex items-center justify-between gap-2.5 min-w-0 w-full overflow-hidden">
+        {/* Left Column: Asset Info & Prominent Code */}
+        <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
+          {/* Primary Asset Code Badge (rendered only if showCode is enabled and code exists) */}
+          {visibility.showCode && assetCode ? (
+            <div className="inline-flex items-center gap-1.5 bg-slate-50/90 border border-slate-300/80 rounded-md px-2 py-0.5 max-w-full self-start shadow-2xs">
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wide">รหัส:</span>
+              <span className={`font-mono font-black text-slate-950 ${presetConfig.codeSize} tracking-wide select-all leading-none`}>
+                {assetCode}
+              </span>
+            </div>
+          ) : null}
+
+          {/* Primary Item Name (rendered only if showName is enabled and name exists) */}
+          {visibility.showName && itemData.item_name ? (
+            <div className={`font-bold text-slate-950 truncate leading-snug mt-1 ${presetConfig.nameSize}`} title={itemData.item_name}>
               {itemData.item_name}
             </div>
-            {brandModel && (
-              <div className={`truncate text-slate-700 leading-tight ${presetConfig.metaSize}`}>
-                {brandModel}
-              </div>
-            )}
-            {visibility.showLocation && itemData.location_name && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                สถานที่: {itemData.location_name}
-              </div>
-            )}
-            {visibility.showResponsible && itemData.responsible_person && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                ผู้รับผิดชอบ: {itemData.responsible_person}
-              </div>
-            )}
-            {visibility.showPrice && itemData.unit_price != null && (
-              <div className={`truncate text-slate-600 leading-tight ${presetConfig.metaSize}`}>
-                ราคา: {Number(itemData.unit_price).toLocaleString('th-TH')} บาท
-              </div>
-            )}
-          </div>
+          ) : null}
 
-          {/* Barcode SVG section */}
-          {visibility.showBarcode && (
-            <div className="mt-0.5 flex flex-col items-start justify-center w-full">
-              {barcodeData && barcodeData.bars.length > 0 ? (
-                <>
-                  <svg
-                    viewBox={`0 0 ${barcodeData.totalWidth} 40`}
-                    className={`w-full max-w-full overflow-hidden shrink-0 ${presetConfig.barcodeHeight}`}
-                    preserveAspectRatio="none"
-                    role="img"
-                    aria-label={`บาร์โค้ด ${barcodeText}`}
-                  >
-                    {barcodeData.bars.map((bar, i) => (
-                      <rect
-                        key={i}
-                        x={bar.x}
-                        y={0}
-                        width={bar.width}
-                        height={40}
-                        fill="black"
-                      />
-                    ))}
-                  </svg>
-                  <div
-                    className={`font-mono font-bold text-slate-900 leading-none ${presetConfig.codeSize} tracking-wider truncate min-w-0 max-w-full mt-0.5`}
-                  >
-                    {barcodeText}
-                  </div>
-                </>
-              ) : (
-                <div className={`text-slate-400 italic ${presetConfig.metaSize}`}>
-                  ไม่มีรหัสบาร์โค้ด
+          {/* Dynamic Metadata Fields: Zero space reserved if empty */}
+          {dynamicFields.length > 0 && (
+            <div className="space-y-0.5 mt-0.5 text-slate-700">
+              {dynamicFields.map((field) => (
+                <div
+                  key={field.id}
+                  className={`truncate leading-tight ${presetConfig.metaSize}`}
+                  title={field.text}
+                >
+                  {field.text}
                 </div>
-              )}
+              ))}
             </div>
           )}
         </div>
 
-        {/* Right Column (20-25%): Direct Link QR Code with "สแกนตรวจสอบ" text */}
+        {/* Right Column: Direct Link QR Code with Scan Prompt */}
         {visibility.showQr && qrCodeData && (
-          <div className="flex-1 flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-1">
-            <svg
-              viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
-              className={presetConfig.qrSize}
-              role="img"
-              aria-label={`QR Code ลิงก์ ${itemUrl}`}
-            >
-              <path d={qrCodeData.path} fill="black" />
-            </svg>
-            <span className="text-[6.5px] font-bold text-slate-600 tracking-tighter leading-none mt-0.5 whitespace-nowrap">
+          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200/80 pl-2.5 self-center">
+            <div className="p-1 bg-white border border-slate-200/90 rounded-md shadow-2xs flex flex-col items-center justify-center">
+              <svg
+                viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
+                className={presetConfig.qrSize}
+                role="img"
+                aria-label={`QR Code ลิงก์ ${itemUrl}`}
+              >
+                <path d={qrCodeData.path} fill="black" />
+              </svg>
+            </div>
+            <span className="text-[6.5px] font-bold text-slate-500 tracking-tight leading-none mt-1 whitespace-nowrap">
               สแกนตรวจสอบ
             </span>
           </div>
@@ -196,11 +243,11 @@ function A4SheetPreview({
   cols,
   rows,
   pageIndex,
-  marginTop = 8,
-  marginBottom = 8,
-  marginLeft = 6,
-  marginRight = 6,
-  gap = 3,
+  marginTop = 6,
+  marginBottom = 6,
+  marginLeft = 7,
+  marginRight = 7,
+  gap = 2.5,
   showCutLines = true,
 }: {
   items: ItemStickerData[]
@@ -224,7 +271,7 @@ function A4SheetPreview({
   return (
     <div
       data-testid="a4-sheet-preview"
-      className="bg-white shadow-md border border-slate-300 rounded-sm overflow-hidden box-border mx-auto select-none transition-all flex flex-col justify-start"
+      className="bg-white shadow-md border border-slate-300 rounded-sm overflow-hidden box-border mx-auto select-none transition-all flex flex-col justify-center"
       style={{
         width: `${baseWidth}px`,
         height: `${baseHeight}px`,
@@ -241,7 +288,7 @@ function A4SheetPreview({
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
           gap: `${Math.max(1, gap * scale)}px`,
-          alignContent: "start",
+          alignContent: "center",
           justifyContent: "center",
         }}
       >
@@ -295,26 +342,31 @@ export function AssetTagModal({
   const [selectedPreset, setSelectedPreset] = React.useState<StickerSizePreset>("standard")
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [copyCount, setCopyCount] = React.useState<number>(1)
-  const [showAdvancedToggles, setShowAdvancedToggles] = React.useState(false)
+  const [showAdvancedToggles, setShowAdvancedToggles] = React.useState(true)
   const [previewMode, setPreviewMode] = React.useState<"single" | "sheet">("single")
   const [sheetPageIndex, setSheetPageIndex] = React.useState(0)
 
   const [customGrid, setCustomGrid] = React.useState<CustomGridConfig>({
     cols: 2,
     rows: 5,
-    marginTop: 8,
-    marginBottom: 8,
-    marginLeft: 6,
-    marginRight: 6,
-    gap: 3,
+    marginTop: 6,
+    marginBottom: 6,
+    marginLeft: 7,
+    marginRight: 7,
+    gap: 2.5,
   })
 
   const [fieldVisibility, setFieldVisibility] = React.useState<FieldVisibilityConfig>({
     showOrg: true,
-    showResponsible: false,
+    showCode: true,
+    showName: true,
     showLocation: true,
+    showBrand: true,
+    showModel: false,
+    showCategory: false,
+    showResponsible: false,
     showPrice: false,
-    showBarcode: true,
+    showReceivedDate: false,
     showQr: true,
     showCutLines: true,
   })
@@ -470,13 +522,15 @@ export function AssetTagModal({
             height: 297mm !important;
             max-height: 297mm !important;
             box-sizing: border-box !important;
-            padding: 8mm 6mm !important; /* Minimal top/bottom margin */
+            padding: 6mm 7mm !important; /* Balanced 6mm top/bottom, 7mm left/right */
             display: grid !important;
             grid-template-columns: repeat(2, 96mm) !important;
-            grid-template-rows: repeat(5, 54mm) !important; /* Explicit row height to fill the page */
-            gap: 3mm 4mm !important;
+            grid-auto-rows: max-content !important;
+            gap: 2.5mm 4mm !important;
             justify-content: center !important;
-            align-content: start !important; /* Force content to start right at top padding */
+            justify-items: center !important;
+            align-content: start !important;
+            align-items: start !important;
             page-break-after: always !important;
             break-after: page !important;
             overflow: hidden !important;
@@ -490,11 +544,13 @@ export function AssetTagModal({
           .label-card,
           .print-tag-card {
             width: 96mm !important;
-            height: 54mm !important;
+            height: auto !important;
+            max-height: 55mm !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: space-between !important;
+            justify-content: flex-start !important;
+            align-self: start !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             overflow: hidden !important;
@@ -512,15 +568,19 @@ export function AssetTagModal({
           .print-page-a4 {
             padding: ${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm !important;
             grid-template-columns: repeat(${sheetCols}, ${customDimensions.width}mm) !important;
-            grid-template-rows: repeat(${sheetRows}, ${customDimensions.height}mm) !important;
+            grid-auto-rows: max-content !important;
             gap: ${customGrid.gap}mm !important;
             justify-content: center !important;
+            justify-items: center !important;
             align-content: start !important;
+            align-items: start !important;
           }
           .label-card,
           .print-tag-card {
             width: ${customDimensions.width}mm !important;
-            height: ${customDimensions.height}mm !important;
+            height: auto !important;
+            max-height: ${customDimensions.height}mm !important;
+            align-self: start !important;
           }
           `
               : ""
@@ -591,7 +651,7 @@ export function AssetTagModal({
                       <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                         {key === "custom_grid"
                           ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม.`
-                          : "9.6 × 5.4 ซม. (10 ดวง/แผ่น)"}
+                          : "9.6 × 5.5 ซม. (10 ดวง/แผ่น)"}
                       </span>
                     </button>
                   )
@@ -840,151 +900,163 @@ export function AssetTagModal({
               </div>
             )}
 
-            {/* Copy Multiplier & Toggle Settings Header */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {/* Copy Multiplier */}
-              <div className="p-3 bg-card rounded-xl border border-border shadow-2xs flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-semibold text-card-foreground">จำนวนดวงต่อรายการ</div>
-                  <div className="text-[11px] text-muted-foreground">สำเนาลาเบล (Copies)</div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
-                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
-                    disabled={copyCount <= 1}
-                    aria-label="ลดจำนวนสำเนา"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={copyCount}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10)
-                      setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
-                    }}
-                    className="w-12 h-7 rounded-lg border border-input bg-background text-foreground text-center font-bold text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
-                    aria-label="จำนวนสำเนาลาเบล"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
-                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
-                    disabled={copyCount >= 50}
-                    aria-label="เพิ่มจำนวนสำเนา"
-                  >
-                    +
-                  </button>
-                </div>
+            {/* Copy Multiplier */}
+            <div className="p-3 bg-card rounded-xl border border-border shadow-2xs flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-card-foreground">จำนวนดวงต่อรายการ</div>
+                <div className="text-[11px] text-muted-foreground">สำเนาลาเบล (Copies)</div>
               </div>
-
-              {/* Field Visibility Config Toggle Button */}
-              <div className="p-3 bg-card rounded-xl border border-border shadow-2xs flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-semibold text-card-foreground">ข้อมูลบนลาเบล</div>
-                  <div className="text-[11px] text-muted-foreground">เลือกฟิลด์ที่ต้องการแสดง</div>
-                </div>
-                <Button
+              <div className="flex items-center gap-1.5">
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdvancedToggles((prev) => !prev)}
-                  className={`h-7 px-2.5 text-xs font-semibold rounded-lg cursor-pointer ${
-                    showAdvancedToggles ? "bg-muted text-card-foreground" : ""
-                  }`}
+                  onClick={() => setCopyCount((prev) => Math.max(1, (prev || 1) - 1))}
+                  className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
+                  disabled={copyCount <= 1}
+                  aria-label="ลดจำนวนสำเนา"
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
-                  {showAdvancedToggles ? "ซ่อนตัวเลือก" : "ปรับแต่งฟิลด์"}
-                </Button>
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={copyCount}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCopyCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)))
+                  }}
+                  className="w-12 h-7 rounded-lg border border-input bg-background text-foreground text-center font-bold text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
+                  aria-label="จำนวนสำเนาลาเบล"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCopyCount((prev) => Math.min(50, (prev || 1) + 1))}
+                  className="w-7 h-7 rounded-lg border border-border flex items-center justify-center font-bold text-card-foreground hover:bg-muted cursor-pointer disabled:opacity-40"
+                  disabled={copyCount >= 50}
+                  aria-label="เพิ่มจำนวนสำเนา"
+                >
+                  +
+                </button>
               </div>
             </div>
 
-            {/* Collapsible Field Toggles */}
-            {showAdvancedToggles && (
-              <div className="p-3.5 bg-card rounded-xl border border-border space-y-2.5 animate-in fade-in-50 duration-150 shadow-2xs">
-                <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  ตัวเลือกการแสดงผลข้อมูล (Field Visibility)
+            {/* Dynamic Field Configuration Card */}
+            <div className="p-3.5 bg-card rounded-xl border border-border space-y-3 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1.5 border-b border-border">
+                <div className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-bold text-card-foreground">
+                    ฟิลด์ข้อมูลที่ต้องการแสดงบนลาเบล (Dynamic Fields)
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showOrg}
-                      onChange={() => toggleField("showOrg")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>ชื่อระบบ / CAMMS</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showLocation}
-                      onChange={() => toggleField("showLocation")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>สถานที่จัดเก็บ</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showResponsible}
-                      onChange={() => toggleField("showResponsible")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>ผู้รับผิดชอบ</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showPrice}
-                      onChange={() => toggleField("showPrice")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>ราคาทรัพย์สิน</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showBarcode}
-                      onChange={() => toggleField("showBarcode")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>Barcode (Code128)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showQr}
-                      onChange={() => toggleField("showQr")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span>QR Code ลิงก์</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-card-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={fieldVisibility.showCutLines}
-                      onChange={() => toggleField("showCutLines")}
-                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
-                    />
-                    <span className="flex items-center gap-1">
-                      <span>เส้นประสำหรับตัด</span>
-                      <span className="text-[10px] text-muted-foreground font-normal">(Cut lines)</span>
-                    </span>
-                  </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">
+                    * ติ๊กเพื่อเปิด/ปิดฟิลด์ — พรีวิวจะอัปเดตและหดขยายพื้นที่ทันที
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAdvancedToggles((prev) => !prev)}
+                    className="h-6 px-2 text-[11px] font-semibold text-muted-foreground hover:text-card-foreground cursor-pointer"
+                    aria-label="ปรับแต่งฟิลด์"
+                  >
+                    {showAdvancedToggles ? "ย่อส่วนนี้" : "ปรับแต่งฟิลด์"}
+                  </Button>
                 </div>
               </div>
-            )}
+
+              {showAdvancedToggles && (
+                <div className="space-y-3 pt-0.5 animate-in fade-in-50 duration-150">
+                  <div>
+                    <span className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                      ฟิลด์ข้อมูลครุภัณฑ์
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {ASSET_TAG_FIELD_DEFINITIONS.map((def) => {
+                        const isChecked = fieldVisibility[def.key]
+                        return (
+                          <label
+                            key={def.key}
+                            className={`flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer select-none ${
+                              isChecked
+                                ? "border-primary/40 bg-primary/5 text-card-foreground font-semibold"
+                                : "border-border/70 bg-card text-muted-foreground hover:bg-muted/50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleField(def.key)}
+                              className="rounded border-input text-primary focus:ring-ring h-4 w-4"
+                            />
+                            <span className="truncate">{def.label}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/60">
+                    <span className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                      องค์ประกอบอื่น ๆ บนสติกเกอร์
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <label
+                        className={`flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer select-none ${
+                          fieldVisibility.showOrg
+                            ? "border-primary/40 bg-primary/5 text-card-foreground font-semibold"
+                            : "border-border/70 bg-card text-muted-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility.showOrg}
+                          onChange={() => toggleField("showOrg")}
+                          className="rounded border-input text-primary focus:ring-ring h-4 w-4"
+                        />
+                        <span className="truncate">หัวเรื่อง CAMMS</span>
+                      </label>
+
+                      <label
+                        className={`flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer select-none ${
+                          fieldVisibility.showQr
+                            ? "border-primary/40 bg-primary/5 text-card-foreground font-semibold"
+                            : "border-border/70 bg-card text-muted-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility.showQr}
+                          onChange={() => toggleField("showQr")}
+                          className="rounded border-input text-primary focus:ring-ring h-4 w-4"
+                        />
+                        <span className="truncate">QR Code ลิงก์</span>
+                      </label>
+
+                      <label
+                        className={`flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer select-none ${
+                          fieldVisibility.showCutLines
+                            ? "border-primary/40 bg-primary/5 text-card-foreground font-semibold"
+                            : "border-border/70 bg-card text-muted-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility.showCutLines}
+                          onChange={() => toggleField("showCutLines")}
+                          className="rounded border-input text-primary focus:ring-ring h-4 w-4"
+                        />
+                        <span className="flex items-center gap-1">
+                          <span className="truncate">เส้นประสำหรับตัด</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">(Cut lines)</span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Sticker Preview Container */}
             <div className="space-y-2">
@@ -1083,18 +1155,18 @@ export function AssetTagModal({
                 </div>
               </div>
 
-              <div className="p-6 bg-muted/60 rounded-xl flex items-center justify-center min-h-[220px] border border-border shadow-inner overflow-x-auto">
+              <div className="p-6 bg-muted/60 rounded-xl flex items-center justify-center border border-border shadow-inner overflow-x-auto">
                 {previewMode === "sheet" && activeConfig.isSheet ? (
                   <A4SheetPreview
                     items={expandedPrintList}
                     cols={sheetCols}
                     rows={sheetRows}
                     pageIndex={safeSheetPageIndex}
-                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 8}
-                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 8}
-                    marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 6}
-                    marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 6}
-                    gap={selectedPreset === "custom_grid" ? customGrid.gap : 3}
+                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 6}
+                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 6}
+                    marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 7}
+                    marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 7}
+                    gap={selectedPreset === "custom_grid" ? customGrid.gap : 2.5}
                     showCutLines={fieldVisibility.showCutLines}
                   />
                 ) : (
@@ -1153,19 +1225,19 @@ export function AssetTagModal({
                 boxSizing: "border-box",
                 padding: selectedPreset === "custom_grid"
                   ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
-                  : "8mm 6mm",
+                  : "6mm 7mm",
                 display: "grid",
                 gridTemplateColumns: selectedPreset === "custom_grid"
                   ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
                   : `repeat(${sheetCols}, 96mm)`,
-                gridTemplateRows: selectedPreset === "custom_grid"
-                  ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
-                  : `repeat(${sheetRows}, 54mm)`,
+                gridAutoRows: "max-content",
                 gap: selectedPreset === "custom_grid"
                   ? `${customGrid.gap}mm`
-                  : "3mm 4mm",
+                  : "2.5mm 4mm",
                 justifyContent: "center",
+                justifyItems: "center",
                 alignContent: "start",
+                alignItems: "start",
                 overflow: "hidden",
               }}
             >
@@ -1175,7 +1247,6 @@ export function AssetTagModal({
                   itemData={itm}
                   presetConfig={activeConfig}
                   visibility={fieldVisibility}
-                  isSheetCell={true}
                 />
               ))}
             </div>
