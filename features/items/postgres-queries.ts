@@ -110,10 +110,15 @@ export async function getPostgresItemBatch(
 }
 
 export async function getPostgresItemById(id: string): Promise<ItemDetail | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  const whereClause = isUuid
+    ? sql`i.id = ${id}::uuid and i.deleted_at is null`
+    : sql`(i.asset_no = ${id} or i.serial_no = ${id}) and i.deleted_at is null`
+
   const query = sql`select ${itemListColumns}, i.note, i.image_url,
     i.depreciation_enabled, i.depreciation_method, i.depreciation_cost, i.depreciation_useful_life_years,
     i.depreciation_start_basis, i.depreciation_start_date, i.depreciation_residual_value, i.created_at
-    from public.items i ${itemRelations} where i.id = ${id}::uuid and i.deleted_at is null limit 1`
+    from public.items i ${itemRelations} where ${whereClause} limit 1`
 
   try {
     return await withUserDatabase(async (tx) => {

@@ -24,7 +24,7 @@ function isKnownStaticAssetPath(pathname: string) {
     )
 }
 
-const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname

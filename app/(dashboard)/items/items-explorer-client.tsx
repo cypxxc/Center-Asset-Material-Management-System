@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
+import { parseScannedAssetCode } from '@/lib/qr-scan-parser'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { ItemsList } from '@/features/items/components/items-list-view'
 import { ItemsGrid } from '@/features/items/components/items-grid-view'
@@ -414,7 +415,12 @@ function ItemsExplorerSession({
                 <form
                   onSubmit={(e) => {
                     e.preventDefault()
-                    handleFilterChange({ q: searchVal })
+                    const parsed = parseScannedAssetCode(searchVal)
+                    if (parsed.type === 'item_id') {
+                      router.push(`/items/${parsed.value}`)
+                      return
+                    }
+                    handleFilterChange({ q: parsed.value })
                   }}
                   className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto flex-1 min-w-0"
                 >
@@ -423,6 +429,14 @@ function ItemsExplorerSession({
                     <SearchInput
                       value={searchVal}
                       onChange={(val) => {
+                        const trimmed = val.trim()
+                        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                          const parsed = parseScannedAssetCode(trimmed)
+                          if (parsed.type === 'item_id') {
+                            router.push(`/items/${parsed.value}`)
+                            return
+                          }
+                        }
                         setSearchVal(val)
                         handleFilterChange({ q: val.trim() })
                       }}

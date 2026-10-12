@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { profileForToken, SESSION_COOKIE } from './session'
 
-const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PUBLIC_ITEM_PATTERN = /^\/items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i
 
 export async function updatePostgresSession(request: NextRequest) {
   const path = request.nextUrl.pathname

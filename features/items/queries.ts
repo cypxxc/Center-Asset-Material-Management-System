@@ -445,11 +445,12 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
 
 export async function getItemById(id: string): Promise<ItemDetail | null> {
   if (isPostgresBackend()) return getPostgresItemById(id)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
   const supabase = await createClient()
   const {
     result: { data, error },
-  } = await measureQuery('items.getItemById', () =>
-    supabase
+  } = await measureQuery('items.getItemById', () => {
+    let query = supabase
       .from('items')
       .select(
         `
@@ -480,10 +481,16 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
         location:locations(id, name)
       `
       )
-      .eq('id', id)
       .is('deleted_at', null)
-      .maybeSingle()
-  )
+
+    if (isUuid) {
+      query = query.eq('id', id)
+    } else {
+      query = query.or(`asset_no.eq.${id},serial_no.eq.${id}`)
+    }
+
+    return query.maybeSingle()
+  })
 
   if (error) {
     throw new Error('Unable to load item data')
@@ -492,6 +499,57 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   return data
     ? signItemImage(supabase, normalizeItemDetail(data as Parameters<typeof normalizeItemDetail>[0]))
     : null
+}
+
+export async function getPublicPassportItem(id: string): Promise<ItemDetail | null> {
+  if (isPostgresBackend()) return getPostgresItemById(id)
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  const { createAdminClient } = await import('@/lib/supabase/server')
+  const adminClient = await createAdminClient()
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  let adminQuery = adminClient
+    .from('items')
+    .select(
+      `
+      id,
+      item_name,
+      item_type,
+      quantity,
+      unit_price,
+      asset_no,
+      serial_no,
+      brand,
+      model,
+      responsible_person,
+      status,
+      note,
+      image_url,
+      depreciation_enabled,
+      depreciation_method,
+      depreciation_cost,
+      depreciation_useful_life_years,
+      depreciation_start_basis,
+      depreciation_start_date,
+      depreciation_residual_value,
+      created_at,
+      updated_at,
+      category:categories(id, name),
+      unit:units(id, name),
+      location:locations(id, name)
+    `
+    )
+    .is('deleted_at', null)
+
+  if (isUuid) {
+    adminQuery = adminQuery.eq('id', id)
+  } else {
+    adminQuery = adminQuery.or(`asset_no.eq.${id},serial_no.eq.${id}`)
+  }
+
+  const { data: adminData, error: adminError } = await adminQuery.maybeSingle()
+  if (adminError || !adminData) return null
+
+  return signItemImage(adminClient, normalizeItemDetail(adminData as Parameters<typeof normalizeItemDetail>[0]))
 }
 
 export const getSidebarData = cache(async function getSidebarData() {
@@ -549,10 +607,28 @@ export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> 
 }
 
 export async function getItemDetailPageData(id: string): Promise<ItemDetailPageData> {
-  const [itemResult, auditLogResults] = await Promise.all([
-    getItemById(id),
-    getItemAuditLogs(id),
-  ])
+  const profile = await getCurrentProfile()
+  let itemResult: ItemDetail | null = null
+  let auditLogResults: ItemAuditLog[] = []
+
+  try {
+    const [item, logs] = await Promise.all([
+      getItemById(id),
+      getItemAuditLogs(id),
+    ])
+    itemResult = item
+    auditLogResults = logs
+  } catch (err) {
+    if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      itemResult = await getPublicPassportItem(id)
+    } else {
+      throw err
+    }
+  }
+
+  if (!profile && !itemResult && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    itemResult = await getPublicPassportItem(id)
+  }
 
   return {
     item: (itemResult as ItemDetail | null) ?? null,
