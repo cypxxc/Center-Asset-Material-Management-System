@@ -68,7 +68,7 @@ test('AssetTagModal supports standard and custom presets', () => {
   assert.ok(standardBtn)
   assert.ok(customGridBtn)
 
-  // Click Standard preset (10 per page)
+  // Click Standard preset (14 per page)
   fireEvent.click(standardBtn)
   
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
@@ -78,7 +78,7 @@ test('AssetTagModal supports standard and custom presets', () => {
   assert.ok(stickerBoxes.length >= 1)
   const firstBox = stickerBoxes[0] as HTMLElement
   assert.equal(firstBox.style.width, '96mm')
-  assert.equal(firstBox.style.height, 'auto')
+  assert.equal(firstBox.style.height, '38.5mm')
 
   // Click Custom Grid preset
   fireEvent.click(customGridBtn)
@@ -95,13 +95,13 @@ test('AssetTagModal chunks expandedPrintList into multiple pages for A4 sheet', 
     })
   )
   
-  // Select Standard preset (10 per page)
+  // Select Standard preset (14 per page)
   const standardBtn = screen.getByRole('button', { name: /แบบมาตรฐาน/ })
   fireEvent.click(standardBtn)
   
-  // Set 11 copies -> should yield 2 pages
+  // Set 15 copies -> should yield 2 pages (since 14 per page)
   const copyInput = screen.getByRole('spinbutton', { name: 'จำนวนสำเนาลาเบล' })
-  fireEvent.change(copyInput, { target: { value: '11' } })
+  fireEvent.change(copyInput, { target: { value: '15' } })
   
   // Should yield 2 .print-page-a4 elements
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
@@ -326,7 +326,7 @@ test('AssetTagModal supports custom grid preset, column/row adjustments, and mar
   const stickerBoxes = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   const firstBox = stickerBoxes[0] as HTMLElement
   assert.equal(firstBox.style.width, '96.8mm')
-  assert.equal(firstBox.style.height, 'auto')
+  assert.equal(firstBox.style.height, '45.4mm')
 
   // Adjust margin and gap
   const gapInput = screen.getByRole('spinbutton', { name: 'ช่องกรอกระยะห่างระหว่างป้าย' })
@@ -364,9 +364,9 @@ test('AssetTagModal toggles between Single View and A4 Sheet Preview', () => {
   const sheetPreview = document.querySelector('[data-testid="a4-sheet-preview"]')
   assert.ok(sheetPreview)
 
-  // Standard preset has 10 slots (2 cols * 5 rows)
+  // Standard preset has 14 slots (2 cols * 7 rows)
   const slots = sheetPreview.querySelectorAll('.grid > div')
-  assert.equal(slots.length, 10)
+  assert.equal(slots.length, 14)
 
   // First slot should display mockItem name
   assert.ok(slots[0].textContent?.includes('เก้าอี้สำนักงานเพื่อสุขภาพ'))
@@ -412,7 +412,7 @@ test('getTypographyForHeight returns scalable text styles and heights', () => {
   assert.equal(large.nameSize, 'text-[11px] font-bold')
 
   const medium = getTypographyForHeight(38)
-  assert.equal(medium.qrSize, 'h-12 w-12')
+  assert.equal(medium.qrSize, 'h-11 w-11')
   assert.equal(medium.nameSize, 'text-[10px] font-bold')
 
   const small = getTypographyForHeight(28)
@@ -499,12 +499,11 @@ test('AssetTagModal supports dynamic fields: adding renders immediately and remo
   fireEvent.click(dateCheckbox)
   assert.ok(screen.getAllByText('วันที่จัดซื้อ: 01/10/2026').length >= 1)
 
-  // Verify Preview label card uses auto height (content-driven, zero empty space)
+  // Verify Preview label card uses designed sticker height (38.5mm)
   const previewCard = document.querySelector('.asset-tag-modal-overlay .print-tag-card') as HTMLElement
   assert.ok(previewCard)
-  assert.equal(previewCard.style.height, 'auto')
-  assert.ok(!previewCard.classList.contains('justify-between'))
-  assert.ok(previewCard.classList.contains('justify-start'))
+  assert.equal(previewCard.style.height, '38.5mm')
+  assert.ok(previewCard.classList.contains('justify-between'))
 
   // Toggle Brand OFF -> should remove brand entirely without leaving any placeholder
   const brandCheckbox = screen.getByLabelText(/ยี่ห้อ/)
@@ -530,41 +529,58 @@ test('AssetTagModal correctly batches 25 items across A4 pages without stretchin
     })
   )
 
-  // 25 items with 10 per page -> exactly 3 pages
+  // 25 items with 14 per page -> exactly 2 pages
   const pages = document.querySelectorAll('#printable-asset-tag .print-page-a4')
-  assert.equal(pages.length, 3)
+  assert.equal(pages.length, 2)
 
-  // Page 1: 10 items
+  // Page 1: 14 items
   const page1Items = pages[0].querySelectorAll('.print-tag-card')
-  assert.equal(page1Items.length, 10)
+  assert.equal(page1Items.length, 14)
 
-  // Page 2: 10 items
+  // Page 2: 11 items
   const page2Items = pages[1].querySelectorAll('.print-tag-card')
-  assert.equal(page2Items.length, 10)
+  assert.equal(page2Items.length, 11)
 
-  // Page 3: 5 items
-  const page3Items = pages[2].querySelectorAll('.print-tag-card')
-  assert.equal(page3Items.length, 5)
-
-  // Every page container must use gridAutoRows: max-content, alignContent: start, alignItems: start
+  // Every page container must use gridTemplateRows: repeat(7, 38.5mm), alignContent: start, alignItems: start
   pages.forEach((page) => {
     const pageEl = page as HTMLElement
-    assert.equal(pageEl.style.gridAutoRows, 'max-content')
+    assert.equal(pageEl.style.gridTemplateRows, 'repeat(7, 38.5mm)')
     assert.equal(pageEl.style.alignContent, 'start')
     assert.equal(pageEl.style.alignItems, 'start')
   })
 
-  // Every sticker card across all pages must use width: 96mm, height: auto (NEVER height: 100%)
+  // Every sticker card across all pages must use width: 96mm, height: 38.5mm to fill the designated label slot
   const allStickers = document.querySelectorAll('#printable-asset-tag .print-tag-card')
   assert.equal(allStickers.length, 25)
   allStickers.forEach((stk) => {
     const el = stk as HTMLElement
     assert.equal(el.style.width, '96mm')
-    assert.equal(el.style.height, 'auto')
-    assert.notEqual(el.style.height, '100%')
-    assert.ok(el.classList.contains('justify-start'))
-    assert.ok(!el.classList.contains('justify-between'))
+    assert.equal(el.style.height, '38.5mm')
+    assert.ok(el.classList.contains('justify-between'))
   })
+})
+
+test('AssetTagModal portals printable container to document.body and uses static print positioning to prevent layout offsets', () => {
+  render(
+    React.createElement(AssetTagModal, {
+      isOpen: true,
+      onClose: () => {},
+      item: mockItem,
+    })
+  )
+
+  // Verify printable element is appended as direct child of document.body
+  const printableEl = document.querySelector('#printable-asset-tag') as HTMLElement
+  assert.ok(printableEl, 'Printable container must be in document')
+  assert.equal(printableEl.parentElement, document.body, 'Printable container must portal to document.body')
+
+  // Verify style tag contains print media rules that isolate printable element and hide non-printable app tree
+  const styleEl = document.querySelector('style')
+  assert.ok(styleEl, 'Style element must exist')
+  const css = styleEl.textContent || ''
+  assert.ok(css.includes('body > :not(#printable-asset-tag)'), 'Must hide app tree via body > :not(#printable-asset-tag)')
+  assert.ok(css.includes('position: static !important'), 'Printable element must use static positioning')
+  assert.ok(css.includes('grid-template-rows: repeat(7, 38.5mm)'), 'Print grid must use explicit 38.5mm row heights')
 })
 
 

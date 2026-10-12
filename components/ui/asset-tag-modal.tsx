@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { Printer, X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal, LayoutGrid, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { generateQrCodeSvgPath } from "@/lib/qr-code"
@@ -155,23 +156,23 @@ function SingleStickerItem({
     <div
       style={{
         width: presetConfig.width,
-        height: "auto",
+        height: presetConfig.height,
         maxHeight: presetConfig.height,
       }}
       className={`print-tag-card label-card bg-white text-slate-900 ${
         visibility.showCutLines
           ? "border border-dashed border-slate-400 cut-guide-dashed"
           : "border border-solid border-slate-900 cut-guide-solid"
-      } rounded-xs shadow-2xs flex flex-col justify-start overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
+      } rounded-xs shadow-2xs flex flex-col justify-between overflow-hidden box-border page-break-inside-avoid break-inside-avoid min-w-0 max-w-full ${presetConfig.padding}`}
     >
       {/* Sticker Header: Modern Enterprise Header */}
       {visibility.showOrg && (
-        <div className="border-b border-slate-200/90 pb-0.5 mb-1 flex items-center justify-between shrink-0">
+        <div className="border-b border-slate-200/90 pb-0.5 mb-0.5 flex items-center justify-between shrink-0">
           <div className={`font-bold tracking-tight text-slate-800 ${presetConfig.titleSize}`}>
             CAMMS — ระบบบริหารจัดการทรัพย์สิน
           </div>
           {assetCode && (
-            <div className="text-[7px] font-mono font-bold tracking-wider text-slate-500 bg-slate-100 px-1 py-0.2 rounded-[2px] border border-slate-200/60">
+            <div className="text-[6.5px] font-mono font-bold tracking-wider text-slate-500 bg-slate-100 px-1 py-0.2 rounded-[2px] border border-slate-200/60">
               ASSET TAG
             </div>
           )}
@@ -179,13 +180,13 @@ function SingleStickerItem({
       )}
 
       {/* Sticker Content Area: Balanced 2-Column Layout */}
-      <div className="flex items-center justify-between gap-2.5 min-w-0 w-full overflow-hidden">
+      <div className="flex items-center justify-between gap-2 min-w-0 w-full overflow-hidden flex-1 my-auto">
         {/* Left Column: Asset Info & Prominent Code */}
-        <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
+        <div className="flex-1 min-w-0 flex flex-col justify-center py-0.5">
           {/* Primary Asset Code Badge (rendered only if showCode is enabled and code exists) */}
           {visibility.showCode && assetCode ? (
-            <div className="inline-flex items-center gap-1.5 bg-slate-50/90 border border-slate-300/80 rounded-md px-2 py-0.5 max-w-full self-start shadow-2xs">
-              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wide">รหัส:</span>
+            <div className="inline-flex items-center gap-1 bg-slate-50/90 border border-slate-300/80 rounded-sm px-1.5 py-0.5 max-w-full self-start shadow-2xs">
+              <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wide">รหัส:</span>
               <span className={`font-mono font-black text-slate-950 ${presetConfig.codeSize} tracking-wide select-all leading-none`}>
                 {assetCode}
               </span>
@@ -194,7 +195,7 @@ function SingleStickerItem({
 
           {/* Primary Item Name (rendered only if showName is enabled and name exists) */}
           {visibility.showName && itemData.item_name ? (
-            <div className={`font-bold text-slate-950 truncate leading-snug mt-1 ${presetConfig.nameSize}`} title={itemData.item_name}>
+            <div className={`font-bold text-slate-950 line-clamp-2 break-words leading-snug mt-0.5 ${presetConfig.nameSize}`} title={itemData.item_name}>
               {itemData.item_name}
             </div>
           ) : null}
@@ -217,8 +218,8 @@ function SingleStickerItem({
 
         {/* Right Column: Direct Link QR Code with Scan Prompt */}
         {visibility.showQr && qrCodeData && (
-          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200/80 pl-2.5 self-center">
-            <div className="p-1 bg-white border border-slate-200/90 rounded-md shadow-2xs flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200/80 pl-2 self-center">
+            <div className="p-0.5 bg-white border border-slate-200/90 rounded-sm shadow-2xs flex flex-col items-center justify-center">
               <svg
                 viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
                 className={presetConfig.qrSize}
@@ -228,7 +229,7 @@ function SingleStickerItem({
                 <path d={qrCodeData.path} fill="black" />
               </svg>
             </div>
-            <span className="text-[6.5px] font-bold text-slate-500 tracking-tight leading-none mt-1 whitespace-nowrap">
+            <span className="text-[6px] font-bold text-slate-500 tracking-tight leading-none mt-0.5 whitespace-nowrap">
               สแกนตรวจสอบ
             </span>
           </div>
@@ -243,8 +244,8 @@ function A4SheetPreview({
   cols,
   rows,
   pageIndex,
-  marginTop = 6,
-  marginBottom = 6,
+  marginTop = 6.25,
+  marginBottom = 6.25,
   marginLeft = 7,
   marginRight = 7,
   gap = 2.5,
@@ -345,6 +346,11 @@ export function AssetTagModal({
   const [showAdvancedToggles, setShowAdvancedToggles] = React.useState(true)
   const [previewMode, setPreviewMode] = React.useState<"single" | "sheet">("single")
   const [sheetPageIndex, setSheetPageIndex] = React.useState(0)
+  const isMounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
 
   const [customGrid, setCustomGrid] = React.useState<CustomGridConfig>({
     cols: 2,
@@ -472,13 +478,17 @@ export function AssetTagModal({
             size: ${activeConfig.isSheet ? 'A4 portrait' : `${activeConfig.width} ${activeConfig.height}`};
             margin: 0;
           }
-          /* Hide EVERYTHING on the page: Navbar, Sidebar, Page Headers, Data Tables, Modals */
+          /* Hide EVERYTHING in body except the printable asset tag */
+          body > :not(#printable-asset-tag) {
+            display: none !important;
+          }
           body * {
-            visibility: hidden !important;
+            visibility: hidden;
           }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
+            width: 210mm !important;
             height: auto !important;
             min-height: 0 !important;
             background: white !important;
@@ -496,23 +506,22 @@ export function AssetTagModal({
             padding: 0 !important;
             border: none !important;
           }
-          /* Only make the printable labels area visible, pinned to top-left (0, 0) */
+          /* Only make the printable labels area visible */
           #printable-asset-tag,
           #printable-asset-tag * {
             visibility: visible !important;
           }
           #printable-asset-tag {
             display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: static !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 100% !important;
+            width: 210mm !important;
             height: auto !important;
             min-height: 0 !important;
             background: white !important;
             color: black !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -522,10 +531,10 @@ export function AssetTagModal({
             height: 297mm !important;
             max-height: 297mm !important;
             box-sizing: border-box !important;
-            padding: 6mm 7mm !important; /* Balanced 6mm top/bottom, 7mm left/right */
+            padding: 6.25mm 7mm !important; /* Balanced 6.25mm top/bottom, 7mm left/right */
             display: grid !important;
             grid-template-columns: repeat(2, 96mm) !important;
-            grid-auto-rows: max-content !important;
+            grid-template-rows: repeat(7, 38.5mm) !important;
             gap: 2.5mm 4mm !important;
             justify-content: center !important;
             justify-items: center !important;
@@ -544,13 +553,12 @@ export function AssetTagModal({
           .label-card,
           .print-tag-card {
             width: 96mm !important;
-            height: auto !important;
-            max-height: 55mm !important;
+            height: 38.5mm !important;
+            max-height: 38.5mm !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: flex-start !important;
-            align-self: start !important;
+            justify-content: space-between !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             overflow: hidden !important;
@@ -568,7 +576,7 @@ export function AssetTagModal({
           .print-page-a4 {
             padding: ${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm !important;
             grid-template-columns: repeat(${sheetCols}, ${customDimensions.width}mm) !important;
-            grid-auto-rows: max-content !important;
+            grid-template-rows: repeat(${sheetRows}, ${customDimensions.height}mm) !important;
             gap: ${customGrid.gap}mm !important;
             justify-content: center !important;
             justify-items: center !important;
@@ -578,9 +586,8 @@ export function AssetTagModal({
           .label-card,
           .print-tag-card {
             width: ${customDimensions.width}mm !important;
-            height: auto !important;
+            height: ${customDimensions.height}mm !important;
             max-height: ${customDimensions.height}mm !important;
-            align-self: start !important;
           }
           `
               : ""
@@ -651,7 +658,7 @@ export function AssetTagModal({
                       <span className={`text-[10.5px] mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                         {key === "custom_grid"
                           ? `คำนวณตาม Grid: ${(customDimensions.width / 10).toFixed(1)} × ${(customDimensions.height / 10).toFixed(1)} ซม.`
-                          : "9.6 × 5.5 ซม. (10 ดวง/แผ่น)"}
+                          : "9.6 × 3.85 ซม. (14 ดวง/แผ่น)"}
                       </span>
                     </button>
                   )
@@ -1162,8 +1169,8 @@ export function AssetTagModal({
                     cols={sheetCols}
                     rows={sheetRows}
                     pageIndex={safeSheetPageIndex}
-                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 6}
-                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 6}
+                    marginTop={selectedPreset === "custom_grid" ? customGrid.marginTop : 6.25}
+                    marginBottom={selectedPreset === "custom_grid" ? customGrid.marginBottom : 6.25}
                     marginLeft={selectedPreset === "custom_grid" ? customGrid.marginLeft : 7}
                     marginRight={selectedPreset === "custom_grid" ? customGrid.marginRight : 7}
                     gap={selectedPreset === "custom_grid" ? customGrid.gap : 2.5}
@@ -1207,52 +1214,62 @@ export function AssetTagModal({
         </div>
       </div>
 
-      {/* Hidden printable container for window.print() — Clean sibling element */}
-      <div id="printable-asset-tag" className="hidden">
-        {Array.from({ length: totalPages }).map((_, pageIdx) => {
-          const pageItems = expandedPrintList.slice(
-            pageIdx * labelsPerPage,
-            (pageIdx + 1) * labelsPerPage
-          )
-          return (
-            <div
-              key={pageIdx}
-              className="a4-sheet print-page-a4"
-              style={{
-                width: "210mm",
-                height: "297mm",
-                maxHeight: "297mm",
-                boxSizing: "border-box",
-                padding: selectedPreset === "custom_grid"
-                  ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
-                  : "6mm 7mm",
-                display: "grid",
-                gridTemplateColumns: selectedPreset === "custom_grid"
-                  ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
-                  : `repeat(${sheetCols}, 96mm)`,
-                gridAutoRows: "max-content",
-                gap: selectedPreset === "custom_grid"
-                  ? `${customGrid.gap}mm`
-                  : "2.5mm 4mm",
-                justifyContent: "center",
-                justifyItems: "center",
-                alignContent: "start",
-                alignItems: "start",
-                overflow: "hidden",
-              }}
-            >
-              {pageItems.map((itm, idx) => (
-                <SingleStickerItem
-                  key={idx}
-                  itemData={itm}
-                  presetConfig={activeConfig}
-                  visibility={fieldVisibility}
-                />
-              ))}
-            </div>
-          )
-        })}
-      </div>
+      {/* Hidden printable container for window.print() — Portaled to document.body for clean page margins */}
+      {(() => {
+        const printableContainer = (
+          <div id="printable-asset-tag" className="hidden print:block">
+            {Array.from({ length: totalPages }).map((_, pageIdx) => {
+              const pageItems = expandedPrintList.slice(
+                pageIdx * labelsPerPage,
+                (pageIdx + 1) * labelsPerPage
+              )
+              return (
+                <div
+                  key={pageIdx}
+                  className="a4-sheet print-page-a4"
+                  style={{
+                    width: "210mm",
+                    height: "297mm",
+                    maxHeight: "297mm",
+                    boxSizing: "border-box",
+                    padding: selectedPreset === "custom_grid"
+                      ? `${customGrid.marginTop}mm ${customGrid.marginRight}mm ${customGrid.marginBottom}mm ${customGrid.marginLeft}mm`
+                      : "6.25mm 7mm",
+                    display: "grid",
+                    gridTemplateColumns: selectedPreset === "custom_grid"
+                      ? `repeat(${sheetCols}, ${customDimensions.width}mm)`
+                      : `repeat(${sheetCols}, 96mm)`,
+                    gridTemplateRows: selectedPreset === "custom_grid"
+                      ? `repeat(${sheetRows}, ${customDimensions.height}mm)`
+                      : `repeat(${sheetRows}, 38.5mm)`,
+                    gap: selectedPreset === "custom_grid"
+                      ? `${customGrid.gap}mm`
+                      : "2.5mm 4mm",
+                    justifyContent: "center",
+                    justifyItems: "center",
+                    alignContent: "start",
+                    alignItems: "start",
+                    overflow: "hidden",
+                  }}
+                >
+                  {pageItems.map((itm, idx) => (
+                    <SingleStickerItem
+                      key={idx}
+                      itemData={itm}
+                      presetConfig={activeConfig}
+                      visibility={fieldVisibility}
+                    />
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        )
+
+        return typeof document !== "undefined" && isMounted
+          ? createPortal(printableContainer, document.body)
+          : printableContainer
+      })()}
     </>
   )
 }
