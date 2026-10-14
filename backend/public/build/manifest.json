@@ -1,0 +1,59 @@
+{
+  "_createLucideIcon-DrbzXFKq.js": {
+    "file": "assets/createLucideIcon-DrbzXFKq.js",
+    "name": "createLucideIcon",
+    "imports": [
+      "resources/js/app.tsx"
+    ]
+  },
+  "_qr-code-C6Kgw6Zn.js": {
+    "file": "assets/qr-code-C6Kgw6Zn.js",
+    "name": "qr-code",
+    "imports": [
+      "_createLucideIcon-DrbzXFKq.js"
+    ]
+  },
+  "resources/js/Pages/Assets/Index.tsx": {
+    "file": "assets/Index-adarRG87.js",
+    "name": "Index",
+    "src": "resources/js/Pages/Assets/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.tsx",
+      "_createLucideIcon-DrbzXFKq.js",
+      "_qr-code-C6Kgw6Zn.js"
+    ]
+  },
+  "resources/js/Pages/Audit/Scan.tsx": {
+    "file": "assets/Scan-MqHKh-IE.js",
+    "name": "Scan",
+    "src": "resources/js/Pages/Audit/Scan.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.tsx",
+      "_createLucideIcon-DrbzXFKq.js",
+      "_qr-code-C6Kgw6Zn.js"
+    ]
+  },
+  "resources/js/Pages/Materials/Index.tsx": {
+    "file": "assets/Index-Bc_rR5ns.js",
+    "name": "Index",
+    "src": "resources/js/Pages/Materials/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.tsx",
+      "_createLucideIcon-DrbzXFKq.js"
+    ]
+  },
+  "resources/js/app.tsx": {
+    "file": "assets/app-C_-aOlZA.js",
+    "name": "app",
+    "src": "resources/js/app.tsx",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/Pages/Assets/Index.tsx",
+      "resources/js/Pages/Audit/Scan.tsx",
+      "resources/js/Pages/Materials/Index.tsx"
+    ]
+  }
+}
