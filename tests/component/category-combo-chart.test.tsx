@@ -143,3 +143,52 @@ test('CategoryComboChart applies -35 degree rotation and textAnchor="end" when c
   assert.equal(labels[0].getAttribute('text-anchor'), 'end')
 });
 
+test('CategoryComboChart keeps horizontal labels with textAnchor="middle" when categories <= 4', () => {
+  const { container } = render(
+    React.createElement(CategoryComboChart, { data: mockComboData })
+  );
+
+  const categoryLabels = Array.from(container.querySelectorAll('svg text')).filter(
+    (el) => el.querySelector('title') !== null
+  );
+
+  assert.equal(categoryLabels.length, 4);
+  for (const label of categoryLabels) {
+    assert.equal(label.getAttribute('text-anchor'), 'middle');
+    const transform = label.getAttribute('transform');
+    assert.ok(!transform || !transform.includes('rotate(-35'));
+  }
+});
+
+test('CategoryComboChart tail-end label slotCenter does not exceed right plot boundary coordinate', () => {
+  const dense12Data: ComboCategoryItem[] = Array.from({ length: 12 }, (_, i) => ({
+    category: `หมวดหมู่ที่ ${i + 1}`,
+    totalQty: (i + 1) * 10,
+    activeQty: (i + 1) * 8,
+  }));
+
+  const { container } = render(
+    React.createElement(CategoryComboChart, { data: dense12Data })
+  );
+
+  const categoryLabels = Array.from(container.querySelectorAll('svg text')).filter(
+    (el) => el.querySelector('title') !== null
+  );
+
+  assert.equal(categoryLabels.length, 12);
+  const plotRight = 552; // svgWidth (600) - paddingRight (48)
+
+  for (const label of categoryLabels) {
+    const xCoord = Number(label.getAttribute('x'));
+    assert.ok(
+      xCoord <= plotRight,
+      `Label slotCenter (${xCoord}) should not exceed plotRight boundary (${plotRight})`
+    );
+    const transform = label.getAttribute('transform');
+    assert.ok(
+      transform !== null && transform.includes('rotate(-35'),
+      `Label should have rotate(-35) transform, got: ${transform}`
+    );
+  }
+});
+
