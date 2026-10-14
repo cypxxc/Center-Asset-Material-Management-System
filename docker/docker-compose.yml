@@ -9,7 +9,7 @@ services:
     environment:
       APP_NAME: "CAMMS Portal"
       APP_ENV: local
-      APP_KEY: base64:Q3VzdG9tU2VjcmV0S2V5Rm9yQ0FNTVNMb2NhbERldjEyMzQ1Njc=
+      APP_KEY: base64:g6TKbJ1gL+2+oW+ccwWgk7NlaBsJGwAYZJl6a1X3k3g=
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
       DB_CONNECTION: pgsql
