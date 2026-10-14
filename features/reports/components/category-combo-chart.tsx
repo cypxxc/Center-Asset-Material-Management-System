@@ -18,6 +18,19 @@ export interface CategoryComboChartProps {
   className?: string
 }
 
+export function truncateCategoryLabel(name: string, maxLen: number): string {
+  if (!name || name.length <= maxLen) return name
+  let cut = name.slice(0, maxLen)
+  const thaiCombiningRegex = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/
+  while (
+    cut.length > 0 &&
+    (thaiCombiningRegex.test(cut.slice(-1)) || thaiCombiningRegex.test(name.charAt(cut.length)))
+  ) {
+    cut = cut.slice(0, -1)
+  }
+  return `${cut.trim()}…`
+}
+
 export function CategoryComboChart({
   data,
   totalValue,
@@ -99,11 +112,11 @@ export function CategoryComboChart({
 
   // Chart dimensions
   const svgWidth = 600
-  const svgHeight = 320
+  const svgHeight = 330
   const paddingLeft = 48
   const paddingRight = 48
   const paddingTop = 28
-  const paddingBottom = 54
+  const paddingBottom = 64
 
   const plotWidth = svgWidth - paddingLeft - paddingRight
   const plotHeight = svgHeight - paddingTop - paddingBottom

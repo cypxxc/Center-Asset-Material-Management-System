@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import { CategoryComboChart, ComboCategoryItem } from '../../features/reports/components/category-combo-chart';
+import { CategoryComboChart, ComboCategoryItem, truncateCategoryLabel } from '../../features/reports/components/category-combo-chart';
 
 const mockComboData: ComboCategoryItem[] = [
   { category: 'คอมพิวเตอร์และอุปกรณ์', totalQty: 50, activeQty: 45 },
@@ -114,3 +114,15 @@ test('CategoryComboChart renders Top KPI strip even when data is empty', () => {
   assert.ok(container.textContent?.includes('5 / 10 รายการ'));
   assert.ok(container.textContent?.includes('ไม่มีข้อมูลหมวดหมู่สำหรับแสดงผลแผนภูมิในขณะนี้'));
 });
+
+test('truncateCategoryLabel preserves complete Thai characters and avoids orphaned diacritics', () => {
+  const label = 'เครื่องใช้ไฟฟ้าและอิเล็กทรอนิกส์'
+  assert.ok(label.length > 14)
+  const truncated = truncateCategoryLabel(label, 14)
+  assert.ok(truncated.endsWith('…'))
+  // Check that the last character before ellipsis is not a combining vowel or tone mark
+  const thaiCombiningRegex = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/
+  const charBeforeEllipsis = truncated.slice(-2, -1)
+  assert.equal(thaiCombiningRegex.test(charBeforeEllipsis), false)
+});
+
