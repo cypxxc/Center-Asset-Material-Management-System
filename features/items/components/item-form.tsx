@@ -119,7 +119,7 @@ export function ItemForm({
 
       <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุประเภทและข้อมูลที่จำเป็นของสิ่งของ">
       {/* Tabs Navigation */}
-      <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-slate-100 mb-2">
+      <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-border mb-2">
         <button
           type="button"
           role="tab"
@@ -128,8 +128,8 @@ export function ItemForm({
           onClick={() => setActiveTab('asset')}
           className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'asset'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
+              ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+              : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
           }`}
         >
           <Package className="h-4 w-4" />
@@ -143,8 +143,8 @@ export function ItemForm({
           onClick={() => setActiveTab('material')}
           className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'material'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
+              ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+              : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
           }`}
         >
           <ClipboardList className="h-4 w-4" />
@@ -315,7 +315,7 @@ export function ItemForm({
           </FormField>
         </FormGrid>
       </FormSection>
-      {activeTab === 'asset' && <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4"><DepreciationFields item={item} /></div>}
+      {activeTab === 'asset' && <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10 p-4"><DepreciationFields item={item} /></div>}
 
       {showActions && <FormActions>
         {onCancel ? (
@@ -332,10 +332,10 @@ export function ItemForm({
 }
 
 const sectionTones = {
-  blue: 'border-blue-200 bg-blue-50 text-blue-900',
-  violet: 'border-violet-200 bg-violet-50 text-violet-900',
-  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  slate: 'border-slate-200 bg-slate-100 text-slate-800',
+  blue: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300',
+  violet: 'border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300',
+  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+  slate: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200',
 }
 
 function FormSection({ title, description, tone, icon, children }: {
@@ -346,7 +346,7 @@ function FormSection({ title, description, tone, icon, children }: {
   children: ReactNode
 }) {
   return (
-    <section aria-label={title} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <section aria-label={title} className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
       <div className={`flex items-center gap-3 border-b border-l-4 px-4 py-3 ${sectionTones[tone]}`}>
         <span aria-hidden="true">{icon}</span>
         <div>
@@ -494,7 +494,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
     <div className="space-y-2 sm:col-span-2">
       <FormLabel>รูปภาพสิ่งของ</FormLabel>
       
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 p-4 bg-slate-50">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900/50">
         {preview ? (
           previewFailed ? (
             <div className="relative group rounded-lg overflow-hidden border border-border max-w-[240px] w-[240px] h-[180px] bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-4">

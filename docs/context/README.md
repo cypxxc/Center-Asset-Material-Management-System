@@ -12,7 +12,7 @@ Thai-first UI, RBAC, dark mode, audit logging.
 
 | Layer | Technology |
 |-------|-----------|
-| **Framework** | Next.js 16.3.4 (App Router, webpack, `proxy.ts` middleware) |
+| **Framework** | Next.js 16.3.8 (App Router, webpack, `proxy.ts` middleware) |
 | **UI** | React 19, Tailwind CSS v4, Radix UI, Lucide Icons, Capriola & Sarabun fonts |
 | **Database** | Supabase PostgreSQL / Standalone PostgreSQL + Drizzle ORM, RLS |
 | **Auth** | Supabase Auth or local Postgres auth (`private_auth` schema) |
@@ -34,6 +34,7 @@ db/
   migrations/   ← SQL migration files (tracked in public.app_migrations)
 scripts/
   apply-migrations.ts
+  seed-asset-categories.ts ← Standard Thai asset categories seeder
 ```
 
 ---
@@ -92,9 +93,13 @@ npm run dev          # http://localhost:3000
 # Apply specific migrations
 $env:MIGRATION_FILES='00001_initial_schema.sql,00002_units_active_columns.sql'
 npx tsx scripts/apply-migrations.ts
+
+# Seed standard Thai asset categories (13 categories)
+npx tsx scripts/seed-asset-categories.ts
 ```
 
 - Migration state tracked in `public.app_migrations` ledger table
+- Standard Thai asset categories (7110, 7440, etc.) populated in `public.categories`
 
 ---
 

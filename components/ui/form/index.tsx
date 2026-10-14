@@ -18,7 +18,7 @@ export const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
   ({ className, required, children, ...props }, ref) => (
     <label
       ref={ref}
-      className={cn("text-[11px] font-bold text-slate-700 select-none flex items-center gap-0.5", className)}
+      className={cn("text-[11px] font-bold text-slate-700 dark:text-slate-200 select-none flex items-center gap-0.5", className)}
       {...props}
     >
       {children}
@@ -44,11 +44,11 @@ export interface FormSectionProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
   ({ className, title, description, children, ...props }, ref) => (
-    <div ref={ref} className={cn("space-y-4 border-b border-slate-100 pb-6 last:border-0 last:pb-0", className)} {...props}>
+    <div ref={ref} className={cn("space-y-4 border-b border-border pb-6 last:border-0 last:pb-0", className)} {...props}>
       {(title || description) && (
         <div className="space-y-0.5">
-          {title && <h4 className="text-xs font-bold text-slate-800">{title}</h4>}
-          {description && <p className="text-[10px] text-slate-400">{description}</p>}
+          {title && <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">{title}</h4>}
+          {description && <p className="text-[10px] text-slate-400 dark:text-slate-400">{description}</p>}
         </div>
       )}
       <div className="space-y-4">{children}</div>
@@ -61,7 +61,7 @@ export type FormActionsProps = React.HTMLAttributes<HTMLDivElement>
 
 export const FormActions = React.forwardRef<HTMLDivElement, FormActionsProps>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center justify-end gap-2 border-t border-slate-100 pt-4 mt-6", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center justify-end gap-2 border-t border-border pt-4 mt-6", className)} {...props} />
   )
 )
 FormActions.displayName = "FormActions"
@@ -91,7 +91,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
     <input
       ref={ref}
       className={cn(
-        "w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-rose-300 aria-invalid:ring-rose-200",
+        "w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-rose-300 aria-invalid:ring-rose-200 dark:aria-invalid:border-rose-500/50 dark:aria-invalid:ring-rose-500/20",
         className
       )}
       {...props}
@@ -106,7 +106,7 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaPr
     <textarea
       ref={ref}
       className={cn(
-        "w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-rose-300 aria-invalid:ring-rose-200",
+        "w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-rose-300 aria-invalid:ring-rose-200 dark:aria-invalid:border-rose-500/50 dark:aria-invalid:ring-rose-500/20",
         className
       )}
       {...props}
@@ -121,7 +121,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, FormSelectProps>(
     <select
       ref={ref}
       className={cn(
-        "w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer aria-invalid:border-rose-300 aria-invalid:ring-rose-200",
+        "w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-300 focus:ring-1 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer aria-invalid:border-rose-300 aria-invalid:ring-rose-200 dark:aria-invalid:border-rose-500/50 dark:aria-invalid:ring-rose-500/20",
         className
       )}
       {...props}

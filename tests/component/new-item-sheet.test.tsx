@@ -153,3 +153,39 @@ test('ItemForm switches item type on the same page without hiding common fields'
   assert.ok(within(view.container).getByLabelText('สถานที่'));
   assert.equal(within(view.container).queryByLabelText('Serial Number'), null);
 });
+
+test('NewItemSheet adapts to theme using CSS variables and semantic tokens', () => {
+  mockDialogMethods();
+
+  const view = render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const styleText = Array.from(document.querySelectorAll('style'))
+    .map((style) => style.textContent ?? '')
+    .join('\n');
+
+  // Verify CSS variables are used for modal background and borders instead of hardcoded hex colors
+  assert.match(styleText, /\.new-item-sheet-panel\s*\{[^}]*background:\s*var\(--card\)/);
+  assert.match(styleText, /\.new-item-sheet-panel\s*\{[^}]*border:\s*1px solid var\(--border\)/);
+  assert.match(styleText, /\.new-item-sheet-body\s*\{[^}]*background:\s*var\(--background\)/);
+  assert.match(styleText, /\.new-item-sheet-header\s*\{[^}]*background:\s*var\(--card\)/);
+  assert.match(styleText, /\.new-item-sheet-footer\s*\{[^}]*background:\s*var\(--card\)/);
+
+  // Verify panel element has semantic theme classes
+  const panel = view.container.querySelector('.new-item-sheet-panel');
+  assert.ok(panel?.classList.contains('bg-card'));
+  assert.ok(panel?.classList.contains('text-card-foreground'));
+
+  const body = view.container.querySelector('.new-item-sheet-body');
+  assert.ok(body?.classList.contains('bg-background'));
+  assert.ok(body?.classList.contains('text-foreground'));
+});
+

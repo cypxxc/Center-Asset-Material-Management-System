@@ -168,20 +168,20 @@ export function NewItemSheet({
     >
       {/* Centered panel with independently scrolling content */}
       <div
-        className="new-item-sheet-panel"
+        className="new-item-sheet-panel bg-card text-card-foreground border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="new-item-sheet-header">
+        <div className="new-item-sheet-header bg-card text-card-foreground border-border">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900">
+              <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
                 {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
               </h2>
-              <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500">
+              <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 กรอกข้อมูลในหน้าเดียว · ช่องที่มี * จำเป็นต้องกรอก
               </p>
             </div>
@@ -189,7 +189,7 @@ export function NewItemSheet({
           <button
             type="button"
             onClick={handleCloseAttempt}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
             aria-label="ปิด"
           >
             <X className="h-4 w-4" />
@@ -197,7 +197,7 @@ export function NewItemSheet({
         </div>
 
         {/* Scrollable form body */}
-        <div className="new-item-sheet-body">
+        <div className="new-item-sheet-body bg-background text-foreground">
           <ItemForm
             key={formVersion}
             action={item ? updateItem.bind(null, item.id) : createItemInline}
@@ -214,8 +214,8 @@ export function NewItemSheet({
           />
         </div>
 
-        <div className="new-item-sheet-footer">
-          <span className="mr-auto hidden text-xs text-slate-500 sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
+        <div className="new-item-sheet-footer bg-card text-card-foreground border-border">
+          <span className="mr-auto hidden text-xs text-slate-500 dark:text-slate-400 sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
           <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt}>ยกเลิก</Button>
           <Button type="submit" form={formId} disabled={pending} className="gap-2 font-semibold">
             <Save className="h-4 w-4" />
@@ -255,11 +255,12 @@ export function NewItemSheet({
           width: 100%;
           max-width: 980px;
           max-height: min(92vh, 860px);
-          background: #fff;
+          background: var(--card);
+          color: var(--card-foreground);
           display: flex;
           flex-direction: column;
-          box-shadow: 0 24px 80px rgba(15,23,42,0.22);
-          border: 1px solid #e2e8f0;
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+          border: 1px solid var(--border);
           border-radius: 20px;
           overflow: hidden;
         }
@@ -270,8 +271,9 @@ export function NewItemSheet({
           justify-content: space-between;
           gap: 12px;
           padding: 18px 20px 14px;
-          border-bottom: 1px solid #e2e8f0;
-          background: #fff;
+          border-bottom: 1px solid var(--border);
+          background: var(--card);
+          color: var(--card-foreground);
           flex-shrink: 0;
           z-index: 1;
         }
@@ -280,7 +282,8 @@ export function NewItemSheet({
           flex: 1;
           overflow-y: auto;
           padding: 20px;
-          background: #f8fafc;
+          background: var(--background);
+          color: var(--foreground);
           min-height: 0;
           overscroll-behavior: contain;
         }
@@ -292,8 +295,9 @@ export function NewItemSheet({
           gap: 8px;
           flex-shrink: 0;
           padding: 14px 20px;
-          border-top: 1px solid #e2e8f0;
-          background: #fff;
+          border-top: 1px solid var(--border);
+          background: var(--card);
+          color: var(--card-foreground);
         }
 
         /* Override ItemForm card styling inside sheet — remove double border */

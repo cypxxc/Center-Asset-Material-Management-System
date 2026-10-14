@@ -80,6 +80,19 @@ set full_name = excluded.full_name, email = excluded.email, role = excluded.role
 
 insert into public.categories (name, description)
 values
+  ('7110 - ครุภัณฑ์สำนักงาน', '7110'),
+  ('7440 - ครุภัณฑ์คอมพิวเตอร์', '7440'),
+  ('7430 - ครุภัณฑ์โฆษณาและเผยแพร่', '7430'),
+  ('5805 - ครุภัณฑ์โทรคมนาคม', '5805'),
+  ('4120 - ครุภัณฑ์ไฟฟ้าและวิทยุ', '4120'),
+  ('2310 - ยานพาหนะและขนส่ง', '2310'),
+  ('6625 - ครุภัณฑ์วิทยาศาสตร์', '6625'),
+  ('6515 - ครุภัณฑ์การแพทย์', '6515'),
+  ('6910 - ครุภัณฑ์การศึกษา', '6910'),
+  ('3805 - ครุภัณฑ์การเกษตร', '3805'),
+  ('3410 - ครุภัณฑ์โรงงาน', '3410'),
+  ('7810 - ครุภัณฑ์งานบ้านงานครัว', '7810'),
+  ('7820 - ครุภัณฑ์กีฬา', '7820'),
   ('Computer equipment', 'Computers, displays, and related equipment'),
   ('Office supplies', 'Consumable office supplies'),
   ('Furniture', 'Office furniture')

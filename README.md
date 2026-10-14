@@ -30,12 +30,13 @@ For a fresh Docker installation without Supabase, follow [PostgreSQL + Drizzle s
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 16.3.4 (App Router, webpack, `proxy.ts` middleware)
-- **UI & Styling**: React 19, Tailwind CSS v4, Radix UI (`radix-ui`), Lucide Icons
+- **Framework**: Next.js 16.3.8 (App Router, webpack, `proxy.ts` middleware)
+- **UI & Styling**: React 19, Tailwind CSS v4, Radix UI (`radix-ui`), Lucide Icons, Capriola & Sarabun fonts
 - **Database & Auth**: Supabase PostgreSQL / Standalone PostgreSQL + Drizzle ORM, Row Level Security (RLS)
 - **Validation**: Zod v4 schemas with custom Unicode preprocessors
 - **Export Engines**: ExcelJS and browser print-to-PDF reports
 - **Runtime & Quality Gate**: Node.js 24.x LTS, TypeScript 5.x (Strict), ESLint 9 (Flat Config), Playwright
+
 
 ---
 
@@ -82,25 +83,41 @@ npm run dev
 | `npm run typecheck` | Generates route types, then runs strict TypeScript and unused-code checks |
 | `npm run lint` | Runs ESLint (flat config) |
 | `npm test` | Runs complete test suite via Node test runner (`tsx`) |
-| `npm run verify-env` | Validates required Supabase environment variables |
+| `npm run verify-env` | Validates environment variables (PostgreSQL or Supabase) |
 | `npm run verify-db-release` | Read-only verification of migrations, RLS policies, and RPC grants |
 | `npm run test:smoke` | Runs Playwright browser smoke tests |
 | `npm run test:e2e` | Runs Playwright E2E browser tests |
 | `npm run mcp` | Starts local Model Context Protocol (MCP) server |
+| `npm run postgres:setup` | Initializes local PostgreSQL Docker container and generates credentials |
+| `npm run postgres:up` | Starts local PostgreSQL container |
+| `npm run postgres:app:setup` | Applies migrations and creates initial administrator for Docker PostgreSQL |
+| `npm run postgres:activate` | Switches local environment `.env.local` to use local PostgreSQL |
+| `npm run health:diagnose` | Scans database and storage integrity for anomalies |
+| `npm run health:heal` | Performs automated repairs for diagnosed data inconsistencies |
 
 ---
 
 ## 🗄️ Database & Migrations
 
+### Migrations
 Database schema and RLS policies are managed via migrations in `db/migrations/`:
 
 ```bash
-# Apply specific migrations to target database
+# Apply specific migrations to target database (Supabase)
 $env:MIGRATION_FILES='00001_initial_schema.sql,00002_units_active_columns.sql'
 npx tsx scripts/apply-migrations.ts
 ```
 
 Migration execution is tracked atomically in the `public.app_migrations` database ledger table.
+
+### 🏷️ Standard Asset Categories (หมวดหมู่ครุภัณฑ์ตามมาตรฐาน)
+ระบบรองรับหมวดหมู่ครุภัณฑ์ตามมาตรฐานสำนักงบประมาณและกรมบัญชีกลาง (13 หมวดมาตรฐาน พร้อมรหัสหมวด เช่น `7110 - ครุภัณฑ์สำนักงาน`):
+
+```bash
+# Seed or re-seed standard Thai government asset categories
+npx tsx scripts/seed-asset-categories.ts
+```
+
 
 ---
 
