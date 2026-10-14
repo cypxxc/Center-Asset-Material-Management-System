@@ -25,14 +25,14 @@ async function insertSession(tx: PostgresTransaction, userId: string) {
 export async function setSessionCookie({ token, expires }: { token: string; expires: Date }) {
   ;(await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', expires })
 }
-/** Profile is queried without exclusive write lock; credentials row lock serializes password checks. */
+/** Profile is locked with a shared read lock (for share of p) to prevent deadlocks with concurrent profile updates/resets and serialize before credentials checks. */
 export async function authenticatePassword(identifier: string, password: string) {
   if (!identifier || identifier.length > 320 || password.length < 6 || password.length > 1024) return null
   const condition = identifier.includes('@') ? sql`lower(p.email)=lower(${identifier})`
     : /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(identifier) ? sql`p.id=${identifier}::uuid`
       : sql`lower(p.full_name)=lower(${identifier})`
   return getAuthDatabase().transaction(async (tx) => {
-    const profiles = await tx.execute<{ id: string; is_active: boolean }>(sql`select p.id,p.is_active from public.profiles p where ${condition} order by p.id limit 2`)
+    const profiles = await tx.execute<{ id: string; is_active: boolean }>(sql`select p.id,p.is_active from public.profiles p where ${condition} order by p.id limit 2 for share of p`)
     if (profiles.rows.length !== 1 || !profiles.rows[0].is_active) return null
     const userId = profiles.rows[0].id
     const credentials = await tx.execute<{ password_hash: string }>(sql`select password_hash from private_auth.credentials where user_id=${userId} for update`)
