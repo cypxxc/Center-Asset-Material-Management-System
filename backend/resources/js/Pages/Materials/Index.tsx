@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
-import { Boxes, AlertTriangle, Plus } from 'lucide-react';
+import { Boxes, AlertTriangle } from 'lucide-react';
 
 interface Material {
   id: number;
