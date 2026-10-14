@@ -439,23 +439,27 @@ export function CategoryComboChart({
               )
             })}
 
-            {/* X-Axis Category Labels */}
+            {/* X-Axis Category Labels: Dynamic Rotation */}
             {categoriesRenderData.map((d) => {
               const isHovered = hoveredIndex === d.index
-              const maxLabelLen = count > 5 ? 10 : 14
-              const displayLabel =
-                d.category.length > maxLabelLen
-                  ? d.category.slice(0, maxLabelLen - 1) + '…'
-                  : d.category
+              const shouldRotate = count > 5 || slotWidth < 70
+              const maxLabelLen = shouldRotate ? 14 : 10
+              const displayLabel = truncateCategoryLabel(d.category, maxLabelLen)
+              const labelY = plotBottom + (shouldRotate ? 14 : 18)
 
               return (
                 <text
                   key={`x-label-${d.index}`}
                   x={d.slotCenter}
-                  y={plotBottom + 18}
-                  textAnchor="middle"
+                  y={labelY}
+                  textAnchor={shouldRotate ? 'end' : 'middle'}
+                  transform={
+                    shouldRotate
+                      ? `rotate(-35, ${d.slotCenter}, ${labelY})`
+                      : undefined
+                  }
                   className={cn(
-                    'text-[11px] transition-colors duration-200 cursor-pointer select-none',
+                    'text-[10px] sm:text-[11px] transition-colors duration-200 cursor-pointer select-none',
                     isHovered
                       ? 'fill-primary font-bold'
                       : 'fill-card-foreground font-medium'

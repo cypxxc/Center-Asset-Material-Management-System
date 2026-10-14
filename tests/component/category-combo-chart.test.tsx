@@ -126,3 +126,20 @@ test('truncateCategoryLabel preserves complete Thai characters and avoids orphan
   assert.equal(thaiCombiningRegex.test(charBeforeEllipsis), false)
 });
 
+test('CategoryComboChart applies -35 degree rotation and textAnchor="end" when categories > 5', () => {
+  const denseData: ComboCategoryItem[] = [
+    { category: 'ครุภัณฑ์สำนักงาน', totalQty: 10, activeQty: 8 },
+    { category: 'คอมพิวเตอร์และอุปกรณ์', totalQty: 12, activeQty: 10 },
+    { category: 'เครื่องใช้ไฟฟ้า', totalQty: 8, activeQty: 6 },
+    { category: 'ยานพาหนะ', totalQty: 4, activeQty: 3 },
+    { category: 'อุปกรณ์สื่อสาร', totalQty: 6, activeQty: 5 },
+    { category: 'เครื่องมือช่าง', totalQty: 15, activeQty: 12 },
+    { category: 'เครื่องดนตรี', totalQty: 3, activeQty: 2 },
+    { category: 'วัสดุการเกษตร', totalQty: 9, activeQty: 7 },
+  ]
+  const { container } = render(React.createElement(CategoryComboChart, { data: denseData }))
+  const labels = container.querySelectorAll('svg text[transform*="rotate(-35"]')
+  assert.equal(labels.length, 8)
+  assert.equal(labels[0].getAttribute('text-anchor'), 'end')
+});
+
