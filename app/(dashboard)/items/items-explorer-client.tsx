@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  AlertCircle,
   Download,
   LayoutGrid,
   List,
@@ -697,7 +698,7 @@ function ItemsExplorerSession({
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <span className="material-symbols-outlined text-[28px]">error</span>
+                <AlertCircle className="size-7" />
               </div>
               <div className="space-y-1.5">
                 <h3 className="text-base font-bold text-card-foreground">การดำเนินงานล้มเหลว</h3>
