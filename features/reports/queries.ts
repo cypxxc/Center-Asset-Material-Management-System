@@ -4,7 +4,9 @@ import { isPostgresBackend } from '@/lib/backend'
 import { getPostgresReportStats, getPostgresReportItemsList, getPostgresExportReportItems } from './postgres-queries'
 
 import { cache } from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache-tags'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import type { ItemListSearchParams } from '@/features/items/types'
 import { getItemReferences } from '@/features/items/queries'
 import { getDepreciationReport } from '@/features/depreciation/queries'
@@ -15,51 +17,60 @@ import { measureQuery } from '@/lib/performance'
 /**
  * Fetches summary statistics for reports dashboard.
  * Uses the optimized `get_report_stats` RPC to perform aggregations server-side in a single query
- * with efficient column projection, bypassing client payload overhead.
+ * with efficient column projection, bypassing client payload overhead, and caches via unstable_cache.
  */
+const getCachedReportStats = unstable_cache(
+  async (): Promise<ReportStats> => {
+    const supabase = createServiceRoleClient()
+    const {
+      result: { data, error },
+    } = await measureQuery('reports.getReportStats', () => supabase.rpc('get_report_stats'))
+
+    if (error || !data) {
+      if (error) throw new Error('Unable to load report data')
+      return {
+        totalItems: 0,
+        totalQuantity: 0,
+        typeCounts: {
+          asset: { count: 0, qty: 0 },
+          material: { count: 0, qty: 0 },
+        },
+        statusCounts: {},
+        categoryCounts: {},
+        locationCount: 0,
+      }
+    }
+
+    const res = data as {
+      total_items: number
+      total_quantity: number
+      type_counts: Record<string, ReportCountBucket>
+      status_counts: Record<string, ReportCountBucket>
+      category_counts: Record<string, ReportCountBucket>
+      location_count: number
+    }
+
+    return {
+      totalItems: res.total_items,
+      totalQuantity: res.total_quantity,
+      typeCounts: {
+        asset: res.type_counts.asset ?? { count: 0, qty: 0 },
+        material: res.type_counts.material ?? { count: 0, qty: 0 },
+      },
+      statusCounts: res.status_counts,
+      categoryCounts: res.category_counts,
+      locationCount: res.location_count,
+    }
+  },
+  [CACHE_TAGS.SIDEBAR_DATA],
+  { tags: [CACHE_TAGS.SIDEBAR_DATA, CACHE_TAGS.REPORTS], revalidate: 300 }
+)
+
 export const getReportStats = cache(async function getReportStats(): Promise<ReportStats> {
   if (isPostgresBackend()) return getPostgresReportStats()
-  const supabase = await createClient()
-  const {
-    result: { data, error },
-  } = await measureQuery('reports.getReportStats', () => supabase.rpc('get_report_stats'))
-
-  if (error || !data) {
-    if (error) throw new Error('Unable to load report data')
-    return {
-      totalItems: 0,
-      totalQuantity: 0,
-      typeCounts: {
-        asset: { count: 0, qty: 0 },
-        material: { count: 0, qty: 0 },
-      },
-      statusCounts: {},
-      categoryCounts: {},
-      locationCount: 0,
-    }
-  }
-
-  const res = data as {
-    total_items: number
-    total_quantity: number
-    type_counts: Record<string, ReportCountBucket>
-    status_counts: Record<string, ReportCountBucket>
-    category_counts: Record<string, ReportCountBucket>
-    location_count: number
-  }
-
-  return {
-    totalItems: res.total_items,
-    totalQuantity: res.total_quantity,
-    typeCounts: {
-      asset: res.type_counts.asset ?? { count: 0, qty: 0 },
-      material: res.type_counts.material ?? { count: 0, qty: 0 },
-    },
-    statusCounts: res.status_counts,
-    categoryCounts: res.category_counts,
-    locationCount: res.location_count,
-  }
+  return getCachedReportStats()
 })
+
 
 function firstRelation<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) return value[0] ?? null

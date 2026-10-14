@@ -27,8 +27,6 @@ const getCurrentUser = cache(async function getCurrentUser() {
 
 export const getCurrentProfile = cache(async function getCurrentProfile() {
   if (isPostgresBackend()) return (await import('@/lib/postgres/session')).getPostgresProfile()
-  const user = await getCurrentUser()
-  if (!user) return null
 
   const devSessionUser = await getDevelopmentSessionUser()
   if (devSessionUser) {
@@ -46,6 +44,38 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
   }
 
   const supabase = await createClient()
+
+  // 1. Inspect local session from cookies/storage adapter (instant, <0.1ms, zero WAN round-trips)
+  const { data: sessionData } = await supabase.auth.getSession()
+  const candidateUserId = sessionData?.session?.user?.id
+
+  // 2. If a local session exists, fetch profile concurrently with getUser()
+  if (candidateUserId) {
+    const [user, profileResult] = await Promise.all([
+      getCurrentUser(),
+      measureQuery('auth.getCurrentProfile', () =>
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', candidateUserId)
+          .single()
+      ),
+    ])
+
+    const profile = profileResult.result.data
+
+    // Strict validation: Auth server must confirm user identity and profile must be active
+    if (!user || user.id !== candidateUserId || !profile || !profile.is_active) {
+      return null
+    }
+
+    return profile
+  }
+
+  // Fallback: If no candidate was available locally, execute sequential resolution
+  const user = await getCurrentUser()
+  if (!user) return null
+
   const {
     result: { data: profile },
   } = await measureQuery('auth.getCurrentProfile', () =>
@@ -59,3 +89,4 @@ export const getCurrentProfile = cache(async function getCurrentProfile() {
   if (!profile || !profile.is_active) return null
   return profile
 })
+
