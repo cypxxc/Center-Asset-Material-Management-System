@@ -9,7 +9,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { consumeLoginAttempt, pruneLoginAttempts } from '@/lib/postgres/login-throttle'
 
 export async function postgresLogin(formData: FormData) {
-  const limit = await checkRateLimit('login', 10, 60000)
+  const limit = await checkRateLimit('login', 10, 60000, 'anonymous')
   if (!limit.success) return { error: limit.error }
   const identifier = String(formData.get('id') ?? '').trim()
   const password = String(formData.get('password') ?? '')

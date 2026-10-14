@@ -159,7 +159,8 @@ export interface CheckRateLimitResult {
 export async function checkRateLimit(
   actionName: string,
   tierOrLimit?: RateLimitTier | number,
-  customWindowMs?: number
+  customWindowMs?: number,
+  actorKey?: string,
 ): Promise<CheckRateLimitResult> {
   let limitValue = 60
   let windowMs = 60000
@@ -176,16 +177,19 @@ export async function checkRateLimit(
 
   try {
     const headersList = await headers()
-    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
+    const rawForwarded = headersList.get('x-forwarded-for')
+    const ip = (rawForwarded ? rawForwarded.split(',')[0].trim() : null) || headersList.get('x-real-ip') || '127.0.0.1'
 
-    let userId = 'anonymous'
-    try {
-      const profile = await getCurrentProfile()
-      if (profile?.id) {
-        userId = profile.id
+    let userId = actorKey || 'anonymous'
+    if (!actorKey) {
+      try {
+        const profile = await getCurrentProfile()
+        if (profile?.id) {
+          userId = profile.id
+        }
+      } catch {
+        // Gracefully handle auth checks failing in non-HTTP mock contexts (e.g. CLI tests)
       }
-    } catch {
-      // Gracefully handle auth checks failing in non-HTTP mock contexts (e.g. CLI tests)
     }
 
     const key = `${userId}:${ip}:${actionName}`

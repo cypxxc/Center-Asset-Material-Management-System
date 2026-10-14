@@ -15,3 +15,15 @@ export function resolveUniqueProfileEmail(
   if (rows.length !== 1) return null
   return rows[0]?.email ?? null
 }
+
+export function resolveUniqueProfileCandidate(
+  rows: Array<{ email: string | null; is_active?: boolean | null }>,
+): { email: string; is_active: boolean } | null {
+  if (rows.length !== 1) return null
+  const row = rows[0]
+  if (!row?.email) return null
+  return {
+    email: row.email,
+    is_active: row.is_active ?? true,
+  }
+}

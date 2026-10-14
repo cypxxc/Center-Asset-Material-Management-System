@@ -73,3 +73,70 @@ test('an admin-created staff account keeps its assigned role and accepts only it
   assert.equal(linkedAuth.profile?.role, 'staff')
   assert.equal(linkedAuth.profile?.is_active, true)
 })
+
+test('name-based login authenticates active account with candidate resolution and redirects', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponseForClient('profiles', 'service', [
+    { id: 'mock-created-user-id', email: 'named-user@example.com', full_name: 'Somchai Prasert', role: 'viewer', is_active: true },
+  ])
+  mockSupabaseRegistry.createPasswordAccount({
+    email: 'named-user@example.com',
+    password: 'password-somchai',
+    role: 'viewer',
+    is_active: true,
+  })
+  mockSupabaseRegistry.applyProfileUpsert({
+    id: 'mock-created-user-id',
+    email: 'named-user@example.com',
+    role: 'viewer',
+    is_active: true,
+  })
+
+  const { login } = await import('../../features/auth/actions')
+  const formData = new FormData()
+  formData.set('id', 'Somchai Prasert')
+  formData.set('password', 'password-somchai')
+
+  await assert.rejects(
+    login(null, formData),
+    (error: unknown) => {
+      const redirectError = error as Error & { digest?: string }
+      return redirectError.message === 'NEXT_REDIRECT'
+        && redirectError.digest?.includes('/dashboard') === true
+    },
+  )
+})
+
+test('inactive account is rejected and redirected with error=inactive', async () => {
+  mockSupabaseRegistry.clear()
+  mockSupabaseRegistry.setTableResponseForClient('profiles', 'service', [
+    { id: 'mock-created-user-id', email: 'inactive@example.com', full_name: 'Inactive User', role: 'viewer', is_active: false },
+  ])
+  mockSupabaseRegistry.createPasswordAccount({
+    email: 'inactive@example.com',
+    password: 'password-inactive',
+    role: 'viewer',
+    is_active: false,
+  })
+  mockSupabaseRegistry.applyProfileUpsert({
+    id: 'mock-created-user-id',
+    email: 'inactive@example.com',
+    role: 'viewer',
+    is_active: false,
+  })
+
+  const { login } = await import('../../features/auth/actions')
+  const formData = new FormData()
+  formData.set('id', 'Inactive User')
+  formData.set('password', 'password-inactive')
+
+  await assert.rejects(
+    login(null, formData),
+    (error: unknown) => {
+      const redirectError = error as Error & { digest?: string }
+      return redirectError.message === 'NEXT_REDIRECT'
+        && redirectError.digest?.includes('error=inactive') === true
+    },
+  )
+})
+

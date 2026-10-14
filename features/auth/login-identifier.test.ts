@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveUniqueProfileEmail, classifyLoginIdentifier } from './login-identifier'
+import { resolveUniqueProfileEmail, resolveUniqueProfileCandidate, classifyLoginIdentifier } from './login-identifier'
 import { generateInternalEmail, isInternalEmail } from '@/lib/display-email'
 
 test('classifyLoginIdentifier categorizes email, uuid, and name', () => {
@@ -32,3 +32,28 @@ test('name login rejects absent, missing-email, and ambiguous profiles', () => {
     { email: 'first@example.com' }, { email: 'second@example.com' },
   ]), null)
 })
+
+test('resolveUniqueProfileCandidate returns email and is_active for valid candidate', () => {
+  assert.deepEqual(resolveUniqueProfileCandidate([{ email: 'staff@example.com', is_active: true }]), {
+    email: 'staff@example.com',
+    is_active: true,
+  })
+  assert.deepEqual(resolveUniqueProfileCandidate([{ email: 'inactive@example.com', is_active: false }]), {
+    email: 'inactive@example.com',
+    is_active: false,
+  })
+  assert.deepEqual(resolveUniqueProfileCandidate([{ email: 'default@example.com' }]), {
+    email: 'default@example.com',
+    is_active: true,
+  })
+})
+
+test('resolveUniqueProfileCandidate rejects invalid candidate rows', () => {
+  assert.equal(resolveUniqueProfileCandidate([]), null)
+  assert.equal(resolveUniqueProfileCandidate([{ email: null, is_active: true }]), null)
+  assert.equal(resolveUniqueProfileCandidate([
+    { email: 'first@example.com', is_active: true },
+    { email: 'second@example.com', is_active: true },
+  ]), null)
+})
+

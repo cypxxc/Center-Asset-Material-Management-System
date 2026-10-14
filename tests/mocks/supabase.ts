@@ -65,6 +65,7 @@ interface MockQueryBuilder extends PromiseLike<MockQueryResult> {
   is(column: string, value: unknown): MockQueryBuilder;
   not(column: string, operator: string, value: unknown): MockQueryBuilder;
   or(filters: string): MockQueryBuilder;
+  ilike(column: string, pattern: string): MockQueryBuilder;
   single(): Promise<MockQueryResult>;
   maybeSingle(): Promise<MockQueryResult>;
 }
@@ -290,6 +291,7 @@ export function createMockQueryBuilder(tableName: string, clientKind: 'anon' | '
     is: (column: string, value: unknown) => record(['is', column, value]),
     not: (column: string, operator: string, value: unknown) => record(['not', column, operator, value]),
     or: (filters: string) => record(['or', filters]),
+    ilike: (column: string, pattern: string) => record(['ilike', column, pattern]),
     single: async () => {
       const { data, error, count } = await recordAndResolve();
       return { data: Array.isArray(data) ? data[0] : data, error, count };

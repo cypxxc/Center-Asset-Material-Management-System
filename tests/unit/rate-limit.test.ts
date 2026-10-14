@@ -33,3 +33,9 @@ test('checkRateLimit returns success: true outside request context (graceful fal
   const result = await checkRateLimit('test-action')
   assert.strictEqual(result.success, true)
 })
+
+test('checkRateLimit accepts explicit actorKey without throwing or looking up profile', async () => {
+  const result = await checkRateLimit('login', 10, 60000, 'anonymous')
+  assert.strictEqual(result.success, true)
+})
+

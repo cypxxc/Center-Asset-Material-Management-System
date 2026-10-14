@@ -10,7 +10,7 @@ import { config } from '@/lib/config'
 import { retrySupabase } from '@/lib/retry'
 import { handleActionError } from '@/lib/error-handler'
 import { AuthorizationError } from '@/lib/errors'
-import { resolveUniqueProfileEmail, classifyLoginIdentifier } from './login-identifier'
+import { resolveUniqueProfileCandidate, classifyLoginIdentifier } from './login-identifier'
 import { getDevelopmentSeedAccount, setDevelopmentSessionUser } from './dev-auth'
 import { isPostgresBackend } from '@/lib/backend'
 import { writeAuditLog } from '@/lib/audit'
@@ -50,6 +50,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
     'login',
     config.limits.loginRateLimit,
     config.limits.loginRateLimitWindowMs,
+    'anonymous',
   )
   if (!rateLimitCheck.success) {
     metrics.loginFailure()
@@ -62,6 +63,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
   const identifierType = classifyLoginIdentifier(identifier)
 
   let email: string | null = null
+  let preverifiedActive: boolean | null = null
 
   try {
     if (identifierType === 'email') {
@@ -89,19 +91,20 @@ export async function login(_prevState: { error?: string } | null, formData: For
         }
       } else {
         const profileResult = await retrySupabase(async () => {
-          const result = await adminClient.from('profiles').select('email').ilike('full_name', identifier).limit(2)
+          const result = await adminClient.from('profiles').select('email, is_active').ilike('full_name', identifier).limit(2)
           if (result.error) throw result.error
           return result
         })
 
         const profiles = profileResult.data
-        const profileEmail = resolveUniqueProfileEmail(profiles ?? [])
-        if (!profileEmail) {
+        const candidate = resolveUniqueProfileCandidate(profiles ?? [])
+        if (!candidate) {
           metrics.loginFailure()
           trace.complete('failure', { reason: 'profile_not_found' })
           return { error: 'ข้อมูลระบุตัวผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }
         }
-        email = profileEmail
+        email = candidate.email
+        preverifiedActive = candidate.is_active
       }
     }
   } catch (err) {
@@ -127,13 +130,16 @@ export async function login(_prevState: { error?: string } | null, formData: For
 
     const userId = signInResult.data.user?.id
     if (userId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_active')
-        .eq('id', userId)
-        .single()
+      const isActive = preverifiedActive !== null ? preverifiedActive : (await (async () => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_active')
+          .eq('id', userId)
+          .single()
+        return profile?.is_active
+      })())
 
-      if (!profile?.is_active) {
+      if (!isActive) {
         await supabase.auth.signOut()
         metrics.loginFailure()
         trace.complete('failure', { reason: 'inactive_profile' })
