@@ -77,5 +77,16 @@ scratch/
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
-.env*
+# backend php / composer
+/backend/vendor/
+/backend/storage/*.key
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/storage/logs/*
+/backend/bootstrap/cache/*
+!/backend/storage/framework/cache/.gitignore
+!/backend/storage/framework/sessions/.gitignore
+!/backend/storage/framework/views/.gitignore
+!/backend/storage/logs/.gitignore
+!/backend/bootstrap/cache/.gitignore
