@@ -1,0 +1,103 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: camms_laravel_app
+    restart: unless-stopped
+    working_dir: /var/www/html/backend
+    environment:
+      APP_NAME: "CAMMS Portal"
+      APP_ENV: local
+      APP_KEY: base64:Q3VzdG9tU2VjcmV0S2V5Rm9yQ0FNTVNMb2NhbERldjEyMzQ1Njc=
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: camms
+      DB_USERNAME: camms_user
+      DB_PASSWORD: camms_password
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CHROME_PATH: /usr/bin/chromium
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - camms-network
+
+  postgres:
+    image: postgres:16-bookworm
+    container_name: camms_laravel_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: camms
+      POSTGRES_USER: camms_user
+      POSTGRES_PASSWORD: camms_password
+      POSTGRES_INITDB_ARGS: "--locale=th_TH.UTF-8"
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camms_user -d camms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - camms-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: camms_laravel_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    networks:
+      - camms-network
+
+  queue-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: camms_laravel_queue
+    restart: unless-stopped
+    working_dir: /var/www/html/backend
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=90"]
+    environment:
+      APP_ENV: local
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: camms
+      DB_USERNAME: camms_user
+      DB_PASSWORD: camms_password
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CHROME_PATH: /usr/bin/chromium
+    volumes:
+      - ..:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - camms-network
+
+networks:
+  camms-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
