@@ -164,6 +164,13 @@ features/items/components/
 - `selectedItemIds`: Set of item UUIDs for bulk operations.
 - `searchParams`: Synced bidirectionally with URL for shareable filtered views.
 
+### 4.2 Edge Cases & Architectural Safeguards
+- **Responsive Column Collapse:** When `inspectedItem` is active on desktop viewports (`1024px–1439px`), secondary columns (`Category`, `Item Type`) automatically collapse to prevent horizontal table overflow.
+- **Virtual Scroll Synchronization:** Keyboard navigation (`ArrowUp`/`ArrowDown`) invokes `useItemWindow.scrollToIndex()` so the active row remains visible inside the virtualized viewport.
+- **Keyboard Focus Guard:** Global shortcuts (`/`, `Space`, `ArrowUp`, `ArrowDown`) are suppressed when focus is inside an `<input>`, `<textarea>`, or an open Radix Popover/Dialog.
+- **Filter Change Behavior:** Modifying search or filter criteria clears `inspectedItem` if the item is no longer present in the filtered dataset.
+- **Portal Hover Preview:** `ItemThumbnail` renders its 160×160px zoom preview inside a Radix Portal with a `250ms` hover delay to avoid container clipping and scroll jank.
+
 ---
 
 ## 5. Security & Constraints Compliance
