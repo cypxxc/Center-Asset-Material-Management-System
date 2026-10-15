@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const userCanWrite = canWrite(profile?.role)
 
   return (
-    <PageContainer maxWidth="full">
+    <PageContainer>
       <DashboardRealtimeBoundary tables={['items', 'categories', 'locations', 'units']} />
       <PageHeader
         title="ภาพรวมพัสดุ"

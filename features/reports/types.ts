@@ -4,11 +4,13 @@ import type { getDepreciationReport } from '@/features/depreciation/queries'
 export interface ReportCountBucket {
   count: number
   qty: number
+  activeQty?: number
 }
 
 export interface ReportStats {
   totalItems: number
   totalQuantity: number
+  totalValue?: number
   typeCounts: Record<string, ReportCountBucket>
   statusCounts: Record<string, ReportCountBucket>
   categoryCounts: Record<string, ReportCountBucket>

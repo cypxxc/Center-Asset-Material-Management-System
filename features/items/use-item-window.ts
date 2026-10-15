@@ -4,6 +4,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { ItemBatchWindow, saveItemWindow, takeItemWindow } from './batch-window'
 import type { ItemBatchResult, ItemListSearchParams, ItemListRow } from './types'
 
+export interface ScrollToIndexOptions {
+  align?: 'auto' | 'start' | 'end' | 'center'
+  behavior?: ScrollBehavior
+}
+
 export function useItemWindow(identity: string, params: ItemListSearchParams, seed: ItemBatchResult) {
   const fetcher = useCallback(async (cursor: string | undefined, signal: AbortSignal) => {
     const query = new URLSearchParams()
@@ -115,12 +120,66 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
 
   const save = useCallback(() => saveItemWindow({ identity, state, view, anchor }), [identity, state, view, anchor])
 
+  const scrollToIndex = useCallback((index: number, options?: ScrollToIndexOptions) => {
+    if (!Number.isFinite(index) || index < 0 || store.count === 0) return
+
+    const targetIndex = Math.min(Math.floor(index), store.count - 1)
+    const align = options?.align ?? 'auto'
+    const behavior = options?.behavior ?? 'auto'
+
+    const element = scrollRef.current
+    if (!element) {
+      pendingAnchor.current = targetIndex
+      return
+    }
+
+    const currentScrollTop = element.scrollTop
+    const currentViewportHeight = element.clientHeight || viewport.height
+    const visibleTop = currentScrollTop + offset
+    const visibleBottom = currentScrollTop + currentViewportHeight
+
+    const itemTop = Math.floor(targetIndex / columns) * rowHeight + offset
+    const itemBottom = itemTop + rowHeight
+
+    let targetScrollTop = currentScrollTop
+
+    if (align === 'start' || (rowHeight > currentViewportHeight && align === 'auto')) {
+      targetScrollTop = itemTop - offset
+    } else if (align === 'end') {
+      targetScrollTop = itemBottom - currentViewportHeight
+    } else if (align === 'center') {
+      targetScrollTop = itemTop - offset + (rowHeight / 2) - (currentViewportHeight / 2)
+    } else {
+      if (itemTop < visibleTop) {
+        targetScrollTop = itemTop - offset
+      } else if (itemBottom > visibleBottom) {
+        targetScrollTop = itemBottom - currentViewportHeight
+      } else {
+        return
+      }
+    }
+
+    targetScrollTop = Math.max(0, targetScrollTop)
+    const maxScroll = Math.max(0, element.scrollHeight - currentViewportHeight)
+    if (maxScroll > 0) {
+      targetScrollTop = Math.min(targetScrollTop, maxScroll)
+    }
+
+    if (behavior === 'smooth' && typeof element.scrollTo === 'function') {
+      element.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+    } else {
+      element.scrollTop = targetScrollTop
+      setViewport(v => (v.top === targetScrollTop ? v : { ...v, top: targetScrollTop }))
+    }
+  }, [columns, offset, rowHeight, store.count, viewport.height])
+
   return {
     store, state, view, setView, attachScroll, columns, slots,
     topSpace: Math.floor(first / columns) * rowHeight,
     bottomSpace: Math.max(0, Math.ceil(store.count / columns) - Math.ceil(last / columns)) * rowHeight,
     loaded,
     save,
+    scrollToIndex,
     optimisticUpdate: store.optimisticUpdate,
     optimisticDelete: store.optimisticDelete,
     rollback: store.rollback,

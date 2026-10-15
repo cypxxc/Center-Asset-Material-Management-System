@@ -2,7 +2,7 @@ import { PageContainer } from '@/components/ui/page-container'
 
 export default function DashboardLoading() {
   return (
-    <PageContainer maxWidth="full">
+    <PageContainer>
       {/* Welcome Header Skeleton */}
       <div className="bg-card border border-border rounded-xl p-6 shadow-2xs space-y-3 animate-pulse">
         <div className="h-4 w-32 rounded-full bg-muted/60" />

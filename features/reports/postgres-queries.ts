@@ -9,16 +9,18 @@ import type { ReportListResult, ReportStats } from './types'
 export async function getPostgresReportStats(): Promise<ReportStats> {
   return withUserDatabase(async (tx) => {
     const rows = await tx.execute<{ stats: ReportStats }>(sql`with live_items as materialized (
-      select i.item_type, i.quantity, i.status, i.category_id from public.items i where i.deleted_at is null
+      select i.item_type, i.quantity, i.unit_price, i.status, i.category_id from public.items i where i.deleted_at is null
     ) select json_build_object(
       'totalItems', (select count(*) from live_items),
       'totalQuantity', (select coalesce(sum(quantity), 0) from live_items),
+      'totalValue', (select coalesce(sum(coalesce(unit_price, 0) * quantity), 0) from live_items),
       'typeCounts', coalesce((select json_object_agg(item_type, json_build_object('count', cnt, 'qty', qty))
         from (select item_type, count(*) as cnt, coalesce(sum(quantity), 0) as qty from live_items group by item_type) t), '{}'::json),
       'statusCounts', coalesce((select json_object_agg(status, json_build_object('count', cnt, 'qty', qty))
         from (select status, count(*) as cnt, coalesce(sum(quantity), 0) as qty from live_items group by status) t), '{}'::json),
-      'categoryCounts', coalesce((select json_object_agg(t.name, json_build_object('count', t.cnt, 'qty', t.qty))
-        from (select coalesce(c.name, 'ทั่วไป') as name, count(*) as cnt, coalesce(sum(i.quantity), 0) as qty
+      'categoryCounts', coalesce((select json_object_agg(t.name, json_build_object('count', t.cnt, 'qty', t.qty, 'activeQty', t.active_qty))
+        from (select coalesce(c.name, 'ทั่วไป') as name, count(*) as cnt, coalesce(sum(i.quantity), 0) as qty,
+                     coalesce(sum(case when i.status = 'active' then i.quantity else 0 end), 0) as active_qty
           from live_items i left join public.categories c on c.id = i.category_id
           group by coalesce(c.name, 'ทั่วไป')) t), '{}'::json),
       'locationCount', (select count(*) from public.locations)

@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Package } from 'lucide-react'
+import { Check, Copy, Edit, Package, Printer } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,10 @@ export interface ItemsGridProps {
   onSelect: (item: ItemListRow) => void
   onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
+  userCanWrite?: boolean
+  onCopy?: (value: string | null | undefined) => void
+  onPrint?: (item: ItemListRow) => void
+  onEdit?: (item: ItemListRow) => void
 }
 
 export function ItemsGrid({
@@ -28,6 +32,10 @@ export function ItemsGrid({
   onSelect,
   onDoubleClick,
   onToggleSelectItem,
+  userCanWrite = false,
+  onCopy,
+  onPrint,
+  onEdit,
 }: ItemsGridProps) {
   return (
     <div className="bg-muted/20 p-4" style={{ paddingTop: topSpace + 16, paddingBottom: bottomSpace + 16 }}>
@@ -50,19 +58,66 @@ export function ItemsGrid({
                   isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
                 )}
               >
-                {/* Checkbox Overlay */}
-                <div className="absolute top-3 right-3 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                {/* Actions & Checkbox Overlay */}
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {/* Quick Action buttons */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                    {onCopy && (item.asset_no || item.serial_no) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onCopy(item.asset_no || item.serial_no)
+                        }}
+                        title={`คัดลอก ${item.asset_no || item.serial_no}`}
+                        aria-label={`คัดลอก ${item.asset_no || item.serial_no}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card/90 shadow-2xs text-muted-foreground hover:bg-card hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {onPrint && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onPrint(item)
+                        }}
+                        title="พิมพ์ป้ายบาร์โค้ด"
+                        aria-label={`พิมพ์ป้ายบาร์โค้ด ${item.item_name}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card/90 shadow-2xs text-muted-foreground hover:bg-card hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {userCanWrite && onEdit && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEdit(item)
+                        }}
+                        title="แก้ไขข้อมูล"
+                        aria-label={`แก้ไขข้อมูล ${item.item_name}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card/90 shadow-2xs text-muted-foreground hover:bg-card hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Selection Checkbox */}
                   <button
                     onClick={() => onToggleSelectItem(item.id)}
                     type="button"
                     aria-label={`เลือก ${item.item_name}`}
                     aria-pressed={isChecked}
                     className={cn(
-                      'flex h-11 w-11 items-center justify-center rounded border transition-colors cursor-pointer',
-                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                      'flex h-7 w-7 items-center justify-center rounded-md border transition-colors cursor-pointer shadow-2xs',
+                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-card/90 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
                     )}
                   >
-                    {isChecked && <Check className="w-4 h-4 stroke-[3px]" />}
+                    {isChecked && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
                   </button>
                 </div>
 

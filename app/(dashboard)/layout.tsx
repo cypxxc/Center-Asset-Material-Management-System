@@ -64,9 +64,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           units={references.units}
         >
           <Sidebar profile={profile} sidebarData={sidebarData} />
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <Header profile={profile} />
-            <main id="main-content" className="flex-1 overflow-hidden">
+            <main id="main-content" className="flex-1 min-w-0 overflow-hidden">
               {children}
             </main>
           </div>

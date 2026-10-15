@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { sql } from 'drizzle-orm'
+import { cache } from 'react'
 import { getAuthDatabase, type PostgresTransaction } from './db'
 import { hashPassword, verifyPassword } from './password'
 
@@ -15,7 +16,7 @@ export async function profileForToken(token: string | undefined): Promise<LocalP
     where s.token_hash=${tokenHash(token)} and s.expires_at>now() and p.is_active=true limit 1`)
   return result.rows[0] ?? null
 }
-export async function getPostgresProfile() { return profileForToken((await cookies()).get(SESSION_COOKIE)?.value) }
+export const getPostgresProfile = cache(async function getPostgresProfile() { return profileForToken((await cookies()).get(SESSION_COOKIE)?.value) })
 async function insertSession(tx: PostgresTransaction, userId: string) {
   const token = randomBytes(32).toString('hex')
   const expires = new Date(Date.now() + 8 * 60 * 60 * 1000)

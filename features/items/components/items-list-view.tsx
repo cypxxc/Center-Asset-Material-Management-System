@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useRef, useEffect } from 'react'
-import { ArrowUp, ArrowDown, ArrowUpDown, Package } from 'lucide-react'
+import React, { useRef, useEffect, useState } from 'react'
+import { ArrowUp, ArrowDown, ArrowUpDown, Check, Copy, Package } from 'lucide-react'
 import {
   DataTable,
   DataTableHeader,
@@ -14,7 +14,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_TYPE_LABELS, type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
 import { cn } from '@/lib/utils'
-import { typeIcons } from './item-type-icon'
+import { ItemThumbnail } from './item-thumbnail'
 
 export interface ItemsListProps {
   items: (ItemListRow | null | undefined)[]
@@ -29,6 +29,11 @@ export interface ItemsListProps {
   allLoadedSelected: boolean
   params: ItemListSearchParams
   onToggleSort: (field: string) => void
+  isInspectorOpen?: boolean
+  userCanWrite?: boolean
+  onCopy?: (value: string | null | undefined) => void
+  onPrint?: (item: ItemListRow) => void
+  onEdit?: (item: ItemListRow) => void
 }
 
 export function ItemsList({
@@ -44,6 +49,8 @@ export function ItemsList({
   onToggleSelectAll,
   params,
   onToggleSort,
+  isInspectorOpen = false,
+  onCopy,
 }: ItemsListProps) {
   const masterCheckboxRef = useRef<HTMLInputElement>(null)
 
@@ -91,9 +98,18 @@ export function ItemsList({
   }
 
   return (
-    <div className="bg-muted/10">
-      <DataTable responsive={false} wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible" className="text-card-foreground table-fixed min-w-[768px] sm:min-w-[856px] md:min-w-[960px] xl:min-w-[1100px]">
-        <DataTableHeader className="bg-muted/80 backdrop-blur-xs border-b border-border sticky top-0 z-10">
+    <div className="bg-muted/10 min-w-0">
+      <DataTable
+        responsive={false}
+        wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-visible min-w-0"
+        className={cn(
+          "text-card-foreground table-fixed w-full min-w-0",
+          isInspectorOpen
+            ? "min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
+            : "min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
+        )}
+      >
+        <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10">
           <tr>
             <DataTableHead isCheckbox className="w-10 px-3">
               <input
@@ -106,16 +122,16 @@ export function ItemsList({
               />
             </DataTableHead>
             <DataTableHead className="w-11 px-1" />
-            <DataTableHead className="px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
-            <DataTableHead className="hidden w-[96px] px-3 sm:table-cell" aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
-            <DataTableHead className="hidden w-32 px-3 md:table-cell">หมวดหมู่</DataTableHead>
-            <DataTableHead className="w-[100px] px-3" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
-            <DataTableHead className="w-[140px] px-3">สถานที่</DataTableHead>
-            <DataTableHead className="hidden w-[140px] px-3 xl:table-cell">ผู้รับผิดชอบ</DataTableHead>
-            <DataTableHead className="w-32 px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
+            <DataTableHead className="px-3 min-w-[140px]" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
+            <DataTableHead className={cn("hidden w-20 px-2.5", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")} aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
+            <DataTableHead className={cn("hidden w-28 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>หมวดหมู่</DataTableHead>
+            <DataTableHead className="w-20 px-2 sm:px-3" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead className={cn("w-28 xl:w-36 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
+            <DataTableHead className={cn("hidden w-28 xl:w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
+            <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
           </tr>
         </DataTableHeader>
-        <DataTableBody className="divide-y divide-border/50 bg-transparent">
+        <DataTableBody className="divide-y divide-border/40 bg-transparent">
           <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           {items.map((item, slot) => {
             if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
@@ -128,6 +144,8 @@ export function ItemsList({
                 onSelect={onSelect}
                 onDoubleClick={onDoubleClick}
                 onToggleSelectItem={onToggleSelectItem}
+                isInspectorOpen={isInspectorOpen}
+                onCopy={onCopy}
               />
             )
           })}
@@ -146,6 +164,11 @@ export interface ItemTableRowProps {
   onSelect: (item: ItemListRow) => void
   onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
+  isInspectorOpen?: boolean
+  userCanWrite?: boolean
+  onCopy?: (value: string | null | undefined) => void
+  onPrint?: (item: ItemListRow) => void
+  onEdit?: (item: ItemListRow) => void
 }
 
 export const ItemTableRow = React.memo(function ItemTableRow({
@@ -155,9 +178,20 @@ export const ItemTableRow = React.memo(function ItemTableRow({
   onSelect,
   onDoubleClick,
   onToggleSelectItem,
+  isInspectorOpen,
+  onCopy,
 }: ItemTableRowProps) {
+  const [copied, setCopied] = useState(false)
   const assetCode = item.asset_no || item.serial_no
   const brandModel = [item.brand, item.model].filter(Boolean).join(' ')
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!assetCode) return
+    onCopy?.(assetCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <DataTableRow
@@ -167,14 +201,14 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       onClick={() => onSelect(item)}
       onDoubleClick={() => onDoubleClick?.(item)}
       className={cn(
-        'h-[72px] max-h-[72px] [&>td]:h-[72px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-1.5 cursor-pointer transition-all',
+        'group h-[64px] max-h-[64px] [&>td]:h-[64px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-0 cursor-pointer transition-colors',
         isSelected
           ? 'border-b border-primary/40 bg-primary/10 text-card-foreground shadow-2xs'
-          : 'border-b border-border/60 text-card-foreground hover:bg-muted/50'
+          : 'border-b border-border/40 text-card-foreground hover:bg-muted/40'
       )}
     >
       {/* Checkbox Column */}
-      <DataTableCell isCheckbox className="px-3" onClick={(e) => e.stopPropagation()}>
+      <DataTableCell isCheckbox className="w-10 px-3" onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
           aria-label={`เลือก ${item.item_name}`}
@@ -184,33 +218,45 @@ export const ItemTableRow = React.memo(function ItemTableRow({
         />
       </DataTableCell>
 
-      {/* Type Icon Thumbnail */}
-      <DataTableCell className="px-1">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/80 border border-border/60 text-muted-foreground shadow-2xs shrink-0">
-          {typeIcons[item.item_type]}
-        </div>
+      {/* Visual Thumbnail */}
+      <DataTableCell className="w-11 px-1">
+        <ItemThumbnail
+          imageUrl={item.image_url}
+          itemName={item.item_name}
+          itemType={item.item_type}
+          size="sm"
+          showZoom
+        />
       </DataTableCell>
 
       {/* Rich Primary Compound Column: Title, Asset Code Badge, Brand/Model */}
-      <DataTableCell className="px-3">
+      <DataTableCell className="px-3 min-w-[140px]">
         <div className="flex flex-col justify-center min-w-0 pr-2">
           <div className="flex items-center gap-2 min-w-0">
             <span
-              className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-tight"
+              className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5"
               title={item.item_name}
             >
               {item.item_name}
             </span>
           </div>
 
-          <div className="mt-1 flex items-center gap-2 min-w-0 text-xs">
+          <div className="mt-1 flex items-center gap-2 min-w-0 text-xs leading-none">
             {assetCode ? (
-              <span
-                className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground/80 border border-border/70 shrink-0 leading-none"
-                title={assetCode}
+              <button
+                type="button"
+                onClick={handleCopy}
+                title={`คัดลอก ${assetCode}`}
+                aria-label={`คัดลอก ${assetCode}`}
+                className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge"
               >
-                {assetCode}
-              </span>
+                <span className="truncate">{assetCode}</span>
+                {copied ? (
+                  <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
+                )}
+              </button>
             ) : (
               <span className="text-[11px] font-medium text-muted-foreground/60 italic shrink-0">
                 ไม่มีเลขครุภัณฑ์
@@ -227,42 +273,42 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       </DataTableCell>
 
       {/* Type Column */}
-      <DataTableCell className="hidden px-3 text-xs font-semibold text-muted-foreground sm:table-cell">
-        <span className="inline-flex items-center rounded-lg bg-muted/60 px-2 py-1 text-xs border border-border/40">
+      <DataTableCell className={cn("hidden w-20 px-2.5 text-xs font-semibold text-muted-foreground", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")}>
+        <span className="inline-flex items-center rounded-lg bg-muted/60 px-2 py-0.5 text-xs border border-border/40 truncate">
           {ITEM_TYPE_LABELS[item.item_type]}
         </span>
       </DataTableCell>
 
       {/* Category Column */}
-      <DataTableCell className="hidden px-3 text-xs text-muted-foreground md:table-cell" title={item.category?.name}>
+      <DataTableCell className={cn("hidden w-28 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name}>
         {item.category?.name ?? '-'}
       </DataTableCell>
 
       {/* Quantity & Unit Column */}
-      <DataTableCell className="px-3 text-center">
-        <span className="font-extrabold text-foreground text-sm">
+      <DataTableCell className="w-20 px-2 sm:px-3 text-center">
+        <span className="font-extrabold text-foreground text-sm tabular-nums">
           {item.quantity}
         </span>
         {item.unit?.name && (
-          <span className="ml-1 text-xs font-medium text-muted-foreground">
+          <span className="ml-1 text-xs font-normal text-muted-foreground truncate">
             {item.unit.name}
           </span>
         )}
       </DataTableCell>
 
       {/* Location Column */}
-      <DataTableCell className="px-3 text-xs font-medium text-muted-foreground" title={item.location?.name}>
+      <DataTableCell className={cn("w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")} title={item.location?.name}>
         {item.location?.name ?? '-'}
       </DataTableCell>
 
       {/* Responsible Person Column */}
-      <DataTableCell className="hidden px-3 text-xs font-medium text-muted-foreground xl:table-cell" title={item.responsible_person ?? undefined}>
+      <DataTableCell className={cn("hidden w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")} title={item.responsible_person ?? undefined}>
         {item.responsible_person ?? '-'}
       </DataTableCell>
 
-      {/* Status Pill Column */}
-      <DataTableCell className="px-3">
-        <StatusBadge status={item.status} size="sm" showDot />
+      {/* Status Column */}
+      <DataTableCell className="w-24 sm:w-28 px-2 sm:px-3">
+        <StatusBadge status={item.status} size="sm" showDot className="shrink-0" />
       </DataTableCell>
     </DataTableRow>
   )

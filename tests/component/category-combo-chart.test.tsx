@@ -192,3 +192,16 @@ test('CategoryComboChart tail-end label slotCenter does not exceed right plot bo
   }
 });
 
+test('CategoryComboChart displays non-zero activeQty when provided in data', () => {
+  const { container } = render(
+    React.createElement(CategoryComboChart, {
+      data: [{ category: 'ครุภัณฑ์สำนักงาน', totalQty: 100, activeQty: 85 }],
+      totalCount: 100,
+      activeCount: 85,
+    })
+  );
+
+  assert.ok(container.textContent?.includes('85%'));
+  assert.ok(container.textContent?.includes('พร้อมใช้งาน: 85'));
+});
+

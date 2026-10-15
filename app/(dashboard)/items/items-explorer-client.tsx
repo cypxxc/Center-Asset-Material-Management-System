@@ -5,10 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
-  Download,
   LayoutGrid,
   List,
-  Tag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,7 +27,6 @@ const NewItemSheet = dynamic(
 import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 
-import { SearchInput } from '@/components/ui/search-input'
 import { useToast } from '@/components/ui/toast'
 import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
@@ -39,12 +36,12 @@ import { cn } from '@/lib/utils'
 import { normalizeItemListSearchParams } from '@/features/items/list-params'
 import { useItemWindow } from '@/features/items/use-item-window'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
-import { parseScannedAssetCode } from '@/lib/qr-scan-parser'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { ItemsList } from '@/features/items/components/items-list-view'
 import { ItemsGrid } from '@/features/items/components/items-grid-view'
 import { Inspector } from '@/features/items/components/item-inspector-drawer'
 import { ItemsBulkBar } from '@/features/items/components/items-bulk-bar'
+import { ItemsFilterBar } from '@/features/items/components/items-filter-bar'
 
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
@@ -122,6 +119,10 @@ function ItemsExplorerSession({
     setSelectedItemIds([])
     setBulkEditOpen(false)
   }
+  if (inspectedItem && localItems.length > 0 && !localItems.some((item) => item.id === inspectedItem.id)) {
+    setInspectedItem(null)
+    setIsInspectorOpen(false)
+  }
   const { view: viewMode, setView: setViewMode } = windowed
   const [blockingError, setBlockingError] = useState<string | null>(null)
   const {
@@ -164,14 +165,35 @@ function ItemsExplorerSession({
     return localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
   }, [effectiveSelectedItemId, localItems, inspectedItem])
 
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const toStickerItem = useCallback((item: ItemListRow): ItemStickerData => ({
+    id: item.id,
+    item_name: item.item_name,
+    asset_no: item.asset_no,
+    serial_no: item.serial_no,
+    brand: item.brand,
+    model: item.model,
+    location_name: item.location?.name,
+    category_name: item.category?.name,
+    responsible_person: item.responsible_person,
+    unit_price: item.unit_price,
+  }), [])
+
   const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
   }
 
   const copyReference = (value: string | null | undefined) => {
     if (!value) return
-    navigator.clipboard.writeText(value)
-    triggerToast(`คัดลอก "${value}" แล้ว`)
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(value).then(
+        () => triggerToast(`คัดลอก "${value}" แล้ว`),
+        () => triggerToast('ไม่สามารถคัดลอกลงคลิปบอร์ดได้', 'error')
+      )
+    } else {
+      triggerToast(`คัดลอก "${value}" แล้ว`)
+    }
   }
 
   const exportToExcel = async () => {
@@ -264,7 +286,7 @@ function ItemsExplorerSession({
     setSelectedItemIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
-  }, [])
+  }, [setSelectedItemIds])
 
   const localItemsRef = useRef(localItems)
   useEffect(() => {
@@ -276,12 +298,12 @@ function ItemsExplorerSession({
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
-  }, [])
+  }, [setSelectedItemIds])
 
   const handleSelectItem = useCallback((item: ItemListRow) => {
     setInspectedItem(item)
     setIsInspectorOpen(true)
-  }, [])
+  }, [setInspectedItem, setIsInspectorOpen])
 
   const handleDoubleClickItem = useCallback((item: ItemListRow) => {
     saveWindow()
@@ -324,15 +346,107 @@ function ItemsExplorerSession({
     finally { setSelectingAll(false) }
   }
 
+  // Global Keyboard Navigation & Focus Guard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Guard against IME composition
+      if (e.isComposing) return
+
+      // 2. Element type checks
+      const activeElement = document.activeElement as HTMLElement | null
+      const tagName = activeElement?.tagName?.toLowerCase()
+      const isInputLike =
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        Boolean(activeElement?.isContentEditable) ||
+        activeElement?.getAttribute('contenteditable') === 'true'
+
+      // 3. Modal / Dialog / Popover guard
+      const isInModalOrDialog = Boolean(
+        activeElement?.closest(
+          '[role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-state="open"]'
+        )
+      )
+
+      const isAnyModalOpen =
+        isSheetOpen ||
+        bulkEditOpen ||
+        isBatchPrintOpen ||
+        Boolean(singlePrintItem) ||
+        Boolean(locationPrintItems) ||
+        Boolean(blockingError)
+
+      // Shortcut: "/" -> Focus Search Input
+      if (e.key === '/') {
+        if (isInputLike || isInModalOrDialog || isAnyModalOpen) return
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      // If typing in form input or if modal is open, suppress ArrowUp, ArrowDown, Space
+      if (isInputLike || isInModalOrDialog || isAnyModalOpen) return
+
+      // Shortcut: "ArrowDown" / "ArrowUp"
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!localItems.length) return
+        e.preventDefault()
+
+        const currentIndex = inspectedItem
+          ? localItems.findIndex((item) => item.id === inspectedItem.id)
+          : -1
+
+        let targetIndex: number
+        if (e.key === 'ArrowDown') {
+          targetIndex = currentIndex === -1 ? 0 : Math.min(localItems.length - 1, currentIndex + 1)
+        } else {
+          targetIndex = currentIndex === -1 ? 0 : Math.max(0, currentIndex - 1)
+        }
+
+        const nextItem = localItems[targetIndex]
+        if (nextItem) {
+          setInspectedItem(nextItem)
+          setIsInspectorOpen(true)
+          windowed.scrollToIndex(targetIndex, { align: 'auto' })
+        }
+        return
+      }
+
+      // Shortcut: "Space" -> Toggle selection of current inspected/active item
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        if (tagName === 'button' || tagName === 'a') return
+        if (!inspectedItem) return
+        e.preventDefault()
+        handleToggleSelectItem(inspectedItem.id)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    localItems,
+    inspectedItem,
+    isSheetOpen,
+    bulkEditOpen,
+    isBatchPrintOpen,
+    singlePrintItem,
+    locationPrintItems,
+    blockingError,
+    windowed,
+    handleToggleSelectItem,
+  ])
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 min-w-0 overflow-hidden">
         {/* Main Content Area */}
-        <main className="flex w-full flex-1 flex-col min-w-0 overflow-hidden bg-background">
+        <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Dynamic Integrated Header Area */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-5 sm:px-6 md:px-8">
+          <div className="shrink-0 border-b border-border bg-card px-4 py-4 sm:px-6 md:px-8">
             {/* Row 1: Title (Left) + Segmented Tabs (Center/Integrated) + View Mode Toggle (Right) */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
               <div className="flex flex-col min-w-0">
                 {/* Dynamic Main Title */}
                 <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-card-foreground leading-snug">
@@ -410,134 +524,50 @@ function ItemsExplorerSession({
             </div>
 
             {/* Row 2: Action Bar (Bottom Row) */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
-              {/* Left Side: Search + Category + Status Filters */}
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    const parsed = parseScannedAssetCode(searchVal)
-                    if (parsed.type === 'item_id') {
-                      router.push(`/items/${parsed.value}`)
-                      return
-                    }
-                    handleFilterChange({ q: parsed.value })
-                  }}
-                  className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto flex-1 min-w-0"
-                >
-                  {/* Search Box */}
-                  <div className="flex items-center gap-2 w-full sm:w-auto flex-1 min-w-0">
-                    <SearchInput
-                      value={searchVal}
-                      onChange={(val) => {
-                        const trimmed = val.trim()
-                        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-                          const parsed = parseScannedAssetCode(trimmed)
-                          if (parsed.type === 'item_id') {
-                            router.push(`/items/${parsed.value}`)
-                            return
-                          }
-                        }
-                        setSearchVal(val)
-                        handleFilterChange({ q: val.trim() })
-                      }}
-                      onClear={() => handleFilterChange({ q: '' })}
-                      placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
-                      className="w-full sm:w-80"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Category Filter */}
-                    <select
-                      name="category_id"
-                      aria-label="กรองตามหมวดหมู่"
-                      value={params.category_id ?? ''}
-                      onChange={(e) => handleFilterChange({ category_id: e.target.value })}
-                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-                    >
-                      <option value="">กรองตามหมวดหมู่</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-
-                    {/* Status Filter */}
-                    <select
-                      name="status"
-                      aria-label="กรองตามสถานะ"
-                      value={params.status ?? ''}
-                      onChange={(e) => handleFilterChange({ status: e.target.value })}
-                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-                    >
-                      <option value="">กรองตามสถานะ</option>
-                      {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-
-                    {/* Location Filter */}
-                    <select
-                      name="location_id"
-                      aria-label="กรองตามสถานที่"
-                      value={params.location_id ?? ''}
-                      onChange={(e) => handleFilterChange({ location_id: e.target.value })}
-                      className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-card-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-                    >
-                      <option value="">กรองตามสถานที่</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                      ))}
-                    </select>
-
-                    {/* Batch Print by Location Button */}
-                    {params.location_id && localItems.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const stickers: ItemStickerData[] = localItems.map((itm) => ({
-                            id: itm.id,
-                            item_name: itm.item_name,
-                            asset_no: itm.asset_no,
-                            serial_no: itm.serial_no,
-                            brand: itm.brand,
-                            model: itm.model,
-                            location_name: itm.location?.name,
-                            category_name: itm.category?.name,
-                            responsible_person: itm.responsible_person,
-                            unit_price: itm.unit_price,
-                          }))
-                          setLocationPrintItems(stickers)
-                        }}
-                        className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer shadow-2xs"
-                        title="พิมพ์ป้ายครุภัณฑ์ทั้งหมดในสถานที่นี้"
-                      >
-                        <Tag className="h-3.5 w-3.5" />
-                        <span>พิมพ์ป้ายทั้งสถานที่ ({localItems.length} ชิ้น)</span>
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* Right Side: Export Button */}
-              <div className="flex shrink-0 items-center justify-end sm:mt-0">
-                <Button
-                  type="button"
-                  onClick={exportToExcel}
-                  disabled={isExporting}
-                  className="h-9 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>ดาวน์โหลด Excel</span>
-                </Button>
-              </div>
-            </div>
+            {/* Row 2: ItemsFilterBar */}
+            <ItemsFilterBar
+              searchInputRef={searchInputRef}
+              searchVal={searchVal}
+              onSearchChange={setSearchVal}
+              onSearchClear={() => handleFilterChange({ q: '' })}
+              onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
+              params={params}
+              categories={categories}
+              locations={locations}
+              onFilterChange={handleFilterChange}
+              onResetFilters={() => {
+                setSearchVal('')
+                handleFilterChange({
+                  category_id: '',
+                  status: '',
+                  location_id: '',
+                  q: '',
+                })
+              }}
+              folderValuation={folderValuation}
+              localItemsCount={localItems.length}
+              isExporting={isExporting}
+              onExport={exportToExcel}
+              onBatchPrintLocation={() => {
+                const stickers: ItemStickerData[] = localItems.map((itm) => ({
+                  id: itm.id,
+                  item_name: itm.item_name,
+                  asset_no: itm.asset_no,
+                  serial_no: itm.serial_no,
+                  brand: itm.brand,
+                  model: itm.model,
+                  location_name: itm.location?.name,
+                  category_name: itm.category?.name,
+                  responsible_person: itm.responsible_person,
+                  unit_price: itm.unit_price,
+                }))
+                setLocationPrintItems(stickers)
+              }}
+              className="mt-4"
+            />
           </div>
 
-          <div className="relative flex-1 min-h-0 flex flex-col">
+          <div className="relative flex-1 min-h-0 min-w-0 flex flex-col">
             {isPending && (
               <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/40 backdrop-blur-[1px] transition-all duration-200">
                 <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card shadow-xl border border-border animate-in zoom-in-95 duration-200">
@@ -546,7 +576,7 @@ function ItemsExplorerSession({
                 </div>
               </div>
             )}
-            <div ref={attachScroll} data-testid="items-scroll" className={cn("flex-1 min-h-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
+            <div ref={attachScroll} data-testid="items-scroll" className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
               {viewMode === 'list' ? (
                 <ItemsList
                   items={windowed.slots}
@@ -561,6 +591,14 @@ function ItemsExplorerSession({
                   allLoadedSelected={localItems.length > 0 && localItems.every(item => selectedItemIds.includes(item.id))}
                   params={params}
                   onToggleSort={toggleSort}
+                  isInspectorOpen={isInspectorOpen}
+                  userCanWrite={userCanWrite}
+                  onCopy={copyReference}
+                  onPrint={(item) => setSinglePrintItem(toStickerItem(item))}
+                  onEdit={(item) => {
+                    setEditingItem(toItemDetail(item))
+                    setIsSheetOpen(true)
+                  }}
                 />
               ) : (
                 <ItemsGrid
@@ -573,21 +611,28 @@ function ItemsExplorerSession({
                   onSelect={handleSelectItem}
                   onDoubleClick={handleDoubleClickItem}
                   onToggleSelectItem={handleToggleSelectItem}
+                  userCanWrite={userCanWrite}
+                  onCopy={copyReference}
+                  onPrint={(item) => setSinglePrintItem(toStickerItem(item))}
+                  onEdit={(item) => {
+                    setEditingItem(toItemDetail(item))
+                    setIsSheetOpen(true)
+                  }}
                 />
               )}
             </div>
           </div>
 
-          <footer className="flex min-h-10 flex-wrap gap-2 py-2 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10">
-            <div className="flex items-center gap-4">
-              <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground">
+          <footer className="flex min-h-10 flex-wrap gap-2 py-2 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
+              <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground shrink-0">
                 ถึง {windowed.store.count} / {windowed.state.total ?? total} รายการ (โหลดอยู่ {localItems.length})
               </span>
-              <span className="text-muted-foreground font-semibold hidden md:inline">
+              <span className="text-muted-foreground font-semibold hidden xl:inline shrink-0">
                 มูลค่ารายการที่โหลดอยู่: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
-                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs">
+                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0">
                   เลือกอยู่ {selectedItemIds.length} รายการ
                 </span>
               )}
@@ -599,23 +644,23 @@ function ItemsExplorerSession({
             </div>
           </footer>
         </main>
-      </div>
 
-      {/* Slide-Over Detail Drawer (Inspector Sheet) */}
-      <Inspector
-        onOpenDetails={saveWindow}
-        isOpen={isInspectorOpen}
-        onClose={() => setIsInspectorOpen(false)}
-        item={selectedItem}
-        userCanWrite={userCanWrite}
-        userCanDelete={userCanDelete}
-        onCopy={copyReference}
-        onPrint={(itemData) => setSinglePrintItem(itemData)}
-        onEdit={(itemToEdit) => {
-          setEditingItem(toItemDetail(itemToEdit))
-          setIsSheetOpen(true)
-        }}
-      />
+        {/* Adaptive Detail Inspector: Docked split-pane on desktop, slide-over drawer on mobile */}
+        <Inspector
+          onOpenDetails={saveWindow}
+          isOpen={isInspectorOpen}
+          onClose={() => setIsInspectorOpen(false)}
+          item={selectedItem}
+          userCanWrite={userCanWrite}
+          userCanDelete={userCanDelete}
+          onCopy={copyReference}
+          onPrint={(itemData) => setSinglePrintItem(itemData)}
+          onEdit={(itemToEdit) => {
+            setEditingItem(toItemDetail(itemToEdit))
+            setIsSheetOpen(true)
+          }}
+        />
+      </div>
 
       {bulkEditOpen && (
         <BulkEditDialog

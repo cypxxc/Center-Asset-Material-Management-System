@@ -31,6 +31,66 @@ export function truncateCategoryLabel(name: string, maxLen: number): string {
   return `${cut.trim()}…`
 }
 
+export function CategoryComboChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] flex flex-col justify-between animate-pulse print:hidden',
+        className
+      )}
+      data-testid="category-combo-chart-skeleton"
+    >
+      {/* Top KPI Strip Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border">
+        <div>
+          <div className="h-3 w-44 bg-muted/60 rounded mb-2" />
+          <div className="h-8 w-48 bg-muted/80 rounded mb-2" />
+          <div className="h-3 w-56 bg-muted/40 rounded" />
+        </div>
+        <div>
+          <div className="h-3 w-48 bg-muted/60 rounded mb-2" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="h-8 w-20 bg-muted/80 rounded" />
+            <div className="h-4 w-28 bg-muted/50 rounded" />
+          </div>
+          <div className="w-full h-2 bg-muted/50 rounded-full mb-2" />
+          <div className="h-3 w-52 bg-muted/40 rounded" />
+        </div>
+      </div>
+
+      {/* Chart Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-muted/60" />
+          <div className="h-4 w-64 bg-muted/70 rounded" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-3 w-24 bg-muted/50 rounded" />
+          <div className="h-3 w-24 bg-muted/50 rounded" />
+        </div>
+      </div>
+
+      {/* Chart Visualization Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-center">
+        <div className="lg:col-span-8 h-[280px] bg-muted/20 border border-border/50 rounded-xl flex items-end gap-4 p-6">
+          <div className="w-full h-[55%] bg-muted/40 rounded-t" />
+          <div className="w-full h-[85%] bg-muted/40 rounded-t" />
+          <div className="w-full h-[40%] bg-muted/40 rounded-t" />
+          <div className="w-full h-[95%] bg-muted/40 rounded-t" />
+          <div className="w-full h-[70%] bg-muted/40 rounded-t" />
+        </div>
+        <div className="lg:col-span-4 flex flex-col justify-center space-y-3">
+          <div className="h-3 w-32 bg-muted/60 rounded" />
+          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
+          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
+          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
+          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function CategoryComboChart({
   data,
   totalValue,
@@ -53,7 +113,7 @@ export function CategoryComboChart({
     return (
       <div
         className={cn(
-          'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs print:hidden',
+          'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] print:hidden',
           className
         )}
         data-testid="category-combo-chart-card"
@@ -204,7 +264,7 @@ export function CategoryComboChart({
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs print:hidden',
+        'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] print:hidden',
         className
       )}
       data-testid="category-combo-chart-card"

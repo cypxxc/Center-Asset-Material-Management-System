@@ -4,6 +4,7 @@ import { isPostgresBackend } from '@/lib/backend'
 import { getPostgresSettingsData, getPostgresLocationsOverview } from './postgres-queries'
 
 import { createClient } from '@/lib/supabase/server'
+import { getItemReferences } from '@/features/items/queries'
 import type { SettingsData, SettingsPageData } from './types'
 
 export type SettingsDataSection = 'categories' | 'locations' | 'units' | 'all'
@@ -65,25 +66,13 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
   }
 }
 
-interface SupabaseItemLocationRow {
-  id: string
-  item_name: string
-  item_type: string
-  quantity: number
-  asset_no: string | null
-  serial_no: string | null
-  status: string
-  category: { name: string } | { name: string }[] | null
-  location: { id: string; name: string } | { id: string; name: string }[] | null
-}
-
 export async function getLocationsOverview() {
   if (isPostgresBackend()) {
     return getPostgresLocationsOverview()
   }
 
   const supabase = await createClient()
-  const [locationsResult, itemsResult] = await Promise.all([
+  const [locationsResult, itemsResult, references] = await Promise.all([
     supabase.from('locations').select('id, name, building, floor, room').eq('is_active', true).order('name'),
     supabase.from('items').select(`
       id,
@@ -93,9 +82,10 @@ export async function getLocationsOverview() {
       asset_no,
       serial_no,
       status,
-      category:categories(name),
-      location:locations(id, name)
+      category_id,
+      location_id
     `).is('deleted_at', null),
+    getItemReferences(),
   ])
 
   const { data: locations, error: locError } = locationsResult
@@ -104,17 +94,35 @@ export async function getLocationsOverview() {
   if (locError) throw new Error(locError.message)
   if (itemsError) throw new Error(itemsError.message)
 
-  const mappedItems = ((items as unknown as SupabaseItemLocationRow[]) ?? []).map((item) => {
-    const locObj = Array.isArray(item.location) ? item.location[0] : item.location
-    const catObj = Array.isArray(item.category) ? item.category[0] : item.category
+  const categoryMap = new Map<string, string>()
+  references.categories.forEach((c) => categoryMap.set(c.id, c.name))
+
+  const locationMap = new Map<string, string>()
+  references.locations.forEach((l) => locationMap.set(l.id, l.name))
+
+  interface SupabaseItemFkRow {
+    id: string
+    item_name: string
+    item_type: string
+    quantity: number
+    asset_no: string | null
+    serial_no: string | null
+    status: string
+    category_id: string | null
+    location_id: string | null
+  }
+
+  const mappedItems = ((items as unknown as SupabaseItemFkRow[]) ?? []).map((item) => {
+    const categoryName = item.category_id ? categoryMap.get(item.category_id) || 'ทั่วไป' : 'ทั่วไป'
+    const locationName = item.location_id ? locationMap.get(item.location_id) || 'ไม่มีระบุสถานที่' : 'ไม่มีระบุสถานที่'
     return {
       id: item.id,
       name: item.item_name,
       type: item.item_type,
       qty: item.quantity,
-      categoryName: catObj?.name || 'ทั่วไป',
-      locationId: locObj?.id || null,
-      locationName: locObj?.name || 'ไม่มีระบุสถานที่',
+      categoryName,
+      locationId: item.location_id,
+      locationName,
       status: item.status,
       serialNumber: item.serial_no || item.asset_no || '-',
     }

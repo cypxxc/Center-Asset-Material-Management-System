@@ -21,7 +21,7 @@ test('getReportStats queries get_report_stats RPC and formats counts', async () 
       damaged: { count: 2, qty: 4 }
     },
     category_counts: {
-      'IT': { count: 5, qty: 5 }
+      'IT': { count: 5, qty: 5, activeQty: 4 }
     },
     location_count: 3
   });
@@ -31,6 +31,7 @@ test('getReportStats queries get_report_stats RPC and formats counts', async () 
   assert.equal(stats.totalQuantity, 12);
   assert.equal(stats.typeCounts.asset.count, 6);
   assert.equal(stats.locationCount, 3);
+  assert.equal(stats.categoryCounts['IT'].activeQty, 4);
 });
 
 test('getReportItemsList sends filters, Thai sort and pagination to paginated report RPC', async () => {

@@ -12,6 +12,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = ''
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 
 import { ItemsExplorerClient } from '../../app/(dashboard)/items/items-explorer-client'
+import { Inspector } from '../../features/items/components/item-inspector-drawer'
 import { ToastProvider } from '../../components/ui/toast'
 import type { ItemListRow } from '../../features/items/types'
 
@@ -261,4 +262,241 @@ test('Clicking another item row switches the inspected item in the drawer', () =
   assert.ok(drawerScope.getByText('฿135'))
   assert.ok(drawerScope.getByText('ห้องเก็บของส่วนกลาง'))
 })
+
+test('Inspector: mode="docked" renders right-side split pane without modal backdrop', () => {
+  let closed = false
+
+  render(
+    <Inspector
+      isOpen={true}
+      mode="docked"
+      item={mockItems[0]}
+      onClose={() => { closed = true }}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  const panel = screen.getByTestId('inspector-panel')
+  assert.ok(panel)
+  assert.equal(panel.getAttribute('data-mode'), 'docked')
+  assert.equal(panel.getAttribute('role'), 'region')
+  assert.ok(panel.classList.contains('border-l'))
+  assert.ok(panel.classList.contains('w-[340px]'), 'should have 340px base width on desktop/laptop')
+  assert.ok(panel.classList.contains('xl:w-[380px]'), 'should scale to 380px on xl')
+  assert.ok(panel.classList.contains('2xl:w-[420px]'), 'should scale to 420px on 2xl')
+  assert.ok(panel.classList.contains('max-w-[45%]'), 'should cap width at 45% of viewport')
+
+  // NO backdrop should exist in docked mode to allow unrestricted interaction with table
+  assert.equal(screen.queryByTestId('inspector-backdrop'), null)
+
+  // Close button works
+  const closeBtn = screen.getByLabelText('ปิดแถบรายละเอียด')
+  fireEvent.click(closeBtn)
+  assert.equal(closed, true)
+})
+
+test('Inspector: mode="drawer" renders slide-over sheet with backdrop and aria-modal', () => {
+  let closed = false
+
+  render(
+    <Inspector
+      isOpen={true}
+      mode="drawer"
+      item={mockItems[0]}
+      onClose={() => { closed = true }}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  const panel = screen.getByTestId('inspector-panel')
+  assert.ok(panel)
+  assert.equal(panel.getAttribute('data-mode'), 'drawer')
+  assert.equal(panel.getAttribute('role'), 'dialog')
+  assert.equal(panel.getAttribute('aria-modal'), 'true')
+
+  // Backdrop must be present in drawer mode
+  const backdrop = screen.getByTestId('inspector-backdrop')
+  assert.ok(backdrop)
+  fireEvent.click(backdrop)
+  assert.equal(closed, true)
+})
+
+test('ItemsExplorerClient: table contracts width class when inspector is opened', () => {
+  const { container } = renderComponent()
+
+  // Main area should have min-w-0 and NOT force w-full next to flex inspector
+  const main = container.querySelector('main')
+  assert.ok(main?.classList.contains('min-w-0'))
+  assert.equal(main?.classList.contains('w-full'), false)
+
+  // Before opening inspector: uses adaptive min-w without inspector
+  let table = container.querySelector('table')
+  assert.ok(table?.classList.contains('min-w-[480px]'))
+
+  // Click row to open inspector
+  fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
+
+  // Table contracts to smaller min-w (min-w-[420px]) to allow side-by-side room without overflow
+  table = container.querySelector('table')
+  assert.ok(table?.classList.contains('min-w-[420px]'))
+})
+
+test('Keyboard Navigation: ArrowDown and ArrowUp navigate through items and synchronize inspector', () => {
+  renderComponent()
+
+  // Initially no inspector is open
+  assert.equal(screen.queryByTestId('inspector-panel'), null)
+
+  // Press ArrowDown -> selects first item (item-1: Dell Latitude)
+  fireEvent.keyDown(window, { key: 'ArrowDown' })
+  let inspector = screen.getByTestId('inspector-panel')
+  assert.ok(inspector)
+  assert.ok(within(inspector).getByText('EQ-2026-001'))
+
+  // Press ArrowDown again -> moves to second item (item-2: Double A)
+  fireEvent.keyDown(window, { key: 'ArrowDown' })
+  inspector = screen.getByTestId('inspector-panel')
+  assert.ok(within(inspector).getByText('50 รีม'))
+
+  // Press ArrowDown at end of list -> clamps to last item
+  fireEvent.keyDown(window, { key: 'ArrowDown' })
+  inspector = screen.getByTestId('inspector-panel')
+  assert.ok(within(inspector).getByText('50 รีม'))
+
+  // Press ArrowUp -> moves back to first item (item-1: Dell Latitude)
+  fireEvent.keyDown(window, { key: 'ArrowUp' })
+  inspector = screen.getByTestId('inspector-panel')
+  assert.ok(within(inspector).getByText('EQ-2026-001'))
+
+  // Press ArrowUp at index 0 -> clamps to index 0
+  fireEvent.keyDown(window, { key: 'ArrowUp' })
+  inspector = screen.getByTestId('inspector-panel')
+  assert.ok(within(inspector).getByText('EQ-2026-001'))
+})
+
+test('Keyboard Navigation: Space key toggles selection of currently active item', () => {
+  renderComponent()
+
+  // Navigate to first item
+  fireEvent.keyDown(window, { key: 'ArrowDown' })
+  assert.equal(screen.queryByText(/เลือกอยู่ 1 รายการ/), null)
+
+  // Press Space -> toggles checkbox for item-1
+  fireEvent.keyDown(window, { key: ' ' })
+  assert.ok(screen.getByText(/เลือกอยู่ 1 รายการ/))
+
+  // Press Space again -> untoggles selection
+  fireEvent.keyDown(window, { key: ' ' })
+  assert.equal(screen.queryByText(/เลือกอยู่ 1 รายการ/), null)
+})
+
+test('Keyboard Navigation: / key focuses search input', () => {
+  renderComponent()
+
+  const searchInput = screen.getByPlaceholderText('ค้นหาชื่อ, เลขครุภัณฑ์, Serial...')
+  assert.notEqual(document.activeElement, searchInput)
+
+  // Press "/" globally
+  fireEvent.keyDown(window, { key: '/' })
+  assert.equal(document.activeElement, searchInput)
+})
+
+test('Keyboard Focus Guard: suppresses shortcuts when user is typing inside an input', () => {
+  renderComponent()
+
+  const searchInput = screen.getByPlaceholderText('ค้นหาชื่อ, เลขครุภัณฑ์, Serial...')
+  searchInput.focus()
+  assert.equal(document.activeElement, searchInput)
+
+  // Press ArrowDown while search input is focused -> should NOT open inspector or navigate
+  fireEvent.keyDown(searchInput, { key: 'ArrowDown' })
+  assert.equal(screen.queryByTestId('inspector-panel'), null)
+
+  // Press Space while search input is focused -> should NOT toggle item selection
+  fireEvent.keyDown(searchInput, { key: ' ' })
+  assert.equal(screen.queryByText(/เลือกอยู่/), null)
+})
+
+test('Filter Change Behavior: clears inspectedItem when item is no longer in filtered dataset', () => {
+  const view = renderComponent()
+
+  // Select item-1
+  fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
+  assert.ok(screen.getByTestId('inspector-panel'))
+
+  // Re-render with items that do NOT contain item-1 (e.g. filtered by material)
+  view.rerender(
+    <ToastProvider>
+      <ItemsExplorerClient
+        {...defaultProps}
+        items={[mockItems[1]]}
+        total={1}
+        params={{ type: 'material' }}
+      />
+    </ToastProvider>
+  )
+
+  // Inspected item must be cleared and panel closed
+  assert.equal(screen.queryByTestId('inspector-panel'), null)
+})
+
+test('List View: does not render print quick action in table row; printing is accessible via Inspector', () => {
+  renderComponent()
+
+  // Table row should not have print quick action
+  assert.equal(screen.queryByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`), null)
+
+  // Click row to open Inspector
+  fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
+  const inspector = screen.getByTestId('inspector-panel')
+  assert.ok(inspector)
+
+  // Print button is available in Inspector
+  const printButton = within(inspector).getByRole('button', { name: 'พิมพ์ป้ายบาร์โค้ด' })
+  fireEvent.click(printButton)
+
+  // Print modal dialog should be open
+  const printTitle = screen.getByText(/พิมพ์ลาเบลติดครุภัณฑ์/)
+  assert.ok(printTitle)
+  const dialog = printTitle.closest('div[role="dialog"]')
+  assert.ok(dialog)
+  assert.ok(within(dialog as HTMLElement).getAllByText('EQ-2026-001').length > 0)
+})
+
+test('Quick Actions in Grid View: Print and Copy buttons work and RBAC Viewer hides Edit', () => {
+  // Render with userCanWrite=false (Viewer role)
+  renderComponent({ ...defaultProps, userCanWrite: false })
+
+  // Switch to Grid View
+  fireEvent.click(screen.getByTitle('Grid view'))
+
+  // Print button should exist on card
+  const printBtn = screen.getByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`)
+  assert.ok(printBtn)
+
+  // Copy button should exist on card
+  const copyBtn = screen.getByLabelText(`คัดลอก ${mockItems[0].asset_no}`)
+  assert.ok(copyBtn)
+
+  // Edit button MUST NOT exist for viewer
+  assert.equal(screen.queryByLabelText(`แก้ไขข้อมูล ${mockItems[0].item_name}`), null)
+
+  // Clicking print button opens sticker modal without opening inspector drawer
+  fireEvent.click(printBtn)
+  assert.ok(screen.getByText(/พิมพ์ลาเบลติดครุภัณฑ์/))
+  assert.equal(screen.queryByTestId('inspector-panel'), null)
+})
+
+
+
 

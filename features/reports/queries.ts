@@ -44,6 +44,7 @@ const getCachedReportStats = unstable_cache(
     const res = data as {
       total_items: number
       total_quantity: number
+      total_value?: number
       type_counts: Record<string, ReportCountBucket>
       status_counts: Record<string, ReportCountBucket>
       category_counts: Record<string, ReportCountBucket>
@@ -53,6 +54,7 @@ const getCachedReportStats = unstable_cache(
     return {
       totalItems: res.total_items,
       totalQuantity: res.total_quantity,
+      totalValue: res.total_value,
       typeCounts: {
         asset: res.type_counts.asset ?? { count: 0, qty: 0 },
         material: res.type_counts.material ?? { count: 0, qty: 0 },
@@ -187,9 +189,9 @@ export async function getReportItemsList(
         responsible_person,
         status,
         updated_at,
-        category:categories(id, name),
-        unit:units(id, name),
-        location:locations(id, name)
+        category_id,
+        unit_id,
+        location_id
       `
     )
     .is('deleted_at', null)
@@ -240,16 +242,57 @@ export async function getReportItemsList(
     ascending = params.sort_by === 'item_name'
   }
 
-  const {
-    result: { data, error },
-  } = await measureQuery('reports.getReportItemsList', () =>
-    query.order(orderColumn, { ascending })
-  )
+  const [references, { result: { data, error } }] = await Promise.all([
+    getItemReferences(),
+    measureQuery('reports.getReportItemsList', () =>
+      query.order(orderColumn, { ascending })
+    ),
+  ])
 
   if (error) throw new Error('Unable to load report data')
-  
-  const rawRows = data ?? []
-  const allItems = rawRows.map(toReportItemRow)
+
+  const catMap = new Map<string, { id: string; name: string }>()
+  references.categories.forEach((c) => catMap.set(c.id, c))
+  const unitMap = new Map<string, { id: string; name: string }>()
+  references.units.forEach((u) => unitMap.set(u.id, u))
+  const locMap = new Map<string, { id: string; name: string }>()
+  references.locations.forEach((l) => locMap.set(l.id, l))
+
+  interface ReportRawItem {
+    id: string
+    item_name: string
+    item_type: string
+    quantity: number
+    unit_price: number | null
+    asset_no: string | null
+    serial_no: string | null
+    brand: string | null
+    model: string | null
+    responsible_person: string | null
+    status: string
+    updated_at: string
+    category_id: string | null
+    unit_id: string | null
+    location_id: string | null
+  }
+
+  const allItems: ReportItemRow[] = ((data ?? []) as unknown as ReportRawItem[]).map((r) => ({
+    id: r.id,
+    item_name: r.item_name,
+    item_type: r.item_type as ReportItemRow['item_type'],
+    quantity: r.quantity,
+    unit_price: r.unit_price ?? null,
+    asset_no: r.asset_no,
+    serial_no: r.serial_no,
+    brand: r.brand,
+    model: r.model,
+    responsible_person: r.responsible_person,
+    status: r.status as ReportItemRow['status'],
+    updated_at: r.updated_at,
+    category: r.category_id ? catMap.get(r.category_id) ?? null : null,
+    unit: r.unit_id ? unitMap.get(r.unit_id) ?? null : null,
+    location: r.location_id ? locMap.get(r.location_id) ?? null : null,
+  }))
 
   // Secondary JS sort only when complex relation/formula sorting is needed
   const sortBy = params.sort_by || 'updated_at'

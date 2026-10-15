@@ -106,44 +106,14 @@ function isItemStatus(value: string | undefined): value is ItemStatus {
   )
 }
 
-function firstRelation<T>(value: T | T[] | null): T | null {
-  if (Array.isArray(value)) return value[0] ?? null
-  return value
-}
-
-function normalizeItemListRow(row: Omit<ItemListRow, 'category' | 'unit' | 'location'> & {
-  category: ReferenceOption | ReferenceOption[] | null
-  unit: ReferenceOption | ReferenceOption[] | null
-  location: ReferenceOption | ReferenceOption[] | null
-}): ItemListRow {
-  return {
-    ...row,
-    category: firstRelation(row.category),
-    unit: firstRelation(row.unit),
-    location: firstRelation(row.location),
-  }
-}
-
-function normalizeItemDetail(row: Omit<ItemDetail, 'category' | 'unit' | 'location'> & {
-  category: ReferenceOption | ReferenceOption[] | null
-  unit: ReferenceOption | ReferenceOption[] | null
-  location: ReferenceOption | ReferenceOption[] | null
-}): ItemDetail {
-  return {
-    ...row,
-    category: firstRelation(row.category),
-    unit: firstRelation(row.unit),
-    location: firstRelation(row.location),
-  }
-}
-
 interface CachedSignedUrl {
   signedUrl: string
   expiresAt: number
 }
 
 const signedUrlCache = new Map<string, CachedSignedUrl>()
-const SIGNED_URL_TTL_MS = 50 * 60 * 1000 // 50 minutes (Supabase default is 60 minutes)
+// Safe TTL: 45 minutes (75% of the 60-minute Supabase signed URL expiry window)
+const SIGNED_URL_TTL_MS = 45 * 60 * 1000
 
 function getCachedSignedUrl(rawUrl: string): string | null {
   const cached = signedUrlCache.get(rawUrl)
@@ -273,7 +243,7 @@ const getCachedSidebarData = unstable_cache(
     }
   },
   [CACHE_TAGS.SIDEBAR_DATA],
-  { tags: [CACHE_TAGS.SIDEBAR_DATA], revalidate: 300 }
+  { tags: [CACHE_TAGS.SIDEBAR_DATA, CACHE_TAGS.ITEM_REFERENCES], revalidate: 300 }
 )
 
 export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
@@ -302,13 +272,12 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
         model,
         note,
         image_url,
-        category:categories(id, name),
-        unit:units(id, name),
-        location:locations(id, name)
+        category_id,
+        unit_id,
+        location_id
       `,
       { count: 'exact' }
     )
-
     .is('deleted_at', null)
 
   if (q) {
@@ -361,22 +330,66 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     }
   }
 
-  const {
-    result: { data, count, error },
-  } = await measureQuery('items.getItems', () =>
-    query.order(orderColumn, { ascending }).range(from, to)
-  )
+  const [references, { result: { data, count, error } }] = await Promise.all([
+    getItemReferences(),
+    measureQuery('items.getItems', () =>
+      query.order(orderColumn, { ascending }).range(from, to)
+    ),
+  ])
 
   if (error) {
     throw new Error('Unable to load item data')
   }
 
-  const total = count ?? 0
+  const catMap = new Map<string, ReferenceOption>()
+  references.categories.forEach((c) => catMap.set(c.id, c))
+  const unitMap = new Map<string, ReferenceOption>()
+  references.units.forEach((u) => unitMap.set(u.id, u))
+  const locMap = new Map<string, ReferenceOption>()
+  references.locations.forEach((l) => locMap.set(l.id, l))
 
-  const items = await signItemImagesBatch(
-    supabase,
-    ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
-  )
+  type ItemFkRow = {
+    id: string
+    item_name: string
+    item_type: ItemType
+    quantity: number
+    unit_price: number | null
+    asset_no: string | null
+    serial_no: string | null
+    responsible_person: string | null
+    status: ItemStatus
+    updated_at: string
+    brand: string | null
+    model: string | null
+    note: string | null
+    image_url: string | null
+    category_id: string | null
+    unit_id: string | null
+    location_id: string | null
+  }
+
+  const hydratedRows: ItemListRow[] = ((data ?? []) as unknown as ItemFkRow[]).map((row) => ({
+    id: row.id,
+    item_name: row.item_name,
+    item_type: row.item_type,
+    quantity: row.quantity,
+    unit_price: row.unit_price,
+    asset_no: row.asset_no,
+    serial_no: row.serial_no,
+    responsible_person: row.responsible_person,
+    status: row.status,
+    updated_at: row.updated_at,
+    brand: row.brand,
+    model: row.model,
+    note: row.note,
+    image_url: row.image_url,
+    category: row.category_id ? catMap.get(row.category_id) ?? null : null,
+    unit: row.unit_id ? unitMap.get(row.unit_id) ?? null : null,
+    location: row.location_id ? locMap.get(row.location_id) ?? null : null,
+  }))
+
+  const total = count ?? 0
+  const items = await signItemImagesBatch(supabase, hydratedRows)
 
   return {
     items,
@@ -399,7 +412,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
       `
         id, item_name, item_type, quantity, unit_price, asset_no, serial_no,
         responsible_person, status, updated_at, brand, model, note, image_url,
-        category:categories(id, name), unit:units(id, name), location:locations(id, name)
+        category_id, unit_id, location_id
       `,
       cursorValue ? undefined : { count: 'exact' },
     )
@@ -425,13 +438,63 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     query = query.or(`${column}.${comparator}.${key},and(${column}.eq.${key},id.${comparator}.${id})`)
   }
 
-  const { data, count, error } = await query
-    .order(normalized.sort_by, { ascending: normalized.sort_dir === 'asc' })
-    .order('id', { ascending: normalized.sort_dir === 'asc' })
-    .limit(BATCH_SIZE + 1)
+  const [references, { data, count, error }] = await Promise.all([
+    getItemReferences(),
+    query
+      .order(normalized.sort_by, { ascending: normalized.sort_dir === 'asc' })
+      .order('id', { ascending: normalized.sort_dir === 'asc' })
+      .limit(BATCH_SIZE + 1),
+  ])
 
   if (error) throw new Error('Unable to load item data')
-  const rows = ((data ?? []) as Parameters<typeof normalizeItemListRow>[0][]).map(normalizeItemListRow)
+
+  const catMap = new Map<string, ReferenceOption>()
+  references.categories.forEach((c) => catMap.set(c.id, c))
+  const unitMap = new Map<string, ReferenceOption>()
+  references.units.forEach((u) => unitMap.set(u.id, u))
+  const locMap = new Map<string, ReferenceOption>()
+  references.locations.forEach((l) => locMap.set(l.id, l))
+
+  type ItemFkRow = {
+    id: string
+    item_name: string
+    item_type: ItemType
+    quantity: number
+    unit_price: number | null
+    asset_no: string | null
+    serial_no: string | null
+    responsible_person: string | null
+    status: ItemStatus
+    updated_at: string
+    brand: string | null
+    model: string | null
+    note: string | null
+    image_url: string | null
+    category_id: string | null
+    unit_id: string | null
+    location_id: string | null
+  }
+
+  const rows: ItemListRow[] = ((data ?? []) as unknown as ItemFkRow[]).map((row) => ({
+    id: row.id,
+    item_name: row.item_name,
+    item_type: row.item_type,
+    quantity: row.quantity,
+    unit_price: row.unit_price,
+    asset_no: row.asset_no,
+    serial_no: row.serial_no,
+    responsible_person: row.responsible_person,
+    status: row.status,
+    updated_at: row.updated_at,
+    brand: row.brand,
+    model: row.model,
+    note: row.note,
+    image_url: row.image_url,
+    category: row.category_id ? catMap.get(row.category_id) ?? null : null,
+    unit: row.unit_id ? unitMap.get(row.unit_id) ?? null : null,
+    location: row.location_id ? locMap.get(row.location_id) ?? null : null,
+  }))
+
   const hasMore = rows.length > BATCH_SIZE
   const page = rows.slice(0, BATCH_SIZE)
   const items = await signItemImagesBatch(supabase, page)
@@ -447,58 +510,73 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   if (isPostgresBackend()) return getPostgresItemById(id)
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
   const supabase = await createClient()
-  const {
-    result: { data, error },
-  } = await measureQuery('items.getItemById', () => {
-    let query = supabase
-      .from('items')
-      .select(
-        `
-        id,
-        item_name,
-        item_type,
-        quantity,
-        unit_price,
-        asset_no,
-        serial_no,
-        brand,
-        model,
-        responsible_person,
-        status,
-        note,
-        image_url,
-        depreciation_enabled,
-        depreciation_method,
-        depreciation_cost,
-        depreciation_useful_life_years,
-        depreciation_start_basis,
-        depreciation_start_date,
-        depreciation_residual_value,
-        created_at,
-        updated_at,
-        category:categories(id, name),
-        unit:units(id, name),
-        location:locations(id, name)
+
+  let query = supabase
+    .from('items')
+    .select(
       `
-      )
-      .is('deleted_at', null)
+      id,
+      item_name,
+      item_type,
+      quantity,
+      unit_price,
+      asset_no,
+      serial_no,
+      brand,
+      model,
+      responsible_person,
+      status,
+      note,
+      image_url,
+      depreciation_enabled,
+      depreciation_method,
+      depreciation_cost,
+      depreciation_useful_life_years,
+      depreciation_start_basis,
+      depreciation_start_date,
+      depreciation_residual_value,
+      created_at,
+      updated_at,
+      category_id,
+      unit_id,
+      location_id
+    `
+    )
+    .is('deleted_at', null)
 
-    if (isUuid) {
-      query = query.eq('id', id)
-    } else {
-      query = query.or(`asset_no.eq.${id},serial_no.eq.${id}`)
-    }
+  if (isUuid) {
+    query = query.eq('id', id)
+  } else {
+    query = query.or(`asset_no.eq.${id},serial_no.eq.${id}`)
+  }
 
-    return query.maybeSingle()
-  })
+  const [references, { result: { data, error } }] = await Promise.all([
+    getItemReferences(),
+    measureQuery('items.getItemById', () => query.maybeSingle()),
+  ])
 
   if (error) {
     throw new Error('Unable to load item data')
   }
 
-  return data
-    ? signItemImage(supabase, normalizeItemDetail(data as Parameters<typeof normalizeItemDetail>[0]))
-    : null
+  if (!data) return null
+
+  const raw = data as Record<string, unknown>
+  const catMap = new Map<string, ReferenceOption>()
+  references.categories.forEach((c) => catMap.set(c.id, c))
+  const unitMap = new Map<string, ReferenceOption>()
+  references.units.forEach((u) => unitMap.set(u.id, u))
+  const locMap = new Map<string, ReferenceOption>()
+  references.locations.forEach((l) => locMap.set(l.id, l))
+
+  const detail: ItemDetail = {
+    ...(raw as unknown as Omit<ItemDetail, 'category' | 'unit' | 'location'>),
+    category: raw.category_id ? catMap.get(raw.category_id as string) ?? null : null,
+    unit: raw.unit_id ? unitMap.get(raw.unit_id as string) ?? null : null,
+    location: raw.location_id ? locMap.get(raw.location_id as string) ?? null : null,
+  }
+
+  return signItemImage(supabase, detail)
 }
 
 export async function getPublicPassportItem(id: string): Promise<ItemDetail | null> {
@@ -533,9 +611,9 @@ export async function getPublicPassportItem(id: string): Promise<ItemDetail | nu
       depreciation_residual_value,
       created_at,
       updated_at,
-      category:categories(id, name),
-      unit:units(id, name),
-      location:locations(id, name)
+      category_id,
+      unit_id,
+      location_id
     `
     )
     .is('deleted_at', null)
@@ -546,10 +624,28 @@ export async function getPublicPassportItem(id: string): Promise<ItemDetail | nu
     adminQuery = adminQuery.or(`asset_no.eq.${id},serial_no.eq.${id}`)
   }
 
-  const { data: adminData, error: adminError } = await adminQuery.maybeSingle()
+  const [references, { data: adminData, error: adminError }] = await Promise.all([
+    getItemReferences(),
+    adminQuery.maybeSingle(),
+  ])
   if (adminError || !adminData) return null
 
-  return signItemImage(adminClient, normalizeItemDetail(adminData as Parameters<typeof normalizeItemDetail>[0]))
+  const raw = adminData as Record<string, unknown>
+  const catMap = new Map<string, ReferenceOption>()
+  references.categories.forEach((c) => catMap.set(c.id, c))
+  const unitMap = new Map<string, ReferenceOption>()
+  references.units.forEach((u) => unitMap.set(u.id, u))
+  const locMap = new Map<string, ReferenceOption>()
+  references.locations.forEach((l) => locMap.set(l.id, l))
+
+  const detail: ItemDetail = {
+    ...(raw as unknown as Omit<ItemDetail, 'category' | 'unit' | 'location'>),
+    category: raw.category_id ? catMap.get(raw.category_id as string) ?? null : null,
+    unit: raw.unit_id ? unitMap.get(raw.unit_id as string) ?? null : null,
+    location: raw.location_id ? locMap.get(raw.location_id as string) ?? null : null,
+  }
+
+  return signItemImage(adminClient, detail)
 }
 
 export const getSidebarData = cache(async function getSidebarData() {
@@ -664,7 +760,7 @@ export async function getItemsExplorerPageData(
   }
 }
 
-export async function getDashboardLayoutData(): Promise<DashboardLayoutData> {
+export const getDashboardLayoutData = cache(async function getDashboardLayoutData(): Promise<DashboardLayoutData> {
   const [sidebarData, references] = await Promise.all([
     getSidebarData(),
     getItemReferences(),
@@ -674,7 +770,7 @@ export async function getDashboardLayoutData(): Promise<DashboardLayoutData> {
     sidebarData,
     references,
   }
-}
+})
 
 export interface LowStockDashboardItem {
   id: string

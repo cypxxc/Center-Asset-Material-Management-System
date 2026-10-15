@@ -8,14 +8,24 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
-import type { ReportItemRow } from '../types'
+import type { ReportItemRow, ReportStats } from '../types'
 import { recordReportExportAudit, getExportReportItems } from '../actions'
 import { generateReportPdf } from '../pdf-generator'
 import { formatDate } from '@/lib/date'
 import { SearchInput } from '@/components/ui/search-input'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { RealtimeRefreshBridge } from '@/components/realtime-refresh-bridge'
-import { CategoryComboChart } from '@/features/reports/components/category-combo-chart'
+import { cn } from '@/lib/utils'
+import dynamic from 'next/dynamic'
+import { CategoryComboChartSkeleton } from '@/features/reports/components/category-combo-chart'
+
+const CategoryComboChart = dynamic(
+  () => import('@/features/reports/components/category-combo-chart').then((mod) => mod.CategoryComboChart),
+  {
+    ssr: false,
+    loading: () => <CategoryComboChartSkeleton />,
+  }
+)
 import {
   DataTable,
   DataTableHeader,
@@ -45,14 +55,8 @@ interface ReportsListProps {
   }
   categories: { id: string; name: string }[]
   locations: { id: string; name: string }[]
-  stats?: {
-    totalItems: number
-    totalQuantity: number
-    typeCounts: Record<string, { count: number; qty: number }>
-    statusCounts: Record<string, { count: number; qty: number }>
-    categoryCounts: Record<string, { count: number; qty: number }>
-    locationCount: number
-  }
+  stats?: ReportStats
+  view?: 'all' | 'header-and-kpis' | 'table-and-filters'
 }
 
 export function ReportsList({
@@ -66,7 +70,8 @@ export function ReportsList({
   searchParams,
   categories,
   locations,
-  stats
+  stats,
+  view = 'all',
 }: ReportsListProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -189,14 +194,15 @@ export function ReportsList({
   const categoryComboData = (() => {
     if (stats?.categoryCounts && Object.keys(stats.categoryCounts).length > 0) {
       return Object.entries(stats.categoryCounts).map(([category, countData]) => {
-        const categoryActiveQty = items
-          .filter((i) => (i.category?.name || 'ทั่วไป') === category && i.status === 'active')
-          .reduce((sum, i) => sum + (i.quantity || 0), 0)
+        // activeQty comes pre-aggregated from stats (or defaults to countData.qty if unavailable)
+        const resolvedActiveQty = typeof countData.activeQty === 'number'
+          ? Math.min(countData.activeQty, countData.qty)
+          : countData.qty
 
         return {
           category,
           totalQty: countData.qty,
-          activeQty: Math.min(categoryActiveQty, countData.qty),
+          activeQty: resolvedActiveQty,
         }
       })
     }
@@ -225,97 +231,109 @@ export function ReportsList({
     (item) => item.status === 'damaged' || item.status === 'waiting_repair'
   )
 
+  const renderHeader = view === 'all' || view === 'header-and-kpis'
+  const renderTable = view === 'all' || view === 'table-and-filters'
+
   return (
     <>
-      <RealtimeRefreshBridge tables={['items', 'categories', 'locations', 'units']} />
-    <PageContainer maxWidth="full" className="h-auto overflow-visible print:bg-white print:p-0">
+      {renderHeader && <RealtimeRefreshBridge tables={['items', 'categories', 'locations', 'units']} />}
+    <PageContainer maxWidth="full" className={cn('h-auto overflow-visible print:bg-white print:p-0', !renderHeader && 'pt-0', !renderTable && 'pb-0')}>
       
-      {/* Printable Report Header */}
-      <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนพัสดุ</h1>
-            <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()}{preparedBy ? ` | จัดเตรียมโดย: ${preparedBy}` : ''}</p>
-            <p className="mt-2 text-xs text-foreground">
-              เงื่อนไข: {[
-                searchParams.q && `คำค้น: ${searchParams.q}`,
-                searchParams.type && `ประเภท: ${ITEM_TYPE_LABELS[searchParams.type as keyof typeof ITEM_TYPE_LABELS] || searchParams.type}`,
-                searchParams.status && `สถานะ: ${ITEM_STATUS_LABELS[searchParams.status as keyof typeof ITEM_STATUS_LABELS] || searchParams.status}`,
-                searchParams.category_id && `หมวดหมู่: ${categories.find((category) => category.id === searchParams.category_id)?.name || searchParams.category_id}`,
-                searchParams.location_id && `สถานที่: ${locations.find((location) => location.id === searchParams.location_id)?.name || searchParams.location_id}`,
-              ].filter(Boolean).join(' · ') || 'ทั้งหมด'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">หน้าที่ {currentPage} จาก {Math.max(1, totalPages)} · แสดง {items.length} จาก {totalCount} รายการที่ตรงเงื่อนไข</p>
+      {renderHeader && (
+        <>
+          {/* Printable Report Header */}
+          <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนพัสดุ</h1>
+                <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()}{preparedBy ? ` | จัดเตรียมโดย: ${preparedBy}` : ''}</p>
+                <p className="mt-2 text-xs text-foreground">
+                  เงื่อนไข: {[
+                    searchParams.q && `คำค้น: ${searchParams.q}`,
+                    searchParams.type && `ประเภท: ${ITEM_TYPE_LABELS[searchParams.type as keyof typeof ITEM_TYPE_LABELS] || searchParams.type}`,
+                    searchParams.status && `สถานะ: ${ITEM_STATUS_LABELS[searchParams.status as keyof typeof ITEM_STATUS_LABELS] || searchParams.status}`,
+                    searchParams.category_id && `หมวดหมู่: ${categories.find((category) => category.id === searchParams.category_id)?.name || searchParams.category_id}`,
+                    searchParams.location_id && `สถานที่: ${locations.find((location) => location.id === searchParams.location_id)?.name || searchParams.location_id}`,
+                  ].filter(Boolean).join(' · ') || 'ทั้งหมด'}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">หน้าที่ {currentPage} จาก {Math.max(1, totalPages)} · แสดง {items.length} จาก {totalCount} รายการที่ตรงเงื่อนไข</p>
+              </div>
+              <div className="text-right">
+                <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS Portal</h2>
+                <p className="text-xs text-muted-foreground print:text-slate-500">
+                  Center Asset & Material Management System
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS Portal</h2>
-            <p className="text-xs text-muted-foreground print:text-slate-500">
-              Center Asset & Material Management System
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {/* Regular UI Header */}
-      <PageHeader
-        title={
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            <span>รายงานพัสดุ</span>
-          </div>
-        }
-        subtitle="สรุปมูลค่าครุภัณฑ์ ตรวจสอบสถานะ และส่งออกข้อมูลเป็นไฟล์ Excel/CSV"
-        className="print:hidden"
-        actions={
-          <>
-            <Button
-              onClick={exportToExcel}
-              aria-label="ดาวน์โหลดรายงาน Excel"
-              className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
-              variant="outline"
-              disabled={items.length === 0 || isExportingExcel}
-            >
-              {isExportingExcel ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              <span>ดาวน์โหลด Excel</span>
-            </Button>
-            <Button
-              onClick={exportToPdf}
-              aria-label="ส่งออกรายงาน PDF"
-              className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
-              variant="outline"
-              disabled={items.length === 0 || isExportingPdf}
-            >
-              {isExportingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4" />
-              )}
-              <span>ส่งออก PDF</span>
-            </Button>
-            <Button
-              onClick={handlePrint}
-              aria-label="พิมพ์รายงาน"
-              className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs h-9 cursor-pointer"
-              disabled={items.length === 0}
-            >
-              <Printer className="w-4 h-4" />
-              <span>พิมพ์รายงาน (Print)</span>
-            </Button>
-          </>
-        }
-      />
+          {/* Regular UI Header */}
+          <PageHeader
+            title={
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <span>รายงานพัสดุ</span>
+              </div>
+            }
+            subtitle="สรุปมูลค่าครุภัณฑ์ ตรวจสอบสถานะ และส่งออกข้อมูลเป็นไฟล์ Excel/CSV"
+            className="print:hidden"
+            actions={
+              <>
+                <Button
+                  onClick={exportToExcel}
+                  aria-label="ดาวน์โหลดรายงาน Excel"
+                  className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
+                  variant="outline"
+                  disabled={(renderTable ? items.length === 0 : totalCount === 0) || isExportingExcel}
+                >
+                  {isExportingExcel ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>ดาวน์โหลด Excel</span>
+                </Button>
+                <Button
+                  onClick={exportToPdf}
+                  aria-label="ส่งออกรายงาน PDF"
+                  className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-2xs h-9 cursor-pointer"
+                  variant="outline"
+                  disabled={(renderTable ? items.length === 0 : totalCount === 0) || isExportingPdf}
+                >
+                  {isExportingPdf ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  <span>ส่งออก PDF</span>
+                </Button>
+                <Button
+                  onClick={handlePrint}
+                  aria-label="พิมพ์รายงาน"
+                  className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs h-9 cursor-pointer"
+                  disabled={renderTable ? items.length === 0 : totalCount === 0}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>พิมพ์รายงาน (Print)</span>
+                </Button>
+              </>
+            }
+          />
 
-        {/* Category Combo Chart with Consolidated KPIs */}
-        <CategoryComboChart
-          data={categoryComboData}
-          totalValue={totalValue}
-          totalCount={totalCount}
-          activeCount={activeCount}
-        />
+          {/* Category Combo Chart with Consolidated KPIs */}
+          <div className="min-h-[480px]">
+            <CategoryComboChart
+              data={categoryComboData}
+              totalValue={totalValue || stats?.totalValue}
+              totalCount={totalCount || (stats?.totalItems ?? 0)}
+              activeCount={activeCount}
+            />
+          </div>
+        </>
+      )}
+
+      {renderTable && (
+        <>
 
         {/* Filter Bar */}
         <form 
@@ -519,8 +537,11 @@ export function ReportsList({
             )}
           </div>
         </div>
+        </>
+      )}
 
     </PageContainer>
     </>
   )
 }
+
