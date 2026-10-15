@@ -172,6 +172,8 @@ features/items/components/
 - **Keyboard Focus Guard:** Global shortcuts (`/`, `Space`, `ArrowUp`, `ArrowDown`) are suppressed when focus is inside an `<input>`, `<textarea>`, or an open Radix Popover/Dialog.
 - **Filter Change Behavior:** Modifying search or filter criteria clears `inspectedItem` if the item is no longer present in the filtered dataset.
 - **Portal Hover Preview:** `ItemThumbnail` renders its 160×160px zoom preview inside a Radix Portal with a `250ms` hover delay to avoid container clipping and scroll jank.
+- **Row Action Event Isolation:** Interactive controls inside table rows and grid cards (checkboxes, copy badges, and hover quick-action buttons) must call `e.stopPropagation()` so triggering an action does not inadvertently open or switch the active `inspectedItem`.
+- **SSR-Safe Responsive Mode:** `inspectorMode` (`'docked' | 'drawer'`) uses a hydration-safe media query hook (defaulting cleanly on initial server render) alongside responsive Tailwind classes (`hidden lg:flex`) to prevent hydration mismatches.
 
 ---
 
