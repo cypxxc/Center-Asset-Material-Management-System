@@ -6,11 +6,13 @@
 **Target File(s):**
 - `app/(dashboard)/items/items-explorer-client.tsx`
 - `features/items/components/items-list-view.tsx`
+- `features/items/components/items-grid-view.tsx`
 - `features/items/components/item-inspector-drawer.tsx`
 - `features/items/components/items-filter-bar.tsx` (new extracted component)
 - `features/items/components/item-thumbnail.tsx` (new extracted component)
 - `tests/component/items-explorer-inspector.test.tsx`
 - `tests/component/items-filter-bar.test.tsx` (new test suite)
+- `tests/component/items-list-row.test.tsx` (new test suite)
 
 ---
 
