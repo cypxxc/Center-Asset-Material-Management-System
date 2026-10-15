@@ -19,6 +19,7 @@ const eslintConfig = defineConfig([
     ".superpowers/**",
     ".cache/**",
     ".worktrees/**",
+    "backend/**",
   ]),
 ]);
 

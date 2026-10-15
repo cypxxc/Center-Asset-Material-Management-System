@@ -43,6 +43,12 @@
       "skillPath": "skills/core-web-vitals/SKILL.md",
       "computedHash": "ceaa3e9c9dfa6209ffe923714c0a093b950d0922213d0cf375c27f3d602cc857"
     },
+    "council": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/council/SKILL.md",
+      "computedHash": "7c2d224f8613646bf39e0360c199a681e504f808891050046936d0bac33417e7"
+    },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -126,6 +132,18 @@
       "sourceType": "github",
       "skillPath": "skills/performance-optimization/SKILL.md",
       "computedHash": "c88cbe0824ce94b4bc2d2d43519dc717afc529db1672388c2a5c7d695faccb8c"
+    },
+    "product-lens": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/product-lens/SKILL.md",
+      "computedHash": "01a931a14a9a96042c7e6f54b139f22df544b2bc4fe4a1bd36ed87c382b57d95"
+    },
+    "production-audit": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/production-audit/SKILL.md",
+      "computedHash": "3c38cf12fdb504f6ce53fa9d33f4f0fff1aee3df8e96fbb4fdb76831b5fd51ce"
     },
     "python-mcp-server-generator": {
       "source": "github/awesome-copilot",
@@ -246,6 +264,12 @@
       "sourceType": "github",
       "skillPath": "skills/verification-before-completion/SKILL.md",
       "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+    },
+    "verification-loop": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/verification-loop/SKILL.md",
+      "computedHash": "8337a8925d3eb16e97080f6fd9166d7548e51f6fc70d06dcf67786a240da9c2a"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

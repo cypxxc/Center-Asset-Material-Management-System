@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
@@ -25,6 +25,7 @@ import {
 import { signOut } from '@/features/auth/actions'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { cn } from '@/lib/utils'
+import { ROLE_LABELS } from './nav-config'
 
 interface SidebarProps {
   profile: {
@@ -43,12 +44,6 @@ interface SidebarProps {
       trash_count: number
     }
   }
-}
-
-const roleLabels: Record<string, string> = {
-  admin: 'ผู้ดูแลระบบ',
-  staff: 'เจ้าหน้าที่',
-  viewer: 'ผู้เข้าชม',
 }
 
 function getCategoryIcon(name: string) {
@@ -85,6 +80,30 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const [assetsFolderExpanded, setAssetsFolderExpanded] = useState(false)
   const [locationsFolderExpanded, setLocationsFolderExpanded] = useState(false)
+  const [optimisticTarget, setOptimisticTarget] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  const currentNavUrl = searchParams.size > 0 ? `${pathname}?${searchParams.toString()}` : pathname
+  const [prevNavUrl, setPrevNavUrl] = useState(currentNavUrl)
+
+  if (prevNavUrl !== currentNavUrl) {
+    setPrevNavUrl(currentNavUrl)
+    if (optimisticTarget !== null) {
+      setOptimisticTarget(null)
+    }
+  }
+
+  const handleOptimisticNavigate = (href: string) => {
+    startTransition(() => {
+      setOptimisticTarget(href)
+    })
+  }
+
+  const currentPath = optimisticTarget ? optimisticTarget.split('?')[0] : pathname
+  const currentQueryStr = optimisticTarget?.includes('?') ? optimisticTarget.split('?')[1] : null
+  const effType = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('type') : currentType
+  const effCategory = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('category_id') : currentCategory
+  const effLocation = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('location_id') : currentLocation
 
   const categories = sidebarData?.categories ?? []
   const locations = sidebarData?.locations ?? []
@@ -118,9 +137,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         return (
           <Link
             href="/dashboard"
+            onPointerDown={() => handleOptimisticNavigate('/dashboard')}
+            onClick={() => handleOptimisticNavigate('/dashboard')}
+            aria-current={currentPath === '/dashboard' ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all flex-1',
-              pathname === '/dashboard'
+              currentPath === '/dashboard'
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -131,7 +153,18 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         )
       case 'all-items':
         return (
-          <Link href="/items" className={cn('flex items-center px-2.5 py-2 rounded-lg transition-all', pathname === '/items' && !currentType && !currentCategory && !currentLocation ? 'bg-primary/10 text-primary font-bold border border-primary/20' : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground')}>
+          <Link
+            href="/items"
+            onPointerDown={() => handleOptimisticNavigate('/items')}
+            onClick={() => handleOptimisticNavigate('/items')}
+            aria-current={currentPath === '/items' && !effType && !effCategory && !effLocation ? 'page' : undefined}
+            className={cn(
+              'flex items-center px-2.5 py-2 rounded-lg transition-all',
+              currentPath === '/items' && !effType && !effCategory && !effLocation
+                ? 'bg-primary/10 text-primary font-bold border border-primary/20'
+                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            )}
+          >
             <Package className="w-4 h-4 mr-2.5 text-muted-foreground flex-shrink-0" />
             <span className="truncate">รายการทั้งหมด</span>
           </Link>
@@ -140,9 +173,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         return (
           <Link
             href="/items?type=material"
+            onPointerDown={() => handleOptimisticNavigate('/items?type=material')}
+            onClick={() => handleOptimisticNavigate('/items?type=material')}
+            aria-current={currentPath === '/items' && effType === 'material' ? 'page' : undefined}
             className={cn(
               'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all flex-1',
-              pathname === '/items' && currentType === 'material'
+              currentPath === '/items' && effType === 'material'
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -162,7 +198,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <div
               className={cn(
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
-                pathname === '/items' && currentType === 'asset' && !currentCategory
+                currentPath === '/items' && effType === 'asset' && !effCategory
                   ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
@@ -180,7 +216,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 >
                   {assetsFolderExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 </button>
-              <Link href="/items?type=asset" className="flex items-center min-w-0 flex-1">
+              <Link
+                href="/items?type=asset"
+                onPointerDown={() => handleOptimisticNavigate('/items?type=asset')}
+                onClick={() => handleOptimisticNavigate('/items?type=asset')}
+                aria-current={currentPath === '/items' && effType === 'asset' && !effCategory ? 'page' : undefined}
+                className="flex items-center min-w-0 flex-1"
+              >
                 <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
                 <span className="truncate">ครุภัณฑ์</span>
               </Link>
@@ -192,12 +234,16 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             {assetsFolderExpanded && (
               <div className="pl-6 border-l border-border ml-4 space-y-0.5">
                 {categories.map((cat) => {
-                  const isCurrent = currentCategory === cat.id && pathname === '/items'
+                  const href = `/items?type=asset&category_id=${cat.id}`
+                  const isCurrent = effCategory === cat.id && currentPath === '/items'
                   const count = getCategoryCount(cat.id)
                   return (
                     <Link
                       key={cat.id}
-                      href={`/items?type=asset&category_id=${cat.id}`}
+                      href={href}
+                      onPointerDown={() => handleOptimisticNavigate(href)}
+                      onClick={() => handleOptimisticNavigate(href)}
+                      aria-current={isCurrent ? 'page' : undefined}
                       className={cn(
                         'text-left py-1.5 px-2.5 rounded-md flex items-center justify-between transition-colors',
                         isCurrent
@@ -223,7 +269,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <div
               className={cn(
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
-                pathname === '/locations' && !currentLocation
+                currentPath === '/locations' && !effLocation
                   ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
@@ -241,7 +287,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 >
                   {locationsFolderExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 </button>
-              <Link href="/locations" className="flex items-center min-w-0 flex-1">
+              <Link
+                href="/locations"
+                onPointerDown={() => handleOptimisticNavigate('/locations')}
+                onClick={() => handleOptimisticNavigate('/locations')}
+                aria-current={currentPath === '/locations' && !effLocation ? 'page' : undefined}
+                className="flex items-center min-w-0 flex-1"
+              >
                 <MapPin className="w-4 h-4 mr-2 text-rose-500 flex-shrink-0" />
                 <span className="truncate">สถานที่</span>
               </Link>
@@ -253,12 +305,16 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             {locationsFolderExpanded && (
               <div className="pl-6 border-l border-border ml-4 space-y-0.5">
                 {locations.map((loc) => {
-                  const isCurrent = currentLocation === loc.id && pathname === '/items'
+                  const href = `/items?location_id=${loc.id}`
+                  const isCurrent = effLocation === loc.id && currentPath === '/items'
                   const count = getLocationCount(loc.id)
                   return (
                     <Link
                       key={loc.id}
-                      href={`/items?location_id=${loc.id}`}
+                      href={href}
+                      onPointerDown={() => handleOptimisticNavigate(href)}
+                      onClick={() => handleOptimisticNavigate(href)}
+                      aria-current={isCurrent ? 'page' : undefined}
                       className={cn(
                         'text-left py-1.5 px-2.5 rounded-md flex items-center justify-between transition-colors',
                         isCurrent
@@ -279,9 +335,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         return (
           <Link
             href="/reports"
+            onPointerDown={() => handleOptimisticNavigate('/reports')}
+            onClick={() => handleOptimisticNavigate('/reports')}
+            aria-current={currentPath === '/reports' ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all flex-1',
-              pathname === '/reports'
+              currentPath === '/reports'
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -299,7 +358,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
     <aside className="relative z-30 hidden h-full w-[256px] shrink-0 flex-col border-r border-border bg-card md:flex">
       {/* Brand Header */}
       <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+        <Link
+          href="/dashboard"
+          onPointerDown={() => handleOptimisticNavigate('/dashboard')}
+          onClick={() => handleOptimisticNavigate('/dashboard')}
+          className="flex min-w-0 items-center gap-2"
+        >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white ">
             <Package className="h-4 w-4" />
           </div>
@@ -343,9 +407,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {canWrite && (
           <Link
             href="/settings"
+            onPointerDown={() => handleOptimisticNavigate('/settings')}
+            onClick={() => handleOptimisticNavigate('/settings')}
+            aria-current={currentPath === '/settings' ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
-              pathname === '/settings'
+              currentPath === '/settings'
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -359,9 +426,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {isAdmin && (
           <Link
             href="/admin/users"
+            onPointerDown={() => handleOptimisticNavigate('/admin/users')}
+            onClick={() => handleOptimisticNavigate('/admin/users')}
+            aria-current={currentPath.startsWith('/admin/users') ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
-              pathname.startsWith('/admin/users')
+              currentPath.startsWith('/admin/users')
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -375,9 +445,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {isAdmin && (
           <Link
             href="/admin/audit-logs"
+            onPointerDown={() => handleOptimisticNavigate('/admin/audit-logs')}
+            onClick={() => handleOptimisticNavigate('/admin/audit-logs')}
+            aria-current={currentPath.startsWith('/admin/audit-logs') ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
-              pathname.startsWith('/admin/audit-logs')
+              currentPath.startsWith('/admin/audit-logs')
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -391,9 +464,12 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {isAdmin && (
           <Link
             href="/admin/db-panel"
+            onPointerDown={() => handleOptimisticNavigate('/admin/db-panel')}
+            onClick={() => handleOptimisticNavigate('/admin/db-panel')}
+            aria-current={currentPath.startsWith('/admin/db-panel') ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
-              pathname.startsWith('/admin/db-panel')
+              currentPath.startsWith('/admin/db-panel')
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -408,31 +484,34 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {profile && (
           <Link
             href="/profile"
+            onPointerDown={() => handleOptimisticNavigate('/profile')}
+            onClick={() => handleOptimisticNavigate('/profile')}
+            aria-current={currentPath === '/profile' ? 'page' : undefined}
             className={cn(
               'mb-2 flex items-center gap-2 rounded-lg border border-border p-2 transition-all group',
-              pathname === '/profile'
-                ? 'bg-blue-50/80 border-blue-200 shadow-xs'
+              currentPath === '/profile'
+                ? 'bg-primary/10 border-primary/20 shadow-xs'
                 : 'bg-card hover:bg-sidebar-accent hover:border-sidebar-border'
             )}
             title="ตั้งค่าบัญชีส่วนบุคคล"
           >
             <div className={cn(
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors',
-              pathname === '/profile'
-                ? 'border-blue-200 bg-blue-600 text-white'
-                : 'border-border bg-muted text-muted-foreground group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-200'
+              currentPath === '/profile'
+                ? 'border-primary/20 bg-primary text-primary-foreground'
+                : 'border-border bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20'
             )}>
               <User className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <p className={cn(
                 'truncate text-xs font-bold leading-none transition-colors',
-                pathname === '/profile' ? 'text-blue-700' : 'text-foreground group-hover:text-blue-600'
+                currentPath === '/profile' ? 'text-primary font-bold' : 'text-foreground group-hover:text-primary'
               )}>
                 {profile.display_name?.trim() || profile.full_name}
               </p>
-              <p className="mt-1 truncate text-[10px] font-semibold text-blue-600">
-                {roleLabels[profile.role] ?? profile.role}
+              <p className="mt-1 truncate text-[10px] font-semibold text-muted-foreground">
+                {ROLE_LABELS[profile.role] ?? profile.role}
               </p>
             </div>
           </Link>
@@ -441,7 +520,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         <form action={signOut}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive/10 cursor-pointer"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>ออกจากระบบ</span>
