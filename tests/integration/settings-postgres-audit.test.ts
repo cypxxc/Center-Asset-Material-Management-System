@@ -115,6 +115,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
       assert.deepEqual(details.newValues, {
         name: 'IT Equipment',
         description: 'Office computing equipment',
+        color: '#64748B',
         is_active: true,
       })
 

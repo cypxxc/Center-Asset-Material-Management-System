@@ -48,6 +48,7 @@ test('item search binds hostile filter values and ignores hostile sort identifie
     assert.ok(statement.params.includes(`%${malicious}%`))
     assert.match(statement.sql, /i\.deleted_at is null/)
   }
+  assert.match(statements[1].sql, /'color', c\.color/)
   assert.match(statements[1].sql, /order by i\.updated_at desc, i\.id/)
   assert.deepEqual(statements[1].params.slice(-2), [10, 10])
   assert.equal(mockSupabaseRegistry.getQueryLog().length, 0)
@@ -75,6 +76,7 @@ test('Postgres item batches use a precise timestamp projection and omit count af
   assert.equal(result.total, null)
   assert.equal(statements.length, 1)
   assert.match(statements[0].sql, /updated_at::text as updated_at/)
+  assert.match(statements[0].sql, /'color', c\.color/)
   assert.match(statements[0].sql, /i\.updated_at < \$1/)
   assert.ok(!/count\(\*\)/.test(statements[0].sql))
 })
@@ -97,8 +99,9 @@ test('Postgres batch preserves spaces introduced by leading and trailing commas'
 
 test('references recheck authorization for every request instead of sharing a cached result', async () => {
   const { getItemReferences } = await import('./queries')
-  responses = [[{ id: 'cat', name: 'Category' }], [], []]
+  responses = [[{ id: 'cat', name: 'Category', color: '#3B82F6' }], [], []]
   assert.equal((await getItemReferences()).categories.length, 1)
+  assert.match(statements[0].sql, /select id, name, color from public\.categories where is_active order by name/)
   authorized = false
   await assert.rejects(getItemReferences(), /Unauthenticated/)
   assert.equal(requests, 2)

@@ -54,7 +54,7 @@ const getCachedItemReferences = unstable_cache(
     const supabase = createServiceRoleClient()
 
     const [categories, locations, units] = await Promise.all([
-      supabase.from('categories').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('categories').select('id, name, color').eq('is_active', true).order('name'),
       supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
       supabase.from('units').select('id, name').eq('is_active', true).order('name'),
     ])

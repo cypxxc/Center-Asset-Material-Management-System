@@ -18,14 +18,14 @@ export const itemRelations = sql`left join public.categories c on c.id = i.categ
 export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at,
   i.brand, i.model,
-  case when c.id is null then null else json_build_object('id', c.id, 'name', c.name) end as category,
+  case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
 const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
   i.brand, i.model,
-  case when c.id is null then null else json_build_object('id', c.id, 'name', c.name) end as category,
+  case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
@@ -52,7 +52,7 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
 
 export async function getPostgresItemReferences() {
   return withUserDatabase(async (tx) => {
-    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.categories where is_active order by name`)
+    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color from public.categories where is_active order by name`)
     const locations = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.locations where is_active order by name`)
     const units = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.units where is_active order by name`)
     return { categories: categories.rows, locations: locations.rows, units: units.rows }

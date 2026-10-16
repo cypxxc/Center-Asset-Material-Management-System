@@ -30,9 +30,11 @@ export const categorySchema = z.object({
   description: optionalText,
   color: z.preprocess(
     (val) => {
+      if (val == null || (typeof val === 'string' && val.trim() === '')) {
+        return undefined
+      }
       if (typeof val === 'string') {
-        const trimmed = val.trim()
-        return trimmed === '' ? undefined : trimmed.toUpperCase()
+        return val.trim().toUpperCase()
       }
       return val
     },
