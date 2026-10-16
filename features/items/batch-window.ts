@@ -190,22 +190,31 @@ export class ItemBatchWindow {
     this.dispose()
     const startIndex = Math.max(0, this.state.batches.findIndex(b => this.anchor >= b.start && this.anchor < b.start + b.length))
     await this.run(async signal => {
-      const old = this.state.batches
+      const old = this.state.batches.slice()
       let cursor = old[startIndex]?.requestCursor
       let start = old[startIndex]?.start ?? 0
-      const fresh: BatchSlot[] = []
       const endIndex = Math.min(old.length, startIndex + 2)
       let total = seedTotal ?? this.state.total
       for (let i = startIndex; i < endIndex; i++) {
         const result = await this.fetcher(cursor, signal)
-        fresh.push({ start, requestCursor: cursor, nextCursor: result.nextCursor, length: result.items.length, items: this.unique(result.items, fresh) })
         total = result.total ?? total
+        const uniqueItems = this.unique(result.items, old.filter((_, idx) => idx !== i))
+        old[i] = {
+          ...old[i],
+          start,
+          requestCursor: cursor,
+          nextCursor: result.nextCursor,
+          length: result.items.length,
+          items: uniqueItems,
+        }
         start += result.items.length
-        if (!result.nextCursor) break
+        if (!result.nextCursor) {
+          old.splice(i + 1)
+          break
+        }
         cursor = result.nextCursor
       }
-      // Earlier boundaries are useful for returning upward, but their data is stale.
-      return { ...this.state, total, batches: [...old.slice(0, startIndex).map(b => ({ ...b, items: undefined })), ...fresh] }
+      return { ...this.state, total, batches: this.bounded(old) }
     }, this.refresh)
   }
 }

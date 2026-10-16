@@ -499,3 +499,85 @@ test('fast scroll ahead of loaded batches: maintains placeholder slots without c
   assert.equal(totalVirtualHeight, 143 * 64, 'virtual height remains stable during fast scroll ahead')
 })
 
+test('store.refresh preserves downstream and earlier resident batches without eviction flickering', async () => {
+  const originalFetch = global.fetch
+  global.fetch = async (input) => {
+    const url = new URL(String(input), 'http://localhost')
+    const cursor = url.searchParams.get('cursor') ?? '0'
+    const start = Number(cursor)
+    const nextCursor = start + 25 < 75 ? String(start + 25) : null
+    const nextBatch = createMockItems(25, start)
+    return new Response(JSON.stringify({ items: nextBatch, total: 75, nextCursor }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    let hookInstance!: ReturnType<typeof useItemWindow>
+    const initialItems = createMockItems(25, 0)
+    render(
+      <WindowHarness
+        seed={{ items: initialItems, total: 75, nextCursor: '25' }}
+        onReady={(h) => {
+          hookInstance = h
+        }}
+      />
+    )
+
+    // Load batches 1 and 2
+    act(() => {
+      hookInstance.scrollToIndex(30, { align: 'start' })
+    })
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 50)
+    })
+    act(() => {
+      hookInstance.scrollToIndex(60, { align: 'start' })
+    })
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 75)
+    })
+
+    // Now call store.refresh with anchor at 0
+    await act(async () => {
+      await hookInstance.store.refresh(75)
+    })
+
+    // Verify all 3 batches remain loaded (count remains 75, item 60 is not lost)
+    assert.equal(hookInstance.store.count, 75, 'downstream batches must not be discarded during refresh')
+    assert.equal(hookInstance.store.at(10)?.id, 'item-10', 'batch 0 item remains resident')
+    assert.equal(hookInstance.store.at(30)?.id, 'item-30', 'batch 1 item remains resident')
+    assert.equal(hookInstance.store.at(60)?.id, 'item-60', 'batch 2 item remains resident')
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+test('scrolling to the end of dataset never collapses slots to 1 row', () => {
+  let hookInstance!: ReturnType<typeof useItemWindow>
+  let containerEl!: HTMLDivElement
+
+  const initialItems = createMockItems(25, 0)
+  render(
+    <WindowHarness
+      seed={{ items: initialItems, total: 70, nextCursor: '25' }}
+      onReady={(h, el) => {
+        hookInstance = h
+        containerEl = el
+      }}
+    />
+  )
+
+  // Scroll to bottom (scrollTop 4500px)
+  act(() => {
+    containerEl.scrollTop = 4500
+    const win = containerEl.ownerDocument.defaultView ?? window
+    containerEl.dispatchEvent(new win.Event('scroll'))
+  })
+
+  // Slots must not collapse to 1; it should render full window capacity
+  assert.ok(hookInstance.slots.length >= 10, `slots length (${hookInstance.slots.length}) must maintain window capacity, never collapse to 1`)
+  const totalVirtualHeight = hookInstance.topSpace + (hookInstance.slots.length * 64) + hookInstance.bottomSpace
+  assert.equal(totalVirtualHeight, 70 * 64, 'virtual height remains exactly 70 * 64')
+})

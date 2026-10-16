@@ -42,10 +42,15 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   const offset = view === 'list' ? 44 : 16
   const overscan = view === 'list' ? 8 : 4
   const totalCount = Math.max(store.count, state.total ?? 0)
+  const totalRows = Math.ceil(totalCount / columns)
   const anchor = Math.max(0, Math.floor((viewport.top - offset) / rowHeight)) * columns
-  const first = Math.max(0, Math.floor((viewport.top - offset) / rowHeight) - overscan) * columns
-  const last = Math.min(totalCount, (Math.ceil((viewport.top + viewport.height - offset) / rowHeight) + overscan) * columns)
-  const safeFirst = Math.min(first, Math.max(0, last - 1))
+  const visibleRows = Math.ceil(viewport.height / rowHeight) + 2 * overscan
+  const windowRows = Math.min(totalRows, visibleRows)
+  const targetFirstRow = Math.max(0, Math.floor((viewport.top - offset) / rowHeight) - overscan)
+  const maxFirstRow = Math.max(0, totalRows - windowRows)
+  const safeFirstRow = Math.min(targetFirstRow, maxFirstRow)
+  const safeFirst = safeFirstRow * columns
+  const last = Math.min(totalCount, (safeFirstRow + windowRows) * columns)
   const previousLayout = useRef({ columns, rowHeight, anchor })
 
   useLayoutEffect(() => {
@@ -84,8 +89,13 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   }, [identity, seed, store])
 
   useEffect(() => {
-    if (seedRef.current !== seed.items) {
-      seedRef.current = seed.items
+    const prev = seedRef.current
+    seedRef.current = seed.items
+    const isSame = prev === seed.items || (
+      prev.length === seed.items.length &&
+      prev.every((item, i) => item.id === seed.items[i]?.id && item.updated_at === seed.items[i]?.updated_at)
+    )
+    if (!isSame) {
       void store.refresh(seed.total)
     }
   }, [seed.items, seed.total, store])
