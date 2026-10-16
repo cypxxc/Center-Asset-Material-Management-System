@@ -35,14 +35,16 @@ export function CategoryColorPicker({
   const popoverRef = useRef<HTMLDivElement>(null)
   const nativeColorInputRef = useRef<HTMLInputElement>(null)
 
-  // Sync internal state when defaultValue changes externally
-  useEffect(() => {
+  // Sync internal state during render if defaultValue changes externally
+  const [prevDefaultValue, setPrevDefaultValue] = useState(defaultValue)
+  if (defaultValue !== prevDefaultValue) {
+    setPrevDefaultValue(defaultValue)
     if (defaultValue && /^#[0-9A-Fa-f]{6}$/.test(defaultValue)) {
       const normalized = defaultValue.toUpperCase()
       setColor(normalized)
       setHexInput(normalized)
     }
-  }, [defaultValue])
+  }
 
   // Close popup when clicking outside or pressing Escape
   useEffect(() => {
