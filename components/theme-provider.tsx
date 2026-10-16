@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react'
+import { useServerInsertedHTML } from 'next/navigation'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -11,6 +12,19 @@ interface ThemeContextType {
 }
 
 const STORAGE_KEY = 'camms-theme'
+
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('camms-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark')}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light')}}catch(e){}})()`
+
+// Filter out React 19 false-positive script warning during development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const originalError = console.error
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('Encountered a script tag')) {
+      return
+    }
+    originalError.apply(console, args)
+  }
+}
 
 let listeners: Array<() => void> = []
 function subscribe(listener: () => void) {
@@ -72,6 +86,15 @@ function subscribeSystemTheme(onStoreChange: () => void) {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  useServerInsertedHTML(() => {
+    return (
+      <script
+        key="camms-theme-script"
+        dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+      />
+    )
+  })
+
   const theme = useSyncExternalStore(subscribe, getStoredTheme, () => 'system' as Theme)
   const isSystemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark, () => false)
 

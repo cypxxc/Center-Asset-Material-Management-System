@@ -131,6 +131,7 @@ try {
       }),
       usePathname: () => '/',
       useSearchParams: () => new URLSearchParams(),
+      useServerInsertedHTML: () => {},
     },
   } as unknown as NodeJS.Module;
 } catch {
