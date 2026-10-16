@@ -14,7 +14,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
   const supabase = await createClient()
   const queryCategories = () => supabase
     .from('categories')
-    .select('id, name, description, is_active, updated_at')
+    .select('id, name, description, color, is_active, updated_at')
     .order('name')
   const queryLocations = () => supabase
     .from('locations')

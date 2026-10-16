@@ -2,6 +2,7 @@ export interface CategoryRow {
   id: string
   name: string
   description: string | null
+  color: string
   is_active: boolean
   updated_at: string
 }

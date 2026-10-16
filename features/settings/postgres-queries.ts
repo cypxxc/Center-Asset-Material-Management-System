@@ -9,7 +9,7 @@ export async function getPostgresSettingsData(section: SettingsDataSection = 'al
   return withUserDatabase(async (tx) => {
     const result: SettingsData = { categories: [], locations: [], units: [] }
     if (section === 'all' || section === 'categories') {
-      result.categories = (await tx.execute<CategoryRow & Record<string, unknown>>(sql`select id, name, description, is_active, updated_at from public.categories order by name`)).rows
+      result.categories = (await tx.execute<CategoryRow & Record<string, unknown>>(sql`select id, name, description, color, is_active, updated_at from public.categories order by name`)).rows
     }
     if (section === 'all' || section === 'locations') {
       result.locations = (await tx.execute<LocationRow & Record<string, unknown>>(sql`select id, name, building, floor, room, department, description, is_active, updated_at from public.locations order by name`)).rows

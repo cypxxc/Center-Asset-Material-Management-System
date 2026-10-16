@@ -11,6 +11,7 @@ export type ItemStatus =
 export interface ReferenceOption {
   id: string
   name: string
+  color?: string
 }
 
 export interface ItemListRow {

@@ -8,7 +8,12 @@ export const profiles = pgTable('profiles', {
   sidebar_order: jsonb().$type<string[]>().default([]), ...stamps(),
 }, (t) => [uniqueIndex('profiles_email_unique').on(sql`lower(${t.email})`), check('profiles_role_check', sql`${t.role} in ('admin','staff','viewer')`)])
 export const categories = pgTable('categories', {
-  id: uuid().primaryKey().defaultRandom(), name: text().notNull().unique(), description: text(), is_active: boolean().notNull().default(true), ...stamps(),
+  id: uuid().primaryKey().defaultRandom(),
+  name: text().notNull().unique(),
+  description: text(),
+  color: text().notNull().default('#64748B'),
+  is_active: boolean().notNull().default(true),
+  ...stamps(),
 })
 export const locations = pgTable('locations', {
   id: uuid().primaryKey().defaultRandom(), name: text().notNull(), building: text(), floor: text(), room: text(), department: text(), description: text(), is_active: boolean().notNull().default(true), ...stamps(),
