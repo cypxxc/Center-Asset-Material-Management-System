@@ -71,3 +71,43 @@ test('categorySchema rejects zero-width space names and accepts complex emojis w
   assert.equal(emojiFailResult.success, false)
 })
 
+test('categorySchema validates and normalizes 6-digit hex color', () => {
+  // 1. Valid lowercase hex converted to uppercase
+  const validResult = categorySchema.safeParse({
+    name: 'อุปกรณ์ไอที',
+    color: '#3b82f6',
+    is_active: 'true',
+  })
+  assert.equal(validResult.success, true)
+  if (validResult.success) {
+    assert.equal(validResult.data.color, '#3B82F6')
+  }
+
+  // 2. Empty string from FormData defaults to #64748B
+  const emptyResult = categorySchema.safeParse({
+    name: 'อุปกรณ์ไอที',
+    color: '',
+    is_active: 'true',
+  })
+  assert.equal(emptyResult.success, true)
+  if (emptyResult.success) {
+    assert.equal(emptyResult.data.color, '#64748B')
+  }
+
+  // 3. Rejects 3-digit hex (#FFF)
+  const threeDigitResult = categorySchema.safeParse({
+    name: 'อุปกรณ์ไอที',
+    color: '#FFF',
+    is_active: 'true',
+  })
+  assert.equal(threeDigitResult.success, false)
+
+  // 4. Rejects invalid hex characters (#GGGGGG)
+  const invalidHexResult = categorySchema.safeParse({
+    name: 'อุปกรณ์ไอที',
+    color: '#GGGGGG',
+    is_active: 'true',
+  })
+  assert.equal(invalidHexResult.success, false)
+})
+

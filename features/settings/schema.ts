@@ -23,9 +23,24 @@ const checkboxBoolean = z
   .unknown()
   .transform((value) => value === 'on' || value === 'true' || value === true)
 
+const hex6ColorRegex = /^#[0-9A-Fa-f]{6}$/
+
 export const categorySchema = z.object({
   name: requiredName,
   description: optionalText,
+  color: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        const trimmed = val.trim()
+        return trimmed === '' ? undefined : trimmed.toUpperCase()
+      }
+      return val
+    },
+    z
+      .string()
+      .regex(hex6ColorRegex, 'รหัสสีไม่ถูกต้อง (ต้องอยู่ในรูปแบบ HEX 6 หลัก เช่น #3B82F6)')
+      .default('#64748B')
+  ),
   is_active: checkboxBoolean,
 })
 
