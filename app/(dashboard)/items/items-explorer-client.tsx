@@ -180,11 +180,11 @@ function ItemsExplorerSession({
     unit_price: item.unit_price,
   }), [])
 
-  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const triggerToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     toast(message, type)
-  }
+  }, [toast])
 
-  const copyReference = (value: string | null | undefined) => {
+  const copyReference = useCallback((value: string | null | undefined) => {
     if (!value) return
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(value).then(
@@ -194,7 +194,7 @@ function ItemsExplorerSession({
     } else {
       triggerToast(`คัดลอก "${value}" แล้ว`)
     }
-  }
+  }, [triggerToast])
 
   const exportToExcel = async () => {
     if (isExporting) return
@@ -309,6 +309,15 @@ function ItemsExplorerSession({
     saveWindow()
     router.push(`/items/${item.id}`)
   }, [router, saveWindow])
+
+  const handlePrintItem = useCallback((item: ItemListRow) => {
+    setSinglePrintItem(toStickerItem(item))
+  }, [toStickerItem])
+
+  const handleEditItem = useCallback((item: ItemListRow) => {
+    setEditingItem(toItemDetail(item))
+    setIsSheetOpen(true)
+  }, [])
 
   const handleBulkDelete = async () => {
     if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
@@ -594,11 +603,8 @@ function ItemsExplorerSession({
                   isInspectorOpen={isInspectorOpen}
                   userCanWrite={userCanWrite}
                   onCopy={copyReference}
-                  onPrint={(item) => setSinglePrintItem(toStickerItem(item))}
-                  onEdit={(item) => {
-                    setEditingItem(toItemDetail(item))
-                    setIsSheetOpen(true)
-                  }}
+                  onPrint={handlePrintItem}
+                  onEdit={handleEditItem}
                 />
               ) : (
                 <ItemsGrid
@@ -613,11 +619,8 @@ function ItemsExplorerSession({
                   onToggleSelectItem={handleToggleSelectItem}
                   userCanWrite={userCanWrite}
                   onCopy={copyReference}
-                  onPrint={(item) => setSinglePrintItem(toStickerItem(item))}
-                  onEdit={(item) => {
-                    setEditingItem(toItemDetail(item))
-                    setIsSheetOpen(true)
-                  }}
+                  onPrint={handlePrintItem}
+                  onEdit={handleEditItem}
                 />
               )}
             </div>

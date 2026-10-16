@@ -133,7 +133,9 @@ export function ItemsList({
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          {topSpace > 0 && (
+            <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
+          )}
           {items.map((item, slot) => {
             if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             return (
@@ -150,7 +152,9 @@ export function ItemsList({
               />
             )
           })}
-          <tr aria-hidden="true"><td colSpan={9} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          {bottomSpace > 0 && (
+            <tr aria-hidden="true"><td colSpan={9} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
+          )}
           {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
         </DataTableBody>
       </DataTable>

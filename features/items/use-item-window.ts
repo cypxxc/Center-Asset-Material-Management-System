@@ -36,9 +36,10 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   const columns = view === 'list' ? 1 : Math.max(2, Math.min(5, Math.floor((viewport.width - 32) / 220)))
   const rowHeight = view === 'list' ? 64 : 220
   const offset = view === 'list' ? 44 : 16
+  const overscan = view === 'list' ? 8 : 4
   const anchor = Math.max(0, Math.floor((viewport.top - offset) / rowHeight)) * columns
-  const first = Math.max(0, Math.floor((viewport.top - offset) / rowHeight) - 3) * columns
-  const last = Math.min(store.count, (Math.ceil((viewport.top + viewport.height - offset) / rowHeight) + 3) * columns)
+  const first = Math.max(0, Math.floor((viewport.top - offset) / rowHeight) - overscan) * columns
+  const last = Math.min(store.count, (Math.ceil((viewport.top + viewport.height - offset) / rowHeight) + overscan) * columns)
   const previousLayout = useRef({ columns, rowHeight, anchor })
 
   useLayoutEffect(() => {
@@ -87,10 +88,10 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
     const element = scrollRef.current
     if (!element) return
     const update = () => {
+      const top = element.scrollTop
+      const height = element.clientHeight || 600
+      const width = element.clientWidth || 1000
       setViewport(v => {
-        const top = element.scrollTop
-        const height = element.clientHeight || 600
-        const width = element.clientWidth || 1000
         if (v.top === top && v.height === height && v.width === width) return v
         return { top, height, width }
       })
