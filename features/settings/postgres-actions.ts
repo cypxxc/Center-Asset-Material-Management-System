@@ -12,7 +12,7 @@ import { pgUpdateUserProfile } from '@/features/admin/postgres-admin'
 import { writeAuditLog } from '@/lib/audit'
 
 const definitions = {
-  categories: { schema: categorySchema, reference: 'category_id', columns: ['name', 'description', 'is_active'] },
+  categories: { schema: categorySchema, reference: 'category_id', columns: ['name', 'description', 'color', 'is_active'] },
   locations: { schema: locationSchema, reference: 'location_id', columns: ['name', 'building', 'floor', 'room', 'department', 'description', 'is_active'] },
   units: { schema: unitSchema, reference: 'unit_id', columns: ['name', 'is_active'] },
 } as const
