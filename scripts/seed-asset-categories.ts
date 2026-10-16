@@ -19,19 +19,19 @@ function getConnectionString(): string {
 }
 
 export const assetCategories = [
-  { code: '7110', name: '7110 - ครุภัณฑ์สำนักงาน' },
-  { code: '7440', name: '7440 - ครุภัณฑ์คอมพิวเตอร์' },
-  { code: '7430', name: '7430 - ครุภัณฑ์โฆษณาและเผยแพร่' },
-  { code: '5805', name: '5805 - ครุภัณฑ์โทรคมนาคม' },
-  { code: '4120', name: '4120 - ครุภัณฑ์ไฟฟ้าและวิทยุ' },
-  { code: '2310', name: '2310 - ยานพาหนะและขนส่ง' },
-  { code: '6625', name: '6625 - ครุภัณฑ์วิทยาศาสตร์' },
-  { code: '6515', name: '6515 - ครุภัณฑ์การแพทย์' },
-  { code: '6910', name: '6910 - ครุภัณฑ์การศึกษา' },
-  { code: '3805', name: '3805 - ครุภัณฑ์การเกษตร' },
-  { code: '3410', name: '3410 - ครุภัณฑ์โรงงาน' },
-  { code: '7810', name: '7810 - ครุภัณฑ์งานบ้านงานครัว' },
-  { code: '7820', name: '7820 - ครุภัณฑ์กีฬา' },
+  { code: '7110', name: '7110 - ครุภัณฑ์สำนักงาน', color: '#10B981' },
+  { code: '7440', name: '7440 - ครุภัณฑ์คอมพิวเตอร์', color: '#3B82F6' },
+  { code: '7430', name: '7430 - ครุภัณฑ์โฆษณาและเผยแพร่', color: '#8B5CF6' },
+  { code: '5805', name: '5805 - ครุภัณฑ์โทรคมนาคม', color: '#06B6D4' },
+  { code: '4120', name: '4120 - ครุภัณฑ์ไฟฟ้าและวิทยุ', color: '#F59E0B' },
+  { code: '2310', name: '2310 - ยานพาหนะและขนส่ง', color: '#F97316' },
+  { code: '6625', name: '6625 - ครุภัณฑ์วิทยาศาสตร์', color: '#14B8A6' },
+  { code: '6515', name: '6515 - ครุภัณฑ์การแพทย์', color: '#EF4444' },
+  { code: '6910', name: '6910 - ครุภัณฑ์การศึกษา', color: '#6366F1' },
+  { code: '3805', name: '3805 - ครุภัณฑ์การเกษตร', color: '#0EA5E9' },
+  { code: '3410', name: '3410 - ครุภัณฑ์โรงงาน', color: '#78716C' },
+  { code: '7810', name: '7810 - ครุภัณฑ์งานบ้านงานครัว', color: '#EC4899' },
+  { code: '7820', name: '7820 - ครุภัณฑ์กีฬา', color: '#D946EF' },
 ]
 
 async function seed() {
@@ -51,19 +51,20 @@ async function seed() {
       await client.query("SELECT set_config('app.user_id', $1, true)", [adminId])
     }
 
-    const inserted: Array<{ id: string; name: string; description: string | null; is_active: boolean }> = []
+    const inserted: Array<{ id: string; name: string; description: string | null; color: string; is_active: boolean }> = []
 
     for (const item of assetCategories) {
       const cleanName = normalizeForStorage(item.name)
       const cleanDesc = normalizeForStorage(item.code)
+      const color = item.color
 
       const res = await client.query(
-        `INSERT INTO public.categories (name, description, is_active)
-         VALUES ($1, $2, true)
+        `INSERT INTO public.categories (name, description, color, is_active)
+         VALUES ($1, $2, $3, true)
          ON CONFLICT (name) DO UPDATE
-         SET description = EXCLUDED.description, is_active = true, updated_at = now()
-         RETURNING id, name, description, is_active`,
-        [cleanName, cleanDesc]
+         SET description = EXCLUDED.description, color = EXCLUDED.color, is_active = true, updated_at = now()
+         RETURNING id, name, description, color, is_active`,
+        [cleanName, cleanDesc, color]
       )
 
       inserted.push(res.rows[0])
@@ -72,7 +73,7 @@ async function seed() {
     await client.query('COMMIT')
 
     console.log(`Successfully seeded ${inserted.length} categories:`)
-    console.table(inserted.map((c) => ({ ID: c.id, Name: c.name, Code: c.description, Active: c.is_active })))
+    console.table(inserted.map((c) => ({ ID: c.id, Name: c.name, Code: c.description, Color: c.color, Active: c.is_active })))
   } catch (error) {
     await client.query('ROLLBACK')
     console.error('Failed to seed categories:', error)
