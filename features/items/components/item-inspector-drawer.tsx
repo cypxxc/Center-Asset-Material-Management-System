@@ -18,6 +18,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
 import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
+import { CategoryBadge } from '@/features/items/components/category-badge'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { useMediaQuery } from '@/hooks/use-media-query'
 
@@ -130,9 +131,11 @@ export function Inspector({
               <StatusBadge status={item.status} className="shrink-0" />
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground truncate max-w-[200px]">
-                {item.category?.name || 'หมวดหมู่ทั่วไป'}
-              </span>
+              <CategoryBadge
+                name={item.category?.name || 'หมวดหมู่ทั่วไป'}
+                color={item.category?.color}
+                className="max-w-[200px]"
+              />
               <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
                 {ITEM_TYPE_LABELS[item.item_type]}
               </span>

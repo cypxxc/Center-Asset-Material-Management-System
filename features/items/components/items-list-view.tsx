@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_TYPE_LABELS, type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
 import { cn } from '@/lib/utils'
 import { ItemThumbnail } from './item-thumbnail'
+import { CategoryBadge } from './category-badge'
 
 export interface ItemsListProps {
   items: (ItemListRow | null | undefined)[]
@@ -124,7 +125,7 @@ export function ItemsList({
             <DataTableHead className="w-11 px-1" />
             <DataTableHead className="px-3 min-w-[140px]" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
             <DataTableHead className={cn("hidden w-20 px-2.5", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")} aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
-            <DataTableHead className={cn("hidden w-28 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>หมวดหมู่</DataTableHead>
+            <DataTableHead className={cn("hidden w-44 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>หมวดหมู่</DataTableHead>
             <DataTableHead className="w-20 px-2 sm:px-3" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
             <DataTableHead className={cn("w-28 xl:w-36 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
             <DataTableHead className={cn("hidden w-28 xl:w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
@@ -280,8 +281,12 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       </DataTableCell>
 
       {/* Category Column */}
-      <DataTableCell className={cn("hidden w-28 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name}>
-        {item.category?.name ?? '-'}
+      <DataTableCell className={cn("hidden w-44 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name}>
+        {item.category ? (
+          <CategoryBadge name={item.category.name} color={item.category.color} />
+        ) : (
+          '-'
+        )}
       </DataTableCell>
 
       {/* Quantity & Unit Column */}

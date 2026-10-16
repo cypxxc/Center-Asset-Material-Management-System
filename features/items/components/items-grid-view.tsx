@@ -4,6 +4,7 @@ import { Check, Copy, Edit, Package, Printer } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
 import { cn } from '@/lib/utils'
+import { CategoryBadge } from './category-badge'
 import { typeIcons } from './item-type-icon'
 
 export interface ItemsGridProps {
@@ -136,7 +137,14 @@ export function ItemsGrid({
                   )}
                 </div>
                 <p className="line-clamp-2 text-xs font-extrabold leading-snug text-card-foreground pr-4">{item.item_name}</p>
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{item.asset_no || item.serial_no || '-'}</p>
+                <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
+                  <p className="truncate font-mono text-xs text-muted-foreground flex-1 min-w-0">{item.asset_no || item.serial_no || '-'}</p>
+                  {item.category && (
+                    <div className="max-w-[120px] truncate">
+                      <CategoryBadge name={item.category.name} color={item.category.color} className="text-[10px] px-1.5 py-0" />
+                    </div>
+                  )}
+                </div>
                 <div className="mt-auto flex items-center justify-between pt-3">
                   <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
                     {ITEM_TYPE_LABELS[item.item_type]}
