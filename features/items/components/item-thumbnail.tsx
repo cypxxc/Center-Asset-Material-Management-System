@@ -87,8 +87,8 @@ export function ItemThumbnail({
           <img
             src={imageUrl!}
             alt={itemName}
-            loading="lazy"
-            decoding="async"
+            loading="eager"
+            decoding="auto"
             onError={() => setFailedUrl(imageUrl || '')}
             className="h-full w-full object-cover"
             data-testid="item-thumbnail-image"

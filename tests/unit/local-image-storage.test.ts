@@ -175,3 +175,32 @@ test('readLocalItemImage re-throws non-auth errors (e.g. DB timeout) without fal
   )
   assert.equal(mockGetDbExecuteCalls, 0, 'fallback getDatabase must NEVER be called on infrastructure errors')
 })
+
+test('files route handler GET returns private cache-control header for found image', async () => {
+  const originalBackend = process.env.DATA_BACKEND
+  process.env.DATA_BACKEND = 'postgres'
+  try {
+    const { GET } = await import('@/app/api/files/[...path]/route')
+    if (!tempStorageDir) {
+      tempStorageDir = await mkdtemp(join(tmpdir(), 'camms-unit-storage-'))
+      process.env.LOCAL_STORAGE_PATH = tempStorageDir
+    }
+    const fileDir = join(tempStorageDir, 'item-images', userUuid)
+    await mkdir(fileDir, { recursive: true })
+    await writeFile(join(fileDir, `${fileUuid}.png`), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+
+    mockWithUserDb = async (callback) => callback({
+      execute: async () => ({ rows: [{ id: 'item-1' }] }),
+    })
+
+    const request = new Request('http://localhost:3000/api/files/item-images/' + userUuid + '/' + fileUuid + '.png')
+    const response = await GET(request, { params: Promise.resolve({ path: ['item-images', userUuid, `${fileUuid}.png`] }) })
+
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('content-type'), 'image/png')
+    assert.equal(response.headers.get('cache-control'), 'private, max-age=86400, stale-while-revalidate=604800')
+  } finally {
+    if (originalBackend === undefined) delete process.env.DATA_BACKEND
+    else process.env.DATA_BACKEND = originalBackend
+  }
+})

@@ -8,7 +8,7 @@ export async function GET(_request: Request, context: { params: Promise<{ path: 
   if (!image) return new Response(null, { status: 404, headers: { 'Cache-Control': 'private, no-store' } })
   return new Response(new Uint8Array(image.data), { headers: {
     'Content-Type': image.contentType,
-    'Cache-Control': 'private, no-store',
+    'Cache-Control': 'private, max-age=86400, stale-while-revalidate=604800',
     'X-Content-Type-Options': 'nosniff',
     'Content-Security-Policy': "default-src 'none'; sandbox",
     'Cross-Origin-Resource-Policy': 'same-origin',

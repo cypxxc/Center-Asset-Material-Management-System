@@ -59,7 +59,7 @@ function WindowHarness({ seed, onReady, view = 'list' }: HarnessProps) {
     >
       <div style={{ height: hook.topSpace }} />
       {hook.slots.map((item, idx) => (
-        <div key={item?.id ?? `slot-${idx}`} style={{ height: hook.view === 'list' ? 64 : 220 }}>
+        <div key={item?.id ?? `slot-${hook.startIndex + idx}`} style={{ height: hook.view === 'list' ? 64 : 220 }}>
           {item?.item_name ?? 'กำลังโหลด...'}
         </div>
       ))}
@@ -370,3 +370,132 @@ test('scrollToIndex: scrolling near boundary triggers batch loading when hasMore
     global.fetch = originalFetch
   }
 })
+
+test('continuous scrolling: multiple batch loading maintains stable slots without thrashing or duplicate requests', async () => {
+  const fetchCalls: string[] = []
+  const originalFetch = global.fetch
+
+  global.fetch = async (input) => {
+    const url = new URL(String(input), 'http://localhost')
+    const cursor = url.searchParams.get('cursor') ?? '0'
+    fetchCalls.push(cursor)
+    const start = Number(cursor)
+    const nextCursor = start + 25 < 100 ? String(start + 25) : null
+    const nextBatch = createMockItems(25, start)
+    return new Response(JSON.stringify({ items: nextBatch, total: 100, nextCursor }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    let hookInstance!: ReturnType<typeof useItemWindow>
+
+    const initialItems = createMockItems(25, 0)
+    render(
+      <WindowHarness
+        seed={{ items: initialItems, total: 100, nextCursor: '25' }}
+        onReady={(h) => {
+          hookInstance = h
+        }}
+      />
+    )
+
+    // Initial state: 25 items loaded
+    assert.equal(hookInstance.store.count, 25)
+    assert.equal(hookInstance.startIndex, 0)
+
+    // 1. Scroll near end of Batch 1 (item 23)
+    act(() => {
+      hookInstance.scrollToIndex(23, { align: 'start' })
+    })
+
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 50, 'Batch 2 (count 50) loaded')
+    })
+    assert.deepEqual(fetchCalls, ['25'], 'only cursor 25 was requested once')
+
+    // 2. Scroll near end of Batch 2 (item 47)
+    act(() => {
+      hookInstance.scrollToIndex(47, { align: 'start' })
+    })
+
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 75, 'Batch 3 (count 75) loaded')
+    })
+    assert.deepEqual(fetchCalls, ['25', '50'], 'cursor 50 requested once without repeating cursor 25')
+
+    // 3. Scroll near end of Batch 3 (item 72)
+    act(() => {
+      hookInstance.scrollToIndex(72, { align: 'start' })
+    })
+
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 100, 'Batch 4 (count 100) loaded')
+    })
+    assert.deepEqual(fetchCalls, ['25', '50', '75'], 'all batches requested in sequence')
+    assert.equal(hookInstance.store.hasMore, false, 'hasMore is now false at end of dataset')
+
+    // 4. Verify scrolling past count does not trigger additional fetch
+    act(() => {
+      hookInstance.scrollToIndex(99, { align: 'start' })
+    })
+
+    // Assert fetch calls count did not increase
+    assert.deepEqual(fetchCalls, ['25', '50', '75'], 'no duplicate or extra requests when hasMore is false')
+    assert.ok(hookInstance.startIndex >= 0, 'startIndex is valid non-negative number')
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+test('virtual window height stability: totalCount reserves full height from initial mount preventing layout shift', () => {
+  let hookInstance!: ReturnType<typeof useItemWindow>
+
+  const initialItems = createMockItems(25, 0)
+  render(
+    <WindowHarness
+      seed={{ items: initialItems, total: 143, nextCursor: '25' }}
+      onReady={(h) => {
+        hookInstance = h
+      }}
+    />
+  )
+
+  // With 143 items at 64px row height:
+  // topSpace + (slots.length * 64) + bottomSpace MUST equal 143 * 64 = 9152px
+  const totalVirtualHeight = hookInstance.topSpace + (hookInstance.slots.length * 64) + hookInstance.bottomSpace
+  assert.equal(totalVirtualHeight, 143 * 64, 'total virtual height matches totalCount * rowHeight without scroll jumps')
+  assert.ok(hookInstance.slots.length > 0, 'slots array is populated')
+  assert.equal(hookInstance.slots[0]?.id, 'item-0', 'first slot is item-0')
+})
+
+test('fast scroll ahead of loaded batches: maintains placeholder slots without collapsing to empty array', () => {
+  let hookInstance!: ReturnType<typeof useItemWindow>
+  let containerEl!: HTMLDivElement
+
+  const initialItems = createMockItems(25, 0)
+  render(
+    <WindowHarness
+      seed={{ items: initialItems, total: 143, nextCursor: '25' }}
+      onReady={(h, el) => {
+        hookInstance = h
+        containerEl = el
+      }}
+    />
+  )
+
+  // Simulate scrolling fast ahead to scrollTop 3000px (item index ~46, well ahead of initial 25 items)
+  act(() => {
+    containerEl.scrollTop = 3000
+    const win = containerEl.ownerDocument.defaultView ?? window
+    containerEl.dispatchEvent(new win.Event('scroll'))
+  })
+
+  // Assert slots does not collapse to 0 length; it must render placeholder slots for the virtual window
+  assert.ok(hookInstance.slots.length > 0, 'slots array must remain populated with placeholders')
+  assert.ok(hookInstance.topSpace > 0, 'topSpace is appropriately calculated for the scrolled position')
+  const totalVirtualHeight = hookInstance.topSpace + (hookInstance.slots.length * 64) + hookInstance.bottomSpace
+  assert.equal(totalVirtualHeight, 143 * 64, 'virtual height remains stable during fast scroll ahead')
+})
+

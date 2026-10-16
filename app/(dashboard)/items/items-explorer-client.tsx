@@ -589,6 +589,7 @@ function ItemsExplorerSession({
               {viewMode === 'list' ? (
                 <ItemsList
                   items={windowed.slots}
+                  startIndex={windowed.startIndex}
                   topSpace={windowed.topSpace}
                   bottomSpace={windowed.bottomSpace}
                   selectedItemId={effectiveSelectedItemId}
@@ -610,6 +611,7 @@ function ItemsExplorerSession({
                 <ItemsGrid
                   columns={windowed.columns}
                   items={windowed.slots}
+                  startIndex={windowed.startIndex}
                   topSpace={windowed.topSpace}
                   bottomSpace={windowed.bottomSpace}
                   selectedItemId={effectiveSelectedItemId}

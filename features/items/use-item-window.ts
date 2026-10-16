@@ -27,8 +27,12 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const [view, setView] = useState<'list' | 'grid'>('list')
   const [viewport, setViewport] = useState({ top: 0, height: 600, width: 1000 })
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const attachScroll = useCallback((element: HTMLDivElement | null) => { scrollRef.current = element }, [])
+  const attachScroll = useCallback((element: HTMLDivElement | null) => {
+    scrollRef.current = element
+    setScrollElement(element)
+  }, [])
   const pendingAnchor = useRef<number | null>(null)
   const seedRef = useRef(seed.items)
   const identityRef = useRef(identity)
@@ -37,9 +41,11 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   const rowHeight = view === 'list' ? 64 : 220
   const offset = view === 'list' ? 44 : 16
   const overscan = view === 'list' ? 8 : 4
+  const totalCount = Math.max(store.count, state.total ?? 0)
   const anchor = Math.max(0, Math.floor((viewport.top - offset) / rowHeight)) * columns
   const first = Math.max(0, Math.floor((viewport.top - offset) / rowHeight) - overscan) * columns
-  const last = Math.min(store.count, (Math.ceil((viewport.top + viewport.height - offset) / rowHeight) + overscan) * columns)
+  const last = Math.min(totalCount, (Math.ceil((viewport.top + viewport.height - offset) / rowHeight) + overscan) * columns)
+  const safeFirst = Math.min(first, Math.max(0, last - 1))
   const previousLayout = useRef({ columns, rowHeight, anchor })
 
   useLayoutEffect(() => {
@@ -85,7 +91,7 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   }, [seed.items, seed.total, store])
 
   useEffect(() => {
-    const element = scrollRef.current
+    const element = scrollElement
     if (!element) return
     const update = () => {
       const top = element.scrollTop
@@ -104,10 +110,10 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
       element.removeEventListener('scroll', update)
       observer?.disconnect()
     }
-  }, [])
+  }, [scrollElement])
 
-  useEffect(() => { void store.ensure(first, last, anchor) }, [first, last, anchor, state, store])
-  const slots = Array.from({ length: Math.max(0, last - first) }, (_, i) => store.at(first + i))
+  useEffect(() => { void store.ensure(safeFirst, last, anchor) }, [safeFirst, last, anchor, state, store])
+  const slots = Array.from({ length: Math.max(0, last - safeFirst) }, (_, i) => store.at(safeFirst + i))
   const loaded = useMemo(() => {
     const list: ItemListRow[] = []
     for (const batch of state.batches) {
@@ -176,8 +182,9 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
 
   return {
     store, state, view, setView, attachScroll, columns, slots,
-    topSpace: Math.floor(first / columns) * rowHeight,
-    bottomSpace: Math.max(0, Math.ceil(store.count / columns) - Math.ceil(last / columns)) * rowHeight,
+    startIndex: safeFirst,
+    topSpace: Math.floor(safeFirst / columns) * rowHeight,
+    bottomSpace: Math.max(0, Math.ceil(totalCount / columns) - Math.ceil(last / columns)) * rowHeight,
     loaded,
     save,
     scrollToIndex,

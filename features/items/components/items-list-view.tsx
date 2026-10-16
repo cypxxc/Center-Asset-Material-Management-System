@@ -19,6 +19,7 @@ import { CategoryBadge } from './category-badge'
 
 export interface ItemsListProps {
   items: (ItemListRow | null | undefined)[]
+  startIndex?: number
   topSpace: number
   bottomSpace: number
   selectedItemId: string | null
@@ -39,6 +40,7 @@ export interface ItemsListProps {
 
 export function ItemsList({
   items,
+  startIndex = 0,
   topSpace,
   bottomSpace,
   allLoadedSelected,
@@ -137,7 +139,7 @@ export function ItemsList({
             <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
           )}
           {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
+            if (!item) return <tr key={`slot-${startIndex + slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
             return (
               <ItemTableRow
                 key={item.id}
