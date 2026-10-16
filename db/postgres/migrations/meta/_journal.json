@@ -43,6 +43,13 @@
       "when": 1789350000000,
       "tag": "0005_rate_limits_table",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792125256667,
+      "tag": "0006_add_color_to_categories",
+      "breakpoints": true
     }
   ]
 }
