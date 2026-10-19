@@ -59,10 +59,9 @@ export async function getPostgresItemReferences() {
   })
 }
 
-export async function getPostgresItems(params: ItemListSearchParams): Promise<ItemListResult> {
+export async function getPostgresItems(params: ItemListSearchParams, pageSize = 10): Promise<ItemListResult> {
   const parsedPage = Number(params.page ?? '1')
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1
-  const pageSize = 10
   const columns: Record<string, SQL> = { item_name: sql`i.item_name`, item_type: sql`i.item_type`, quantity: sql`i.quantity`, status: sql`i.status` }
   const sortBy = params.sort_by ?? ''
   const order = Object.hasOwn(columns, sortBy) ? columns[sortBy] : sql`i.updated_at`

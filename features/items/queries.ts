@@ -28,7 +28,8 @@ import {
   ItemsExplorerPageData,
   DashboardLayoutData,
 } from './types'
-import { BATCH_SIZE, decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
+import { BATCH_SIZE, ITEMS_PAGE_SIZE } from './list-params'
+import { decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
 async function getEffectiveClient() {
   const devSessionUser = await getDevelopmentSessionUser()
@@ -246,12 +247,12 @@ const getCachedSidebarData = unstable_cache(
   { tags: [CACHE_TAGS.SIDEBAR_DATA, CACHE_TAGS.ITEM_REFERENCES], revalidate: 300 }
 )
 
-export async function getItems(params: ItemListSearchParams): Promise<ItemListResult> {
-  if (isPostgresBackend()) return getPostgresItems(params)
+export async function getItems(params: ItemListSearchParams, pageSize: number = PAGE_SIZE): Promise<ItemListResult> {
+  if (isPostgresBackend()) return getPostgresItems(params, pageSize)
   const supabase = await createClient()
   const page = parsePage(params.page)
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
   const q = normalizeForSearch(params.q || '')
 
   let query = supabase
@@ -333,7 +334,10 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
   const [references, { result: { data, count, error } }] = await Promise.all([
     getItemReferences(),
     measureQuery('items.getItems', () =>
-      query.order(orderColumn, { ascending }).range(from, to)
+      query
+        .order(orderColumn, { ascending })
+        .order('id', { ascending })
+        .range(from, to)
     ),
   ])
 
@@ -395,8 +399,8 @@ export async function getItems(params: ItemListSearchParams): Promise<ItemListRe
     items,
     total,
     page,
-    pageSize: PAGE_SIZE,
-    totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   }
 }
 
@@ -749,13 +753,15 @@ export async function getItemsExplorerPageData(
 ): Promise<ItemsExplorerPageData> {
   const [references, result] = await Promise.all([
     getItemReferences(),
-    getItemBatch(params),
+    getItems(params, ITEMS_PAGE_SIZE),
   ])
 
   return {
     items: result.items,
-    total: result.total ?? 0,
-    nextCursor: result.nextCursor,
+    total: result.total,
+    page: result.page,
+    pageSize: result.pageSize,
+    totalPages: result.totalPages,
     references,
   }
 }

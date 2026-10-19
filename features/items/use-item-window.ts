@@ -130,7 +130,12 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
     return list
   }, [state.batches])
 
-  const save = useCallback(() => saveItemWindow({ identity, state, view, anchor }), [identity, state, view, anchor])
+  const latestWindowRef = useRef({ identity, state, view, anchor })
+  useEffect(() => {
+    latestWindowRef.current = { identity, state, view, anchor }
+  }, [identity, state, view, anchor])
+
+  const save = useCallback(() => saveItemWindow(latestWindowRef.current), [])
 
   const scrollToIndex = useCallback((index: number, options?: ScrollToIndexOptions) => {
     if (!Number.isFinite(index) || index < 0 || store.count === 0) return

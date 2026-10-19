@@ -36,8 +36,7 @@ import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import type { BulkItemUpdates } from '@/features/items/bulk-edit'
 import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
-import { normalizeItemListSearchParams } from '@/features/items/list-params'
-import { useItemWindow } from '@/features/items/use-item-window'
+import { normalizeItemListSearchParams, ITEMS_PAGE_SIZE } from '@/features/items/list-params'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { ItemsList } from '@/features/items/components/items-list-view'
@@ -46,10 +45,26 @@ import { Inspector } from '@/features/items/components/item-inspector-drawer'
 import { ItemsBulkBar } from '@/features/items/components/items-bulk-bar'
 import { ItemsFilterBar } from '@/features/items/components/items-filter-bar'
 
+export function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, 'ellipsis', total]
+  }
+  if (current >= total - 3) {
+    return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total]
+  }
+  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
+}
+
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
   total: number
-  nextCursor: string | null
+  page?: number
+  pageSize?: number
+  totalPages?: number
+  nextCursor?: string | null
   userId: string
   params: ItemListSearchParams & { new?: string }
   userCanWrite: boolean
@@ -74,15 +89,19 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  const identity = useMemo(() => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params)]), [props.userId, props.params])
+  const identity = useMemo(
+    () => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params), props.page ?? props.params.page ?? '1']),
+    [props.userId, props.params, props.page]
+  )
   return <ItemsExplorerSession key={identity} {...props} identity={identity} />
 }
 
 function ItemsExplorerSession({
   items,
   total,
-  nextCursor,
-  identity,
+  page,
+  pageSize = ITEMS_PAGE_SIZE,
+  totalPages,
   params,
   userCanWrite,
   userCanDelete,
@@ -96,16 +115,24 @@ function ItemsExplorerSession({
   const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
   const router = useRouter()
-  const {
-    attachScroll,
-    optimisticUpdate,
-    optimisticDelete,
-    rollback,
-    snapshot,
-    save: saveWindow,
-    ...windowed
-  } = useItemWindow(identity, params, { items, total, nextCursor })
-  const localItems = windowed.loaded
+
+  const [currentItems, setCurrentItems] = useState<ItemListRow[]>(items)
+  const [currentTotal, setCurrentTotal] = useState<number>(total)
+  const [prevPropsItems, setPrevPropsItems] = useState<ItemListRow[]>(items)
+  const [prevPropsTotal, setPrevPropsTotal] = useState<number>(total)
+
+  if (items !== prevPropsItems) {
+    setPrevPropsItems(items)
+    setCurrentItems(items)
+  }
+  if (total !== prevPropsTotal) {
+    setPrevPropsTotal(total)
+    setCurrentTotal(total)
+  }
+
+  const currentPage = page ?? (Number(params.page || '1') || 1)
+  const effectivePageSize = pageSize || 50
+  const totalPagesCalculated = totalPages ?? Math.max(1, Math.ceil(currentTotal / effectivePageSize))
 
   const { toast } = useToast()
   const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
@@ -113,7 +140,11 @@ function ItemsExplorerSession({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir])
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [isFocusMode, setIsFocusMode] = useState(false)
+  const [blockingError, setBlockingError] = useState<string | null>(null)
+
+  const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir, currentPage])
   const currentFilterKey = useRef(filterKey)
   useEffect(() => { currentFilterKey.current = filterKey }, [filterKey])
   const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
@@ -122,13 +153,10 @@ function ItemsExplorerSession({
     setSelectedItemIds([])
     setBulkEditOpen(false)
   }
-  if (inspectedItem && localItems.length > 0 && !localItems.some((item) => item.id === inspectedItem.id)) {
+  if (inspectedItem && currentItems.length > 0 && !currentItems.some((item) => item.id === inspectedItem.id)) {
     setInspectedItem(null)
     setIsInspectorOpen(false)
   }
-  const { view: viewMode, setView: setViewMode } = windowed
-  const [isFocusMode, setIsFocusMode] = useState(false)
-  const [blockingError, setBlockingError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isFocusMode) return
@@ -143,6 +171,7 @@ function ItemsExplorerSession({
     setSearchVal,
     isPending,
     handleFilterChange,
+    handlePageChange,
     toggleSort,
     buildHref,
   } = useItemsFilter(params)
@@ -156,7 +185,7 @@ function ItemsExplorerSession({
 
   const selectedItemsData = useMemo(() => {
     const selectedSet = new Set(selectedItemIds)
-    return localItems
+    return currentItems
       .filter((item) => selectedSet.has(item.id))
       .map((item) => ({
         id: item.id,
@@ -170,13 +199,13 @@ function ItemsExplorerSession({
         responsible_person: item.responsible_person,
         unit_price: item.unit_price,
       }))
-  }, [localItems, selectedItemIds])
+  }, [currentItems, selectedItemIds])
 
   const effectiveSelectedItemId = inspectedItem?.id ?? null
   const selectedItem = useMemo(() => {
     if (!effectiveSelectedItemId) return inspectedItem
-    return localItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
-  }, [effectiveSelectedItemId, localItems, inspectedItem])
+    return currentItems.find(item => item.id === effectiveSelectedItemId) ?? inspectedItem
+  }, [effectiveSelectedItemId, currentItems, inspectedItem])
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -292,8 +321,8 @@ function ItemsExplorerSession({
   }
 
   const folderValuation = useMemo(() => {
-    return localItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
-  }, [localItems])
+    return currentItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
+  }, [currentItems])
 
   const handleToggleSelectItem = useCallback((id: string) => {
     setSelectedItemIds((prev) =>
@@ -301,13 +330,13 @@ function ItemsExplorerSession({
     )
   }, [setSelectedItemIds])
 
-  const localItemsRef = useRef(localItems)
+  const currentItemsRef = useRef(currentItems)
   useEffect(() => {
-    localItemsRef.current = localItems
-  }, [localItems])
+    currentItemsRef.current = currentItems
+  }, [currentItems])
 
   const handleToggleSelectAll = useCallback(() => {
-    const pageIds = localItemsRef.current.map(item => item.id)
+    const pageIds = currentItemsRef.current.map(item => item.id)
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
@@ -319,9 +348,8 @@ function ItemsExplorerSession({
   }, [setInspectedItem, setIsInspectorOpen])
 
   const handleDoubleClickItem = useCallback((item: ItemListRow) => {
-    saveWindow()
     router.push(`/items/${item.id}`)
-  }, [router, saveWindow])
+  }, [router])
 
   const handlePrintItem = useCallback((item: ItemListRow) => {
     setSinglePrintItem(toStickerItem(item))
@@ -333,25 +361,34 @@ function ItemsExplorerSession({
   }, [])
 
   const handleBulkDelete = async () => {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
+    if (typeof window !== 'undefined' && !window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
 
-    const snap = snapshot()
-    optimisticDelete(selectedItemIds)
+    const prevItems = currentItems
+    const prevTotal = currentTotal
     const targetIds = [...selectedItemIds]
+
+    setCurrentItems(prev => prev.filter(item => !targetIds.includes(item.id)))
+    setCurrentTotal(prev => Math.max(0, prev - targetIds.length))
     setSelectedItemIds([])
 
     try {
       const res = await deleteBulkAction(targetIds)
       if (!res.success) {
-        rollback(snap)
+        setCurrentItems(prevItems)
+        setCurrentTotal(prevTotal)
         setSelectedItemIds(targetIds)
         setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
       } else {
         triggerToast(res.message || 'ลบเรียบร้อย')
-        router.refresh()
+        if (targetIds.length >= prevItems.length && currentPage > 1) {
+          handlePageChange(currentPage - 1)
+        } else {
+          router.refresh()
+        }
       }
     } catch {
-      rollback(snap)
+      setCurrentItems(prevItems)
+      setCurrentTotal(prevTotal)
       setSelectedItemIds(targetIds)
       setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่')
     }
@@ -413,25 +450,24 @@ function ItemsExplorerSession({
 
       // Shortcut: "ArrowDown" / "ArrowUp"
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (!localItems.length) return
+        if (!currentItems.length) return
         e.preventDefault()
 
         const currentIndex = inspectedItem
-          ? localItems.findIndex((item) => item.id === inspectedItem.id)
+          ? currentItems.findIndex((item) => item.id === inspectedItem.id)
           : -1
 
         let targetIndex: number
         if (e.key === 'ArrowDown') {
-          targetIndex = currentIndex === -1 ? 0 : Math.min(localItems.length - 1, currentIndex + 1)
+          targetIndex = currentIndex === -1 ? 0 : Math.min(currentItems.length - 1, currentIndex + 1)
         } else {
           targetIndex = currentIndex === -1 ? 0 : Math.max(0, currentIndex - 1)
         }
 
-        const nextItem = localItems[targetIndex]
+        const nextItem = currentItems[targetIndex]
         if (nextItem) {
           setInspectedItem(nextItem)
           setIsInspectorOpen(true)
-          windowed.scrollToIndex(targetIndex, { align: 'auto' })
         }
         return
       }
@@ -459,7 +495,7 @@ function ItemsExplorerSession({
   }, [
     isFocusMode,
     isInspectorOpen,
-    localItems,
+    currentItems,
     inspectedItem,
     isSheetOpen,
     bulkEditOpen,
@@ -467,7 +503,6 @@ function ItemsExplorerSession({
     singlePrintItem,
     locationPrintItems,
     blockingError,
-    windowed,
     handleToggleSelectItem,
   ])
 
@@ -619,11 +654,11 @@ function ItemsExplorerSession({
                 })
               }}
               folderValuation={folderValuation}
-              localItemsCount={localItems.length}
+              localItemsCount={currentItems.length}
               isExporting={isExporting}
               onExport={exportToExcel}
               onBatchPrintLocation={() => {
-                const stickers: ItemStickerData[] = localItems.map((itm) => ({
+                const stickers: ItemStickerData[] = currentItems.map((itm) => ({
                   id: itm.id,
                   item_name: itm.item_name,
                   asset_no: itm.asset_no,
@@ -650,20 +685,17 @@ function ItemsExplorerSession({
                 </div>
               </div>
             )}
-            <div ref={attachScroll} data-testid="items-scroll" className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
+            <div data-testid="items-scroll" className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
               {viewMode === 'list' ? (
                 <ItemsList
-                  items={windowed.slots}
-                  startIndex={windowed.startIndex}
-                  topSpace={windowed.topSpace}
-                  bottomSpace={windowed.bottomSpace}
+                  items={currentItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={handleSelectItem}
                   onDoubleClick={handleDoubleClickItem}
                   onToggleSelectItem={handleToggleSelectItem}
                   onToggleSelectAll={handleToggleSelectAll}
-                  allLoadedSelected={localItems.length > 0 && localItems.every(item => selectedItemIds.includes(item.id))}
+                  allLoadedSelected={currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.id))}
                   params={params}
                   onToggleSort={toggleSort}
                   isInspectorOpen={isInspectorOpen}
@@ -674,11 +706,7 @@ function ItemsExplorerSession({
                 />
               ) : (
                 <ItemsGrid
-                  columns={windowed.columns}
-                  items={windowed.slots}
-                  startIndex={windowed.startIndex}
-                  topSpace={windowed.topSpace}
-                  bottomSpace={windowed.bottomSpace}
+                  items={currentItems}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={handleSelectItem}
@@ -693,13 +721,15 @@ function ItemsExplorerSession({
             </div>
           </div>
 
-          <footer className="flex min-h-10 flex-wrap gap-2 py-2 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
+          <footer className="flex min-h-12 flex-wrap gap-3 py-2.5 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
               <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground shrink-0">
-                ถึง {windowed.store.count} / {windowed.state.total ?? total} รายการ (โหลดอยู่ {localItems.length})
+                {currentTotal > 0
+                  ? `แสดง ${(currentPage - 1) * effectivePageSize + 1}–${Math.min(currentPage * effectivePageSize, currentTotal)} จาก ${currentTotal.toLocaleString()} รายการ`
+                  : 'แสดง 0 จาก 0 รายการ'}
               </span>
               <span className="text-muted-foreground font-semibold hidden xl:inline shrink-0">
-                มูลค่ารายการที่โหลดอยู่: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
+                มูลค่ารายการในหน้านี้: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
                 <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0">
@@ -708,16 +738,67 @@ function ItemsExplorerSession({
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <span role="status" aria-live="polite">{windowed.state.error ?? (windowed.state.loading ? 'กำลังโหลด...' : !windowed.store.hasMore ? 'ครบทุกข้อมูลแล้ว' : '')}</span>
-              {(windowed.state.error || windowed.store.hasMore) && <Button variant="outline" disabled={windowed.state.loading} onClick={() => void (windowed.state.error ? windowed.store.retry() : windowed.store.loadMore())}>{windowed.state.error ? 'ลองใหม่' : 'โหลดเพิ่มเติม'}</Button>}
+            {/* Server-Side Pagination Controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1 || isPending}
+                onClick={() => handlePageChange(currentPage - 1)}
+                className="h-8 px-2.5 text-xs font-semibold"
+                aria-label="หน้าก่อนหน้า"
+              >
+                ก่อนหน้า
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers(currentPage, totalPagesCalculated).map((item, idx) => {
+                  if (item === 'ellipsis') {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">
+                        …
+                      </span>
+                    )
+                  }
+                  const isCurrent = item === currentPage
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handlePageChange(item)}
+                      aria-current={isCurrent ? 'page' : undefined}
+                      aria-label={`หน้า ${item}`}
+                      className={cn(
+                        'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
+                        isCurrent
+                          ? 'bg-primary text-primary-foreground shadow-xs font-bold'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {item}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPagesCalculated || isPending}
+                onClick={() => handlePageChange(currentPage + 1)}
+                className="h-8 px-2.5 text-xs font-semibold"
+                aria-label="หน้าถัดไป"
+              >
+                ถัดไป
+              </Button>
             </div>
           </footer>
         </main>
 
         {/* Adaptive Detail Inspector: Docked split-pane on desktop, slide-over drawer on mobile */}
         <Inspector
-          onOpenDetails={saveWindow}
+          onOpenDetails={() => {}}
           isOpen={isInspectorOpen}
           mode={isFocusMode ? 'drawer' : 'auto'}
           onClose={() => setIsInspectorOpen(false)}
@@ -741,7 +822,7 @@ function ItemsExplorerSession({
           units={units}
           onClose={() => setBulkEditOpen(false)}
           onSave={async (updates) => {
-            const snap = snapshot()
+            const prevItems = currentItems
             const patch: Partial<ItemListRow> = {}
             if (updates.status !== undefined) {
               patch.status = updates.status
@@ -761,15 +842,15 @@ function ItemsExplorerSession({
               const u = units.find((unit) => unit.id === updates.unit_id)
               patch.unit = u ? { id: u.id, name: u.name } : { id: updates.unit_id, name: '' }
             }
-            optimisticUpdate(selectedItemIds, patch)
+            setCurrentItems(prev => prev.map(item => selectedItemIds.includes(item.id) ? { ...item, ...patch } : item))
             try {
               const result = await bulkUpdateAction(selectedItemIds, updates)
               if (!result.success) {
-                rollback(snap)
+                setCurrentItems(prevItems)
               }
               return result
             } catch (err) {
-              rollback(snap)
+              setCurrentItems(prevItems)
               throw err
             }
           }}

@@ -14,6 +14,17 @@ export interface WindowState {
   error: string | null
 }
 export type BatchFetcher = (cursor: string | undefined, signal: AbortSignal) => Promise<ItemBatchResult>
+export function areBatchesEqual(a?: (ItemListRow | null)[], b?: ItemListRow[]): boolean {
+  if (!a || !b) return a === b
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const itemA = a[i]
+    const itemB = b[i]
+    if (!itemA || !itemB) return false
+    if (itemA.id !== itemB.id || itemA.updated_at !== itemB.updated_at) return false
+  }
+  return true
+}
 
 /** Cursor metadata survives eviction; only twenty batches of records remain resident. */
 export class ItemBatchWindow {
@@ -33,6 +44,7 @@ export class ItemBatchWindow {
   getSnapshot = () => this.state
   private publish(state: WindowState) { this.state = state; this.listeners.forEach(listener => listener()) }
   dispose() { this.generation++; this.controller?.abort(); this.controller = undefined }
+
   resetSeed(seed: ItemBatchResult) {
     this.dispose()
     this.anchor = 0
@@ -42,6 +54,35 @@ export class ItemBatchWindow {
       loading: false,
       error: null,
     })
+  }
+  syncSeed(seed: ItemBatchResult): boolean {
+    const batch0 = this.state.batches[0]
+    if (batch0?.items && areBatchesEqual(batch0.items, seed.items) && (seed.total == null || seed.total === this.state.total)) {
+      return false
+    }
+    const batches = this.state.batches.slice()
+    batches[0] = {
+      ...(batch0 ?? { start: 0, length: seed.items.length, nextCursor: seed.nextCursor }),
+      start: 0,
+      length: seed.items.length,
+      nextCursor: seed.nextCursor,
+      items: seed.items,
+    }
+    const nextTotal = seed.total ?? this.state.total
+    if (batches.length <= 1) {
+      this.publish({ ...this.state, total: nextTotal, batches })
+      return true
+    }
+    let currentStart = seed.items.length
+    for (let i = 1; i < batches.length; i++) {
+      batches[i] = {
+        ...batches[i],
+        start: currentStart,
+      }
+      currentStart += batches[i].length
+    }
+    this.publish({ ...this.state, total: nextTotal, batches })
+    return true
   }
   setFetcher(fetcher: BatchFetcher) {
     this.fetcher = fetcher
@@ -198,7 +239,7 @@ export class ItemBatchWindow {
       for (let i = startIndex; i < endIndex; i++) {
         const result = await this.fetcher(cursor, signal)
         total = result.total ?? total
-        const uniqueItems = this.unique(result.items, old.filter((_, idx) => idx !== i))
+        const uniqueItems = this.unique(result.items, old.filter((_, idx) => idx < i))
         old[i] = {
           ...old[i],
           start,

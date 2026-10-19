@@ -2,9 +2,7 @@ import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
-import { ItemBatchWindow, saveItemWindow } from '../../features/items/batch-window'
-import { normalizeItemListSearchParams } from '../../features/items/list-params'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 
 // This component test exercises the inspector UI, not the live Supabase channel.
 // Disable the channel so placeholder CI credentials cannot leave a realtime socket open.
@@ -60,6 +58,9 @@ const mockItems: ItemListRow[] = [
 const defaultProps = {
   items: mockItems,
   total: 2,
+  page: 1,
+  pageSize: 50,
+  totalPages: 1,
   nextCursor: null,
   userId: 'user-1',
   params: {},
@@ -112,49 +113,48 @@ test('ItemsExplorerClient renders table rows with full width', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('list and grid render bounded visible records and view toggles preserve the item anchor', () => {
-  const items = Array.from({ length: 500 }, (_, i) => ({ ...mockItems[0], id: `virtual-${i}`, item_name: `Virtual ${i}` }))
-  const { container } = renderComponent({ ...defaultProps, items, total: 500 })
-  assert.ok(screen.getAllByRole('row').length < 30)
-  const root = screen.getByTestId('items-scroll')
-  fireEvent.scroll(root, { target: { scrollTop: 6400 } })
-  assert.ok(screen.getByText('Virtual 100'))
+test('list and grid render 50 items and view toggles preserve inspected item without virtual scrolling', () => {
+  const items = Array.from({ length: 50 }, (_, i) => ({ ...mockItems[0], id: `item-page-${i}`, item_name: `Page Item ${i}` }))
+  const { container } = renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
+  // In list view, all 50 items are rendered directly without virtual spacer rows
+  const rows = screen.getAllByRole('row')
+  // 1 header row + 50 data rows = 51 rows
+  assert.equal(rows.length, 51)
+  assert.equal(container.querySelector('[key="__virtual-top-spacer__"]'), null)
+  assert.equal(container.querySelector('[key="__virtual-bottom-spacer__"]'), null)
+
+  // Click on item 10 to inspect it
+  fireEvent.click(screen.getByText('Page Item 10'))
+  assert.ok(screen.getAllByText('Page Item 10').length >= 1)
+
+  // Toggle to Grid view
   fireEvent.click(screen.getByTitle('Grid view'))
-  assert.ok(container.querySelectorAll('[tabindex="0"]').length < 50)
-  assert.ok(screen.getByText('Virtual 100'))
+  assert.equal(container.querySelectorAll('.grid > div[tabindex="0"]').length, 50)
+  assert.ok(screen.getAllByText('Page Item 10').length >= 1)
+
+  // Toggle back to List view
   fireEvent.click(screen.getByTitle('List view'))
-  assert.ok(screen.getByText('Virtual 100'))
-  assert.ok(screen.getAllByRole('row').length < 30)
+  assert.equal(screen.getAllByRole('row').length, 51)
 })
 
-test('return snapshot restores deep position and refreshes the same cursor', async () => {
-  const originalFetch = global.fetch
-  const items = Array.from({ length: 200 }, (_, i) => ({ ...mockItems[0], id: `saved-${i}`, item_name: `Saved ${i}` }))
-  const store = new ItemBatchWindow({ items: items.slice(0, 25), total: 200, nextCursor: '25' }, async cursor => {
-    const start = Number(cursor)
-    return { items: items.slice(start, start + 25), total: null, nextCursor: start + 25 < 200 ? String(start + 25) : null }
-  })
-  for (let i = 1; i < 8; i++) await store.loadMore()
-  saveItemWindow({ identity: JSON.stringify(['user-1', normalizeItemListSearchParams({})]), state: store.state, view: 'list', anchor: 150 })
-  const cursors: string[] = []
-  global.fetch = async input => {
-    const cursor = new URL(String(input), 'http://localhost').searchParams.get('cursor') ?? '0'
-    cursors.push(cursor)
-    const start = Number(cursor)
-    return Response.json({ items: items.slice(start, start + 25), total: null, nextCursor: start + 25 < 200 ? String(start + 25) : null })
-  }
-  try {
-    const view = renderComponent()
-    await waitFor(() => assert.ok(screen.getByText('Saved 150')))
-    assert.equal(cursors[0], '150')
-    assert.ok(screen.getByTestId('items-scroll').scrollTop > 9000)
-    const previousCalls = cursors.length
-    view.rerender(<ToastProvider><ItemsExplorerClient {...defaultProps} items={[...mockItems]} /></ToastProvider>)
-    await waitFor(() => assert.ok(cursors.length > previousCalls))
-    await waitFor(() => assert.ok(screen.getByText('Saved 150')))
-    assert.ok(Number(cursors[previousCalls]) >= 125, 'same-query server refresh must not reset to the initial cursor')
-    assert.ok(screen.getByTestId('items-scroll').scrollTop > 9000)
-  } finally { global.fetch = originalFetch }
+test('pagination footer displays range, total, and handles page buttons', () => {
+  const items = Array.from({ length: 50 }, (_, i) => ({ ...mockItems[0], id: `page1-${i}`, item_name: `Page 1 Item ${i}` }))
+  renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
+
+  // Summary badge: "แสดง 1–50 จาก 237 รายการ"
+  assert.ok(screen.getByText('แสดง 1–50 จาก 237 รายการ'))
+
+  // Previous button should be disabled on page 1
+  const prevBtn = screen.getByRole('button', { name: 'หน้าก่อนหน้า' })
+  assert.equal((prevBtn as HTMLButtonElement).disabled, true)
+
+  // Next button should be enabled
+  const nextBtn = screen.getByRole('button', { name: 'หน้าถัดไป' })
+  assert.equal((nextBtn as HTMLButtonElement).disabled, false)
+
+  // Current page 1 should have aria-current="page"
+  const page1Btn = screen.getByRole('button', { name: 'หน้า 1' })
+  assert.equal(page1Btn.getAttribute('aria-current'), 'page')
 })
 
 test('Type navigation preserves search filters and resets category and pagination', () => {

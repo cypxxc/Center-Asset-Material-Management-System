@@ -66,7 +66,16 @@ export function useRealtimeRefresh(tables: RealtimeTable[], enabled = true) {
 
     if (process.env.NEXT_PUBLIC_DATA_BACKEND === 'postgres') {
       const events = new EventSource(`/api/events?tables=${encodeURIComponent(tableKey)}`)
-      events.onmessage = (message) => { if (message.data !== 'heartbeat') scheduleRefresh() }
+      let isInitialConnect = true
+      events.onmessage = (message) => {
+        if (message.data === 'heartbeat') return
+        if (isInitialConnect && message.data === 'reconnect') {
+          isInitialConnect = false
+          return
+        }
+        isInitialConnect = false
+        scheduleRefresh()
+      }
       return () => { events.close(); cleanupTimers() }
     }
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return

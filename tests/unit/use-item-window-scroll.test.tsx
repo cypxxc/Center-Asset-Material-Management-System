@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { useEffect, useRef } from 'react'
 import { render, act, waitFor } from '@testing-library/react'
 import { useItemWindow } from '../../features/items/use-item-window'
+import { takeItemWindow } from '../../features/items/batch-window'
 import type { ItemBatchResult, ItemListRow } from '../../features/items/types'
 
 function createMockItems(count: number, startIndex = 0): ItemListRow[] {
@@ -580,4 +581,143 @@ test('scrolling to the end of dataset never collapses slots to 1 row', () => {
   assert.ok(hookInstance.slots.length >= 10, `slots length (${hookInstance.slots.length}) must maintain window capacity, never collapse to 1`)
   const totalVirtualHeight = hookInstance.topSpace + (hookInstance.slots.length * 64) + hookInstance.bottomSpace
   assert.equal(totalVirtualHeight, 70 * 64, 'virtual height remains exactly 70 * 64')
+})
+
+test('save callback identity remains stable across anchor changes to prevent row memo bailout', () => {
+  let hookInstance!: ReturnType<typeof useItemWindow>
+  let containerEl!: HTMLDivElement
+
+  const initialItems = createMockItems(25, 0)
+  render(
+    <WindowHarness
+      seed={{ items: initialItems, total: 100, nextCursor: '25' }}
+      onReady={(h, el) => {
+        hookInstance = h
+        containerEl = el
+      }}
+    />
+  )
+
+  const initialSave = hookInstance.save
+
+  // Scroll down to change anchor from 0 to 5
+  act(() => {
+    containerEl.scrollTop = 44 + 5 * 64 // anchor = 5
+    const win = containerEl.ownerDocument.defaultView ?? window
+    containerEl.dispatchEvent(new win.Event('scroll'))
+  })
+
+  // The save callback reference must be completely stable to avoid invalidating ItemTableRow React.memo
+  assert.equal(hookInstance.save, initialSave, 'save callback identity must remain stable across scroll anchor changes')
+
+  // Verify that calling the stable save callback captures the latest anchor
+  hookInstance.save()
+  const saved = takeItemWindow('test-scroll-session')
+  assert.ok(saved, 'snapshot should be saved')
+  assert.equal(saved.anchor, 5, 'snapshot must capture the latest anchor even with stable callback')
+})
+
+test('server revalidation with new seed reference refreshes window around anchor without slot collapse or nulling', async () => {
+  const originalFetch = global.fetch
+  global.fetch = async (input) => {
+    const url = new URL(String(input), 'http://localhost')
+    const cursor = url.searchParams.get('cursor') ?? '0'
+    const start = Number(cursor)
+    const nextBatch = createMockItems(25, start)
+    return new Response(JSON.stringify({ items: nextBatch, total: 100, nextCursor: String(start + 25) }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    let hookInstance!: ReturnType<typeof useItemWindow>
+    const initialItems = createMockItems(25, 0)
+
+    const { rerender } = render(
+      <WindowHarness
+        seed={{ items: initialItems, total: 100, nextCursor: '25' }}
+        onReady={(h) => {
+          hookInstance = h
+        }}
+      />
+    )
+
+    // Load batch 1
+    act(() => {
+      hookInstance.scrollToIndex(30, { align: 'start' })
+    })
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 50)
+    })
+
+    // Simulate RSC revalidation passing updated seed reference
+    const updatedItems = createMockItems(25, 0)
+    rerender(
+      <WindowHarness
+        seed={{ items: updatedItems, total: 100, nextCursor: '25' }}
+        onReady={(h) => {
+          hookInstance = h
+        }}
+      />
+    )
+
+    await waitFor(() => {
+      // Must not collapse or have null slots
+      assert.ok(hookInstance.slots.length > 0)
+      for (const slot of hookInstance.slots) {
+        assert.notEqual(slot, null, 'slots must not become null during server revalidation')
+      }
+    })
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+test('refresh deduplication only filters against preceding batches, never against downstream batches', async () => {
+  const originalFetch = global.fetch
+  global.fetch = async (input) => {
+    const url = new URL(String(input), 'http://localhost')
+    const cursor = url.searchParams.get('cursor') ?? '0'
+    const start = Number(cursor)
+    // Return items that overlap with stale downstream batch 1
+    const nextBatch = createMockItems(25, start)
+    return new Response(JSON.stringify({ items: nextBatch, total: 75, nextCursor: '50' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    let hookInstance!: ReturnType<typeof useItemWindow>
+    const initialItems = createMockItems(25, 0)
+    render(
+      <WindowHarness
+        seed={{ items: initialItems, total: 75, nextCursor: '25' }}
+        onReady={(h) => {
+          hookInstance = h
+        }}
+      />
+    )
+
+    // Load batch 1
+    act(() => {
+      hookInstance.scrollToIndex(30, { align: 'start' })
+    })
+    await waitFor(() => {
+      assert.equal(hookInstance.store.count, 50)
+    })
+
+    // Now refresh batch 0
+    await act(async () => {
+      await hookInstance.store.refresh(75)
+    })
+
+    // Verify batch 0 items are not nulled out by downstream batch 1 items
+    for (let i = 0; i < 25; i++) {
+      assert.notEqual(hookInstance.store.at(i), null, `item at index ${i} must not be nulled out by downstream duplicates`)
+    }
+  } finally {
+    global.fetch = originalFetch
+  }
 })

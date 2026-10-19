@@ -142,11 +142,11 @@ export const ItemGridCard = React.memo(function ItemGridCard({
 })
 
 export interface ItemsGridProps {
-  columns: number
+  columns?: number
   items: (ItemListRow | null | undefined)[]
   startIndex?: number
-  topSpace: number
-  bottomSpace: number
+  topSpace?: number
+  bottomSpace?: number
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
@@ -160,10 +160,7 @@ export interface ItemsGridProps {
 
 export function ItemsGrid({
   items,
-  startIndex = 0,
-  columns,
-  topSpace,
-  bottomSpace,
+  columns = 4,
   selectedItemId,
   selectedItemIds,
   onSelect,
@@ -175,11 +172,11 @@ export function ItemsGrid({
   onEdit,
 }: ItemsGridProps) {
   return (
-    <div className="bg-muted/20 p-4" style={{ paddingTop: topSpace + 16, paddingBottom: bottomSpace + 16 }}>
+    <div className="bg-muted/20 p-4">
       {items.length ? (
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: 208 }}>
-          {items.map((item, slot) => {
-            if (!item) return <div key={`slot-${startIndex + slot}`} className="p-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</div>
+          {items.map((item) => {
+            if (!item) return null
             return (
               <ItemGridCard
                 key={item.id}

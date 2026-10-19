@@ -20,8 +20,8 @@ import { CategoryBadge } from './category-badge'
 export interface ItemsListProps {
   items: (ItemListRow | null | undefined)[]
   startIndex?: number
-  topSpace: number
-  bottomSpace: number
+  topSpace?: number
+  bottomSpace?: number
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
@@ -40,9 +40,6 @@ export interface ItemsListProps {
 
 export function ItemsList({
   items,
-  startIndex = 0,
-  topSpace,
-  bottomSpace,
   allLoadedSelected,
   selectedItemId,
   selectedItemIds,
@@ -135,11 +132,8 @@ export function ItemsList({
           </tr>
         </DataTableHeader>
         <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {topSpace > 0 && (
-            <tr aria-hidden="true"><td colSpan={9} style={{ height: topSpace, padding: 0, border: 0 }} /></tr>
-          )}
-          {items.map((item, slot) => {
-            if (!item) return <tr key={`slot-${startIndex + slot}`} style={{ height: 64 }}><td colSpan={9} className="px-4 text-muted-foreground">{item === undefined ? 'กำลังโหลดรายการ...' : ''}</td></tr>
+          {items.map((item) => {
+            if (!item) return null
             return (
               <ItemTableRow
                 key={item.id}
@@ -154,10 +148,7 @@ export function ItemsList({
               />
             )
           })}
-          {bottomSpace > 0 && (
-            <tr aria-hidden="true"><td colSpan={9} style={{ height: bottomSpace, padding: 0, border: 0 }} /></tr>
-          )}
-          {!items.length && !topSpace && !bottomSpace && <EmptyRows />}
+          {!items.length && <EmptyRows />}
         </DataTableBody>
       </DataTable>
     </div>

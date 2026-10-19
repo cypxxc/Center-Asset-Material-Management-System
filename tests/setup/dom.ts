@@ -8,10 +8,17 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
 });
 
 // Directly assign to global for window and document
+dom.window.confirm = () => true;
+dom.window.alert = () => {};
+dom.window.prompt = () => null;
+
 Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
   localStorage: dom.window.localStorage,
+  confirm: dom.window.confirm,
+  alert: dom.window.alert,
+  prompt: dom.window.prompt,
 });
 
 // Use defineProperty with enumerable: true for navigator to avoid read-only collisions
