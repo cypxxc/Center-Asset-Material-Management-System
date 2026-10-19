@@ -1,6 +1,6 @@
 # Client Filter & Pagination Hooks Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract reusable client filter and query-synchronization hooks (`useAuditLogsFilter`, `useUsersFilter`, and `useItemsFilterSync`) to eliminate repetitive URLSearchParams boilerplate and standardize optimistic/transition filter handling across CAMMS explorer clients.
 
@@ -27,11 +27,11 @@
 **Interfaces:**
 - Produces: `useAuditLogsFilter(initialSearchParams, pathname, router, startTransition)` returning `{ searchTerm, setSearchTerm, selectedAction, setSelectedAction, selectedTable, setSelectedTable, applyFilters, handleSearchSubmit, handleResetFilters }`
 
-- [ ] **Step 1: Write unit test for audit logs filter URL generation and state transitions**
-- [ ] **Step 2: Run test to confirm failure**
-- [ ] **Step 3: Implement `useAuditLogsFilter` hook**
-- [ ] **Step 4: Verify test passes**
-- [ ] **Step 5: Refactor `audit-logs-client.tsx` to use `useAuditLogsFilter` and verify typecheck & tests**
+- [x] **Step 1: Write unit test for audit logs filter URL generation and state transitions**
+- [x] **Step 2: Run test to confirm failure**
+- [x] **Step 3: Implement `useAuditLogsFilter` hook**
+- [x] **Step 4: Verify test passes**
+- [x] **Step 5: Refactor `audit-logs-client.tsx` to use `useAuditLogsFilter` and verify typecheck & tests**
 
 ---
 
@@ -45,16 +45,16 @@
 **Interfaces:**
 - Produces: `useUsersFilter(initialSearchParams, pathname, router, startTransition)` returning `{ searchTerm, setSearchTerm, selectedRole, setSelectedRole, selectedStatus, setSelectedStatus, applyFilters, handleSearchSubmit, handleResetFilters }`
 
-- [ ] **Step 1: Write unit test for users filter URL generation**
-- [ ] **Step 2: Run test to confirm failure**
-- [ ] **Step 3: Implement `useUsersFilter` hook**
-- [ ] **Step 4: Verify test passes**
-- [ ] **Step 5: Refactor `users-client.tsx` to use `useUsersFilter` and verify typecheck & tests**
+- [x] **Step 1: Write unit test for users filter URL generation**
+- [x] **Step 2: Run test to confirm failure**
+- [x] **Step 3: Implement `useUsersFilter` hook**
+- [x] **Step 4: Verify test passes**
+- [x] **Step 5: Refactor `users-client.tsx` to use `useUsersFilter` and verify typecheck & tests**
 
 ---
 
 ### Task 3: Verification & Quality Gate
 
-- [ ] **Step 1: Run typecheck (`npm run typecheck`)**
-- [ ] **Step 2: Run full test suite (`npm test`)**
-- [ ] **Step 3: Check git status and commit clean changes**
+- [x] **Step 1: Run typecheck (`npm run typecheck`)**
+- [x] **Step 2: Run full test suite (`npm test`)**
+- [x] **Step 3: Check git status and commit clean changes**
