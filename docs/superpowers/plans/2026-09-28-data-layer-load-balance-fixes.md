@@ -1,6 +1,6 @@
 # Data Layer & Load Balancing Fixes — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Fix 3 evidenced production risks found in the code review: (1) in-memory rate limiting that resets on process restart, (2) inline table-locking DELETE on every login, and (3) 52 MB body limit that blocks the Node.js event loop.
 
@@ -37,7 +37,7 @@ await tx.execute(sql`delete from private_auth.login_attempts where window_starte
 - Produces: `consumeLoginAttempt(identifier: string): Promise<boolean>` — same signature, same semantics, no table lock on main transaction.
 - Produces: `pruneLoginAttempts(): Promise<void>` — new exported function, called from login action via `after()`.
 
-- [ ] **Step 1: Write the failing test that shows cleanup is separate**
+- [x] **Step 1: Write the failing test that shows cleanup is separate**
 
 ```ts
 // In lib/postgres/login-throttle.test.ts  (new file)
@@ -56,14 +56,14 @@ test('consumeLoginAttempt signature remains unchanged', async () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --test-name-pattern "pruneLoginAttempts"
 ```
 Expected: FAIL — `pruneLoginAttempts` not exported.
 
-- [ ] **Step 3: Implement the fix**
+- [x] **Step 3: Implement the fix**
 
 Replace the body of `lib/postgres/login-throttle.ts`:
 
@@ -100,7 +100,7 @@ export async function pruneLoginAttempts(): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Wire pruneLoginAttempts into the login action via after()**
+- [x] **Step 4: Wire pruneLoginAttempts into the login action via after()**
 
 Find the login server action (search `consumeLoginAttempt` usages). It will be in `features/auth/actions.ts` or similar. Add:
 
@@ -114,14 +114,14 @@ after(() => pruneLoginAttempts().catch(() => { /* best-effort */ }))
 
 > **Important:** `after()` runs after the response is sent. The cleanup failure must not propagate — wrap in `.catch()`.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```bash
 npm test -- --test-name-pattern "pruneLoginAttempts|consumeLoginAttempt"
 ```
 Expected: PASS — both tests green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/postgres/login-throttle.ts
@@ -150,7 +150,7 @@ git commit -m "perf(auth): move login-attempt cleanup out of hot-path transactio
 
 ### Sub-task 2a: Database Migration
 
-- [ ] **Step 1: Write migration file**
+- [x] **Step 1: Write migration file**
 
 Create `db/postgres/migrations/0005_rate_limits_table.sql`:
 
@@ -167,7 +167,7 @@ CREATE INDEX "rate_limits_window_index"
 GRANT SELECT, INSERT, UPDATE, DELETE ON private_auth.rate_limits TO camms_auth;
 ```
 
-- [ ] **Step 2: Apply migration to local Docker Postgres**
+- [x] **Step 2: Apply migration to local Docker Postgres**
 
 ```bash
 npm run db:migrate
@@ -176,7 +176,7 @@ Expected: Migration applied without error.
 
 ### Sub-task 2b: PostgresRateLimiter Implementation
 
-- [ ] **Step 3: Write the failing contract test**
+- [x] **Step 3: Write the failing contract test**
 
 Add to `lib/rate-limit.test.ts`:
 
@@ -198,14 +198,14 @@ test('getRateLimiter returns PostgresRateLimiter when DATA_BACKEND=postgres', as
 })
 ```
 
-- [ ] **Step 4: Run test to verify it fails**
+- [x] **Step 4: Run test to verify it fails**
 
 ```bash
 npm test -- --test-name-pattern "PostgresRateLimiter"
 ```
 Expected: FAIL.
 
-- [ ] **Step 5: Implement PostgresRateLimiter**
+- [x] **Step 5: Implement PostgresRateLimiter**
 
 Add to `lib/rate-limit.ts` (after the `MemoryRateLimiter` class):
 
@@ -271,14 +271,14 @@ export function getRateLimiter(): RateLimiter {
 
 > **Note:** `MemoryRateLimiter` is retained for Supabase/dev mode where `DATA_BACKEND` is not `postgres`.
 
-- [ ] **Step 6: Run all rate-limit tests**
+- [x] **Step 6: Run all rate-limit tests**
 
 ```bash
 npm test -- --test-name-pattern "RateLimiter|checkRateLimit"
 ```
 Expected: All pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/rate-limit.ts db/postgres/migrations/0005_rate_limits_table.sql lib/rate-limit.test.ts
@@ -311,7 +311,7 @@ experimental: {
 
 ### Sub-task 3a: Lower the body limit
 
-- [ ] **Step 1: Write a config test**
+- [x] **Step 1: Write a config test**
 
 Add `lib/config.test.ts` (or add to existing tests):
 
@@ -328,14 +328,14 @@ test('next.config bodySizeLimit is sane', async () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --test-name-pattern "bodySizeLimit"
 ```
 Expected: FAIL — file contains `52mb`.
 
-- [ ] **Step 3: Update next.config.ts**
+- [x] **Step 3: Update next.config.ts**
 
 ```ts
 // next.config.ts
@@ -359,7 +359,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-- [ ] **Step 4: Find the backup action that needs presigned URL**
+- [x] **Step 4: Find the backup action that needs presigned URL**
 
 Run:
 ```bash
@@ -368,7 +368,7 @@ grep -r "backup\|restore\|52mb\|bodySizeLimit" app/ --include="*.ts" -l
 
 Then read that file to understand the upload mechanism. If the backup action already sends to storage (Supabase or local), no client changes are needed — the large payload was the file content being passed through the action instead of uploaded directly.
 
-- [ ] **Step 5: If backup action receives file content, convert to presigned URL flow**
+- [x] **Step 5: If backup action receives file content, convert to presigned URL flow**
 
 In the relevant action file, replace `file.arrayBuffer()` pattern with:
 
@@ -392,7 +392,7 @@ export async function confirmBackupRestore(path: string): Promise<ActionResult> 
 
 > **Note:** If the backup route already streams from local storage without passing the file through the action body, this step may not be needed. Inspect the action before deciding.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 npm test -- --test-name-pattern "bodySizeLimit"
@@ -400,7 +400,7 @@ npm run build
 ```
 Expected: Test passes, build succeeds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add next.config.ts
@@ -436,7 +436,7 @@ class MemoryMetricsExporter implements MetricsExporter {
 - Produces: `MemoryMetricsExporter` — same public API (`record`, `getSnapshots`, `getAggregates`, `reset`).
 - `getAggregates()` now returns from pre-computed state (O(1)) instead of iterating all snapshots (O(n)).
 
-- [ ] **Step 1: Write the failing performance test**
+- [x] **Step 1: Write the failing performance test**
 
 Add to `lib/metrics.test.ts` (new file or existing):
 
@@ -467,14 +467,14 @@ test('getAggregates returns correct totals without iterating all snapshots', () 
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --test-name-pattern "MemoryMetricsExporter"
 ```
 Expected: FAIL — 600 snapshots stored.
 
-- [ ] **Step 3: Implement the fix**
+- [x] **Step 3: Implement the fix**
 
 Replace `lib/metrics.ts` body:
 
@@ -592,14 +592,14 @@ export const metrics = {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 npm test -- --test-name-pattern "MemoryMetrics|metrics"
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/metrics.ts
