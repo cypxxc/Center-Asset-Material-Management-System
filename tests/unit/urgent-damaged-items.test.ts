@@ -3,8 +3,12 @@ import { mockSupabaseRegistry } from '../mocks/supabase'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
+type MockQueryResult = { rows: Record<string, unknown>[] }
+type MockTx = { execute: (query: unknown) => Promise<MockQueryResult> }
+type MockTxExecute = (query: unknown) => Promise<MockQueryResult>
+
 // Set up postgres request mock before importing postgres-queries
-let mockTxExecute: ((query: any) => Promise<any>) | null = null
+let mockTxExecute: MockTxExecute | null = null
 
 const requestPath = require.resolve('../../lib/postgres/request')
 require.cache[requestPath] = {
@@ -12,7 +16,7 @@ require.cache[requestPath] = {
   filename: requestPath,
   loaded: true,
   exports: {
-    withUserDatabase: async (cb: (tx: any) => Promise<any>) => {
+    withUserDatabase: async <T>(cb: (tx: MockTx) => Promise<T>): Promise<T> => {
       if (mockTxExecute) {
         return cb({ execute: mockTxExecute })
       }
@@ -82,8 +86,8 @@ test('getUrgentDamagedItems queries damaged/waiting_repair items and maps locati
 })
 
 test('getPostgresUrgentDamagedItems executes correct SQL query and formats fields', async () => {
-  let executedQuery: any = null
-  mockTxExecute = async (query: any) => {
+  let executedQuery: unknown = null
+  mockTxExecute = async (query: unknown) => {
     executedQuery = query
     return {
       rows: [

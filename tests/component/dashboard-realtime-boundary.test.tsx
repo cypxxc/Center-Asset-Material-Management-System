@@ -12,8 +12,11 @@ test('DashboardRealtimeBoundary renders with default items and categories tables
   assert.equal(element.type, DashboardRealtimeBoundary)
   
   // Test default props when instantiated without arguments
-  const boundaryProps = (DashboardRealtimeBoundary as any)({})?.props
-  // Before update, DashboardRealtimeBoundary requires tables prop and doesn't default to ['items', 'categories']
+  const boundaryElement = DashboardRealtimeBoundary({}) as React.ReactElement<{
+    tables?: string[]
+    options?: RealtimeRefreshOptions
+  }>
+  const boundaryProps = boundaryElement?.props
   assert.deepEqual(boundaryProps?.tables, ['items', 'categories'])
   assert.deepEqual(boundaryProps?.options, {
     debounceDelay: 1000,
@@ -24,9 +27,19 @@ test('DashboardRealtimeBoundary renders with default items and categories tables
 
 test('useRealtimeRefresh handles pauseOnHidden and triggers refresh on visibility change', async () => {
   let refreshCount = 0
-  const nextNav = require('next/navigation')
-  const originalUseRouter = nextNav.useRouter
-  nextNav.useRouter = () => ({
+  const nextNavigationPath = require.resolve('next/navigation')
+  const nextNavigation = require.cache[nextNavigationPath]?.exports as {
+    useRouter: () => {
+      refresh: () => void
+      push: (url: string) => void
+      replace: (url: string) => void
+      prefetch: (url: string) => void
+      back: () => void
+      forward: () => void
+    }
+  }
+  const originalUseRouter = nextNavigation.useRouter
+  nextNavigation.useRouter = () => ({
     refresh: () => {
       refreshCount++
     },
@@ -53,7 +66,7 @@ test('useRealtimeRefresh handles pauseOnHidden and triggers refresh on visibilit
       eventSourceClosed = true
     }
   }
-  ;(global as any).EventSource = MockEventSource
+  ;(globalThis as unknown as { EventSource: unknown }).EventSource = MockEventSource
 
   // Set initial document.hidden to true
   Object.defineProperty(document, 'hidden', {
@@ -98,6 +111,6 @@ test('useRealtimeRefresh handles pauseOnHidden and triggers refresh on visibilit
   assert.ok(eventSourceClosed, 'EventSource should be closed on unmount')
 
   // Restore
-  nextNav.useRouter = originalUseRouter
-  delete (process.env as any).NEXT_PUBLIC_DATA_BACKEND
+  nextNavigation.useRouter = originalUseRouter
+  delete process.env.NEXT_PUBLIC_DATA_BACKEND
 })
