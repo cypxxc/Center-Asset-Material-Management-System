@@ -70,11 +70,41 @@ app/(dashboard)/dashboard/page.tsx (Server Component)
 
 ### 2.2 Data Fetching & Streaming Strategy
 * **Parallel Independent Fetching:** หน้า `page.tsx` แยก Suspense Boundaries ออกเป็น 3 ระดับ เพื่อให้ส่วนที่โหลดเสร็จก่อนแสดงผลทันทีแบบ Streaming (TTFB เร็วขึ้น):
-  1. `DashboardMetricsGrid` ดึงข้อมูลผ่าน `getReportStats()` (RPC Cache) + คำนวณสรุปค่าเสื่อมราคา
+  1. `DashboardMetricsGrid` ดึงข้อมูลผ่าน `getReportStats()` (RPC Database Aggregation + Server Cache)
   2. `DashboardActionQueue` ดึงรายการชำรุดล่าสุด (`getUrgentDamagedItems(5)`) และวัสดุสต็อกต่ำ (`getLowStockItems(5)`)
   3. `DashboardAnalyticsPanel` ใช้ข้อมูลสถิติสถานะและหมวดหมู่พร้อมสี Custom Category Colors
 * **Zero Cumulative Layout Shift (CLS = 0):** Skeletons ทุกชิ้นมีขนาดความสูง Min-height และ Padding เท่ากับ Component จริง 100%
-* **Realtime Boundary:** คง `DashboardRealtimeBoundary` เดิมที่คอยดักจับ `postgres_changes` บนตาราง `items`, `categories`, `locations`, `units` แล้วสั่ง `router.refresh()` อัตโนมัติเมื่อเกิดการเปลี่ยนแปลง
+
+### 2.3 Performance & Architectural Risk Mitigations (Critical Hardening)
+
+#### 2.3.1 ความเสี่ยง Realtime Refresh Storm & Event Flooding
+* **ปัญหาเดิม:** เมื่อมีการแก้ไขข้อมูลแบบชุด (Bulk edit), นำเข้าไฟล์ Excel หรือยิง Mutation ถี่ๆ Postgres จะปล่อย `postgres_changes` ออกมานับสิบหรือร้อย Event ในเวลาเสี้ยววินาที หากใช้ Debounce สั้นเกินไป (150ms / maxWait 500ms) หน้าจอจะสั่ง `router.refresh()` ซ้ำๆ ติดต่อกัน ทำให้เกิด Server Load พุ่งสูง และหน้าเว็บกระตุก
+* **มาตรการแก้ไขใน Redesign:**
+  1. **Dashboard Adaptive Debouncing:** สำหรับหน้า Dashboard ซึ่งเป็นหน้าสรุปผลภาพรวม (Summary View) ให้ปรับพารามิเตอร์ Refresh ใน Boundary ให้เป็นจังหวะที่ผ่อนคลายขึ้น:
+     - `debounceDelay`: ขยายจาก 150ms เป็น **800ms - 1,000ms**
+     - `maxWait`: ขยายจาก 500ms เป็น **2,500ms - 3,000ms** ป้องกันการยิงคำขอถี่ยิบเมื่อมี Event ทะลัก
+  2. **Page Visibility Awareness (ตัดการทำงานเมื่อพับหน้าจอ):**
+     - ผูก Event Listener `visibilitychange` เมื่อแท็บเบราว์เซอร์ถูกซ่อน (`document.hidden = true`) ให้หยุดการสั่ง `router.refresh()` ชั่วคราว
+     - เมื่อผู้ใช้สลับกลับมาดูแท็บ (`document.hidden = false`) ให้สั่ง Refresh รวบยอดเพียงครั้งเดียว หากมี Event ค้างอยู่
+  3. **Scoped Table Subscriptions:**
+     - หน้า Dashboard จะ Subscribe เฉพาะตารางที่ส่งผลต่อตัวเลขสถิติโดยตรง ได้แก่ `items` และ `categories`
+     - **ตัดตาราง `audit_logs` และ `units` ออกจากการ Subscribe บน Dashboard** เพื่อลดทราฟฟิก Realtime ที่ไม่จำเป็น
+  4. **Smooth Syncing Feedback (ลดการกะพริบ):**
+     - ขณะที่ `router.refresh()` กำลังดึงข้อมูลเบื้องหลัง ให้ `Live Status Indicator` เปลี่ยนสถานะเป็น `[🟡 กำลังซิงค์ข้อมูลล่าสุด...]` (Soft Pulse) แทนการกระตุกของหน้าจอ
+
+#### 2.3.2 ความเสี่ยง Database Aggregation & In-Memory Memory Leaks
+* **ปัญหาเดิม:** การคำนวณมูลค่าคงเหลือสุทธิและค่าเสื่อมราคา หากดึงแถวข้อมูลทั้งหมด (`SELECT * FROM items WHERE item_type = 'asset'`) มาคำนวณวนลูปในหน่วยความจำ Node.js (In-Memory JavaScript `reduce`) จะกลายเป็นจุดคอขวดขั้นวิกฤตเมื่อจำนวนพัสดุเพิ่มเป็น 5,000 - 50,000 รายการ ก่อให้เกิด Memory Leak และโหลดหน้าจอช้ามาก
+* **มาตรการแก้ไขใน Redesign:**
+  1. **Strict Database-Level Aggregation (Zero Raw Row Streaming):**
+     - **ห้าม** ดึง Raw items มาคำนวณผลรวมบน Server Component เด็ดขาด
+     - มูลค่ารวมของสินทรัพย์ (`total_value`) ให้ดึงผ่านฟังก์ชัน Aggregation ระดับฐานข้อมูล (`get_report_stats` RPC บน Supabase หรือ SQL `SUM(unit_price * quantity)` บน Standalone Postgres) ซึ่งรวมผลในระดับฐานข้อมูลและส่งกลับมาเพียงตัวเลขเดียว
+     - สำหรับมูลค่าตามบัญชี (Net Book Value): ใช้การคำนวณสูตรประมาณการทางบัญชีระดับ SQL Query หรืออิงตาม RPC Summary ที่คำนวณจาก Database Engine โดยตรง
+  2. **Tiered Caching with Tagged Invalidation:**
+     - ห่อหุ้ม `getReportStats()` ด้วย `unstable_cache` พร้อมกำหนด Cache Tag: `CACHE_TAGS.reports` และ `CACHE_TAGS.items`
+     - กำหนดค่าความปลอดภัย `revalidate: 60` วินาที (Stale-While-Revalidate) เพื่อป้องกัน Cache Stampede
+     - ทุก Server Action ที่มีการเปลี่ยนแปลงพัสดุ (Create, Update, Delete, Batch Ops) จะเรียก `revalidatePath('/', 'layout')` เพื่อเคลียร์ Tag ทันที
+  3. **Suspense Boundary Isolation for Financial Metrics:**
+     - บรรจุการ์ดมูลค่าสินทรัพย์ (`ValuationBentoCard`) ไว้ใน Suspense Boundary เฉพาะ เพื่อให้แน่ใจว่าแม้การคำนวณมูลค่ารวมจะใช้เวลาประมวลผล สถิติส่วนอื่น (เช่น พัสดุทั้งหมด, สถานะความพร้อมใช้งาน, คิวงานชำรุด) จะยังคงสตรีมมิ่งขึ้นมาแสดงผลได้ทันทีโดยไม่ถูกบล็อก
 
 ---
 
@@ -264,3 +294,5 @@ app/(dashboard)/dashboard/page.tsx (Server Component)
 5. [ ] **Accessibility Compliance:** ทุกป้ายสถานะและตัวบ่งชี้มี Text + Icon เสมอ (ไม่มีป้ายสีล้วน) และอัตราส่วน Contrast ผ่านเกณฑ์ WCAG 2.2 AA
 6. [ ] **Zero CLS & Streaming:** Skeleton Loader มีขนาดตรงกับ Component จริง และโหลดแบบ Streaming ผ่าน Suspense
 7. [ ] **Dark Mode Elegance:** ธีมมืดใช้สีโทน Deep Navy-Slate (`#090d16` / `#131b2e`) ที่มีระดับชั้นความสูงชัดเจน ไม่มืดทึบแบนราบ
+8. [ ] **Realtime Storm Protection:** Realtime Debounce บน Dashboard ปรับเป็น 800-1000ms พร้อมตรวจจับ `visibilitychange` ปิดการทำงานเมื่อพับหน้าจอ และ Subscribe เฉพาะตารางที่จำเป็น (`items`, `categories`)
+9. [ ] **Zero In-Memory Raw Row Aggregation:** ข้อมูลมูลค่าและการแจกแจงทั้งหมดรวมผลระดับฐานข้อมูล (SQL/RPC) โดยไม่มีการโหลด Raw records มาวนลูปใน Node.jsเด็ดขาด
