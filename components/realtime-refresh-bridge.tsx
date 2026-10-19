@@ -1,8 +1,14 @@
 'use client'
 
-import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
+import { useRealtimeRefresh, type RealtimeRefreshOptions, type RealtimeTable } from '@/hooks/use-realtime-refresh'
 
-export function RealtimeRefreshBridge({ tables }: { tables: ('items' | 'categories' | 'locations' | 'units' | 'audit_logs')[] }) {
-  useRealtimeRefresh(tables)
+export function RealtimeRefreshBridge({
+  tables,
+  options,
+}: {
+  tables: RealtimeTable[]
+  options?: boolean | RealtimeRefreshOptions
+}) {
+  useRealtimeRefresh(tables, options)
   return null
 }

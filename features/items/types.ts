@@ -144,3 +144,12 @@ export interface DashboardLayoutData {
   }
 }
 
+export interface UrgentDamagedItem {
+  id: string
+  item_name: string
+  asset_no: string | null
+  locationName: string
+  status: string
+  updated_at: string
+  image_url: string | null
+}

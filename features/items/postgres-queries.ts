@@ -6,7 +6,7 @@ import { resolveLocalItemImageUrl } from '@/lib/postgres/storage'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { AuthorizationError } from '@/lib/errors'
 import { normalizeForSearch } from '@/lib/unicode'
-import type { ItemAuditLog, ItemBatchResult, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption } from './types'
+import type { ItemAuditLog, ItemBatchResult, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption, UrgentDamagedItem } from './types'
 import type { LowStockDashboardItem } from './queries'
 import { BATCH_SIZE, encodeItemCursor, type ItemCursorKey, type NormalizedItemListSearchParams } from './cursor'
 
@@ -173,3 +173,21 @@ export async function getPostgresLowStockItems(limit = 5): Promise<LowStockDashb
     return rows.rows
   })
 }
+
+export async function getPostgresUrgentDamagedItems(limit = 5): Promise<UrgentDamagedItem[]> {
+  return withUserDatabase(async (tx) => {
+    const parsedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5
+    const rows = await tx.execute<UrgentDamagedItem & { updated_at: string | Date } & Record<string, unknown>>(sql`select i.id, i.item_name, i.asset_no,
+      coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName",
+      i.status, i.updated_at, i.image_url
+      from public.items i left join public.locations l on l.id = i.location_id
+      where i.status in ('damaged', 'waiting_repair') and i.deleted_at is null
+      order by i.updated_at desc limit ${parsedLimit}`)
+    return rows.rows.map((row) => ({
+      ...row,
+      updated_at: (row.updated_at as unknown) instanceof Date ? (row.updated_at as Date).toISOString() : String(row.updated_at),
+      image_url: resolveLocalItemImageUrl(row.image_url ?? null),
+    }))
+  })
+}
+

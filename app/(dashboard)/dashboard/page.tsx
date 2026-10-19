@@ -34,7 +34,7 @@ export default async function DashboardPage() {
 
   return (
     <PageContainer>
-      <DashboardRealtimeBoundary tables={['items', 'categories', 'locations', 'units']} />
+      <DashboardRealtimeBoundary tables={['items', 'categories']} />
       <PageHeader
         title="ภาพรวมพัสดุ"
         subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} ตรวจสอบทะเบียนและรายการที่ต้องดำเนินการได้ที่นี่`}

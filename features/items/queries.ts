@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { isPostgresBackend } from '@/lib/backend'
-import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems } from './postgres-queries'
+import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems, getPostgresUrgentDamagedItems } from './postgres-queries'
 
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
@@ -27,7 +27,9 @@ import {
   ItemEditPageData,
   ItemsExplorerPageData,
   DashboardLayoutData,
+  UrgentDamagedItem,
 } from './types'
+export type { UrgentDamagedItem } from './types'
 import { BATCH_SIZE, ITEMS_PAGE_SIZE } from './list-params'
 import { decodeItemCursor, encodeItemCursor, escapePostgrestLiteral, normalizeItemListSearchParams, type ItemCursorKey } from './cursor'
 
@@ -828,3 +830,57 @@ export const getLowStockItems = cache(async function getLowStockItems(
     }
   })
 })
+
+export const getUrgentDamagedItems = cache(async function getUrgentDamagedItems(
+  limit = 5
+): Promise<UrgentDamagedItem[]> {
+  if (isPostgresBackend()) return getPostgresUrgentDamagedItems(limit)
+  const supabase = await createClient()
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5
+
+  const {
+    result: { data, error },
+  } = await measureQuery('items.getUrgentDamagedItems', () =>
+    supabase
+      .from('items')
+      .select('id, item_name, asset_no, status, updated_at, image_url, location:locations(name)')
+      .in('status', ['damaged', 'waiting_repair'])
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .limit(safeLimit)
+  )
+
+  if (error || !data) {
+    if (error) {
+      logger.error({ operation: 'getUrgentDamagedItems', feature: 'items' }, error)
+    }
+    return []
+  }
+
+  type RawItem = {
+    id: string
+    item_name: string
+    asset_no: string | null
+    status: string
+    updated_at: string
+    image_url: string | null
+    location: { name: string } | { name: string }[] | null
+  }
+
+  const items: UrgentDamagedItem[] = (data as unknown as RawItem[]).map((item) => {
+    const locObj = item.location
+    const locationName = Array.isArray(locObj) ? locObj[0]?.name : locObj?.name
+    return {
+      id: item.id,
+      item_name: item.item_name,
+      asset_no: item.asset_no,
+      locationName: locationName || 'ไม่มีระบุสถานที่',
+      status: item.status,
+      updated_at: item.updated_at,
+      image_url: item.image_url,
+    }
+  })
+
+  return signItemImagesBatch(supabase, items)
+})
+
