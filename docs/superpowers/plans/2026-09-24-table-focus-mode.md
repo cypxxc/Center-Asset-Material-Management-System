@@ -1,6 +1,6 @@
 # Table Focus Mode / Expanded Table View Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement a responsive, accessible "Table Focus Mode" for CAMMS `ItemsExplorerClient` that temporarily expands the data workspace above the standard layout with small outer margin, dedicated scroll, toggle buttons, and complete state preservation.
 
@@ -22,8 +22,8 @@
 **Files:**
 - Modify: `tests/component/items-explorer-inspector.test.tsx`
 
-- [ ] **Step 1: Write tests for Table Focus Mode toggle, close button, Escape key, and state preservation**
-- [ ] **Step 2: Run test to confirm failure**
+- [x] **Step 1: Write tests for Table Focus Mode toggle, close button, Escape key, and state preservation**
+- [x] **Step 2: Run test to confirm failure**
 
 ---
 
@@ -32,16 +32,16 @@
 **Files:**
 - Modify: `app/(dashboard)/items/items-explorer-client.tsx`
 
-- [ ] **Step 1: Add `isFocusMode` state, toggle button in header, and Escape key listener**
-- [ ] **Step 2: Apply conditional classes to `<main>` / table container for focused workspace**
-- [ ] **Step 3: Add background overlay and close button with proper ARIA attributes**
-- [ ] **Step 4: Lock body scroll when active and cleanup on unmount/close**
-- [ ] **Step 5: Verify component tests pass**
+- [x] **Step 1: Add `isFocusMode` state, toggle button in header, and Escape key listener**
+- [x] **Step 2: Apply conditional classes to `<main>` / table container for focused workspace**
+- [x] **Step 3: Add background overlay and close button with proper ARIA attributes**
+- [x] **Step 4: Lock body scroll when active and cleanup on unmount/close**
+- [x] **Step 5: Verify component tests pass**
 
 ---
 
 ### Task 3: Quality Gates & Verification
 
-- [ ] **Step 1: Run `npm run typecheck`**
-- [ ] **Step 2: Run full test suite (`npm test`)**
-- [ ] **Step 3: Verify git diff is clean and concise**
+- [x] **Step 1: Run `npm run typecheck`**
+- [x] **Step 2: Run full test suite (`npm test`)**
+- [x] **Step 3: Verify git diff is clean and concise**

@@ -7,6 +7,9 @@ import {
   AlertCircle,
   LayoutGrid,
   List,
+  Maximize2,
+  Minimize2,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -124,7 +127,17 @@ function ItemsExplorerSession({
     setIsInspectorOpen(false)
   }
   const { view: viewMode, setView: setViewMode } = windowed
+  const [isFocusMode, setIsFocusMode] = useState(false)
   const [blockingError, setBlockingError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isFocusMode) return
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isFocusMode])
   const {
     searchVal,
     setSearchVal,
@@ -423,6 +436,15 @@ function ItemsExplorerSession({
         return
       }
 
+      // Shortcut: "Escape" -> Close Focus Mode if active and no modal/inspector open
+      if (e.key === 'Escape' && isFocusMode) {
+        if (!isAnyModalOpen && !isInspectorOpen) {
+          e.preventDefault()
+          setIsFocusMode(false)
+          return
+        }
+      }
+
       // Shortcut: "Space" -> Toggle selection of current inspected/active item
       if (e.key === ' ' || e.key === 'Spacebar') {
         if (tagName === 'button' || tagName === 'a') return
@@ -435,6 +457,8 @@ function ItemsExplorerSession({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
+    isFocusMode,
+    isInspectorOpen,
     localItems,
     inspectedItem,
     isSheetOpen,
@@ -449,9 +473,23 @@ function ItemsExplorerSession({
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
+      {isFocusMode && (
+        <div
+          data-testid="focus-mode-backdrop"
+          onClick={() => setIsFocusMode(false)}
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 transition-opacity"
+          aria-hidden="true"
+        />
+      )}
       <div className="flex min-h-0 flex-1 min-w-0 overflow-hidden">
         {/* Main Content Area */}
-        <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
+        <main
+          data-testid={isFocusMode ? "focus-mode-container" : undefined}
+          className={cn(
+            "flex flex-1 flex-col min-w-0 overflow-hidden bg-background",
+            isFocusMode && "fixed inset-2 md:inset-4 z-40 rounded-2xl shadow-2xl border border-border bg-card"
+          )}
+        >
           {/* Dynamic Integrated Header Area */}
           <div className="shrink-0 border-b border-border bg-card px-4 py-4 sm:px-6 md:px-8">
             {/* Row 1: Title (Left) + Segmented Tabs (Center/Integrated) + View Mode Toggle (Right) */}
@@ -528,6 +566,33 @@ function ItemsExplorerSession({
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </button>
+                  <div className="h-4 w-px bg-border/60 mx-0.5" />
+                  <button
+                    type="button"
+                    onClick={() => setIsFocusMode(!isFocusMode)}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      isFocusMode
+                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title={isFocusMode ? 'โฟกัสตาราง' : 'ขยายเต็มหน้าจอ'}
+                    aria-label={isFocusMode ? 'โฟกัสตาราง' : 'ขยายเต็มหน้าจอ'}
+                    aria-pressed={isFocusMode}
+                  >
+                    {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </button>
+                  {isFocusMode && (
+                    <button
+                      type="button"
+                      onClick={() => setIsFocusMode(false)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer text-muted-foreground hover:text-destructive hover:bg-card/50"
+                      title="ปิดโหมดโฟกัส"
+                      aria-label="ปิดโหมดโฟกัส"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -654,6 +719,7 @@ function ItemsExplorerSession({
         <Inspector
           onOpenDetails={saveWindow}
           isOpen={isInspectorOpen}
+          mode={isFocusMode ? 'drawer' : 'auto'}
           onClose={() => setIsInspectorOpen(false)}
           item={selectedItem}
           userCanWrite={userCanWrite}

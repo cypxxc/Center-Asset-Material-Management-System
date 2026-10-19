@@ -497,6 +497,37 @@ test('Quick Actions in Grid View: Print and Copy buttons work and RBAC Viewer hi
   assert.equal(screen.queryByTestId('inspector-panel'), null)
 })
 
+test('Table Focus Mode: toggle button toggles focused workspace and preserves state', () => {
+  renderComponent()
 
+  // 1. Initially focus mode is off
+  const toggleBtn = screen.getByRole('button', { name: /ขยายเต็มหน้าจอ|โฟกัสตาราง|Focus Mode/i })
+  assert.ok(toggleBtn)
+  assert.equal(toggleBtn.getAttribute('aria-pressed'), 'false')
 
+  // Select an item first to verify state preservation
+  fireEvent.click(screen.getByLabelText(`เลือก ${mockItems[0].item_name}`))
+  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
 
+  // 2. Click toggle button to enter focus mode
+  fireEvent.click(toggleBtn)
+  assert.equal(toggleBtn.getAttribute('aria-pressed'), 'true')
+  assert.ok(screen.getByTestId('focus-mode-backdrop'))
+  assert.ok(screen.getByTestId('focus-mode-container'))
+
+  // State is preserved!
+  assert.ok(screen.getByText('เลือกอยู่ 1 รายการ'))
+
+  // 3. Escape key dismisses focus mode
+  fireEvent.keyDown(window, { key: 'Escape' })
+  assert.equal(toggleBtn.getAttribute('aria-pressed'), 'false')
+  assert.equal(screen.queryByTestId('focus-mode-backdrop'), null)
+
+  // 4. Close button inside focus mode header also dismisses
+  fireEvent.click(toggleBtn)
+  assert.ok(screen.getByTestId('focus-mode-container'))
+  const closeBtn = screen.getByRole('button', { name: /ปิดโหมดโฟกัส|ย่อหน้าจอ|ออกจากโหมดโฟกัส/i })
+  fireEvent.click(closeBtn)
+  assert.equal(toggleBtn.getAttribute('aria-pressed'), 'false')
+  assert.equal(screen.queryByTestId('focus-mode-container'), null)
+})
