@@ -1,6 +1,6 @@
 # Dark Mode Clean Architecture & Design Tokens Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement a Clean Architecture Design Token system for CAMMS with WCAG AA compliance, zero hardcoded element colors, and dual `.dark` / `[data-theme="dark"]` support.
 
@@ -39,7 +39,7 @@
 **Interfaces:**
 - Produces: CSS variables in `:root` and `.dark, [data-theme="dark"]` for `--background`, `--foreground`, `--card`, `--card-foreground`, `--muted`, `--muted-foreground`, `--border`, `--input`, `--ring`, `--sidebar*`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/unit/theme-tokens.test.ts
@@ -67,21 +67,21 @@ test('globals.css defines exact design token palettes for light and dark themes'
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx tsx --test tests/unit/theme-tokens.test.ts`
 Expected: FAIL (current `globals.css` does not include dual selector `.dark, [data-theme="dark"]` or exact hex tokens)
 
-- [ ] **Step 3: Implement Design Tokens in `app/globals.css`**
+- [x] **Step 3: Implement Design Tokens in `app/globals.css`**
 
 Update `:root` and add `.dark, [data-theme="dark"]` with the exact specified hex palette and Tailwind v4 `@theme inline` mappings.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx tsx --test tests/unit/theme-tokens.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/globals.css tests/unit/theme-tokens.test.ts
@@ -101,27 +101,27 @@ git commit -m "feat(theme): configure semantic design tokens in globals.css"
 - Consumes: CSS tokens from Task 1
 - Produces: Synchronization of both `document.documentElement.classList` (`dark`) and `document.documentElement.setAttribute('data-theme', 'dark' | 'light')`.
 
-- [ ] **Step 1: Write test for data-theme attribute in `tests/component/theme-provider.test.tsx`**
+- [x] **Step 1: Write test for data-theme attribute in `tests/component/theme-provider.test.tsx`**
 
 Add assertion verifying that when theme is dark, `document.documentElement.getAttribute('data-theme') === 'dark'`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx tsx --test tests/component/theme-provider.test.tsx`
 Expected: FAIL (attribute `data-theme` not yet set)
 
-- [ ] **Step 3: Implement data-theme synchronization**
+- [x] **Step 3: Implement data-theme synchronization**
 
 In `components/theme-provider.tsx` (effect syncing DOM) and `app/layout.tsx` (inline head script):
 - Set `data-theme="dark"` and `classList.add('dark')` when resolved theme is dark.
 - Set `data-theme="light"` and `classList.remove('dark')` when resolved theme is light.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx tsx --test tests/component/theme-provider.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/theme-provider.tsx app/layout.tsx tests/component/theme-provider.test.tsx
@@ -140,7 +140,7 @@ git commit -m "feat(theme): sync data-theme attribute alongside dark class"
 - Consumes: `--sidebar`, `--sidebar-foreground`, `--sidebar-accent`, `--sidebar-border` from `app/globals.css`
 - Produces: Completely semantic styling in Sidebar without hardcoded `slate` colors.
 
-- [ ] **Step 1: Write test verifying semantic tokens in sidebar**
+- [x] **Step 1: Write test verifying semantic tokens in sidebar**
 
 ```typescript
 // tests/component/sidebar-tokens.test.tsx
@@ -156,12 +156,12 @@ test('sidebar.tsx does not use hardcoded slate background classes', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx tsx --test tests/component/sidebar-tokens.test.tsx`
 Expected: FAIL
 
-- [ ] **Step 3: Refactor Sidebar styling**
+- [x] **Step 3: Refactor Sidebar styling**
 
 Replace:
 - `hover:bg-slate-50 hover:text-foreground` -> `hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`
@@ -169,12 +169,12 @@ Replace:
 - `border-slate-100` -> `border-sidebar-border`
 - `text-slate-400` -> `text-muted-foreground`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx tsx --test tests/component/sidebar-tokens.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/layout/sidebar.tsx tests/component/sidebar-tokens.test.tsx
@@ -193,12 +193,12 @@ git commit -m "refactor(sidebar): replace hardcoded colors with semantic design 
 - Consumes: `--card`, `--card-foreground`, `--border`, `--muted` tokens
 - Produces: Dark-mode ready modal controls while preserving `print:bg-white` print sheets.
 
-- [ ] **Step 1: Inspect existing test**
+- [x] **Step 1: Inspect existing test**
 
 Run: `npx tsx --test tests/component/asset-tag-modal.test.tsx`
 Expected: PASS
 
-- [ ] **Step 2: Refactor UI wrapper colors in `components/ui/asset-tag-modal.tsx`**
+- [x] **Step 2: Refactor UI wrapper colors in `components/ui/asset-tag-modal.tsx`**
 
 Replace:
 - Outer modal containers: `bg-white` -> `bg-card`, `text-slate-900` -> `text-card-foreground`, `border-slate-200` -> `border-border`
@@ -206,12 +206,12 @@ Replace:
 - Preset selector buttons: `bg-white text-slate-700 border-slate-200 hover:bg-slate-100` -> `bg-card text-muted-foreground border-border hover:bg-muted`
 - Preserve printable sticker sheet classes (`print:bg-white print:text-black`).
 
-- [ ] **Step 3: Run component tests to verify no regressions**
+- [x] **Step 3: Run component tests to verify no regressions**
 
 Run: `npx tsx --test tests/component/asset-tag-modal.test.tsx`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/ui/asset-tag-modal.tsx
@@ -225,27 +225,27 @@ git commit -m "refactor(asset-tag-modal): use semantic tokens for modal controls
 **Files:**
 - Verification only
 
-- [ ] **Step 1: Run linter**
+- [x] **Step 1: Run linter**
 
 Run: `npm run lint`
 Expected: 0 errors, 0 warnings
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run: `npm run typecheck`
 Expected: 0 errors
 
-- [ ] **Step 3: Run full automated test suite**
+- [x] **Step 3: Run full automated test suite**
 
 Run: `npm test`
 Expected: All suites PASS
 
-- [ ] **Step 4: Run build & bundle budget check**
+- [x] **Step 4: Run build & bundle budget check**
 
 Run: `npm run build`
 Expected: Build succeeds and all raw & gzip sizes are within budget.
 
-- [ ] **Step 5: Final commit if any cleanup needed**
+- [x] **Step 5: Final commit if any cleanup needed**
 
 ```bash
 git status -s
