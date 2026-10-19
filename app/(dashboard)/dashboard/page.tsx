@@ -38,10 +38,26 @@ export default async function DashboardPage() {
       <PageHeader
         title="ภาพรวมพัสดุ"
         subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} ตรวจสอบทะเบียนและรายการที่ต้องดำเนินการได้ที่นี่`}
-        actions={<>
-          <Link href="/items" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted">ดูทะเบียนทั้งหมด</Link>
-          {userCanWrite && <NewItemDialogTrigger className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"><PlusCircle className="size-4" />ขึ้นทะเบียนใหม่</NewItemDialogTrigger>}
-        </>}
+        actions={
+          <>
+            <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </span>
+              <span>ซิงค์ข้อมูลสด (Live Connected)</span>
+            </div>
+            <Link href="/items" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted">
+              ดูทะเบียนทั้งหมด
+            </Link>
+            {userCanWrite && (
+              <NewItemDialogTrigger className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                <PlusCircle className="size-4" />
+                ขึ้นทะเบียนใหม่
+              </NewItemDialogTrigger>
+            )}
+          </>
+        }
       />
 
       {/* Metrics Bento Grid */}
