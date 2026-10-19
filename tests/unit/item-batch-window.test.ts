@@ -64,7 +64,8 @@ test('refresh retains deep start and replaces stale following cursors atomically
   await window.refresh()
   assert.equal(cursors.at(-1), '150')
   assert.equal(window.at(150)?.id, '150')
-  assert.equal(window.at(0), undefined)
+  assert.equal(window.at(0)?.id, '0')
+  assert.equal(window.at(175), undefined)
   assert.equal(window.count, 175)
 })
 test('one return snapshot is user/query scoped, consumed and expires after five minutes', () => {
