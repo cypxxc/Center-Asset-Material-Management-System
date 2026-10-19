@@ -1,6 +1,6 @@
 # Next.js 16 Cache Components (Partial Prerendering) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Enable Next.js 16 Partial Prerendering (PPR) via `cacheComponents: true` in `next.config.ts`, ensuring all routes either prerender an instant static shell or adopt incremental opt-out (`export const instant = false`) according to official Next.js 16 documentation, passing all test and build gates.
 
@@ -24,13 +24,13 @@
 **Files:**
 - Modify: `next.config.ts`
 
-- [ ] **Step 1: Update `next.config.ts`**
+- [x] **Step 1: Update `next.config.ts`**
 Add `cacheComponents: true` to `nextConfig`.
 
-- [ ] **Step 2: Run typecheck and check compiler diagnostics**
+- [x] **Step 2: Run typecheck and check compiler diagnostics**
 Run: `npm run typecheck`
 
-- [ ] **Step 3: Run build to observe route validation**
+- [x] **Step 3: Run build to observe route validation**
 Run: `npm run build`
 
 ---
@@ -40,14 +40,14 @@ Run: `npm run build`
 **Files:**
 - Modify: Affected routes in `app/(dashboard)/**` or `app/(auth)/**` as indicated by Next.js 16 build compiler diagnostics.
 
-- [ ] **Step 1: Apply `export const instant = false` or Suspense boundaries as required by Next 16 Cache Components validator**
-- [ ] **Step 2: Verify `npm run build` passes with bundle budgets within limits**
+- [x] **Step 1: Apply `export const instant = false` or Suspense boundaries as required by Next 16 Cache Components validator**
+- [x] **Step 2: Verify `npm run build` passes with bundle budgets within limits**
 
 ---
 
 ### Task 3: Full Quality Gate Verification
 
-- [ ] **Step 1: Run `npm run typecheck`**
-- [ ] **Step 2: Run `npm test`**
-- [ ] **Step 3: Run `npm run lint`**
-- [ ] **Step 4: Run `npm run build`**
+- [x] **Step 1: Run `npm run typecheck`**
+- [x] **Step 2: Run `npm test`**
+- [x] **Step 3: Run `npm run lint`**
+- [x] **Step 4: Run `npm run build`**
