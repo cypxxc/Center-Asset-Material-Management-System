@@ -89,13 +89,8 @@ export function useItemWindow(identity: string, params: ItemListSearchParams, se
   }, [identity, seed, store])
 
   useEffect(() => {
-    const prev = seedRef.current
-    seedRef.current = seed.items
-    const isSame = prev === seed.items || (
-      prev.length === seed.items.length &&
-      prev.every((item, i) => item.id === seed.items[i]?.id && item.updated_at === seed.items[i]?.updated_at)
-    )
-    if (!isSame) {
+    if (seedRef.current !== seed.items) {
+      seedRef.current = seed.items
       void store.refresh(seed.total)
     }
   }, [seed.items, seed.total, store])
