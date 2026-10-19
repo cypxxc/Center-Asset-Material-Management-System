@@ -9,7 +9,7 @@ import { canWrite } from '@/lib/permissions'
 import dynamic from 'next/dynamic'
 import { MetricsGridSkeleton } from '@/components/dashboard/dashboard-metrics-grid'
 import { CategoryListSkeleton } from '@/components/dashboard/dashboard-category-list'
-import { LowStockSkeleton } from '@/components/dashboard/dashboard-low-stock-panel'
+import { ActionQueueSkeleton } from '@/components/dashboard/dashboard-action-queue'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 
@@ -19,8 +19,8 @@ const DashboardMetricsGrid = dynamic(
 const DashboardCategoryList = dynamic(
   () => import('@/components/dashboard/dashboard-category-list').then((mod) => mod.DashboardCategoryList)
 )
-const DashboardLowStockPanel = dynamic(
-  () => import('@/components/dashboard/dashboard-low-stock-panel').then((mod) => mod.DashboardLowStockPanel)
+const DashboardActionQueue = dynamic(
+  () => import('@/components/dashboard/dashboard-action-queue').then((mod) => mod.DashboardActionQueue)
 )
 
 export default async function DashboardPage() {
@@ -40,13 +40,6 @@ export default async function DashboardPage() {
         subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} ตรวจสอบทะเบียนและรายการที่ต้องดำเนินการได้ที่นี่`}
         actions={
           <>
-            <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-              </span>
-              <span>ซิงค์ข้อมูลสด (Live Connected)</span>
-            </div>
             <Link href="/items" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted">
               ดูทะเบียนทั้งหมด
             </Link>
@@ -65,14 +58,18 @@ export default async function DashboardPage() {
         <DashboardMetricsGrid />
       </Suspense>
 
-      {/* Main Charts and Status Section */}
-      <div className="grid w-full grid-cols-1 lg:grid-cols-3 gap-6">
-        <Suspense fallback={<CategoryListSkeleton />}>
-          <DashboardCategoryList />
-        </Suspense>
-        <Suspense fallback={<LowStockSkeleton />}>
-          <DashboardLowStockPanel />
-        </Suspense>
+      {/* Main Operational & Analytics Grid (60% / 40% Desktop Split) */}
+      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-7">
+          <Suspense fallback={<ActionQueueSkeleton />}>
+            <DashboardActionQueue />
+          </Suspense>
+        </div>
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <Suspense fallback={<CategoryListSkeleton />}>
+            <DashboardCategoryList />
+          </Suspense>
+        </div>
       </div>
     </PageContainer>
   )

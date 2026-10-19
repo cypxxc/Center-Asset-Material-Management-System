@@ -6,7 +6,7 @@ import React from 'react'
 import { render } from '@testing-library/react'
 import { MetricsGridSkeleton, DashboardMetricsGrid } from '../../components/dashboard/dashboard-metrics-grid'
 import { CategoryListSkeleton, DashboardCategoryList } from '../../components/dashboard/dashboard-category-list'
-import { LowStockSkeleton, DashboardLowStockPanel } from '../../components/dashboard/dashboard-low-stock-panel'
+import { ActionQueueSkeleton, DashboardActionQueue } from '../../components/dashboard/dashboard-action-queue'
 
 test('migration 00033 contains hot-path performance composite indexes', () => {
   const sql = readFileSync('db/migrations/00033_hot_path_performance_indexes.sql', 'utf8')
@@ -32,22 +32,22 @@ test('dashboard skeleton components render fallback loading markup', () => {
   assert.ok(categoryContainer.querySelector('[data-testid="category-list-skeleton"]'))
   assert.ok(categoryContainer.querySelectorAll('.animate-pulse').length >= 2)
 
-  const { container: lowStockContainer } = render(React.createElement(LowStockSkeleton))
-  assert.ok(lowStockContainer.querySelector('[data-testid="low-stock-skeleton"]'))
-  assert.ok(lowStockContainer.querySelectorAll('.animate-pulse').length >= 1)
+  const { container: actionQueueContainer } = render(React.createElement(ActionQueueSkeleton))
+  assert.ok(actionQueueContainer.querySelector('[data-testid="action-queue-skeleton"]'))
+  assert.ok(actionQueueContainer.querySelectorAll('.animate-pulse').length >= 1)
 })
 
 test('dashboard components and page are configured for React Suspense streaming', () => {
   assert.equal(typeof DashboardMetricsGrid, 'function')
   assert.equal(typeof DashboardCategoryList, 'function')
-  assert.equal(typeof DashboardLowStockPanel, 'function')
+  assert.equal(typeof DashboardActionQueue, 'function')
 
   const pageContent = readFileSync('app/(dashboard)/dashboard/page.tsx', 'utf8')
 
   assert.match(pageContent, /import\s*\{\s*Suspense\s*\}\s*from\s*'react'/)
   assert.match(pageContent, /fallback=\{<MetricsGridSkeleton \/>\}/)
   assert.match(pageContent, /fallback=\{<CategoryListSkeleton \/>\}/)
-  assert.match(pageContent, /fallback=\{<LowStockSkeleton \/>\}/)
+  assert.match(pageContent, /fallback=\{<ActionQueueSkeleton \/>\}/)
 })
 
 test('dashboard defers the realtime subscription behind a client-only boundary', () => {
