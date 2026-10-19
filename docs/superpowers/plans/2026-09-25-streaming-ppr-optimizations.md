@@ -1,6 +1,6 @@
 # Streaming & Loading Skeletons Optimization Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Eliminate render-blocking waterfalls across dashboard layouts and pages, and implement granular loading skeletons (`loading.tsx`) across all 7 un-skeletoned dashboard routes to enable instant static shell delivery and progressive streaming rendering.
 
@@ -30,15 +30,15 @@
 - Consumes: `getCurrentProfile()`, `getDashboardLayoutData()`
 - Produces: Parallelized execution of layout data and profile retrieval.
 
-- [ ] **Step 1: Write integration test for concurrent layout data reads**
+- [x] **Step 1: Write integration test for concurrent layout data reads**
 
 Create `tests/integration/layout-parallel.test.ts` verifying that `DashboardLayout` initiates `getCurrentProfile()` and `getDashboardLayoutData()` concurrently without blocking one behind the other.
 
-- [ ] **Step 2: Run test to verify failure**
+- [x] **Step 2: Run test to verify failure**
 
 Run: `node --import tsx --test tests/integration/layout-parallel.test.ts`
 
-- [ ] **Step 3: Update `app/(dashboard)/layout.tsx` to run reads concurrently**
+- [x] **Step 3: Update `app/(dashboard)/layout.tsx` to run reads concurrently**
 
 In `app/(dashboard)/layout.tsx`:
 Replace:
@@ -71,12 +71,12 @@ if (!profile.is_active) {
 const { sidebarData, references } = layoutData
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test tests/integration/layout-parallel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/\(dashboard\)/layout.tsx tests/integration/layout-parallel.test.ts
@@ -97,18 +97,18 @@ git commit -m "perf(layout): parallelize profile and layout data fetching to eli
 - Consumes: `getCurrentProfile()`, `searchParams`, `params`, `getLocationsOverview()`, `getItemDetailPageData()`
 - Produces: Faster TTFB by initiating independent async promises concurrently.
 
-- [ ] **Step 1: Write integration test for page concurrency**
+- [x] **Step 1: Write integration test for page concurrency**
 
 Create `tests/integration/page-waterfalls.test.ts` asserting that:
 1. `SettingsPage` starts `getCurrentProfile()` and `searchParams` concurrently.
 2. `LocationsPage` starts `getCurrentProfile()` and `getLocationsOverview()` concurrently.
 3. `ItemDetailPage` starts `params` and `getCurrentProfile()` concurrently.
 
-- [ ] **Step 2: Run test to verify failure**
+- [x] **Step 2: Run test to verify failure**
 
 Run: `node --import tsx --test tests/integration/page-waterfalls.test.ts`
 
-- [ ] **Step 3: Update pages to execute independent promises concurrently**
+- [x] **Step 3: Update pages to execute independent promises concurrently**
 
 In `app/(dashboard)/settings/page.tsx`:
 ```tsx
@@ -144,12 +144,12 @@ if (!profile) {
 const { item, auditLogs } = await getItemDetailPageData(id)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test tests/integration/page-waterfalls.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/\(dashboard\)/settings/page.tsx app/\(dashboard\)/locations/page.tsx app/\(dashboard\)/items/\[id\]/page.tsx tests/integration/page-waterfalls.test.ts
@@ -174,17 +174,17 @@ git commit -m "perf(pages): eliminate sequential await waterfalls in settings, l
 - Each loading file exports `default function Loading(): JSX.Element`
 - Matches real page structures with Tailwind `animate-pulse` placeholders to avoid layout shift.
 
-- [ ] **Step 1: Write integration tests for all 7 loading components**
+- [x] **Step 1: Write integration tests for all 7 loading components**
 
 Create `tests/integration/loading-skeletons.test.ts` importing each of the 7 loading components and asserting:
 1. They render without throwing.
 2. They render skeleton elements with appropriate aria-hidden or pulse classes.
 
-- [ ] **Step 2: Run test to verify failure (modules don't exist yet)**
+- [x] **Step 2: Run test to verify failure (modules don't exist yet)**
 
 Run: `node --import tsx --test tests/integration/loading-skeletons.test.ts`
 
-- [ ] **Step 3: Create the 7 loading skeleton components**
+- [x] **Step 3: Create the 7 loading skeleton components**
 
 1. `app/(dashboard)/items/[id]/loading.tsx`: Back button, title skeleton, 2-column info grid, depreciation box, timeline skeleton.
 2. `app/(dashboard)/items/[id]/edit/loading.tsx`: Back button, title skeleton, form fields grid skeleton, submit button placeholder.
@@ -194,12 +194,12 @@ Run: `node --import tsx --test tests/integration/loading-skeletons.test.ts`
 6. `app/(dashboard)/admin/users/loading.tsx`: Header skeleton, search bar, users table skeleton with avatar and role placeholders.
 7. `app/(dashboard)/admin/db-panel/loading.tsx`: Header skeleton, database health metrics cards skeleton, maintenance tools grid.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test tests/integration/loading-skeletons.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/\(dashboard\)/items/\[id\]/loading.tsx app/\(dashboard\)/items/\[id\]/edit/loading.tsx app/\(dashboard\)/locations/loading.tsx app/\(dashboard\)/profile/loading.tsx app/\(dashboard\)/admin/audit-logs/loading.tsx app/\(dashboard\)/admin/users/loading.tsx app/\(dashboard\)/admin/db-panel/loading.tsx tests/integration/loading-skeletons.test.ts
@@ -213,17 +213,17 @@ git commit -m "feat(ui): add tailored loading skeletons for all un-skeletoned da
 **Files:**
 - Verify entire repository test suites and linting.
 
-- [ ] **Step 1: Run typecheck**
+- [x] **Step 1: Run typecheck**
 Run: `npm run typecheck`
 Expected: 0 errors
 
-- [ ] **Step 2: Run all unit and integration tests**
+- [x] **Step 2: Run all unit and integration tests**
 Run: `npm test`
 Expected: All tests pass
 
-- [ ] **Step 3: Run lint**
+- [x] **Step 3: Run lint**
 Run: `npm run lint`
 Expected: 0 errors
 
-- [ ] **Step 4: Final verification and summary**
+- [x] **Step 4: Final verification and summary**
 Confirm all git diffs are clean, focused, and well-committed.
