@@ -1,6 +1,6 @@
 # Category Combo Chart X-Axis Overlap Resolution Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Resolve X-axis label collision and tail-end label overflow in the Category Combo Chart on the Materials Report page (`/reports`) using dynamic angled rotation (`-35°`), end-anchoring, and safe Thai text truncation.
 
@@ -36,7 +36,7 @@
 **Interfaces:**
 - Produces: `truncateCategoryLabel(name: string, maxLen: number): string` inside `category-combo-chart.tsx`.
 
-- [ ] **Step 1: Write failing unit test for Thai truncation helper**
+- [x] **Step 1: Write failing unit test for Thai truncation helper**
 
 Add test in `tests/component/category-combo-chart.test.tsx`:
 ```tsx
@@ -47,12 +47,12 @@ test('truncateCategoryLabel preserves complete Thai characters and avoids orphan
 });
 ```
 
-- [ ] **Step 2: Run test to verify it executes**
+- [x] **Step 2: Run test to verify it executes**
 
 Run: `node --import tsx --max-old-space-size=2048 --test tests/component/category-combo-chart.test.tsx`  
 Expected: PASS existing tests.
 
-- [ ] **Step 3: Implement `truncateCategoryLabel` and update SVG constants in `features/reports/components/category-combo-chart.tsx`**
+- [x] **Step 3: Implement `truncateCategoryLabel` and update SVG constants in `features/reports/components/category-combo-chart.tsx`**
 
 1. Set `svgHeight = 330` and `paddingBottom = 64`.
 2. Implement helper:
@@ -68,12 +68,12 @@ export function truncateCategoryLabel(name: string, maxLen: number): string {
 }
 ```
 
-- [ ] **Step 4: Verify test passes**
+- [x] **Step 4: Verify test passes**
 
 Run: `node --import tsx --max-old-space-size=2048 --test tests/component/category-combo-chart.test.tsx`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add features/reports/components/category-combo-chart.tsx tests/component/category-combo-chart.test.tsx
@@ -92,7 +92,7 @@ git commit -m "feat(reports): adjust chart dimensions and add safe thai truncati
 - Consumes: `truncateCategoryLabel` from Task 1, `categoriesRenderData` coordinate geometry.
 - Produces: Dynamic SVG `<text>` elements with conditionally applied `transform="rotate(-35, ...)"` and `textAnchor="end"`.
 
-- [ ] **Step 1: Write failing component test for angled rotation on dense data**
+- [x] **Step 1: Write failing component test for angled rotation on dense data**
 
 Add test in `tests/component/category-combo-chart.test.tsx`:
 ```tsx
@@ -114,12 +114,12 @@ test('CategoryComboChart applies -35 degree rotation and textAnchor="end" when c
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --max-old-space-size=2048 --test tests/component/category-combo-chart.test.tsx`  
 Expected: FAIL (assertion fails because rotation is not yet implemented).
 
-- [ ] **Step 3: Implement dynamic rotation logic in `category-combo-chart.tsx`**
+- [x] **Step 3: Implement dynamic rotation logic in `category-combo-chart.tsx`**
 
 Replace the X-axis category labels mapping with:
 ```tsx
@@ -158,12 +158,12 @@ Replace the X-axis category labels mapping with:
 })}
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --max-old-space-size=2048 --test tests/component/category-combo-chart.test.tsx`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add features/reports/components/category-combo-chart.tsx tests/component/category-combo-chart.test.tsx
@@ -180,18 +180,18 @@ git commit -m "feat(reports): implement dynamic angled rotation and end-anchorin
 **Interfaces:**
 - Validates: Sparse datasets ($\le 4$), Dense datasets ($\ge 8$), Hover interaction stability, and boundary clearance for tail-end categories.
 
-- [ ] **Step 1: Add regression tests for sparse data (no rotation) & tail-end label positioning**
+- [x] **Step 1: Add regression tests for sparse data (no rotation) & tail-end label positioning**
 
 In `tests/component/category-combo-chart.test.tsx`, add:
 1. `CategoryComboChart keeps horizontal labels with textAnchor="middle" when categories <= 4`
 2. `CategoryComboChart tail-end label does not exceed right plot boundary coordinate`
 
-- [ ] **Step 2: Run all component tests**
+- [x] **Step 2: Run all component tests**
 
 Run: `node --import tsx --max-old-space-size=2048 --test tests/component/category-combo-chart.test.tsx`  
 Expected: All tests PASS with zero failures.
 
-- [ ] **Step 3: Run full quality gates (Typecheck & Lint)**
+- [x] **Step 3: Run full quality gates (Typecheck & Lint)**
 
 Run:
 ```bash
@@ -200,7 +200,7 @@ npm run lint
 ```
 Expected: PASS with zero errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/component/category-combo-chart.test.tsx
