@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react'
 import { useServerInsertedHTML } from 'next/navigation'
 
-export type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'light' | 'dark'
 
 interface ThemeContextType {
   theme: Theme
@@ -12,8 +12,9 @@ interface ThemeContextType {
 }
 
 const STORAGE_KEY = 'camms-theme'
+const DEFAULT_THEME: Theme = 'light'
 
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('camms-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark')}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light')}}catch(e){}})()`
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('camms-theme');var d=t==='dark';if(d){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark')}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light')}}catch(e){}})()`
 
 // Filter out React 19 false-positive script warning during development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -43,20 +44,20 @@ function notify() {
 let memoryTheme: Theme | null = null
 
 function getStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'system'
+  if (typeof window === 'undefined') return DEFAULT_THEME
   try {
     const storage = window.localStorage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
     const stored = storage?.getItem(STORAGE_KEY) as Theme | null
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+    if (stored && (stored === 'light' || stored === 'dark')) {
       return stored
     }
     if (stored === null && memoryTheme === null) {
-      return 'system'
+      return DEFAULT_THEME
     }
   } catch {
     // Ignore localStorage access failures
   }
-  return memoryTheme ?? 'system'
+  return memoryTheme ?? DEFAULT_THEME
 }
 
 export function resetThemeStore() {
@@ -71,18 +72,6 @@ export function resetThemeStore() {
   notify()
 }
 
-function getSystemDark(): boolean {
-  if (typeof window === 'undefined') return false
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-}
-
-function subscribeSystemTheme(onStoreChange: () => void) {
-  if (typeof window === 'undefined') return () => {}
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  mediaQuery.addEventListener('change', onStoreChange)
-  return () => mediaQuery.removeEventListener('change', onStoreChange)
-}
-
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -95,11 +84,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     )
   })
 
-  const theme = useSyncExternalStore(subscribe, getStoredTheme, () => 'system' as Theme)
-  const isSystemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark, () => false)
-
-  const resolvedTheme: 'light' | 'dark' =
-    theme === 'system' ? (isSystemDark ? 'dark' : 'light') : theme
+  const theme = useSyncExternalStore(subscribe, getStoredTheme, () => DEFAULT_THEME)
+  const resolvedTheme: 'light' | 'dark' = theme
 
   useEffect(() => {
     const root = document.documentElement
@@ -131,8 +117,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 const defaultThemeContext: ThemeContextType = {
-  theme: 'system',
-  resolvedTheme: 'light',
+  theme: DEFAULT_THEME,
+  resolvedTheme: DEFAULT_THEME,
   setTheme: () => {},
 }
 

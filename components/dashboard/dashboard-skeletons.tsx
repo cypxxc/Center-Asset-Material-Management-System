@@ -74,7 +74,7 @@ export function ActionQueueSkeleton() {
     <div
       id="action-queue"
       data-testid="action-queue-skeleton"
-      className="relative overflow-hidden rounded-xl border border-border/70 bg-card/80 dark:bg-card/50 shadow-2xs flex flex-col h-full animate-pulse"
+      className="relative overflow-hidden rounded-xl border border-border/70 bg-card/80 dark:bg-card/50 shadow-2xs flex flex-col h-full animate-pulse scroll-mt-6"
     >
       {/* Header */}
       <div className="p-4 sm:p-4.5 border-b border-border/50 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

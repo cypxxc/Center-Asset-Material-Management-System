@@ -7,6 +7,12 @@
       "skillPath": "skills/accessibility/SKILL.md",
       "computedHash": "88c64dead9bb55925c7b983f5fd95cfecf30bd8c076fd384cdb17019d1becd87"
     },
+    "audit-prep-assistant": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/building-secure-contracts/skills/audit-prep-assistant/SKILL.md",
+      "computedHash": "28ee6a914478d781b8b89974c25166de7be324acd9a569944aac93c4a0a3a3b5"
+    },
     "best-practices": {
       "source": "addyosmani/web-quality-skills",
       "sourceType": "github",
@@ -31,6 +37,12 @@
       "skillPath": "skills/code-review-and-quality/SKILL.md",
       "computedHash": "0667c7af98996c0bec4fb0eb444680bdbf1da1d6a3cfdf5dbe8cbd350d9d2752"
     },
+    "codebase-cleanup": {
+      "source": "darkmatter/skills",
+      "sourceType": "github",
+      "skillPath": "skills/codebase-cleanup/SKILL.md",
+      "computedHash": "14856932467b5f2edcdbc51486f1f611b6c3cb8e66403ce272c6f8cd87a026f4"
+    },
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -48,6 +60,12 @@
       "sourceType": "github",
       "skillPath": "skills/council/SKILL.md",
       "computedHash": "7c2d224f8613646bf39e0360c199a681e504f808891050046936d0bac33417e7"
+    },
+    "dead-code": {
+      "source": "parcadei/continuous-claude-v3",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/dead-code/SKILL.md",
+      "computedHash": "41db8514c78bcb6e65479e2612e851abb278f276484d01eefe082ded71106292"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -102,6 +120,12 @@
       "sourceType": "github",
       "skillPath": "skills/frontend-ui-engineering/SKILL.md",
       "computedHash": "49bb6ccfc41753bdd679f368ce75629ae9d424c5b8abc33faf949a4a55f919a1"
+    },
+    "knip": {
+      "source": "brianlovin/agent-config",
+      "sourceType": "github",
+      "skillPath": "skills/knip/SKILL.md",
+      "computedHash": "96e70565ccfa71cb56bbb2a25241b9c7c25b83ebe691709c00da6cd9dab537b8"
     },
     "mcp-builder": {
       "source": "anthropics/skills",

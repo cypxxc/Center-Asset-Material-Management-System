@@ -9,8 +9,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import type { ItemListSearchParams } from '@/features/items/types'
 import { getItemReferences } from '@/features/items/queries'
-import { getDepreciationReport } from '@/features/depreciation/queries'
-import type { ReportCountBucket, ReportStats, ReportItemRow, ReportListResult, ReportsOverview } from './types'
+import type { ReportCountBucket, ReportStats, ReportItemRow, ReportListResult } from './types'
 import { normalizeForSearch } from '@/lib/unicode'
 import { measureQuery } from '@/lib/performance'
 
@@ -408,31 +407,3 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
     totalValue: res.total_value ?? items.reduce((acc, i) => acc + i.quantity * (i.unit_price ?? 0), 0),
   }
 }
-
-export async function getReportsOverview(
-  params: ItemListSearchParams,
-  preparedByName: string | null = null
-): Promise<ReportsOverview> {
-  const [references, stats, reportData, depreciationReport] = await Promise.all([
-    getItemReferences(),
-    getReportStats(),
-    getReportItemsList(params),
-    getDepreciationReport(),
-  ])
-
-  return {
-    preparedBy: preparedByName,
-    items: reportData.items,
-    totalCount: reportData.totalCount,
-    totalQuantity: reportData.totalQuantity,
-    totalValue: reportData.totalValue,
-    totalPages: reportData.totalPages,
-    currentPage: reportData.page,
-    searchParams: params,
-    categories: references.categories,
-    locations: references.locations,
-    stats,
-    depreciationReport,
-  }
-}
-

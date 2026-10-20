@@ -158,7 +158,7 @@ export async function pgDeleteAuthUser(userId: string): Promise<{ success?: bool
       const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
       if (!target.rows.length) throw new Error('ไม่พบผู้ใช้งาน')
       if (target.rows[0].role === 'admin' && target.rows[0].is_active) {
-        const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('camms_admin_protection'))`); const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
         if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้')
       }
       const result = await tx.execute(sql`delete from public.profiles where id = ${userId}::uuid returning id`)
@@ -221,7 +221,7 @@ export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' 
       if (payload.is_active === false || (payload.role && payload.role !== 'admin')) {
         const target = await tx.execute(sql`select role, is_active from public.profiles where id = ${userId}::uuid for update`)
         if (target.rows.length && target.rows[0].role === 'admin' && target.rows[0].is_active) {
-          const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext('camms_admin_protection'))`); const countRes = await tx.execute(sql`select count(*)::int as count from public.profiles where role = 'admin' and is_active = true`)
           if (Number(countRes.rows[0]?.count ?? 0) <= 1) throw new Error('ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน')
         }
       }

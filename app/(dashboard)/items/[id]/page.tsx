@@ -207,6 +207,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
         </div>
 
         {/* Physical Inventory Audit Check-in Banner */}
+        {userCanWrite && (
         <ItemAuditCheckin
           itemId={item.id}
           itemName={item.item_name}
@@ -214,6 +215,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           lastAuditedBy={latestAudit?.user_name}
           lastAuditedNote={lastAuditedNote}
         />
+        )}
 
         {/* Main Details and Image Section */}
         <div className={item.image_url ? "grid gap-6 md:grid-cols-[1fr_300px]" : "grid gap-6"}>

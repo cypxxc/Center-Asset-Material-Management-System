@@ -33,10 +33,20 @@ export function DashboardActionQueueClient({
 
   const totalUrgent = damagedItems.length + lowStockItems.length
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault()
+      const nextTab = activeTab === 'damaged' ? 'low-stock' : 'damaged'
+      setActiveTab(nextTab)
+      const targetId = nextTab === 'damaged' ? 'tab-damaged' : 'tab-low-stock'
+      document.getElementById(targetId)?.focus()
+    }
+  }
+
   return (
     <div
       id="action-queue"
-      className="relative overflow-hidden rounded-xl border border-border/70 bg-card/80 dark:bg-card/50 backdrop-blur-xs shadow-2xs flex flex-col h-full"
+      className="relative overflow-hidden rounded-xl border border-border/70 bg-card/80 dark:bg-card/50 backdrop-blur-xs shadow-2xs flex flex-col h-full scroll-mt-6"
     >
       {/* Header */}
       <div className="p-4 sm:p-4.5 border-b border-border/50 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -70,6 +80,7 @@ export function DashboardActionQueueClient({
         <div
           role="tablist"
           aria-label="คิวงานที่ต้องดำเนินการ"
+          onKeyDown={handleKeyDown}
           className="inline-flex items-center p-1 rounded-lg bg-muted/70 dark:bg-muted/40 border border-border/50 gap-1"
         >
           <button

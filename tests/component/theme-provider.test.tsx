@@ -19,12 +19,11 @@ function ThemeConsumer() {
       <span data-testid="resolved-theme">{resolvedTheme}</span>
       <button onClick={() => setTheme('light')}>Set Light</button>
       <button onClick={() => setTheme('dark')}>Set Dark</button>
-      <button onClick={() => setTheme('system')}>Set System</button>
     </div>
   )
 }
 
-test('ThemeProvider defaults to system theme and provides state', () => {
+test('ThemeProvider defaults to light theme and provides state', () => {
   render(
     <ThemeProvider>
       <ThemeConsumer />
@@ -32,10 +31,13 @@ test('ThemeProvider defaults to system theme and provides state', () => {
   )
 
   const currentTheme = screen.getByTestId('current-theme')
-  assert.equal(currentTheme.textContent, 'system')
+  assert.equal(currentTheme.textContent, 'light')
+  assert.equal(screen.getByTestId('resolved-theme').textContent, 'light')
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'light')
+  assert.ok(!document.documentElement.classList.contains('dark'))
 })
 
-test('ThemeProvider allows switching theme to dark and light and updates DOM classes', () => {
+test('ThemeProvider allows switching theme to dark and light and updates DOM classes and storage', () => {
   render(
     <ThemeProvider>
       <ThemeConsumer />
@@ -51,6 +53,7 @@ test('ThemeProvider allows switching theme to dark and light and updates DOM cla
   assert.equal(screen.getByTestId('resolved-theme').textContent, 'dark')
   assert.ok(document.documentElement.classList.contains('dark'))
   assert.equal(document.documentElement.getAttribute('data-theme'), 'dark')
+  assert.equal(window.localStorage.getItem('camms-theme'), 'dark')
 
   const lightBtn = screen.getByText('Set Light')
   act(() => {
@@ -61,9 +64,10 @@ test('ThemeProvider allows switching theme to dark and light and updates DOM cla
   assert.equal(screen.getByTestId('resolved-theme').textContent, 'light')
   assert.ok(!document.documentElement.classList.contains('dark'))
   assert.equal(document.documentElement.getAttribute('data-theme'), 'light')
+  assert.equal(window.localStorage.getItem('camms-theme'), 'light')
 })
 
-test('ThemeToggle button renders and cycles themes on click', () => {
+test('ThemeToggle toggles strictly between Light and Dark on click', () => {
   render(
     <ThemeProvider>
       <ThemeToggle />
@@ -72,22 +76,38 @@ test('ThemeToggle button renders and cycles themes on click', () => {
 
   const toggleBtn = screen.getByRole('button')
   assert.ok(toggleBtn)
+  assert.equal(toggleBtn.getAttribute('aria-label'), 'โหมดสว่าง (คลิกเพื่อเปลี่ยนเป็นโหมดมืด)')
 
-  // Initial: 'system' -> click 1: 'light'
-  act(() => {
-    fireEvent.click(toggleBtn)
-  })
-  assert.ok(!document.documentElement.classList.contains('dark'))
-
-  // Click 2: 'dark'
+  // Click 1: light -> dark
   act(() => {
     fireEvent.click(toggleBtn)
   })
   assert.ok(document.documentElement.classList.contains('dark'))
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'dark')
+  assert.equal(window.localStorage.getItem('camms-theme'), 'dark')
+  assert.equal(toggleBtn.getAttribute('aria-label'), 'โหมดมืด (คลิกเพื่อเปลี่ยนเป็นโหมดสว่าง)')
 
-  // Click 3: 'system'
+  // Click 2: dark -> light
   act(() => {
     fireEvent.click(toggleBtn)
   })
   assert.ok(!document.documentElement.classList.contains('dark'))
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'light')
+  assert.equal(window.localStorage.getItem('camms-theme'), 'light')
+  assert.equal(toggleBtn.getAttribute('aria-label'), 'โหมดสว่าง (คลิกเพื่อเปลี่ยนเป็นโหมดมืด)')
+})
+
+test('ThemeProvider restores persisted theme across reloads from localStorage', () => {
+  window.localStorage.setItem('camms-theme', 'dark')
+
+  render(
+    <ThemeProvider>
+      <ThemeConsumer />
+    </ThemeProvider>
+  )
+
+  assert.equal(screen.getByTestId('current-theme').textContent, 'dark')
+  assert.equal(screen.getByTestId('resolved-theme').textContent, 'dark')
+  assert.ok(document.documentElement.classList.contains('dark'))
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'dark')
 })

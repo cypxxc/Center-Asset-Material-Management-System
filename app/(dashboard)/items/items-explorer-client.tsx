@@ -113,7 +113,11 @@ function ItemsExplorerSession({
   bulkHardDeleteAction,
 }: ItemsExplorerClientProps & { identity: string }) {
   const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
-  useRealtimeRefresh(['items', 'categories', 'locations', 'units'])
+  useRealtimeRefresh(['items', 'categories', 'locations', 'units'], {
+    pauseOnHidden: true,
+    debounceDelay: 300,
+    maxWait: 1500,
+  })
   const router = useRouter()
 
   const [currentItems, setCurrentItems] = useState<ItemListRow[]>(items)

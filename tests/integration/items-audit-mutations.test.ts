@@ -257,5 +257,23 @@ describe('Items Mutations Audit Logging Integration Tests', () => {
       assert.equal(result.success, false)
       assert.equal(auditLogs.length, 0)
     })
+
+    test('denies bulk hard delete for staff and viewer roles', async () => {
+      mockSupabaseRegistry.setAuth(
+        { id: 'user-staff-3', email: 'staff@example.com' },
+        { id: 'user-staff-3', email: 'staff@example.com', role: 'staff', is_active: true }
+      )
+      const staffRes = await bulkHardDeleteItems(['item-1'])
+      assert.equal(staffRes.success, false)
+      assert.match(staffRes.error ?? '', /เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้/)
+
+      mockSupabaseRegistry.setAuth(
+        { id: 'user-viewer-3', email: 'viewer@example.com' },
+        { id: 'user-viewer-3', email: 'viewer@example.com', role: 'viewer', is_active: true }
+      )
+      const viewerRes = await bulkHardDeleteItems(['item-1'])
+      assert.equal(viewerRes.success, false)
+      assert.match(viewerRes.error ?? '', /เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ทำรายการนี้/)
+    })
   })
 })

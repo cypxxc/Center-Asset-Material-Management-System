@@ -509,6 +509,27 @@ export async function updateProfile(id: string, formData: FormData) {
   const is_active = isActiveCheckbox === 'on' || isActiveCheckbox === 'true'
 
   const supabase = await createClient()
+
+  // Ensure at least one active admin remains if demoting or deactivating an active admin
+  if (!is_active || role !== 'admin') {
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, role, is_active')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (targetProfile && targetProfile.id === id && targetProfile.role === 'admin' && targetProfile.is_active) {
+      const { count: activeAdminCount } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
+        .eq('is_active', true)
+
+      if ((activeAdminCount ?? 0) <= 1) {
+        redirectToSettings('error', 'ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน', 'users')
+      }
+    }
+  }
   try {
     const { data: oldData } = await supabase
       .from('profiles')

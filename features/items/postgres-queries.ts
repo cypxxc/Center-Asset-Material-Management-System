@@ -60,6 +60,7 @@ export async function getPostgresItemReferences() {
 }
 
 export async function getPostgresItems(params: ItemListSearchParams, pageSize = 10): Promise<ItemListResult> {
+  const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(Math.floor(pageSize), 1), 100) : 10
   const parsedPage = Number(params.page ?? '1')
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1
   const columns: Record<string, SQL> = { item_name: sql`i.item_name`, item_type: sql`i.item_type`, quantity: sql`i.quantity`, status: sql`i.status` }
@@ -71,9 +72,9 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
     const totals = await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url
       from public.items i ${itemRelations} where ${where}
-      order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id limit ${pageSize} offset ${(page - 1) * pageSize}`)
+      order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
     const total = totals.rows[0]?.total ?? 0
-    return { items: rows.rows.map(item => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) })), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
+    return { items: rows.rows.map(item => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) })), total, page, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) }
   })
 }
 
@@ -169,14 +170,14 @@ export async function getPostgresLowStockItems(limit = 5): Promise<LowStockDashb
       coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName"
       from public.items i left join public.locations l on l.id = i.location_id
       where i.item_type = 'material' and i.quantity <= 5 and i.deleted_at is null
-      order by i.quantity asc, i.id limit ${Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 5}`)
+      order by i.quantity asc, i.id limit ${(Number.isFinite(limit) && limit > 0) ? Math.min(Math.floor(limit), 100) : 5}`)
     return rows.rows
   })
 }
 
 export async function getPostgresUrgentDamagedItems(limit = 5): Promise<UrgentDamagedItem[]> {
   return withUserDatabase(async (tx) => {
-    const parsedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5
+    const parsedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 5
     const rows = await tx.execute<UrgentDamagedItem & { updated_at: string | Date } & Record<string, unknown>>(sql`select i.id, i.item_name, i.asset_no,
       coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName",
       i.status, i.updated_at, i.image_url

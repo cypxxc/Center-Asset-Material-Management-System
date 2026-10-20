@@ -131,6 +131,25 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const itemsOrder = ['overview', 'all-items', 'assets', 'supplies', 'locations', 'reports']
 
+  const isAllItemsActive =
+    currentPath === '/items' &&
+    !effType &&
+    !effCategory &&
+    !effLocation
+
+  const isAssetsActive =
+    currentPath === '/items' &&
+    effType === 'asset' &&
+    !effCategory
+
+  const isSuppliesActive =
+    currentPath === '/items' &&
+    effType === 'material'
+
+  const isLocationsActive =
+    currentPath === '/locations' &&
+    !effLocation
+
   const renderMenuItem = (key: string) => {
     switch (key) {
       case 'overview':
@@ -157,10 +176,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             href="/items"
             onPointerDown={() => handleOptimisticNavigate('/items')}
             onClick={() => handleOptimisticNavigate('/items')}
-            aria-current={currentPath === '/items' && !effType && !effCategory && !effLocation ? 'page' : undefined}
+            aria-current={isAllItemsActive ? 'page' : undefined}
             className={cn(
               'flex items-center px-2.5 py-2 rounded-lg transition-all',
-              currentPath === '/items' && !effType && !effCategory && !effLocation
+              isAllItemsActive
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -175,10 +194,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             href="/items?type=material"
             onPointerDown={() => handleOptimisticNavigate('/items?type=material')}
             onClick={() => handleOptimisticNavigate('/items?type=material')}
-            aria-current={currentPath === '/items' && effType === 'material' ? 'page' : undefined}
+            aria-current={isSuppliesActive ? 'page' : undefined}
             className={cn(
               'flex items-center justify-between px-2.5 py-2 rounded-lg transition-all flex-1',
-              currentPath === '/items' && effType === 'material'
+              isSuppliesActive
                 ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
@@ -198,7 +217,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <div
               className={cn(
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
-                currentPath === '/items' && effType === 'asset' && !effCategory
+                isAssetsActive
                   ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
@@ -220,7 +239,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 href="/items?type=asset"
                 onPointerDown={() => handleOptimisticNavigate('/items?type=asset')}
                 onClick={() => handleOptimisticNavigate('/items?type=asset')}
-                aria-current={currentPath === '/items' && effType === 'asset' && !effCategory ? 'page' : undefined}
+                aria-current={isAssetsActive ? 'page' : undefined}
                 className="flex items-center min-w-0 flex-1"
               >
                 <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
@@ -269,7 +288,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             <div
               className={cn(
                 'flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all',
-                currentPath === '/locations' && !effLocation
+                isLocationsActive
                   ? 'bg-primary/10 text-primary font-bold border border-primary/20'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
@@ -291,7 +310,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 href="/locations"
                 onPointerDown={() => handleOptimisticNavigate('/locations')}
                 onClick={() => handleOptimisticNavigate('/locations')}
-                aria-current={currentPath === '/locations' && !effLocation ? 'page' : undefined}
+                aria-current={isLocationsActive ? 'page' : undefined}
                 className="flex items-center min-w-0 flex-1"
               >
                 <MapPin className="w-4 h-4 mr-2 text-rose-500 flex-shrink-0" />

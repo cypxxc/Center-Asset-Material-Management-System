@@ -112,6 +112,16 @@ test('cannot delete or demote the last remaining active administrator', async ()
   assert.match(deactivateResult.error ?? '', /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/)
 })
 
+test('concurrent administrator demotion or deactivation acquires advisory lock to serialize last admin check', async () => {
+  const admin = await actions
+  queries.length = 0
+  rowResult = [{ id: target, role: 'admin', is_active: true, count: 2 }]
+  const result = await admin.pgUpdateUserProfile(target, { role: 'staff' })
+  assert.equal(result.success, true)
+  const advisoryLockQuery = queries.find(q => q.sql.includes('pg_advisory_xact_lock'))
+  assert.ok(advisoryLockQuery, 'Must acquire advisory lock before counting remaining active administrators')
+})
+
 test('restore replaces only business tables and safely resolves historical account references', async () => {
   const data = backup()
   data.items = [{ id: target, created_by: actor }]

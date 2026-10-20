@@ -1,7 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 
@@ -28,17 +28,13 @@ export function ThemeToggle({ className }: { className?: string }) {
   }
 
   const toggleTheme = () => {
-    if (theme === 'light') setTheme('dark')
-    else if (theme === 'dark') setTheme('system')
-    else setTheme('light')
+    setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
   const label =
     theme === 'light'
       ? 'โหมดสว่าง (คลิกเพื่อเปลี่ยนเป็นโหมดมืด)'
-      : theme === 'dark'
-      ? 'โหมดมืด (คลิกเพื่อเปลี่ยนเป็นตามระบบ)'
-      : 'โหมดตามระบบ (คลิกเพื่อเปลี่ยนเป็นโหมดสว่าง)'
+      : 'โหมดมืด (คลิกเพื่อเปลี่ยนเป็นโหมดสว่าง)'
 
   return (
     <button
@@ -51,9 +47,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className
       )}
     >
-      {theme === 'system' ? (
-        <Monitor className="h-4 w-4 transition-transform" />
-      ) : resolvedTheme === 'dark' ? (
+      {resolvedTheme === 'dark' ? (
         <Moon className="h-4 w-4 text-blue-400 transition-transform" />
       ) : (
         <Sun className="h-4 w-4 text-amber-500 transition-transform" />

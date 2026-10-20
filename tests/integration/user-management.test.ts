@@ -142,3 +142,23 @@ test('updateUserProfileRoleAndStatus rejects invalid role', async () => {
   assert.match(res.error, /บทบาทไม่ถูกต้อง/);
 });
 
+test('updateUserProfileRoleAndStatus prevents demoting or deactivating the last remaining active admin', async () => {
+  mockSupabaseRegistry.clear();
+  const adminProfile = { id: 'user-admin-1', email: 'admin1@example.com', role: 'admin', is_active: true };
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-admin-1', email: 'admin1@example.com' },
+    adminProfile
+  );
+  mockSupabaseRegistry.setTableResponseForClient('profiles', 'service', [
+    { id: 'target-admin', email: 'admin2@example.com', role: 'admin', is_active: true }
+  ]);
+
+  const demoteRes = await updateUserProfileRoleAndStatus('target-admin', { role: 'staff' });
+  assert.ok(demoteRes.error);
+  assert.match(demoteRes.error, /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/);
+
+  const deactivateRes = await updateUserProfileRoleAndStatus('target-admin', { is_active: false });
+  assert.ok(deactivateRes.error);
+  assert.match(deactivateRes.error, /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/);
+});
+

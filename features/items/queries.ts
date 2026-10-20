@@ -250,11 +250,12 @@ const getCachedSidebarData = unstable_cache(
 )
 
 export async function getItems(params: ItemListSearchParams, pageSize: number = PAGE_SIZE): Promise<ItemListResult> {
-  if (isPostgresBackend()) return getPostgresItems(params, pageSize)
+  const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(Math.floor(pageSize), 1), 100) : PAGE_SIZE
+  if (isPostgresBackend()) return getPostgresItems(params, safePageSize)
   const supabase = await createClient()
   const page = parsePage(params.page)
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+  const from = (page - 1) * safePageSize
+  const to = from + safePageSize - 1
   const q = normalizeForSearch(params.q || '')
 
   let query = supabase
@@ -401,8 +402,8 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
     items,
     total,
     page,
-    pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
   }
 }
 
@@ -790,7 +791,8 @@ export interface LowStockDashboardItem {
 export const getLowStockItems = cache(async function getLowStockItems(
   limit = 5
 ): Promise<LowStockDashboardItem[]> {
-  if (isPostgresBackend()) return getPostgresLowStockItems(limit)
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 5
+  if (isPostgresBackend()) return getPostgresLowStockItems(safeLimit)
   const supabase = await createClient()
   const {
     result: { data, error },
@@ -802,7 +804,7 @@ export const getLowStockItems = cache(async function getLowStockItems(
       .lte('quantity', 5)
       .is('deleted_at', null)
       .order('quantity', { ascending: true })
-      .limit(limit)
+      .limit(safeLimit)
   )
 
   if (error || !data) {
@@ -836,7 +838,7 @@ export const getUrgentDamagedItems = cache(async function getUrgentDamagedItems(
 ): Promise<UrgentDamagedItem[]> {
   if (isPostgresBackend()) return getPostgresUrgentDamagedItems(limit)
   const supabase = await createClient()
-  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 5
 
   const {
     result: { data, error },

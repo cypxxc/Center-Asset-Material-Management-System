@@ -65,4 +65,24 @@ describe('recordPhysicalAuditAction', () => {
     assert.equal(result.success, false)
     assert.ok(result.error)
   })
+
+  test('rejects audit check-in when user is a viewer', async () => {
+    mockSupabaseRegistry.setAuth(
+      { id: 'viewer-001', email: 'viewer@system.local' },
+      { id: 'viewer-001', email: 'viewer@system.local', role: 'viewer', is_active: true}
+    )
+    const result = await recordPhysicalAuditAction('item-123')
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ/)
+  })
+
+  test('rejects audit check-in when user is inactive staff', async () => {
+    mockSupabaseRegistry.setAuth(
+      { id: 'staff-inactive', email: 'staff-inactive@system.local' },
+      { id: 'staff-inactive', email: 'staff-inactive@system.local', role: 'staff', is_active: false}
+    )
+    const result = await recordPhysicalAuditAction('item-123')
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /กรุณาเข้าสู่ระบบก่อนทำรายการ/)
+  })
 })

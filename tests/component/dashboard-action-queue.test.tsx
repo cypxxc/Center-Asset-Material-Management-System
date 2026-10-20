@@ -48,7 +48,7 @@ const sampleLowStockItems: FormattedLowStockItem[] = [
   },
 ]
 
-test('DashboardActionQueue has id="action-queue" on the container', async () => {
+test('DashboardActionQueue has id="action-queue" and scroll-mt-6 on the container', async () => {
   const element = await DashboardActionQueue({
     damagedItems: sampleDamagedItems,
     lowStockItems: sampleLowStockItems,
@@ -57,6 +57,32 @@ test('DashboardActionQueue has id="action-queue" on the container', async () => 
 
   const queueContainer = container.querySelector('#action-queue')
   assert.ok(queueContainer, 'Container must have id="action-queue"')
+  assert.ok(queueContainer.classList.contains('scroll-mt-6'), 'Container must have scroll-mt-6')
+})
+
+test('DashboardActionQueue switches tabs using left/right arrow keys', async () => {
+  const element = await DashboardActionQueue({
+    damagedItems: sampleDamagedItems,
+    lowStockItems: sampleLowStockItems,
+  })
+  render(element)
+
+  const damagedTab = screen.getByRole('tab', { name: /พัสดุชำรุดและรอซ่อม/ })
+  const tablist = screen.getByRole('tablist')
+
+  assert.equal(damagedTab.getAttribute('aria-selected'), 'true')
+
+  // Press ArrowRight to switch to low-stock tab
+  fireEvent.keyDown(tablist, { key: 'ArrowRight' })
+
+  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
+  assert.equal(lowStockTab.getAttribute('aria-selected'), 'true')
+  assert.ok(screen.getByText('กระดาษ Double A A4 80gsm'))
+
+  // Press ArrowLeft to switch back to damaged tab
+  fireEvent.keyDown(tablist, { key: 'ArrowLeft' })
+  assert.equal(damagedTab.getAttribute('aria-selected'), 'true')
+  assert.ok(screen.getByText('เครื่องพิมพ์เลเซอร์ HP LaserJet Pro'))
 })
 
 test('DashboardActionQueue renders damaged items tab by default with details and badges', async () => {

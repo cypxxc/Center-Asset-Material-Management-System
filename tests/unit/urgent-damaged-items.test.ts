@@ -116,3 +116,26 @@ test('getPostgresUrgentDamagedItems executes correct SQL query and formats field
 
   mockTxExecute = null
 })
+
+test('getPostgresUrgentDamagedItems handles NaN, Infinity, and negative limits safely', async () => {
+  const { getPostgresUrgentDamagedItems } = await import('../../features/items/postgres-queries')
+  const { PgDialect } = await import('drizzle-orm/pg-core')
+  const dialect = new PgDialect()
+  let capturedLimit: unknown = null
+  mockTxExecute = async (query: unknown) => {
+    const built = dialect.sqlToQuery(query as Parameters<typeof dialect.sqlToQuery>[0])
+    capturedLimit = built.params[built.params.length - 1]
+    return { rows: [] }
+  }
+  await getPostgresUrgentDamagedItems(NaN)
+  assert.equal(capturedLimit, 5)
+
+  await getPostgresUrgentDamagedItems(Infinity)
+  assert.equal(capturedLimit, 5)
+
+  await getPostgresUrgentDamagedItems(-10)
+  assert.equal(capturedLimit, 5)
+
+  await getPostgresUrgentDamagedItems(9999)
+  assert.equal(capturedLimit, 100)
+})

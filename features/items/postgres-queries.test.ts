@@ -160,3 +160,16 @@ test('depreciation uses date strings and numeric amounts and excludes incomplete
   assert.deepEqual(result.totals, { cost: 1000, accumulated: 999, netBook: 1 })
   assert.match(statements[0].sql, /depreciation_enabled = true and deleted_at is null/)
 })
+
+test('item pagination clamps pageSize between 1 and 100', async () => {
+  const { getItems } = await import('./queries')
+  responses = [[{ total: 50 }], []]
+  const resultOver = await getItems({ page: '1' }, 500)
+  assert.equal(resultOver.pageSize, 100)
+  assert.equal(statements[1].params.slice(-2)[0], 100)
+
+  responses = [[{ total: 50 }], []]
+  const resultUnder = await getItems({ page: '1' }, -10)
+  assert.equal(resultUnder.pageSize, 1)
+  assert.equal(statements[3].params.slice(-2)[0], 1)
+})

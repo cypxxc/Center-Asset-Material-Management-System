@@ -2,7 +2,6 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { deleteItemStorageImage } from '@/lib/supabase/storage'
 import { itemFormSchema } from './schema'
@@ -736,10 +735,11 @@ export async function recordPhysicalAuditAction(
     return { success: false, error: 'รหัสพัสดุไม่ถูกต้อง' }
   }
 
-  const profile = await getCurrentProfile()
-  if (!profile || !profile.is_active) {
-    return { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' }
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) {
+    return { success: false, error: auth.error ?? 'คุณไม่มีสิทธิ์บันทึกการตรวจนับสิ่งของ' }
   }
+  const profile = auth.profile
 
   const timestamp = new Date().toISOString()
   const auditNote = typeof note === 'string' ? note.trim() || 'ตรวจนับสภาพปกติ' : 'ตรวจนับสภาพปกติ'

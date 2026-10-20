@@ -45,15 +45,17 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
           className="w-32 h-32 sm:w-36 sm:h-36 drop-shadow-2xs"
           role="img"
           aria-label="กราฟแสดงสัดส่วนพัสดุตามสภาพการใช้งาน"
+          onMouseLeave={() => setHoveredKey(null)}
         >
           {/* Background Track */}
           <circle
             cx="60"
             cy="60"
             r="50"
-            fill="transparent"
+            fill="none"
             stroke="var(--muted, #f1f5f9)"
             strokeWidth="12"
+            pointerEvents="none"
           />
 
           {/* Active segments */}
@@ -65,16 +67,20 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
                 cx="60"
                 cy="60"
                 r="50"
-                fill="transparent"
+                fill="none"
                 stroke={seg.color}
-                strokeWidth={isHovered ? 16 : 12}
+                strokeWidth={isHovered ? 14 : 12}
                 strokeDasharray={`${seg.dashLength} ${circ - seg.dashLength}`}
                 strokeDashoffset={-seg.offset}
                 transform="rotate(-90 60 60)"
                 onMouseEnter={() => setHoveredKey(seg.key)}
-                onMouseLeave={() => setHoveredKey(null)}
-                className="transition-all duration-200 cursor-pointer pointer-events-stroke"
-                style={{ strokeLinecap: 'butt' }}
+                onMouseLeave={() => setHoveredKey((prev) => (prev === seg.key ? null : prev))}
+                className="transition-[stroke-width,opacity] duration-150 cursor-pointer"
+                style={{
+                  strokeLinecap: 'butt',
+                  pointerEvents: 'stroke',
+                  opacity: hoveredKey !== null && !isHovered ? 0.45 : 1,
+                }}
               />
             )
           })}
@@ -113,7 +119,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
             href={`/items?status=${item.key}`}
             title={`ดูรายการพัสดุสถานะ ${item.label}`}
             onMouseEnter={() => setHoveredKey(item.key)}
-            onMouseLeave={() => setHoveredKey(null)}
+            onMouseLeave={() => setHoveredKey((prev) => (prev === item.key ? null : prev))}
             className={cn(
               "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150",
               hoveredKey === item.key

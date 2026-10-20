@@ -34,11 +34,12 @@ export async function DashboardCategoryList() {
   const spareQty = stats.statusCounts.spare?.qty || 0
   const damagedQty = (stats.statusCounts.damaged?.qty || 0) + (stats.statusCounts.waiting_repair?.qty || 0)
   const otherQty = (stats.statusCounts.inactive?.qty || 0) + (stats.statusCounts.disposed?.qty || 0)
+  const statusTotalQty = activeQty + spareQty + damagedQty + otherQty || totalQty
 
-  const activePct = (activeQty / totalQty) * 100
-  const sparePct = (spareQty / totalQty) * 100
-  const damagedPct = (damagedQty / totalQty) * 100
-  const otherPct = (otherQty / totalQty) * 100
+  const activePct = (activeQty / statusTotalQty) * 100
+  const sparePct = (spareQty / statusTotalQty) * 100
+  const damagedPct = (damagedQty / statusTotalQty) * 100
+  const otherPct = (otherQty / statusTotalQty) * 100
 
   const statusData: StatusItemData[] = [
     { key: 'active', label: 'ใช้งานปกติ', qty: activeQty, pct: activePct, color: '#10b981' },
@@ -68,12 +69,12 @@ export async function DashboardCategoryList() {
             </p>
           </div>
           <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/60 px-2 py-0.5 rounded border border-border/40 shrink-0">
-            {stats.totalQuantity.toLocaleString()} ชิ้น
+            {statusTotalQty.toLocaleString()} ชิ้น
           </span>
         </div>
 
         <div className="pt-2">
-          <StatusDonutChart totalQuantity={stats.totalQuantity} statusData={statusData} />
+          <StatusDonutChart totalQuantity={statusTotalQty} statusData={statusData} />
         </div>
       </div>
 

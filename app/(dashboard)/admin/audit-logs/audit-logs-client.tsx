@@ -150,7 +150,11 @@ export default function AuditLogsClient({
   initialTotalCount,
   initialSearchParams,
 }: AuditLogsClientProps) {
-  useRealtimeRefresh(['audit_logs'])
+  useRealtimeRefresh(['audit_logs'], {
+    pauseOnHidden: true,
+    debounceDelay: 300,
+    maxWait: 1500,
+  })
   const {
     searchTerm,
     setSearchTerm,
