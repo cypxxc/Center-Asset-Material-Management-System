@@ -38,6 +38,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 debug.log
+*.log
+
+# editor & ide
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
 # local workspace / agent logs
 .agent/

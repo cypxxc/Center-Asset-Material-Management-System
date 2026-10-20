@@ -6,6 +6,7 @@ import { getItemReferences } from '@/features/items/queries'
 
 import { getCurrentProfile } from '@/features/auth/queries'
 import { redirect } from 'next/navigation'
+import { canWrite } from '@/lib/permissions'
 import { getDepreciationReport } from '@/features/depreciation/queries'
 import { DepreciationReport } from '@/features/depreciation/components/depreciation-report'
 import { ReportsDeferredSkeleton } from './loading'
@@ -21,6 +22,7 @@ interface DeferredReportSectionProps {
   params: ItemListSearchParams
   references: Awaited<ReturnType<typeof getItemReferences>>
   stats: Awaited<ReturnType<typeof getReportStats>>
+  userCanExport: boolean
 }
 
 async function DeferredReportSection({
@@ -30,6 +32,7 @@ async function DeferredReportSection({
   params,
   references,
   stats,
+  userCanExport,
 }: DeferredReportSectionProps) {
   const [reportData, depreciationReport] = await Promise.all([
     reportDataPromise,
@@ -51,6 +54,7 @@ async function DeferredReportSection({
         locations={references.locations}
         stats={stats}
         view="table-and-filters"
+        userCanExport={userCanExport}
       />
       <div className="px-4 pb-6 sm:px-6 lg:px-8">
         <DepreciationReport {...depreciationReport} />
@@ -92,6 +96,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         locations={references.locations}
         stats={stats}
         view="header-and-kpis"
+        userCanExport={canWrite(profile?.role)}
       />
 
       {/* Deferred Boundary: Heavy paginated items and depreciation calculations */}
@@ -109,6 +114,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           params={params}
           references={references}
           stats={stats}
+          userCanExport={canWrite(profile?.role)}
         />
       </Suspense>
     </div>

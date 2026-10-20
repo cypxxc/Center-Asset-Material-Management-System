@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
   Armchair,
-  BarChart2,
+  BarChart3,
+  Boxes,
   ChevronDown,
   ChevronRight,
   FileText,
-  Folder,
-  Grid,
+  LayoutDashboard,
+  Layers,
   Laptop,
   LogOut,
   MapPin,
@@ -166,7 +167,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <Grid className="w-4 h-4 mr-2.5 text-muted-foreground flex-shrink-0" />
+            <LayoutDashboard className="w-4 h-4 mr-2.5 text-sky-500 flex-shrink-0" />
             <span className="truncate">แผงควบคุม</span>
           </Link>
         )
@@ -184,7 +185,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <Package className="w-4 h-4 mr-2.5 text-muted-foreground flex-shrink-0" />
+            <Layers className="w-4 h-4 mr-2.5 text-indigo-500 flex-shrink-0" />
             <span className="truncate">รายการทั้งหมด</span>
           </Link>
         )
@@ -203,7 +204,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             )}
           >
             <div className="flex items-center min-w-0 flex-1">
-              <Folder className="w-4 h-4 mr-2.5 text-amber-500 fill-amber-400 flex-shrink-0" />
+              <Boxes className="w-4 h-4 mr-2.5 text-amber-500 flex-shrink-0" />
               <span className="truncate">วัสดุ</span>
             </div>
             <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -242,7 +243,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 aria-current={isAssetsActive ? 'page' : undefined}
                 className="flex items-center min-w-0 flex-1"
               >
-                <Folder className="w-4 h-4 mr-2 text-amber-500 fill-amber-400 flex-shrink-0" />
+                <Package className="w-4 h-4 mr-2 text-blue-500 flex-shrink-0" />
                 <span className="truncate">ครุภัณฑ์</span>
               </Link>
               <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -364,7 +365,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <BarChart2 className="w-4 h-4 mr-2.5 text-muted-foreground flex-shrink-0" />
+            <BarChart3 className="w-4 h-4 mr-2.5 text-emerald-500 flex-shrink-0" />
             <span className="truncate">รายงาน</span>
           </Link>
         )
@@ -436,7 +437,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <Settings className="w-4 h-4 mr-2.5 text-muted-foreground" />
+            <Settings className="w-4 h-4 mr-2.5 text-violet-500 flex-shrink-0" />
             <span>ตั้งค่าระบบหลัก</span>
           </Link>
         )}
@@ -455,7 +456,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <UserCog className="w-4 h-4 mr-2.5 text-muted-foreground" />
+            <UserCog className="w-4 h-4 mr-2.5 text-purple-500 flex-shrink-0" />
             <span>จัดการผู้ใช้งาน</span>
           </Link>
         )}
@@ -474,7 +475,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <History className="w-4 h-4 mr-2.5 text-muted-foreground" />
+            <History className="w-4 h-4 mr-2.5 text-orange-500 flex-shrink-0" />
             <span>ประวัติการทำรายการ (Audit Logs)</span>
           </Link>
         )}
@@ -493,7 +494,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <Database className="w-4 h-4 mr-2.5 text-muted-foreground" />
+            <Database className="w-4 h-4 mr-2.5 text-teal-500 flex-shrink-0" />
             <span>จัดการฐานข้อมูล (DB Admin)</span>
           </Link>
         )}

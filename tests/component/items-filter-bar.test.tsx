@@ -30,6 +30,7 @@ function renderFilterBar(overrides: Partial<ItemsFilterBarProps> = {}) {
     localItemsCount: 15,
     isExporting: false,
     onExport: () => {},
+    userCanWrite: true,
     ...overrides,
   }
 
@@ -177,6 +178,7 @@ test('ItemsFilterBar: export button disables when isExporting is true', () => {
       localItemsCount={1}
       isExporting={true}
       onExport={() => {}}
+      userCanWrite={true}
     />
   )
 

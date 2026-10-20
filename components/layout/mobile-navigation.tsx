@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, Home, Package, Settings, UserCog, History, Database, LogOut, MapPin, FileText } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Layers, Package, Boxes, Settings, UserCog, History, Database, LogOut, MapPin, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -75,7 +75,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isDashboardActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Home className="h-4 w-4 text-primary" />
+              <LayoutDashboard className="h-4 w-4 text-sky-500 shrink-0" />
               <span>แผงควบคุม (Dashboard)</span>
             </Link>
 
@@ -88,7 +88,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isItemsActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Layers className="h-4 w-4 text-indigo-500 shrink-0" />
               <span>พัสดุทั้งหมด (All Items)</span>
             </Link>
 
@@ -101,7 +101,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isAssetsActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-4 w-4 text-blue-500 shrink-0" />
               <span>ทะเบียนครุภัณฑ์ (Assets)</span>
             </Link>
 
@@ -114,7 +114,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isSuppliesActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
               <span>วัสดุ</span>
             </Link>
 
@@ -127,7 +127,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isLocationsActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <MapPin className="h-4 w-4 text-rose-500 shrink-0" />
               <span>สถานที่จัดเก็บ</span>
             </Link>
 
@@ -140,7 +140,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isReportsActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <BarChart3 className="h-4 w-4 text-emerald-500 shrink-0" />
               <span>รายงานพัสดุ</span>
             </Link>
 
@@ -154,7 +154,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                   isSettingsActive ? activeLinkClass : inactiveLinkClass
                 )}
               >
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <Settings className="h-4 w-4 text-violet-500 shrink-0" />
                 <span>ตั้งค่าระบบ (Settings)</span>
               </Link>
             )}
@@ -170,7 +170,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                     isUsersActive ? activeLinkClass : inactiveLinkClass
                   )}
                 >
-                  <UserCog className="h-4 w-4 text-muted-foreground" />
+                  <UserCog className="h-4 w-4 text-purple-500 shrink-0" />
                   <span>จัดการผู้ใช้งาน (Users)</span>
                 </Link>
 
@@ -183,7 +183,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                     isAuditLogsActive ? activeLinkClass : inactiveLinkClass
                   )}
                 >
-                  <History className="h-4 w-4 text-muted-foreground" />
+                  <History className="h-4 w-4 text-orange-500 shrink-0" />
                   <span>ประวัติการทำรายการ (Audit Logs)</span>
                 </Link>
 
@@ -196,7 +196,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                     isDbPanelActive ? activeLinkClass : inactiveLinkClass
                   )}
                 >
-                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <Database className="h-4 w-4 text-teal-500 shrink-0" />
                   <span>จัดการฐานข้อมูล (DB Panel)</span>
                 </Link>
               </>

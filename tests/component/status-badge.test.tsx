@@ -16,14 +16,14 @@ test('StatusBadge accepts custom children as label', () => {
   assert.ok(container.textContent?.includes('Custom Label'));
 });
 
-test('StatusBadge shows dot by default when showDot is true', () => {
+test('StatusBadge shows icon or dot by default when showDot is true', () => {
   const { container } = render(React.createElement(StatusBadge, { status: 'active', showDot: true }));
-  const dot = container.querySelector('.bg-current');
-  assert.ok(dot);
+  const iconOrDot = container.querySelector('svg, .bg-current');
+  assert.ok(iconOrDot);
 });
 
-test('StatusBadge hides dot when showDot is false', () => {
+test('StatusBadge hides icon and dot when showDot is false', () => {
   const { container } = render(React.createElement(StatusBadge, { status: 'active', showDot: false }));
-  const noDot = container.querySelector('.bg-current');
-  assert.equal(noDot, null);
+  const iconOrDot = container.querySelector('svg, .bg-current');
+  assert.equal(iconOrDot, null);
 });

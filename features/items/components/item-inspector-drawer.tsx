@@ -245,6 +245,7 @@ export function Inspector({
       <div className="shrink-0 border-t border-border bg-card p-3 sm:p-4 min-w-0">
         <div className="flex flex-col gap-2 w-full min-w-0">
           <div className="grid grid-cols-2 gap-2 min-w-0">
+            {userCanWrite && (
             <Button
               type="button"
               variant="outline"
@@ -254,6 +255,7 @@ export function Inspector({
               <Tag className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">พิมพ์ป้ายบาร์โค้ด</span>
             </Button>
+            )}
             <Link href={`/items/${item.id}`} onClick={onOpenDetails} className="w-full min-w-0">
               <Button
                 type="button"

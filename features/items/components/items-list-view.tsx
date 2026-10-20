@@ -122,7 +122,7 @@ export function ItemsList({
               />
             </DataTableHead>
             <DataTableHead className="w-11 px-1" />
-            <DataTableHead className="px-3 min-w-[140px]" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
+            <DataTableHead className="w-[300px] min-w-[300px] max-w-[320px] px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
             <DataTableHead className={cn("hidden w-20 px-2.5", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")} aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
             <DataTableHead className={cn("hidden w-44 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>หมวดหมู่</DataTableHead>
             <DataTableHead className="w-20 sm:w-24 px-2 sm:px-3 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
@@ -228,11 +228,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       </DataTableCell>
 
       {/* Rich Primary Compound Column: Title, Asset Code Badge, Brand/Model */}
-      <DataTableCell className="px-3 min-w-[140px]">
+      <DataTableCell className="w-[300px] min-w-[300px] max-w-[320px] px-3 overflow-hidden">
         <div className="flex flex-col justify-center min-w-0 pr-2">
           <div className="flex items-center gap-2 min-w-0">
             <span
-              className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5"
+              className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5 block w-full"
               title={item.item_name}
             >
               {item.item_name}

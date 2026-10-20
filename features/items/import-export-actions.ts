@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { getCurrentProfile } from '@/features/auth/queries'
 import { createClient } from '@/lib/supabase/server'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
@@ -197,9 +196,9 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 }
 
 export async function getItemsForExport(params: ItemListSearchParams) {
-  const profile = await getCurrentProfile()
-  if (!profile || !profile.is_active) {
-    throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) {
+    throw new Error(auth.error ?? 'คุณไม่มีสิทธิ์ดาวน์โหลดข้อมูลพัสดุ')
   }
   const result = await getReportItemsList(params, true)
   return result.items

@@ -1,4 +1,5 @@
 'use server'
+import { requireEditor } from '@/features/auth/guards'
 
 import { getCurrentProfile } from '@/features/auth/queries'
 import { writeAuditLog } from '@/lib/audit'
@@ -14,9 +15,9 @@ export async function getExportReportItems(params: ItemListSearchParams): Promis
   totalQuantity: number
   totalValue: number
 }> {
-  const profile = await getCurrentProfile()
-  if (!profile || !profile.is_active) {
-    throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+  const auth = await requireEditor()
+  if (auth.error || !auth.profile) {
+    throw new Error(auth.error ?? 'คุณไม่มีสิทธิ์ดาวน์โหลดรายงาน')
   }
   return await queryExportReportItems(params)
 }

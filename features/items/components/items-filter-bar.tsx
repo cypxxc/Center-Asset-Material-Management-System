@@ -23,6 +23,7 @@ export interface ItemsFilterBarProps {
   localItemsCount: number
   isExporting: boolean
   onExport: () => void
+  userCanWrite?: boolean
   onBatchPrintLocation?: () => void
   className?: string
   searchInputRef?: React.Ref<HTMLInputElement>
@@ -41,6 +42,7 @@ export function ItemsFilterBar({
   localItemsCount,
   isExporting,
   onExport,
+  userCanWrite = false,
   onBatchPrintLocation,
   className,
   searchInputRef,
@@ -235,6 +237,7 @@ export function ItemsFilterBar({
         </div>
 
         {/* Right Side: Export Button */}
+        {userCanWrite && (
         <div className="flex shrink-0 items-center gap-2.5 justify-end self-end sm:self-auto min-w-0">
           <Button
             type="button"
@@ -246,6 +249,7 @@ export function ItemsFilterBar({
             <span className="truncate">ดาวน์โหลด Excel</span>
           </Button>
         </div>
+        )}
       </div>
 
       {/* Active Filter Chips Strip */}

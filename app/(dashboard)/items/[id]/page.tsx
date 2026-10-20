@@ -177,6 +177,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+            {userCanWrite && (
             <ItemDetailActions
               item={{
                 id: item.id,
@@ -191,6 +192,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 unit_price: item.unit_price,
               }}
             />
+            )}
             {userCanWrite && (
               <Link href={`/items/${item.id}/edit`}>
                 <Button

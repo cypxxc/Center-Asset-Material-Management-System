@@ -193,6 +193,7 @@ test('Responsive Layout: ItemsFilterBar wraps search, selects, and export button
       localItemsCount={1}
       isExporting={false}
       onExport={() => {}}
+      userCanWrite={true}
     />
   )
 

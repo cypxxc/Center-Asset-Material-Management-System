@@ -57,6 +57,7 @@ interface ReportsListProps {
   locations: { id: string; name: string }[]
   stats?: ReportStats
   view?: 'all' | 'header-and-kpis' | 'table-and-filters'
+  userCanExport?: boolean
 }
 
 export function ReportsList({
@@ -72,6 +73,7 @@ export function ReportsList({
   locations,
   stats,
   view = 'all',
+  userCanExport = false,
 }: ReportsListProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -279,6 +281,7 @@ export function ReportsList({
             className="print:hidden"
             actions={
               <>
+                {userCanExport && (
                 <Button
                   onClick={exportToExcel}
                   aria-label="ดาวน์โหลดรายงาน Excel"
@@ -293,6 +296,7 @@ export function ReportsList({
                   )}
                   <span>ดาวน์โหลด Excel</span>
                 </Button>
+                )}
                 <Button
                   onClick={exportToPdf}
                   aria-label="ส่งออกรายงาน PDF"

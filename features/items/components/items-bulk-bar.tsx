@@ -62,6 +62,7 @@ export function ItemsBulkBar({
       )}
 
       {/* Bulk Print Asset Tag */}
+      {userCanWrite && (
       <Button
         disabled={!canPrintBatch}
         title={!canPrintBatch ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
@@ -72,6 +73,7 @@ export function ItemsBulkBar({
         <Tag className="h-3.5 w-3.5" />
         <span>พิมพ์ลาเบล ({selectedCount})</span>
       </Button>
+      )}
 
       {/* Bulk Delete - Admin Only */}
       {userCanDelete && (

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "app/**/{page,layout,loading,error,not-found,global-error,route,default}.{js,jsx,ts,tsx}",
+    "scripts/**/*.{ts,js,mjs}",
+    "tests/**/*.{ts,tsx,js}",
+    "**/*.test.{ts,tsx,js}"
+  ],
+  "project": [
+    "app/**/*.{js,jsx,ts,tsx}",
+    "components/**/*.{js,jsx,ts,tsx}",
+    "features/**/*.{js,jsx,ts,tsx}",
+    "lib/**/*.{js,jsx,ts,tsx}",
+    "hooks/**/*.{js,jsx,ts,tsx}",
+    "scripts/**/*.{ts,js,mjs}",
+    "tests/**/*.{ts,tsx,js}"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "tw-animate-css",
+    "shadcn",
+    "tailwindcss",
+    "@next/env"
+  ],
+  "ignoreBinaries": [
+    "taskkill.exe"
+  ]
+}

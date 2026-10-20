@@ -63,7 +63,7 @@ export const ItemGridCard = React.memo(function ItemGridCard({
               <Copy className="h-3.5 w-3.5" />
             </button>
           )}
-          {onPrint && (
+          {userCanWrite && onPrint && (
             <button
               type="button"
               onClick={(e) => {

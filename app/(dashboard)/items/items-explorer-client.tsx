@@ -659,6 +659,7 @@ function ItemsExplorerSession({
               }}
               localItemsCount={currentItems.length}
               isExporting={isExporting}
+              userCanWrite={userCanWrite}
               onExport={exportToExcel}
               onBatchPrintLocation={() => {
                 const stickers: ItemStickerData[] = currentItems.map((itm) => ({
