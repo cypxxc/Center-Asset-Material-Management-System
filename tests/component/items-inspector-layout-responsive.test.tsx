@@ -2,6 +2,10 @@ import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { render, screen, fireEvent } from '@testing-library/react'
+
+// This component test exercises UI layout without live Supabase realtime channels
+process.env.NEXT_PUBLIC_SUPABASE_URL = ''
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 import { ItemsExplorerClient } from '../../app/(dashboard)/items/items-explorer-client'
 import { Inspector } from '../../features/items/components/item-inspector-drawer'
 import { ItemsList } from '../../features/items/components/items-list-view'
