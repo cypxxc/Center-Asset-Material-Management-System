@@ -78,7 +78,7 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
       const stats = await reports.getPostgresReportStats()
       assert.equal(stats.totalItems, before.totalItems + 2)
       assert.equal(stats.totalQuantity, before.totalQuantity + 5)
-      assert.deepEqual(stats.categoryCounts[fixture], { count: 2, qty: 5 })
+      assert.deepEqual(stats.categoryCounts[fixture], { count: 2, qty: 5, activeQty: 5 })
 
       for (const sort_by of ['item_name', 'category', 'quantity', 'unit_price', 'total_price', 'status', 'updated_at', 'created_at', '__proto__']) {
         const report = await reports.getPostgresReportItemsList({ category_id: categoryId, sort_by, sort_dir: 'asc' })
@@ -128,7 +128,7 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
         values (${fixture + ' general'}, 'material', 1, ${general.rows[0].id}::uuid, ${userId}::uuid, ${userId}::uuid),
           (${fixture + ' uncategorized'}, 'material', 1, null, ${userId}::uuid, ${userId}::uuid)`)
       assert.deepEqual((await reports.getPostgresReportStats()).categoryCounts['ทั่วไป'], {
-        count: generalBefore.count + 2, qty: generalBefore.qty + 2,
+        count: generalBefore.count + 2, qty: generalBefore.qty + 2, activeQty: (generalBefore.activeQty ?? 0) + 2,
       }, 'Uncategorized and explicitly general items share the displayed report bucket')
       throw rollback
     }), error => error === rollback)
