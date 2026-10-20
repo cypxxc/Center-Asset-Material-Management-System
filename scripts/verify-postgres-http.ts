@@ -53,7 +53,7 @@ async function main() {
       const image = await request(url)
       assert.equal(image.status, 200)
       assert.equal(image.headers.get('content-type'), 'image/png')
-      assert.equal(image.headers.get('cache-control'), 'private, no-store')
+      assert.equal(image.headers.get('cache-control'), 'private, max-age=86400, stale-while-revalidate=604800')
       assert.equal(image.headers.get('x-content-type-options'), 'nosniff')
       assert.deepEqual(Buffer.from(await image.arrayBuffer()), png)
       const traversal = await request('/api/files/item-images/%2e%2e%2f%2e%2e%2f.env.postgres.app')
