@@ -357,7 +357,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   return (
     <aside className="relative z-30 hidden h-full w-[256px] shrink-0 flex-col border-r border-border bg-card md:flex">
       {/* Brand Header */}
-      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-4">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
         <Link
           href="/dashboard"
           onPointerDown={() => handleOptimisticNavigate('/dashboard')}

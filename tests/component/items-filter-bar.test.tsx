@@ -36,7 +36,7 @@ function renderFilterBar(overrides: Partial<ItemsFilterBarProps> = {}) {
   return render(<ItemsFilterBar {...defaultProps} />)
 }
 
-test('ItemsFilterBar: renders search input, dropdown filters, and valuation metric', () => {
+test('ItemsFilterBar: renders search input, dropdown filters, and export button without redundant valuation metric', () => {
   renderFilterBar({ folderValuation: 1500000 })
 
   // Search input
@@ -47,9 +47,9 @@ test('ItemsFilterBar: renders search input, dropdown filters, and valuation metr
   assert.ok(screen.getByLabelText('กรองตามสถานะ'))
   assert.ok(screen.getByLabelText('กรองตามสถานที่'))
 
-  // Valuation metric with verified label
-  assert.ok(screen.getByText('มูลค่ารายการที่โหลดอยู่:'))
-  assert.ok(screen.getByText('฿1,500,000'))
+  // Valuation metric should NOT be rendered in the filter bar (moved to bottom summary footer)
+  assert.equal(screen.queryByText('มูลค่ารายการที่โหลดอยู่:'), null)
+  assert.equal(screen.queryByText('฿1,500,000'), null)
 
   // Download Excel button
   assert.ok(screen.getByRole('button', { name: /ดาวน์โหลด Excel/i }))
@@ -182,3 +182,28 @@ test('ItemsFilterBar: export button disables when isExporting is true', () => {
 
   assert.equal(screen.getByRole('button', { name: /ดาวน์โหลด Excel/i }).hasAttribute('disabled'), true)
 })
+
+test('ItemsFilterBar: renders quick clear filters button in dropdown row when filters are active', () => {
+  let resetCalled = false
+
+  renderFilterBar({
+    params: { category_id: 'cat-1' },
+    onResetFilters: () => {
+      resetCalled = true
+    },
+  })
+
+  // Quick reset button in the filters row
+  const quickClearBtn = screen.getByRole('button', { name: 'ล้างตัวกรอง' })
+  assert.ok(quickClearBtn)
+  fireEvent.click(quickClearBtn)
+  assert.equal(resetCalled, true, 'clicking quick clear filters button should call onResetFilters')
+})
+
+test('ItemsFilterBar: search input has matching h-9 height class with select dropdowns', () => {
+  renderFilterBar()
+  const searchInput = screen.getByPlaceholderText('ค้นหาชื่อ, เลขครุภัณฑ์, Serial...')
+  assert.ok(searchInput.classList.contains('h-9'), 'search input should have h-9 height for enterprise visual rhythm')
+  assert.ok(searchInput.classList.contains('text-xs'), 'search input should have text-xs font size')
+})
+

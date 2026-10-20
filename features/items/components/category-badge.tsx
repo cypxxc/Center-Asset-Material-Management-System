@@ -12,6 +12,7 @@ export function CategoryBadge({ name, color, className }: CategoryBadgeProps) {
 
   return (
     <span
+      title={name}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs border max-w-full min-w-0 transition-colors',
         className

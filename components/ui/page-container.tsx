@@ -3,11 +3,13 @@ import { cn } from "@/lib/utils"
 
 export interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   maxWidth?: "7xl" | "full"
+  contentClassName?: string
 }
 
 export function PageContainer({
   className,
   maxWidth = "7xl",
+  contentClassName,
   children,
   ...props
 }: PageContainerProps) {
@@ -22,7 +24,8 @@ export function PageContainer({
       <div
         className={cn(
           "space-y-6",
-          maxWidth === "7xl" ? "mx-auto max-w-7xl" : "w-full"
+          maxWidth === "7xl" ? "mx-auto max-w-7xl" : "w-full",
+          contentClassName
         )}
       >
         {children}

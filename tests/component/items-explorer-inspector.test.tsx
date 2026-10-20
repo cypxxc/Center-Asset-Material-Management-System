@@ -137,12 +137,21 @@ test('list and grid render 50 items and view toggles preserve inspected item wit
   assert.equal(screen.getAllByRole('row').length, 51)
 })
 
-test('pagination footer displays range, total, and handles page buttons', () => {
+test('pagination footer displays range, total, single valuation metric, and handles page buttons', () => {
   const items = Array.from({ length: 50 }, (_, i) => ({ ...mockItems[0], id: `page1-${i}`, item_name: `Page 1 Item ${i}` }))
   renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
 
   // Summary badge: "แสดง 1–50 จาก 237 รายการ"
   assert.ok(screen.getByText('แสดง 1–50 จาก 237 รายการ'))
+
+  // Single valuation metric in bottom summary footer: 50 * 32,000 = 1,600,000
+  const valuationSummary = screen.getByTestId('page-valuation-summary')
+  assert.ok(valuationSummary)
+  assert.ok(valuationSummary.textContent?.includes('มูลค่ารวมในหน้านี้:'))
+  assert.ok(valuationSummary.textContent?.includes('฿1,600,000'))
+
+  // Verify no duplicate valuation element with old or redundant label
+  assert.equal(screen.queryByText('มูลค่ารายการที่โหลดอยู่:'), null)
 
   // Previous button should be disabled on page 1
   const prevBtn = screen.getByRole('button', { name: 'หน้าก่อนหน้า' })
@@ -155,6 +164,16 @@ test('pagination footer displays range, total, and handles page buttons', () => 
   // Current page 1 should have aria-current="page"
   const page1Btn = screen.getByRole('button', { name: 'หน้า 1' })
   assert.equal(page1Btn.getAttribute('aria-current'), 'page')
+})
+
+test('pagination footer displays zero count and zero valuation when empty', () => {
+  renderComponent({ ...defaultProps, items: [], total: 0, page: 1, pageSize: 50, totalPages: 1 })
+
+  assert.ok(screen.getByText('แสดง 0 จาก 0 รายการ'))
+  const valuationSummary = screen.getByTestId('page-valuation-summary')
+  assert.ok(valuationSummary)
+  assert.ok(valuationSummary.textContent?.includes('มูลค่ารวมในหน้านี้:'))
+  assert.ok(valuationSummary.textContent?.includes('฿0'))
 })
 
 test('Type navigation preserves search filters and resets category and pagination', () => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Download, Tag, X } from 'lucide-react'
+import { Download, Tag, X, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { parseScannedAssetCode } from '@/lib/qr-scan-parser'
@@ -19,7 +19,7 @@ export interface ItemsFilterBarProps {
   locations: { id: string; name: string }[]
   onFilterChange: (updates: ItemsFilterUpdates) => void
   onResetFilters: () => void
-  folderValuation: number
+  folderValuation?: number
   localItemsCount: number
   isExporting: boolean
   onExport: () => void
@@ -38,7 +38,6 @@ export function ItemsFilterBar({
   locations = [],
   onFilterChange,
   onResetFilters,
-  folderValuation,
   localItemsCount,
   isExporting,
   onExport,
@@ -138,7 +137,7 @@ export function ItemsFilterBar({
                   onFilterChange({ q: '' })
                 }}
                 placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
-                className="w-full"
+                className="w-full h-9 text-xs"
               />
             </div>
 
@@ -201,6 +200,22 @@ export function ItemsFilterBar({
                 ))}
               </select>
 
+              {/* Quick Reset Filters Button */}
+              {activeChips.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onResetFilters}
+                  className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
+                  title="ล้างตัวกรองทั้งหมด"
+                  aria-label="ล้างตัวกรอง"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">ล้างตัวกรอง</span>
+                </Button>
+              )}
+
               {/* Batch Print by Location Button */}
               {params.location_id && localItemsCount > 0 && onBatchPrintLocation && (
                 <Button
@@ -219,16 +234,8 @@ export function ItemsFilterBar({
           </form>
         </div>
 
-        {/* Right Side: Folder Valuation Metric + Export Button */}
+        {/* Right Side: Export Button */}
         <div className="flex shrink-0 items-center gap-2.5 justify-end self-end sm:self-auto min-w-0">
-          <div
-            className="hidden 2xl:flex items-center gap-1.5 rounded-lg border border-border bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground font-semibold shadow-2xs shrink-0"
-            title="มูลค่ารวมของรายการที่โหลดอยู่ในหน่วยความจำ"
-          >
-            <span>มูลค่ารายการที่โหลดอยู่:</span>
-            <span className="font-extrabold text-primary">฿{folderValuation.toLocaleString()}</span>
-          </div>
-
           <Button
             type="button"
             onClick={onExport}
@@ -274,9 +281,10 @@ export function ItemsFilterBar({
             type="button"
             onClick={onResetFilters}
             data-testid="clear-all-filters-button"
-            className="text-xs font-semibold text-destructive hover:underline cursor-pointer ml-1 select-none transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-2 py-1 rounded-md transition-colors cursor-pointer ml-1 select-none"
           >
-            ล้างตัวกรองทั้งหมด
+            <RotateCcw className="h-3 w-3" />
+            <span>ล้างตัวกรองทั้งหมด</span>
           </button>
         </div>
       )}

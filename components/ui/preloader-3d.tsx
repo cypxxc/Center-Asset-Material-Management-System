@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AnimationItem } from 'lottie-web'
 import { cn } from '@/lib/utils'
-import preloaderAnimation from '@/public/animations/3d-preloader.json'
 
 interface Preloader3DProps {
   className?: string
@@ -25,17 +24,21 @@ export function Preloader3D({ className, size = 120, label }: Preloader3DProps) 
 
     if (!hasCanvasSupport) return
 
-    void import('lottie-web')
-      .then((lottieModule) => {
+    void Promise.all([
+      import('lottie-web'),
+      import('@/public/animations/3d-preloader.json'),
+    ])
+      .then(([lottieModule, animModule]) => {
         if (!containerRef.current) return
         try {
           const lottie = lottieModule.default || lottieModule
+          const animationData = animModule.default || animModule
           anim = lottie.loadAnimation({
             container: containerRef.current,
             renderer: 'svg',
             loop: true,
             autoplay: true,
-            animationData: preloaderAnimation,
+            animationData,
           })
           setIsLoaded(true)
         } catch {

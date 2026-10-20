@@ -653,7 +653,6 @@ function ItemsExplorerSession({
                   q: '',
                 })
               }}
-              folderValuation={folderValuation}
               localItemsCount={currentItems.length}
               isExporting={isExporting}
               onExport={exportToExcel}
@@ -728,18 +727,23 @@ function ItemsExplorerSession({
                   ? `แสดง ${(currentPage - 1) * effectivePageSize + 1}–${Math.min(currentPage * effectivePageSize, currentTotal)} จาก ${currentTotal.toLocaleString()} รายการ`
                   : 'แสดง 0 จาก 0 รายการ'}
               </span>
-              <span className="text-muted-foreground font-semibold hidden xl:inline shrink-0">
-                มูลค่ารายการในหน้านี้: <span className="text-primary font-black">฿{folderValuation.toLocaleString()}</span>
+              <span
+                data-testid="page-valuation-summary"
+                title="มูลค่ารวมของรายการที่แสดงในหน้านี้"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground shrink-0 select-none"
+              >
+                <span>มูลค่ารวมในหน้านี้:</span>
+                <span className="font-extrabold text-primary">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
-                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0">
+                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0 select-none">
                   เลือกอยู่ {selectedItemIds.length} รายการ
                 </span>
               )}
             </div>
 
             {/* Server-Side Pagination Controls */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"

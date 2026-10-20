@@ -125,7 +125,7 @@ export function ItemsList({
             <DataTableHead className="px-3 min-w-[140px]" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
             <DataTableHead className={cn("hidden w-20 px-2.5", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")} aria-sort={getSortAria('item_type')}>{renderSortHeader('item_type', 'ประเภท')}</DataTableHead>
             <DataTableHead className={cn("hidden w-44 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>หมวดหมู่</DataTableHead>
-            <DataTableHead className="w-20 px-2 sm:px-3" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'center')}</DataTableHead>
+            <DataTableHead className="w-20 sm:w-24 px-2 sm:px-3 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
             <DataTableHead className={cn("w-28 xl:w-36 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
             <DataTableHead className={cn("hidden w-28 xl:w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
             <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
@@ -278,34 +278,60 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       </DataTableCell>
 
       {/* Category Column */}
-      <DataTableCell className={cn("hidden w-44 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name}>
+      <DataTableCell className={cn("hidden w-44 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
         {item.category ? (
           <CategoryBadge name={item.category.name} color={item.category.color} />
         ) : (
-          '-'
+          <span className="text-muted-foreground/50">-</span>
         )}
       </DataTableCell>
 
       {/* Quantity & Unit Column */}
-      <DataTableCell className="w-20 px-2 sm:px-3 text-center">
-        <span className="font-extrabold text-foreground text-sm tabular-nums">
-          {item.quantity}
-        </span>
-        {item.unit?.name && (
-          <span className="ml-1 text-xs font-normal text-muted-foreground truncate">
-            {item.unit.name}
+      <DataTableCell className="w-20 sm:w-24 px-2 sm:px-3 text-right">
+        <div className="inline-flex items-baseline justify-end gap-1 w-full min-w-0">
+          <span className="font-extrabold text-foreground text-sm tabular-nums">
+            {item.quantity}
           </span>
-        )}
+          {item.unit?.name && (
+            <span className="text-xs font-normal text-muted-foreground truncate max-w-[42px]" title={item.unit.name}>
+              {item.unit.name}
+            </span>
+          )}
+        </div>
       </DataTableCell>
 
       {/* Location Column */}
-      <DataTableCell className={cn("w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")} title={item.location?.name}>
-        {item.location?.name ?? '-'}
+      <DataTableCell
+        className={cn(
+          "w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate",
+          isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell"
+        )}
+        title={item.location?.name || undefined}
+      >
+        {item.location?.name ? (
+          <span className="truncate block" title={item.location.name}>
+            {item.location.name}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/50">-</span>
+        )}
       </DataTableCell>
 
       {/* Responsible Person Column */}
-      <DataTableCell className={cn("hidden w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")} title={item.responsible_person ?? undefined}>
-        {item.responsible_person ?? '-'}
+      <DataTableCell
+        className={cn(
+          "hidden w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate",
+          isInspectorOpen ? "2xl:table-cell" : "xl:table-cell"
+        )}
+        title={item.responsible_person || undefined}
+      >
+        {item.responsible_person ? (
+          <span className="truncate block" title={item.responsible_person}>
+            {item.responsible_person}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/50">-</span>
+        )}
       </DataTableCell>
 
       {/* Status Column */}

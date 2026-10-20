@@ -132,7 +132,7 @@ export function Header({ profile }: HeaderProps) {
   }
 
   return (
-    <header className="relative z-20 flex h-16 w-full shrink-0 items-center justify-between border-b border-border bg-card px-4 md:px-6">
+    <header className="relative z-20 flex h-12 w-full shrink-0 items-center justify-between border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pr-4">
         <MobileNavigation profile={profile} />
         {renderBreadcrumbs()}

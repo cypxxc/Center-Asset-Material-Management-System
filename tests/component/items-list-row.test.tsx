@@ -360,5 +360,43 @@ test('ItemTableRow: formats quantity with tabular-nums for vertical eye-scanning
   const quantitySpan = screen.getByText('1250')
   assert.ok(quantitySpan.classList.contains('tabular-nums'), 'quantity must use tabular-nums for aligned scanning')
   assert.ok(quantitySpan.classList.contains('font-extrabold'), 'quantity must use font-extrabold for prominent hierarchy')
+
+  const quantityCell = quantitySpan.closest('td')
+  assert.ok(quantityCell?.classList.contains('text-right'), 'quantity cell must be right-aligned for enterprise comparison')
 })
+
+test('ItemTableRow: renders cleanly with hyphens and no broken tooltips when metadata is missing', () => {
+  const minimalItem: ItemListRow = {
+    ...mockItem,
+    id: 'item-minimal',
+    category: null,
+    location: null,
+    responsible_person: null,
+    unit: null,
+    brand: null,
+    model: null,
+  }
+
+  const { container } = render(
+    <table>
+      <tbody>
+        <ItemTableRow
+          item={minimalItem}
+          isSelected={false}
+          isChecked={false}
+          onSelect={() => {}}
+          onToggleSelectItem={() => {}}
+        />
+      </tbody>
+    </table>
+  )
+
+  // Verify missing values display clean hyphens
+  const hyphenElements = screen.getAllByText('-')
+  assert.ok(hyphenElements.length >= 3, 'missing category, location, and person should display "-"')
+
+  // Verify no cell has title="undefined"
+  assert.equal(container.querySelector('td[title="undefined"]'), null)
+})
+
 
