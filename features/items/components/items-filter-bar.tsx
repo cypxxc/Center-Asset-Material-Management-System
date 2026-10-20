@@ -27,6 +27,7 @@ export interface ItemsFilterBarProps {
   onBatchPrintLocation?: () => void
   className?: string
   searchInputRef?: React.Ref<HTMLInputElement>
+  rightContent?: React.ReactNode
 }
 
 export function ItemsFilterBar({
@@ -46,6 +47,7 @@ export function ItemsFilterBar({
   onBatchPrintLocation,
   className,
   searchInputRef,
+  rightContent,
 }: ItemsFilterBarProps) {
   // Compute active chips based on applied filters
   const activeChips = useMemo(() => {
@@ -236,18 +238,21 @@ export function ItemsFilterBar({
           </form>
         </div>
 
-        {/* Right Side: Export Button */}
-        {userCanWrite && (
-        <div className="flex shrink-0 items-center gap-2.5 justify-end self-end sm:self-auto min-w-0">
-          <Button
-            type="button"
-            onClick={onExport}
-            disabled={isExporting}
-            className="h-9 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
-          >
-            <Download className="h-4 w-4" />
-            <span className="truncate">ดาวน์โหลด Excel</span>
-          </Button>
+        {/* Right Side: Export Button & Optional Right Controls */}
+        {(userCanWrite || rightContent) && (
+        <div className="flex shrink-0 items-center gap-2 justify-end self-end sm:self-auto min-w-0">
+          {userCanWrite && (
+            <Button
+              type="button"
+              onClick={onExport}
+              disabled={isExporting}
+              className="h-9 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
+            >
+              <Download className="h-4 w-4" />
+              <span className="truncate">ดาวน์โหลด Excel</span>
+            </Button>
+          )}
+          {rightContent}
         </div>
         )}
       </div>

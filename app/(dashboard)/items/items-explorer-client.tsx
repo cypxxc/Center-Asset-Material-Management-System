@@ -530,23 +530,64 @@ function ItemsExplorerSession({
           )}
         >
           {/* Dynamic Integrated Header Area */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-4 sm:px-6 md:px-8">
-            {/* Row 1: Title (Left) + Segmented Tabs (Center/Integrated) + View Mode Toggle (Right) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
-              <div className="flex flex-col min-w-0">
-                {/* Dynamic Main Title */}
-                <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-card-foreground leading-snug">
+          <div className="shrink-0 border-b border-border bg-card px-3 py-2 sm:px-4 md:px-6">
+            <div className="flex items-center justify-between gap-3 min-w-0 overflow-x-auto scrollbar-none">
+              {/* Left: Dynamic Main Title */}
+              <div className="flex shrink-0 items-center min-w-0">
+                <h1 className="text-base sm:text-lg font-semibold tracking-tight text-card-foreground leading-none truncate">
                   {params.type === 'material'
                     ? 'รายการทะเบียนวัสดุ'
                     : params.type === 'asset'
                     ? 'รายการทะเบียนครุภัณฑ์'
                     : 'รายการทะเบียนสิ่งของ'}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">ค้นหา ตรวจสอบ และจัดการข้อมูลทะเบียนพัสดุ</p>
               </div>
 
-              {/* Segmented Type Switcher & View Controls */}
-              <div className="flex flex-wrap items-center gap-3">
+              {/* Middle: Search Input and Dropdown Filters */}
+              <div className="flex-1 min-w-0">
+                <ItemsFilterBar
+                  searchInputRef={searchInputRef}
+                  searchVal={searchVal}
+                  onSearchChange={setSearchVal}
+                  onSearchClear={() => handleFilterChange({ q: '' })}
+                  onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
+                  params={params}
+                  categories={categories}
+                  locations={locations}
+                  onFilterChange={handleFilterChange}
+                  onResetFilters={() => {
+                    setSearchVal('')
+                    handleFilterChange({
+                      category_id: '',
+                      status: '',
+                      location_id: '',
+                      q: '',
+                    })
+                  }}
+                  localItemsCount={currentItems.length}
+                  isExporting={isExporting}
+                  userCanWrite={userCanWrite}
+                  onExport={exportToExcel}
+                  onBatchPrintLocation={() => {
+                    const stickers: ItemStickerData[] = currentItems.map((itm) => ({
+                      id: itm.id,
+                      item_name: itm.item_name,
+                      asset_no: itm.asset_no,
+                      serial_no: itm.serial_no,
+                      brand: itm.brand,
+                      model: itm.model,
+                      location_name: itm.location?.name,
+                      category_name: itm.category?.name,
+                      responsible_person: itm.responsible_person,
+                      unit_price: itm.unit_price,
+                    }))
+                    setLocationPrintItems(stickers)
+                  }}
+                />
+              </div>
+
+              {/* Right: Item-type tabs + View controls */}
+              <div className="flex shrink-0 items-center gap-2">
                 {/* Segmented Pill Tabs */}
                 <nav aria-label="ประเภทพัสดุ" className="flex items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
                   {[
@@ -561,7 +602,7 @@ function ItemsExplorerSession({
                         href={buildHref({ type: type.value, category_id: '', page: '1' })}
                         aria-current={isActive ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all select-none',
+                          'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all select-none',
                           isActive
                             ? 'bg-card text-foreground font-semibold shadow-xs border border-border/50'
                             : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -579,7 +620,7 @@ function ItemsExplorerSession({
                     type="button"
                     onClick={() => setViewMode('list')}
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
                       viewMode === 'list'
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -588,13 +629,13 @@ function ItemsExplorerSession({
                     aria-label="แสดงรายการแบบลิสต์"
                     aria-pressed={viewMode === 'list'}
                   >
-                    <List className="h-4 w-4" />
+                    <List className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setViewMode('grid')}
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
                       viewMode === 'grid'
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -603,14 +644,14 @@ function ItemsExplorerSession({
                     aria-label="แสดงรายการแบบตาราง"
                     aria-pressed={viewMode === 'grid'}
                   >
-                    <LayoutGrid className="h-4 w-4" />
+                    <LayoutGrid className="h-3.5 w-3.5" />
                   </button>
-                  <div className="h-4 w-px bg-border/60 mx-0.5" />
+                  <div className="h-3.5 w-px bg-border/60 mx-0.5" />
                   <button
                     type="button"
                     onClick={() => setIsFocusMode(!isFocusMode)}
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
                       isFocusMode
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -619,65 +660,22 @@ function ItemsExplorerSession({
                     aria-label={isFocusMode ? 'โฟกัสตาราง' : 'ขยายเต็มหน้าจอ'}
                     aria-pressed={isFocusMode}
                   >
-                    {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    {isFocusMode ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                   </button>
                   {isFocusMode && (
                     <button
                       type="button"
                       onClick={() => setIsFocusMode(false)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg transition-all cursor-pointer text-muted-foreground hover:text-destructive hover:bg-card/50"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer text-muted-foreground hover:text-destructive hover:bg-card/50"
                       title="ปิดโหมดโฟกัส"
                       aria-label="ปิดโหมดโฟกัส"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
               </div>
             </div>
-
-            {/* Row 2: Action Bar (Bottom Row) */}
-            {/* Row 2: ItemsFilterBar */}
-            <ItemsFilterBar
-              searchInputRef={searchInputRef}
-              searchVal={searchVal}
-              onSearchChange={setSearchVal}
-              onSearchClear={() => handleFilterChange({ q: '' })}
-              onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
-              params={params}
-              categories={categories}
-              locations={locations}
-              onFilterChange={handleFilterChange}
-              onResetFilters={() => {
-                setSearchVal('')
-                handleFilterChange({
-                  category_id: '',
-                  status: '',
-                  location_id: '',
-                  q: '',
-                })
-              }}
-              localItemsCount={currentItems.length}
-              isExporting={isExporting}
-              userCanWrite={userCanWrite}
-              onExport={exportToExcel}
-              onBatchPrintLocation={() => {
-                const stickers: ItemStickerData[] = currentItems.map((itm) => ({
-                  id: itm.id,
-                  item_name: itm.item_name,
-                  asset_no: itm.asset_no,
-                  serial_no: itm.serial_no,
-                  brand: itm.brand,
-                  model: itm.model,
-                  location_name: itm.location?.name,
-                  category_name: itm.category?.name,
-                  responsible_person: itm.responsible_person,
-                  unit_price: itm.unit_price,
-                }))
-                setLocationPrintItems(stickers)
-              }}
-              className="mt-4"
-            />
           </div>
 
           <div className="relative flex-1 min-h-0 min-w-0 flex flex-col">

@@ -48,8 +48,12 @@ debug.log
 *.njsproj
 *.sln
 
-# local workspace / agent logs
+# local workspace / agent logs & external skills
 .agent/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/camms-maintenance/
 .worktrees/
 .superpowers/
 .next-dev.log
