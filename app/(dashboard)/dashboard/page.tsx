@@ -7,15 +7,18 @@ import { PageHeader } from '@/components/ui/page-header'
 import { PageContainer } from '@/components/ui/page-container'
 import { canWrite } from '@/lib/permissions'
 import dynamic from 'next/dynamic'
-import { MetricsGridSkeleton } from '@/components/dashboard/dashboard-metrics-grid'
-import { CategoryListSkeleton } from '@/components/dashboard/dashboard-category-list'
-import { ActionQueueSkeleton } from '@/components/dashboard/dashboard-action-queue'
+import {
+  MetricsGridSkeleton,
+  CategoryListSkeleton,
+  ActionQueueSkeleton,
+} from '@/components/dashboard/dashboard-skeletons'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 
 const DashboardMetricsGrid = dynamic(
   () => import('@/components/dashboard/dashboard-metrics-grid').then((mod) => mod.DashboardMetricsGrid)
 )
+
 const DashboardCategoryList = dynamic(
   () => import('@/components/dashboard/dashboard-category-list').then((mod) => mod.DashboardCategoryList)
 )
@@ -33,23 +36,31 @@ export default async function DashboardPage() {
   const userCanWrite = canWrite(profile?.role)
 
   return (
-    <PageContainer>
+    <PageContainer
+      maxWidth="full"
+      className="p-4 sm:p-5 lg:px-6 lg:py-6"
+      contentClassName="space-y-5 sm:space-y-6"
+    >
       <DashboardRealtimeBoundary tables={['items', 'categories']} />
       <PageHeader
         title="ภาพรวมพัสดุ"
         subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} ตรวจสอบทะเบียนและรายการที่ต้องดำเนินการได้ที่นี่`}
+        className="gap-3.5"
         actions={
-          <>
-            <Link href="/items" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted">
-              ดูทะเบียนทั้งหมด
+          <div className="flex items-center gap-2">
+            <Link
+              href="/items"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card hover:bg-muted/80 text-card-foreground px-3.5 py-2 text-xs sm:text-sm font-medium shadow-2xs hover:border-border transition-all duration-150"
+            >
+              <span>ดูทะเบียนทั้งหมด</span>
             </Link>
             {userCanWrite && (
-              <NewItemDialogTrigger className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <NewItemDialogTrigger className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs sm:text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all duration-150 cursor-pointer">
                 <PlusCircle className="size-4" />
-                ขึ้นทะเบียนใหม่
+                <span>ขึ้นทะเบียนใหม่</span>
               </NewItemDialogTrigger>
             )}
-          </>
+          </div>
         }
       />
 
@@ -59,13 +70,13 @@ export default async function DashboardPage() {
       </Suspense>
 
       {/* Main Operational & Analytics Grid (60% / 40% Desktop Split) */}
-      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-7">
+      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
+        <div className="lg:col-span-7 flex flex-col h-full">
           <Suspense fallback={<ActionQueueSkeleton />}>
             <DashboardActionQueue />
           </Suspense>
         </div>
-        <div className="lg:col-span-5 flex flex-col gap-6">
+        <div className="lg:col-span-5 flex flex-col gap-5 lg:gap-6">
           <Suspense fallback={<CategoryListSkeleton />}>
             <DashboardCategoryList />
           </Suspense>

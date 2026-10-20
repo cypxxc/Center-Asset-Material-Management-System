@@ -2,51 +2,31 @@ import { PageContainer } from '@/components/ui/page-container'
 
 export default function DashboardLoading() {
   return (
-    <PageContainer>
-      {/* Welcome Header Skeleton */}
-      <div className="bg-card border border-border rounded-xl p-6 shadow-2xs space-y-3 animate-pulse">
-        <div className="h-4 w-32 rounded-full bg-muted/60" />
-        <div className="h-7 w-3/4 rounded-lg bg-muted/60" />
-        <div className="h-4 w-1/2 rounded-md bg-muted/40" />
-        <div className="flex gap-3 pt-1">
-          <div className="h-8 w-36 rounded-lg bg-muted/60" />
-          <div className="h-8 w-36 rounded-lg bg-muted/40" />
-        </div>
-      </div>
+    <PageContainer
+      maxWidth="full"
+      className="p-4 sm:p-5 lg:px-6 lg:py-5"
+      contentClassName="space-y-4 sm:space-y-5"
+    >
+      {/* Header Skeleton */}
+      <div className="h-8 w-44 rounded-lg bg-muted/60 animate-pulse" />
 
       {/* Metrics Bento Grid Skeleton */}
-      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="bg-card p-5 rounded-xl border border-border shadow-2xs flex items-center justify-between animate-pulse"
-          >
-            <div className="space-y-2 flex-1">
-              <div className="h-3 w-24 rounded bg-muted/40" />
-              <div className="h-7 w-20 rounded bg-muted/60" />
-              <div className="h-3 w-32 rounded bg-muted/40" />
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-muted/40 shrink-0" />
-          </div>
+            className="bg-card p-4 sm:p-4.5 rounded-xl border border-border shadow-2xs h-24 animate-pulse"
+          />
         ))}
       </div>
 
-      {/* Main Charts and Status Section Skeleton */}
-      <div className="grid w-full grid-cols-1 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-card p-5 rounded-xl border border-border shadow-2xs flex flex-col justify-between min-h-[300px] animate-pulse space-y-4"
-          >
-            <div className="space-y-2">
-              <div className="h-4 w-48 rounded bg-muted/60" />
-              <div className="h-3 w-64 rounded bg-muted/40" />
-            </div>
-            <div className="flex-1 rounded-lg bg-muted/30 flex items-center justify-center min-h-[180px]">
-              <div className="h-28 w-28 rounded-full border-4 border-muted/50" />
-            </div>
-          </div>
-        ))}
+      {/* Main Operational & Analytics Grid Skeleton */}
+      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
+        <div className="lg:col-span-7 bg-card p-4 sm:p-5 rounded-xl border border-border shadow-2xs min-h-[360px] animate-pulse" />
+        <div className="lg:col-span-5 flex flex-col gap-4 lg:gap-5">
+          <div className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-2xs min-h-[220px] animate-pulse" />
+          <div className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-2xs min-h-[160px] animate-pulse" />
+        </div>
       </div>
     </PageContainer>
   )

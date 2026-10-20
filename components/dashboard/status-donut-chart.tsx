@@ -39,10 +39,10 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
 
   return (
     <div className="flex flex-col justify-between h-full">
-      <div className="relative py-4 flex items-center justify-center">
+      <div className="relative py-2 flex items-center justify-center">
         <svg
           viewBox="0 0 120 120"
-          className="w-36 h-36"
+          className="w-32 h-32 sm:w-36 sm:h-36 drop-shadow-2xs"
           role="img"
           aria-label="กราฟแสดงสัดส่วนพัสดุตามสภาพการใช้งาน"
         >
@@ -53,7 +53,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
             r="50"
             fill="transparent"
             stroke="var(--muted, #f1f5f9)"
-            strokeWidth="14"
+            strokeWidth="12"
           />
 
           {/* Active segments */}
@@ -67,7 +67,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
                 r="50"
                 fill="transparent"
                 stroke={seg.color}
-                strokeWidth={isHovered ? 18 : 14}
+                strokeWidth={isHovered ? 16 : 12}
                 strokeDasharray={`${seg.dashLength} ${circ - seg.dashLength}`}
                 strokeDashoffset={-seg.offset}
                 transform="rotate(-90 60 60)"
@@ -84,20 +84,20 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-2">
           {activeHoverItem ? (
             <>
-              <span className="text-xs font-semibold text-card-foreground truncate max-w-[80px]">
+              <span className="text-[11px] font-medium text-muted-foreground truncate max-w-[84px] tracking-tight">
                 {activeHoverItem.label}
               </span>
-              <span className="text-sm font-bold tabular-nums text-card-foreground">
+              <span className="text-base font-bold tabular-nums tracking-tight text-card-foreground font-mono">
                 {activeHoverItem.qty.toLocaleString()} ชิ้น
               </span>
-              <span className="text-[10px] text-muted-foreground tabular-nums">
+              <span className="text-[10px] text-muted-foreground tabular-nums font-mono">
                 ({activeHoverItem.pct.toFixed(1)}%)
               </span>
             </>
           ) : (
             <>
-              <span className="text-xs text-muted-foreground font-medium">ทั้งหมด</span>
-              <span className="text-sm font-bold tabular-nums text-card-foreground">
+              <span className="text-[11px] text-muted-foreground font-medium tracking-tight">ทั้งหมด</span>
+              <span className="text-base font-bold tabular-nums tracking-tight text-card-foreground font-mono">
                 {totalQuantity.toLocaleString()} ชิ้น
               </span>
             </>
@@ -106,7 +106,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
       </div>
 
       {/* Legend Grid */}
-      <div className="grid grid-cols-2 gap-2 mt-4 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/40 text-xs font-medium">
         {statusData.map((item) => (
           <Link
             key={item.key}
@@ -115,13 +115,15 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
             onMouseEnter={() => setHoveredKey(item.key)}
             onMouseLeave={() => setHoveredKey(null)}
             className={cn(
-              "group flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/60 transition-colors",
-              hoveredKey === item.key ? "bg-muted text-card-foreground font-semibold" : "text-muted-foreground"
+              "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150",
+              hoveredKey === item.key
+                ? "bg-muted/80 border-border text-card-foreground font-semibold shadow-2xs"
+                : "border-border/40 hover:border-border/80 hover:bg-muted/40 text-muted-foreground"
             )}
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
+                className="w-2 h-2 rounded-full shrink-0 ring-1 ring-background"
                 style={{ backgroundColor: item.color }}
                 aria-hidden="true"
               />
@@ -129,7 +131,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
                 {item.label}
               </span>
             </div>
-            <span className="text-[11px] tabular-nums text-muted-foreground shrink-0 font-medium ml-1">
+            <span className="text-[11px] font-mono tabular-nums text-muted-foreground group-hover:text-card-foreground shrink-0 font-medium ml-1">
               ({Math.round(item.pct)}%)
             </span>
           </Link>
