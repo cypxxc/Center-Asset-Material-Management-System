@@ -48,12 +48,10 @@ debug.log
 *.njsproj
 *.sln
 
-# local workspace / agent logs & external skills
+# local workspace / agent logs & skills
 .agent/
-.agents/*
-!.agents/skills/
-.agents/skills/*
-!.agents/skills/camms-maintenance/
+.agents/
+skills-lock.json
 .worktrees/
 .superpowers/
 .next-dev.log
@@ -74,7 +72,6 @@ scratch/
 !docs/superpowers/plans/*.md
 !docs/superpowers/specs/*.md
 !docs/production/2026-10-14-production-readiness-capriola.md
-!/.agents/skills/camms-maintenance/SKILL.md
 !/AGENTS.md
 
 
