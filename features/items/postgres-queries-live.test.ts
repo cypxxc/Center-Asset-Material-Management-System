@@ -62,7 +62,7 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
       assert.equal(list.items[0].id, assetId)
       assert.equal(list.items[0].unit_price, 125.5)
       assert.equal(typeof list.items[0].updated_at, 'string')
-      assert.deepEqual(list.items[0].category, { id: categoryId, name: fixture })
+      assert.deepEqual(list.items[0].category, { id: categoryId, name: fixture, color: '#64748B' })
       assert.equal(list.items[0].image_url, imageUrl)
       assert.equal((await items.getPostgresItems({ q: fixture, type: 'material' })).total, 1)
       assert.equal((await items.getPostgresItems({ q: "'); drop table public.items; --" })).total, 0)

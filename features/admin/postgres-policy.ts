@@ -7,7 +7,7 @@ export type BackupTable = typeof backupTables[number]
 const timestamps = ['created_at', 'updated_at']
 export const tableColumns: Record<BackupTable, readonly string[]> = {
   profiles: ['id', 'full_name', 'display_name', 'email', 'role', 'is_active', 'sidebar_order', ...timestamps],
-  categories: ['id', 'name', 'description', 'is_active', ...timestamps],
+  categories: ['id', 'name', 'description', 'color', 'is_active', ...timestamps],
   locations: ['id', 'name', 'building', 'floor', 'room', 'department', 'description', 'is_active', ...timestamps],
   units: ['id', 'name', 'is_active', ...timestamps],
   items: ['id', 'item_name', 'item_type', 'category_id', 'quantity', 'unit_price', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note', 'image_url', 'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at', 'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years', 'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value'],

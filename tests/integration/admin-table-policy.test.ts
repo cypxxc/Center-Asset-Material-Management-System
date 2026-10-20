@@ -20,6 +20,7 @@ test('admin postgres policy defines searchColumns and tableColumns parity', asyn
   assert.ok(Array.isArray(searchColumns.items))
   assert.ok(searchColumns.items.includes('item_name'))
   assert.ok(searchColumns.items.includes('asset_no'))
+  assert.ok(tableColumns.categories.includes('color'))
   assert.ok(tableColumns.items.includes('depreciation_cost'))
   assert.ok(tableColumns.items.includes('depreciation_method'))
 
