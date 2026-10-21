@@ -134,6 +134,7 @@ export function Inspector({
               <CategoryBadge
                 name={item.category?.name || 'หมวดหมู่ทั่วไป'}
                 color={item.category?.color}
+                icon={item.category?.icon}
                 className="max-w-[200px]"
               />
               <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">

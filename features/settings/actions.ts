@@ -115,6 +115,7 @@ export async function createCategory(formData: FormData) {
     name: formData.get('name'),
     description: formData.get('description'),
     color: formData.get('color'),
+    icon: formData.get('icon'),
     is_active: formData.get('is_active'),
   })
 
@@ -175,6 +176,7 @@ export async function updateCategory(id: string, formData: FormData) {
     name: formData.get('name'),
     description: formData.get('description'),
     color: formData.get('color'),
+    icon: formData.get('icon'),
     is_active: formData.get('is_active'),
   })
 
@@ -187,7 +189,7 @@ export async function updateCategory(id: string, formData: FormData) {
   try {
     const { data: oldData } = await supabase
       .from('categories')
-      .select('name, description, color, is_active')
+      .select('name, description, color, icon, is_active')
       .eq('id', id)
       .single()
 
@@ -608,7 +610,7 @@ export async function deleteCategory(id: string) {
   try {
     const { data: oldData } = await supabase
       .from('categories')
-      .select('name, description, color, is_active')
+      .select('name, description, color, icon, is_active')
       .eq('id', id)
       .single()
 

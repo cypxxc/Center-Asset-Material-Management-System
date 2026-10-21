@@ -101,7 +101,7 @@ test('references recheck authorization for every request instead of sharing a ca
   const { getItemReferences } = await import('./queries')
   responses = [[{ id: 'cat', name: 'Category', color: '#3B82F6' }], [], []]
   assert.equal((await getItemReferences()).categories.length, 1)
-  assert.match(statements[0].sql, /select id, name, color from public\.categories where is_active order by name/)
+  assert.match(statements[0].sql, /select id, name, color(?:, icon)? from public\.categories where is_active order by name/)
   authorized = false
   await assert.rejects(getItemReferences(), /Unauthenticated/)
   assert.equal(requests, 2)

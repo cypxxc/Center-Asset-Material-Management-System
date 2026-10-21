@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeForStorage, getGraphemeLength } from '@/lib/unicode'
+import { CATEGORY_ICON_MAP } from '@/lib/category-icons'
 
 const requiredName = z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
@@ -42,6 +43,18 @@ export const categorySchema = z.object({
       .string()
       .regex(hex6ColorRegex, 'รหัสสีไม่ถูกต้อง (ต้องอยู่ในรูปแบบ HEX 6 หลัก เช่น #3B82F6)')
       .default('#64748B')
+  ),
+  icon: z.preprocess(
+    (val) => {
+      if (val == null || (typeof val === 'string' && val.trim() === '')) {
+        return 'Tag'
+      }
+      return typeof val === 'string' ? val.trim() : val
+    },
+    z
+      .string()
+      .refine((val) => Object.hasOwn(CATEGORY_ICON_MAP, val), 'ไอคอนหมวดหมู่ไม่ถูกต้อง')
+      .default('Tag')
   ),
   is_active: checkboxBoolean,
 })

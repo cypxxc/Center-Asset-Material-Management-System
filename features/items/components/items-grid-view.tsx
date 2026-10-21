@@ -127,7 +127,7 @@ export const ItemGridCard = React.memo(function ItemGridCard({
         <p className="truncate font-mono text-xs text-muted-foreground flex-1 min-w-0">{item.asset_no || item.serial_no || '-'}</p>
         {item.category && (
           <div className="max-w-[120px] truncate">
-            <CategoryBadge name={item.category.name} color={item.category.color} className="text-[10px] px-1.5 py-0" />
+            <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} className="text-[10px] px-1.5 py-0" />
           </div>
         )}
       </div>

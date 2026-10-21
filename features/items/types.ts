@@ -12,6 +12,7 @@ export interface ReferenceOption {
   id: string
   name: string
   color?: string
+  icon?: string | null
 }
 
 export interface ItemListRow {
@@ -128,7 +129,7 @@ export interface ItemsExplorerPageData {
 
 export interface DashboardLayoutData {
   sidebarData: {
-    categories: { id: string; name: string; count: number }[]
+    categories: { id: string; name: string; icon?: string | null; count: number }[]
     locations: { id: string; name: string; count: number }[]
     counts: {
       total_assets: number

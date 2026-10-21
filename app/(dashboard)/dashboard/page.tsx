@@ -69,14 +69,14 @@ export default async function DashboardPage() {
         <DashboardMetricsGrid />
       </Suspense>
 
-      {/* Main Operational & Analytics Grid (60% / 40% Desktop Split) */}
-      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
+      {/* Main Operational & Analytics Section (60% / 40% Desktop Split) */}
+      <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-stretch">
         <div className="lg:col-span-7 flex flex-col h-full">
           <Suspense fallback={<ActionQueueSkeleton />}>
             <DashboardActionQueue />
           </Suspense>
         </div>
-        <div className="lg:col-span-5 flex flex-col gap-5 lg:gap-6">
+        <div className="lg:col-span-5 flex flex-col h-full">
           <Suspense fallback={<CategoryListSkeleton />}>
             <DashboardCategoryList />
           </Suspense>

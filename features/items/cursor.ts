@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { ItemStatus, ItemType } from './types'
 import { itemStatuses, itemTypes, type NormalizedItemListSearchParams } from './list-params'
-export { BATCH_SIZE, normalizeItemListSearchParams, type NormalizedItemListSearchParams, type ItemSortColumn, type ItemSortDirection } from './list-params'
+export { BATCH_SIZE, normalizeItemListSearchParams, type NormalizedItemListSearchParams } from './list-params'
 export type ItemCursorKey = string | number
 
 interface EncodedItemCursor {

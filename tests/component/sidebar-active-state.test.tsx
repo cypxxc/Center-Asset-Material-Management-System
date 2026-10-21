@@ -167,3 +167,27 @@ test('Sidebar active-state for /items?location_id=loc-1 does not highlight top-l
   assert.equal(assetsLink.getAttribute('aria-current'), null)
   assert.equal(locationsLink.getAttribute('aria-current'), null)
 })
+
+test('Sidebar renders collapsible mode, admin section and handles RBAC properly', () => {
+  mockPathname = '/dashboard'
+  mockSearchParams = new URLSearchParams()
+
+  const { container } = renderSidebar()
+
+  // Verify dashboard link is active
+  const dashboardLink = screen.getByRole('link', { name: /แผงควบคุม/ })
+  assert.equal(dashboardLink.getAttribute('aria-current'), 'page')
+
+  // Verify admin accordion header exists for admin profile
+  const adminAccordionBtn = screen.getByRole('button', { name: /จัดการระบบ/ })
+  assert.ok(adminAccordionBtn)
+
+  // Verify toggle button for compact mode exists
+  const toggleBtn = screen.getByRole('button', { name: 'ย่อแถบเมนู' })
+  assert.ok(toggleBtn)
+
+  // Aside element is rendered
+  const aside = container.querySelector('aside')
+  assert.ok(aside)
+  assert.ok(aside.classList.contains('w-64'))
+})

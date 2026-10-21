@@ -71,13 +71,13 @@ export function generateReportPdf(
       margin: 10mm 12mm 12mm 12mm;
       @bottom-right {
         content: "หน้า " counter(page) " / " counter(pages);
-        font-family: 'Capriola', 'Sarabun', 'TH Sarabun New', sans-serif;
+        font-family: 'IBM Plex Sans Thai', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
       }
       @bottom-left {
         content: "CAMMS Portal — Center Asset & Material Management System";
-        font-family: 'Capriola', 'Sarabun', 'TH Sarabun New', sans-serif;
+        font-family: 'IBM Plex Sans Thai', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
       }
@@ -86,7 +86,7 @@ export function generateReportPdf(
       box-sizing: border-box;
     }
     body {
-      font-family: 'Capriola', 'Sarabun', 'TH Sarabun New', 'TH Sarabun PSK', 'Leelawadee UI', system-ui, -apple-system, sans-serif;
+      font-family: 'IBM Plex Sans Thai', 'TH Sarabun New', 'TH Sarabun PSK', 'Leelawadee UI', system-ui, -apple-system, sans-serif;
       color: #0f172a;
       margin: 0;
       padding: 0;

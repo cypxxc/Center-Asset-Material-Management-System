@@ -280,7 +280,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
       {/* Category Column */}
       <DataTableCell className={cn("hidden w-44 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
         {item.category ? (
-          <CategoryBadge name={item.category.name} color={item.category.color} />
+          <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} />
         ) : (
           <span className="text-muted-foreground/50">-</span>
         )}

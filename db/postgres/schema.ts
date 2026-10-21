@@ -12,6 +12,7 @@ export const categories = pgTable('categories', {
   name: text().notNull().unique(),
   description: text(),
   color: text().notNull().default('#64748B'),
+  icon: text().notNull().default('Tag'),
   is_active: boolean().notNull().default(true),
   ...stamps(),
 })

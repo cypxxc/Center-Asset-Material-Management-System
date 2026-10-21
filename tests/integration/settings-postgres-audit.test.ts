@@ -116,6 +116,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
         name: 'IT Equipment',
         description: 'Office computing equipment',
         color: '#64748B',
+        icon: 'Tag',
         is_active: true,
       })
 

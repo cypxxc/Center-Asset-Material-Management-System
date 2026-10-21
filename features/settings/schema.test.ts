@@ -111,3 +111,39 @@ test('categorySchema validates and normalizes 6-digit hex color', () => {
   assert.equal(invalidHexResult.success, false)
 })
 
+test('categorySchema validates and defaults icon safely', () => {
+  // 1. Accepts valid whitelisted icon
+  const validIcon = categorySchema.safeParse({
+    name: 'คอมพิวเตอร์',
+    icon: 'Laptop',
+    is_active: 'true',
+  })
+  assert.equal(validIcon.success, true)
+  if (validIcon.success) {
+    assert.equal(validIcon.data.icon, 'Laptop')
+  }
+
+  // 2. Defaults to 'Tag' when empty or omitted
+  const emptyIcon = categorySchema.safeParse({
+    name: 'หมวดหมู่ทั่วไป',
+    icon: '',
+    is_active: 'true',
+  })
+  assert.equal(emptyIcon.success, true)
+  if (emptyIcon.success) {
+    assert.equal(emptyIcon.data.icon, 'Tag')
+  }
+
+  // 3. Rejects invalid / non-whitelisted icon
+  const invalidIcon = categorySchema.safeParse({
+    name: 'หมวดหมู่อื่น',
+    icon: 'NonExistentIconXYZ',
+    is_active: 'true',
+  })
+  assert.equal(invalidIcon.success, false)
+  if (!invalidIcon.success) {
+    assert.ok(invalidIcon.error.flatten().fieldErrors.icon?.length)
+  }
+})
+
+

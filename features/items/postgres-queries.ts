@@ -52,7 +52,7 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
 
 export async function getPostgresItemReferences() {
   return withUserDatabase(async (tx) => {
-    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color from public.categories where is_active order by name`)
+    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color, icon from public.categories where is_active order by name`)
     const locations = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.locations where is_active order by name`)
     const units = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.units where is_active order by name`)
     return { categories: categories.rows, locations: locations.rows, units: units.rows }
@@ -137,10 +137,11 @@ export async function getPostgresItemById(id: string): Promise<ItemDetail | null
 
 export async function getPostgresSidebarData() {
   return withUserDatabase(async (tx) => {
+    type CategoryBucket = { id: string; name: string; icon?: string | null; count: number }
     type Bucket = { id: string; name: string; count: number }
-    const categories = await tx.execute<Bucket>(sql`select c.id, c.name, count(i.id)::int as count
+    const categories = await tx.execute<CategoryBucket>(sql`select c.id, c.name, c.icon, count(i.id)::int as count
       from public.categories c left join public.items i on i.category_id = c.id and i.deleted_at is null and i.item_type = 'asset'
-      where c.is_active group by c.id, c.name order by c.name`)
+      where c.is_active group by c.id, c.name, c.icon order by c.name`)
     const locations = await tx.execute<Bucket>(sql`select l.id, l.name, count(i.id)::int as count
       from public.locations l left join public.items i on i.location_id = l.id and i.deleted_at is null
       where l.is_active group by l.id, l.name order by l.name`)

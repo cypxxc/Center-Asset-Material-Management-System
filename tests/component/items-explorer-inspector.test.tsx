@@ -492,23 +492,28 @@ test('List View: does not render print quick action in table row; printing is ac
   assert.ok(within(dialog as HTMLElement).getAllByText('EQ-2026-001').length > 0)
 })
 
-test('Quick Actions in Grid View: Print and Copy buttons work and RBAC Viewer hides Edit', () => {
+test('Quick Actions in Grid View: Print and Copy buttons work and RBAC Viewer hides Edit and Print', () => {
   // Render with userCanWrite=false (Viewer role)
-  renderComponent({ ...defaultProps, userCanWrite: false })
+  const { unmount } = renderComponent({ ...defaultProps, userCanWrite: false })
 
   // Switch to Grid View
   fireEvent.click(screen.getByTitle('Grid view'))
-
-  // Print button should exist on card
-  const printBtn = screen.getByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`)
-  assert.ok(printBtn)
 
   // Copy button should exist on card
   const copyBtn = screen.getByLabelText(`คัดลอก ${mockItems[0].asset_no}`)
   assert.ok(copyBtn)
 
-  // Edit button MUST NOT exist for viewer
+  // Edit and Print buttons MUST NOT exist for viewer (guarded by userCanWrite)
+  assert.equal(screen.queryByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`), null)
   assert.equal(screen.queryByLabelText(`แก้ไขข้อมูล ${mockItems[0].item_name}`), null)
+  unmount()
+
+  // Render with userCanWrite=true (Staff/Admin) to verify Print action
+  renderComponent({ ...defaultProps, userCanWrite: true })
+  fireEvent.click(screen.getByTitle('Grid view'))
+
+  const printBtn = screen.getByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`)
+  assert.ok(printBtn)
 
   // Clicking print button opens sticker modal without opening inspector drawer
   fireEvent.click(printBtn)

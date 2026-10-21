@@ -5,7 +5,7 @@ import {
 } from '@/lib/tracing'
 
 export const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' blob: data: https://*.supabase.co https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' data: https://fonts.gstatic.com;",
+  'Content-Security-Policy': "default-src 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' blob: data: https://*.supabase.co https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://va.vercel-scripts.com; font-src 'self' data: https://fonts.gstatic.com;",
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',

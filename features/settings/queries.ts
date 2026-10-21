@@ -5,7 +5,7 @@ import { getPostgresSettingsData, getPostgresLocationsOverview } from './postgre
 
 import { createClient } from '@/lib/supabase/server'
 import { getItemReferences } from '@/features/items/queries'
-import type { SettingsData, SettingsPageData } from './types'
+import type { LocationsOverview, SettingsData, SettingsPageData } from './types'
 
 export type SettingsDataSection = 'categories' | 'locations' | 'units' | 'all'
 
@@ -14,7 +14,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
   const supabase = await createClient()
   const queryCategories = () => supabase
     .from('categories')
-    .select('id, name, description, color, is_active, updated_at')
+    .select('id, name, description, color, icon, is_active, updated_at')
     .order('name')
   const queryLocations = () => supabase
     .from('locations')
@@ -66,7 +66,7 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
   }
 }
 
-export async function getLocationsOverview() {
+export async function getLocationsOverview(): Promise<LocationsOverview> {
   if (isPostgresBackend()) {
     return getPostgresLocationsOverview()
   }

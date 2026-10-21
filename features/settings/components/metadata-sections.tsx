@@ -128,6 +128,7 @@ function SectionShell({
 }
 
 import { CategoryColorPicker } from './category-color-picker'
+import { CategoryIconPicker } from './category-icon-picker'
 
 export function CategorySection({ categories }: { categories: CategoryRow[] }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -149,9 +150,13 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
       description="จัดการกลุ่มหรือประเภทหลักที่ใช้ในการขึ้นทะเบียนครุภัณฑ์และพัสดุอุปกรณ์สำนักงาน"
       icon={<Tag className="h-5 w-5" />}
     >
-      <form action={createCategory} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_1.4fr_auto_auto_auto] md:items-end bg-card/50">
+      <form action={createCategory} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_1.2fr_auto_auto_auto_auto] md:items-end bg-card/50">
         <TextInput name="name" label="ชื่อหมวดหมู่ใหม่" required />
         <TextInput name="description" label="คำอธิบายเพิ่มเติม" />
+        <div className="space-y-1">
+          <span className="text-xs font-semibold text-muted-foreground block">ไอคอน</span>
+          <CategoryIconPicker defaultValue="Tag" name="icon" />
+        </div>
         <div className="space-y-1">
           <span className="text-xs font-semibold text-muted-foreground block">สีหมวดหมู่</span>
           <CategoryColorPicker defaultValue="#64748B" name="color" />
@@ -167,10 +172,14 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
           <form
             key={category.id}
             action={updateCategory.bind(null, category.id)}
-            className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-[1fr_1.4fr_auto_auto_auto] md:items-end hover:bg-muted/40 transition-colors"
+            className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-[1fr_1.2fr_auto_auto_auto_auto] md:items-end hover:bg-muted/40 transition-colors"
           >
             <TextInput name="name" label="ชื่อหมวดหมู่" defaultValue={category.name} required />
             <TextInput name="description" label="คำอธิบายเพิ่มเติม" defaultValue={category.description} />
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground block">ไอคอน</span>
+              <CategoryIconPicker defaultValue={category.icon || 'Tag'} categoryName={category.name} name="icon" />
+            </div>
             <div className="space-y-1">
               <span className="text-xs font-semibold text-muted-foreground block">สี</span>
               <CategoryColorPicker defaultValue={category.color} name="color" />
