@@ -50,6 +50,13 @@
       "when": 1792125256667,
       "tag": "0006_add_color_to_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792125257000,
+      "tag": "0007_add_icon_to_categories",
+      "breakpoints": true
     }
   ]
 }
