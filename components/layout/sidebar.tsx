@@ -3,19 +3,21 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Tooltip } from 'radix-ui'
 import {
+  Armchair,
   BarChart3,
   Boxes,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
   Layers,
+  Laptop,
   LogOut,
   MapPin,
   Package,
   Plus,
   Settings,
+  Tag,
   User,
   UserCog,
   Database,
@@ -27,7 +29,6 @@ import { signOut } from '@/features/auth/actions'
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from './nav-config'
-import { renderCategoryIconElement } from '@/lib/category-icons'
 
 interface SidebarProps {
   profile: {
@@ -48,10 +49,28 @@ interface SidebarProps {
   }
 }
 
-function renderCategoryIcon(iconName?: string | null, categoryName?: string) {
-  return renderCategoryIconElement(iconName, categoryName, {
-    className: 'h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0',
-  })
+function renderCategoryIcon(_iconName?: string | null, categoryName?: string) {
+  const n = (categoryName || '').toLowerCase()
+  if (
+    n.includes('comp') ||
+    n.includes('จอ') ||
+    n.includes('พิมพ์') ||
+    n.includes('it') ||
+    n.includes('tech') ||
+    n.includes('คอม')
+  ) {
+    return <Laptop className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
+  }
+  if (
+    n.includes('โต๊ะ') ||
+    n.includes('เก้าอี้') ||
+    n.includes('เฟอร์') ||
+    n.includes('furn') ||
+    n.includes('chair')
+  ) {
+    return <Armchair className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
+  }
+  return <Tag className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
 }
 
 interface NavItemTooltipProps {
@@ -64,19 +83,15 @@ function NavItemTooltip({ label, enabled, children }: NavItemTooltipProps) {
   if (!enabled) return children
 
   return (
-    <Tooltip.Root delayDuration={150}>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content
-          side="right"
-          sideOffset={12}
-          className="z-50 rounded-md bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-md border border-border animate-in fade-in-0 zoom-in-95"
-        >
-          {label}
-          <Tooltip.Arrow className="fill-popover" />
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
+    <div className="relative group/tooltip flex items-center justify-center">
+      {children}
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute left-full ml-2.5 z-50 hidden group-hover/tooltip:flex items-center rounded-md bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-md border border-border whitespace-nowrap animate-in fade-in-0 zoom-in-95"
+      >
+        {label}
+      </div>
+    </div>
   )
 }
 
@@ -215,14 +230,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
     )
 
   return (
-    <Tooltip.Provider>
-      <aside
-        aria-label="เมนูหลัก"
-        className={cn(
-          'relative z-30 hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-card md:flex select-none transition-all duration-200 ease-in-out',
-          isCollapsed ? 'w-16' : 'w-64'
-        )}
-      >
+    <aside
+      aria-label="เมนูหลัก"
+      className={cn(
+        'relative z-30 hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-card md:flex select-none transition-all duration-200 ease-in-out',
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
+    >
         {/* Brand Header */}
         <div
           className={cn(
@@ -770,6 +784,5 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
           </NavItemTooltip>
         </div>
       </aside>
-    </Tooltip.Provider>
   )
 }
