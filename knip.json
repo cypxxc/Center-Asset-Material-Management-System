@@ -7,7 +7,7 @@
     "**/*.test.{ts,tsx,js}"
   ],
   "project": [
-    "app/**/*.{js,jsx,ts,tsx}",
+    "app/**/*.{js,jsx,ts,tsx,css}",
     "components/**/*.{js,jsx,ts,tsx}",
     "features/**/*.{js,jsx,ts,tsx}",
     "lib/**/*.{js,jsx,ts,tsx}",
@@ -17,9 +17,6 @@
   ],
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": [
-    "tw-animate-css",
-    "shadcn",
-    "tailwindcss",
     "@next/env"
   ],
   "ignoreBinaries": [

@@ -39,7 +39,7 @@ test('ItemThumbnail: renders fallback icon when imageUrl is null or empty', () =
   assert.ok(fallback)
 
   const container = screen.getByTestId('item-thumbnail')
-  assert.equal(container.getAttribute('aria-label'), 'ไอคอนประเภท วัสดุ')
+  assert.equal(container.getAttribute('aria-label'), 'ไอคอนประเภท พัสดุ')
 
   // Check asset type fallback icon
   rerender(

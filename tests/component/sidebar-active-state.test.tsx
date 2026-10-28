@@ -65,7 +65,7 @@ test('Sidebar active-state for exact /items highlights รายการทั�
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
   const locationsLink = screen.getByRole('link', { name: 'สถานที่' })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), 'page')
@@ -82,7 +82,7 @@ test('Sidebar active-state for /items?q=monitor keeps รายการทั�
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
   const locationsLink = screen.getByRole('link', { name: 'สถานที่' })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), 'page')
@@ -99,7 +99,7 @@ test('Sidebar active-state for /items?status=in_use keeps รายการท�
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
   const locationsLink = screen.getByRole('link', { name: 'สถานที่' })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), 'page')
@@ -116,14 +116,14 @@ test('Sidebar active-state for /items?type=asset highlights ครุภัณ�
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), null)
   assert.equal(assetsLink.getAttribute('aria-current'), 'page')
   assert.equal(suppliesLink.getAttribute('aria-current'), null)
 })
 
-test('Sidebar active-state for /items?type=material highlights วัสดุ only', () => {
+test('Sidebar active-state for /items?type=material highlights พัสดุ only', () => {
   mockPathname = '/items'
   mockSearchParams = new URLSearchParams('type=material')
 
@@ -131,7 +131,7 @@ test('Sidebar active-state for /items?type=material highlights วัสดุ o
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), null)
   assert.equal(assetsLink.getAttribute('aria-current'), null)
@@ -146,7 +146,7 @@ test('Sidebar active-state for /items?type=asset&category_id=cat-1 does not high
 
   const allItemsLink = screen.getByRole('link', { name: 'รายการทั้งหมด' })
   const assetsLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
-  const suppliesLink = screen.getByRole('link', { name: /^วัสดุ/ })
+  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
 
   assert.equal(allItemsLink.getAttribute('aria-current'), null)
   assert.equal(assetsLink.getAttribute('aria-current'), null)

@@ -5,4 +5,5 @@ export const CACHE_TAGS = {
   REPORTS: 'reports',
   SETTINGS: 'settings',
   PROFILE: 'profile',
+  DISBURSEMENTS: 'disbursements',
 } as const

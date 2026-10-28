@@ -23,6 +23,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
   const isSuppliesActive = pathname === '/items' && searchParams.get('type') === 'material'
   const isLocationsActive = pathname === '/locations'
   const isReportsActive = pathname === '/reports'
+  const isDisbursementsActive = pathname.startsWith('/disbursements')
   const isSettingsActive = pathname === '/settings'
   const isUsersActive = pathname.startsWith('/admin/users')
   const isAuditLogsActive = pathname.startsWith('/admin/audit-logs')
@@ -115,7 +116,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
               )}
             >
               <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>วัสดุ</span>
+              <span>พัสดุ</span>
             </Link>
 
             <Link
@@ -142,6 +143,19 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
             >
               <BarChart3 className="h-4 w-4 text-emerald-500 shrink-0" />
               <span>รายงานพัสดุ</span>
+            </Link>
+
+            <Link
+              href="/disbursements"
+              onClick={() => setMobileOpen(false)}
+              aria-current={isDisbursementsActive ? 'page' : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
+                isDisbursementsActive ? activeLinkClass : inactiveLinkClass
+              )}
+            >
+              <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>เบิก-จ่ายพัสดุ</span>
             </Link>
 
             {(profile?.role === 'admin' || profile?.role === 'staff') && (

@@ -180,7 +180,7 @@ test('Type navigation preserves search filters and resets category and paginatio
   renderComponent({ ...defaultProps, params: { q: 'Dell', type: 'asset', status: 'active', location_id: 'loc-1', category_id: 'cat-1', page: '3' } })
   const navigation = within(screen.getByRole('navigation', { name: 'ประเภทพัสดุ' }))
   assert.equal(navigation.getByRole('link', { name: 'ครุภัณฑ์' }).getAttribute('aria-current'), 'page')
-  const destination = new URL(navigation.getByRole('link', { name: 'วัสดุ' }).getAttribute('href')!, 'http://localhost')
+  const destination = new URL(navigation.getByRole('link', { name: 'พัสดุ' }).getAttribute('href')!, 'http://localhost')
   assert.equal(destination.searchParams.get('type'), 'material')
   assert.equal(destination.searchParams.get('q'), 'Dell')
   assert.equal(destination.searchParams.get('status'), 'active')

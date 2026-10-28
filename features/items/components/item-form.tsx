@@ -148,7 +148,7 @@ export function ItemForm({
           }`}
         >
           <ClipboardList className="h-4 w-4" />
-          <span>วัสดุ</span>
+          <span>พัสดุ</span>
         </button>
       </div>
 

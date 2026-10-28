@@ -147,7 +147,7 @@ test('ItemForm switches item type on the same page without hiding common fields'
     action: noopAction, categories: [], locations: [], units: [],
   }));
   fireEvent.change(within(view.container).getByLabelText(/^ชื่อสิ่งของ/), { target: { value: 'Paper' } });
-  fireEvent.click(within(view.container).getByRole('tab', { name: 'วัสดุ' }));
+  fireEvent.click(within(view.container).getByRole('tab', { name: 'พัสดุ' }));
   assert.equal((within(view.container).getByLabelText(/^ชื่อสิ่งของ/) as HTMLInputElement).value, 'Paper');
   assert.equal((view.container.querySelector('[name="item_type"]') as HTMLInputElement).value, 'material');
   assert.ok(within(view.container).getByLabelText('สถานที่'));

@@ -1,6 +1,6 @@
 'use client'
 
-import { Tag } from 'lucide-react'
+import { Tag, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export interface ItemsBulkBarProps {
@@ -15,6 +15,8 @@ export interface ItemsBulkBarProps {
   onBatchPrint: () => void
   onBulkDelete: () => void
   onClearSelection: () => void
+  onDisburse?: () => void
+  disburseLabel?: string
 }
 
 export function ItemsBulkBar({
@@ -29,6 +31,8 @@ export function ItemsBulkBar({
   onBatchPrint,
   onBulkDelete,
   onClearSelection,
+  onDisburse,
+  disburseLabel,
 }: ItemsBulkBarProps) {
   if (selectedCount === 0) return null
 
@@ -42,6 +46,16 @@ export function ItemsBulkBar({
 
       {userCanWrite && (
         <>
+          {onDisburse && (
+            <Button
+              onClick={onDisburse}
+              variant="default"
+              className="h-9 px-3.5 text-sm font-bold flex items-center gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+            >
+              <FileText className="h-4 w-4" />
+              <span>{disburseLabel ?? `ขอเบิกพัสดุ (${selectedCount})`}</span>
+            </Button>
+          )}
           <Button
             id="bulk-edit-trigger"
             disabled={selectingAll}

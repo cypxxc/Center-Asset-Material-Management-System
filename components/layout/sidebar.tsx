@@ -200,6 +200,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
     !effLocation
 
   const isReportsActive = currentPath === '/reports'
+  const isDisbursementsActive = currentPath.startsWith('/disbursements')
 
   const isSettingsActive = currentPath === '/settings'
   const isUsersActive = currentPath.startsWith('/admin/users')
@@ -260,7 +261,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             {!isCollapsed && (
               <div className="min-w-0 leading-tight">
                 <div className="truncate text-sm font-bold tracking-tight text-foreground">CAMMS Portal</div>
-                <div className="truncate text-[10px] font-normal text-muted-foreground">ระบบทะเบียนครุภัณฑ์และวัสดุ</div>
+                <div className="truncate text-[10px] font-normal text-muted-foreground">ระบบทะเบียนครุภัณฑ์และพัสดุ</div>
               </div>
             )}
           </Link>
@@ -441,8 +442,8 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               )}
             </div>
 
-            {/* วัสดุ */}
-            <NavItemTooltip label={`วัสดุ (${totalSuppliesCount})`} enabled={isCollapsed}>
+            {/* พัสดุ */}
+            <NavItemTooltip label={`พัสดุ (${totalSuppliesCount})`} enabled={isCollapsed}>
               <Link
                 href="/items?type=material"
                 onPointerDown={() => handleOptimisticNavigate('/items?type=material')}
@@ -455,7 +456,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               >
                 <div className="flex items-center min-w-0 flex-1">
                   <Boxes className={navIconClass('text-amber-500', isSuppliesActive)} />
-                  {!isCollapsed && <span className="truncate">วัสดุ</span>}
+                  {!isCollapsed && <span className="truncate">พัสดุ</span>}
                 </div>
                 {!isCollapsed && (
                   <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
@@ -572,6 +573,20 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               >
                 <BarChart3 className={navIconClass('text-emerald-500', isReportsActive)} />
                 {!isCollapsed && <span className="truncate">รายงาน</span>}
+              </Link>
+            </NavItemTooltip>
+
+            {/* เบิก-จ่ายพัสดุ */}
+            <NavItemTooltip label="เบิก-จ่ายพัสดุ" enabled={isCollapsed}>
+              <Link
+                href="/disbursements"
+                onPointerDown={() => handleOptimisticNavigate('/disbursements')}
+                onClick={() => handleOptimisticNavigate('/disbursements')}
+                aria-current={isDisbursementsActive ? 'page' : undefined}
+                className={navItemClass(isDisbursementsActive)}
+              >
+                <Boxes className={navIconClass('text-amber-500', isDisbursementsActive)} />
+                {!isCollapsed && <span className="truncate">เบิก-จ่ายพัสดุ</span>}
               </Link>
             </NavItemTooltip>
           </div>

@@ -42,6 +42,96 @@ export const items = pgTable('items', {
 export const auditLogs = pgTable('audit_logs', {
   id: uuid().primaryKey().defaultRandom(), user_id: uuid().references(() => profiles.id, { onDelete: 'set null' }), action: text().notNull(), target_table: text().notNull(), target_id: uuid(), old_data: jsonb(), new_data: jsonb(), created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
 }, (t) => [index('audit_created_index').on(t.created_at), index('audit_target_index').on(t.target_table, t.target_id)])
+
+export const disbursementSequences = pgTable('disbursement_sequences', {
+  fiscal_year: integer().notNull(),
+  prefix: text().notNull(),
+  current_val: integer().notNull().default(0),
+}, (t) => [uniqueIndex('disbursement_sequences_pk').on(t.fiscal_year, t.prefix)])
+
+export const disbursements = pgTable('disbursements', {
+  id: uuid().primaryKey().defaultRandom(),
+  document_no: text().unique(),
+  fiscal_year: integer(),
+  transaction_type: text().notNull(),
+  recipient_name: text().notNull(),
+  department_name: text().notNull(),
+  purpose: text().notNull(),
+  status: text().notNull().default('draft'),
+  due_date: date({ mode: 'string' }),
+  confirmed_at: timestamp({ withTimezone: true, mode: 'string' }),
+  confirmed_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
+  reversal_reason: text(),
+  reversed_at: timestamp({ withTimezone: true, mode: 'string' }),
+  reversed_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
+  created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
+  ...stamps(),
+}, (t) => [
+  check('disbursements_type_check', sql`${t.transaction_type} in ('material_issue','asset_handover','asset_borrow')`),
+  check('disbursements_status_check', sql`${t.status} in ('draft','confirmed','active_borrow','partially_returned','returned','reversed','cancelled')`),
+  index('disbursements_status_index').on(t.status),
+  index('disbursements_created_index').on(t.created_at),
+])
+
+export const disbursementItems = pgTable('disbursement_items', {
+  id: uuid().primaryKey().defaultRandom(),
+  disbursement_id: uuid().notNull().references(() => disbursements.id, { onDelete: 'restrict' }),
+  item_id: uuid().notNull().references(() => items.id, { onDelete: 'restrict' }),
+  requested_qty: integer().notNull(),
+  issued_qty: integer().notNull().default(0),
+  returned_qty: integer().notNull().default(0),
+  item_name_snapshot: text(),
+  asset_no_snapshot: text(),
+  serial_no_snapshot: text(),
+  brand_snapshot: text(),
+  model_snapshot: text(),
+  unit_name_snapshot: text(),
+  unit_price_snapshot: numeric({ precision: 12, scale: 2, mode: 'number' }).default(0),
+  category_name_snapshot: text(),
+  location_name_snapshot: text(),
+  status: text().notNull().default('pending'),
+}, (t) => [
+  check('disbursement_items_requested_qty_check', sql`${t.requested_qty} > 0`),
+  check('disbursement_items_issued_qty_check', sql`${t.issued_qty} >= 0`),
+  check('disbursement_items_returned_qty_check', sql`${t.returned_qty} >= 0 and ${t.returned_qty} <= ${t.issued_qty}`),
+  check('disbursement_items_status_check', sql`${t.status} in ('pending','issued','partially_returned','returned','reversed')`),
+  index('disbursement_items_doc_index').on(t.disbursement_id),
+  index('disbursement_items_item_index').on(t.item_id),
+])
+
+export const stockMovements = pgTable('stock_movements', {
+  id: uuid().primaryKey().defaultRandom(),
+  item_id: uuid().notNull().references(() => items.id, { onDelete: 'restrict' }),
+  disbursement_item_id: uuid().references(() => disbursementItems.id, { onDelete: 'restrict' }),
+  delta: integer().notNull(),
+  balance_after: integer().notNull(),
+  movement_type: text().notNull(),
+  created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
+  created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+}, (t) => [
+  check('stock_movements_balance_check', sql`${t.balance_after} >= 0`),
+  check('stock_movements_type_check', sql`${t.movement_type} in ('issue','reversal','adjust_audit')`),
+  index('stock_movements_item_created_index').on(t.item_id, t.created_at),
+])
+
+export const assetCustodyLogs = pgTable('asset_custody_logs', {
+  id: uuid().primaryKey().defaultRandom(),
+  item_id: uuid().notNull().references(() => items.id, { onDelete: 'restrict' }),
+  disbursement_item_id: uuid().notNull().references(() => disbursementItems.id, { onDelete: 'restrict' }),
+  action: text().notNull(),
+  quantity: integer().notNull().default(1),
+  from_responsible: text(),
+  to_responsible: text(),
+  item_condition: text().notNull().default('normal'),
+  note: text(),
+  created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
+  created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+}, (t) => [
+  check('asset_custody_action_check', sql`${t.action} in ('handover','borrow','return','reversal')`),
+  check('asset_custody_condition_check', sql`${t.item_condition} in ('normal','damaged','lost')`),
+  check('asset_custody_qty_check', sql`${t.quantity} > 0`),
+  index('asset_custody_item_created_index').on(t.item_id, t.created_at),
+])
 const auth = pgSchema('private_auth')
 export const credentials = auth.table('credentials', { user_id: uuid().primaryKey().references(() => profiles.id, { onDelete: 'cascade' }), password_hash: text().notNull() })
 export const sessions = auth.table('sessions', { token_hash: text().primaryKey(), user_id: uuid().notNull().references(() => profiles.id, { onDelete: 'cascade' }), expires_at: timestamp({ withTimezone: true, mode: 'string' }).notNull(), created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow() }, (t) => [index('sessions_user_index').on(t.user_id), index('sessions_expiry_index').on(t.expires_at)])

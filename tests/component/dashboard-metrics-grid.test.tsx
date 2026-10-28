@@ -43,12 +43,12 @@ test('DashboardMetricsGrid renders all 4 Bento Cards with expected test values',
   // 1. Valuation Card
   assert.ok(screen.getByText('มูลค่าสินทรัพย์รวม'))
   assert.ok(screen.getByText('฿1,250,000'))
-  assert.ok(screen.getByText('รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ'))
+  assert.ok(screen.getByText('รวมครุภัณฑ์และพัสดุทั้งหมดในระบบ'))
 
   // 2. Composition Card
-  assert.ok(screen.getByText('พัสดุและวัสดุทั้งหมด'))
+  assert.ok(screen.getByText('ครุภัณฑ์และพัสดุทั้งหมด'))
   assert.ok(screen.getByText('100 รายการ'))
-  assert.ok(screen.getByText('ครุภัณฑ์ 70 | วัสดุ 30'))
+  assert.ok(screen.getByText('ครุภัณฑ์ 70 | พัสดุ 30'))
 
   // 3. Readiness Card
   assert.ok(screen.getByText('ความพร้อมใช้งานของพัสดุ'))

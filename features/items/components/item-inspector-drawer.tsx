@@ -6,6 +6,7 @@ import {
   Copy,
   Edit,
   ExternalLink,
+  FileText,
   MapPin,
   Package,
   StickyNote,
@@ -268,6 +269,24 @@ export function Inspector({
               </Button>
             </Link>
           </div>
+
+          {userCanWrite && (
+            <Link
+              href={`/disbursements/new?items=${item.id}&type=${item.item_type === 'material' ? 'material_issue' : 'asset_borrow'}`}
+              className="w-full min-w-0"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 sm:h-10 w-full rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 min-w-0 hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {item.item_type === 'asset' ? 'ทำรายการขอเบิก/ยืมครุภัณฑ์นี้' : 'ทำรายการขอเบิกพัสดุนี้'}
+                </span>
+              </Button>
+            </Link>
+          )}
 
           {userCanWrite && (
             <Button

@@ -91,7 +91,7 @@ const TABLE_SCHEMAS: Record<string, ColumnSchema[]> = {
     { name: 'item_name', label: 'ชื่อพัสดุครุภัณฑ์', type: 'text' },
     { name: 'item_type', label: 'ประเภทสิ่งของ', type: 'select', options: [
       { value: 'asset', label: 'ครุภัณฑ์ (Asset)' },
-      { value: 'material', label: 'วัสดุ' },
+      { value: 'material', label: 'พัสดุ' },
     ]},
     { name: 'category_id', label: 'หมวดหมู่ ID (UUID)', type: 'text' },
     { name: 'unit_id', label: 'หน่วยนับ ID (UUID)', type: 'text' },

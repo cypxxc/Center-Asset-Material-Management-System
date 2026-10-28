@@ -149,7 +149,7 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                     <span>สิ่งของทั้งหมดที่ตั้งอยู่ที่: {selectedLocation.name}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    แสดงรายการเครื่องมือ อุปกรณ์ และวัสดุที่ผู้รับผิดชอบดูแลอยู่ที่สถานที่นี้
+                    แสดงรายการเครื่องมือ อุปกรณ์ และพัสดุที่ผู้รับผิดชอบดูแลอยู่ที่สถานที่นี้
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

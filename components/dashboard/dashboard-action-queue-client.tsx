@@ -56,7 +56,7 @@ export function DashboardActionQueueClient({
             คิวงานและรายการที่ต้องดำเนินการ
           </h3>
           <p className="text-xs text-muted-foreground">
-            รายการพัสดุชำรุดรอส่งซ่อมและวัสดุที่ต้องเติมสต็อกเร่งด่วน
+            รายการพัสดุชำรุดรอส่งซ่อมและพัสดุที่ต้องเติมสต็อกเร่งด่วน
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export function DashboardActionQueueClient({
             }`}
           >
             <Package className="size-3.5" />
-            <span>วัสดุใกล้หมดคลัง</span>
+            <span>พัสดุใกล้หมดคลัง</span>
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
                 lowStockItems.length > 0
@@ -246,7 +246,7 @@ export function DashboardActionQueueClient({
                 <CheckCircle2 className="size-4" />
               </div>
               <p className="text-xs text-muted-foreground max-w-md">
-                ระดับวัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ
+                ระดับพัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ
               </p>
             </div>
           ) : (

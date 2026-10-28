@@ -86,7 +86,7 @@ export interface ItemBatchResult {
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  material: 'วัสดุ',
+  material: 'พัสดุ',
   asset: 'ครุภัณฑ์',
 }
 

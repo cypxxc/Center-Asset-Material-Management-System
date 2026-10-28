@@ -60,12 +60,12 @@ export async function buildReportExcelWorkbook(
   workbook.created = new Date()
   workbook.modified = new Date()
 
-  const worksheet = workbook.addWorksheet('รายงานครุภัณฑ์และวัสดุ', {
+  const worksheet = workbook.addWorksheet('รายงานครุภัณฑ์และพัสดุ', {
     views: [{ showGridLines: true }],
   })
 
   // Title Row (Row 1)
-  const titleRow = worksheet.addRow(['รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS)'])
+  const titleRow = worksheet.addRow(['รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS)'])
   titleRow.font = { name: 'Sarabun', bold: true, size: 16, color: { argb: 'FF0F172A' } }
   worksheet.addRow([]) // Row 2 (Blank spacer)
 

@@ -64,7 +64,7 @@ export function generateReportPdf(
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS Portal)</title>
+  <title>รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS Portal)</title>
   <style>
     @page {
       size: A4 landscape;
@@ -244,7 +244,7 @@ export function generateReportPdf(
 <body>
   <div class="header">
     <div>
-      <h1 class="title">รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (CAMMS Portal)</h1>
+      <h1 class="title">รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS Portal)</h1>
       <p class="subtitle">วันที่พิมพ์รายงาน: ${currentDate} | ตัวกรอง: ${escapeHtml(filterSummary)}</p>
     </div>
     <div class="logo-text">

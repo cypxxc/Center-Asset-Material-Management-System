@@ -17,7 +17,7 @@ function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-white"><Package className="size-6" aria-hidden="true" /></span>
-          <div><h2 className="text-lg font-semibold tracking-tight">CAMMS Portal</h2><p className="text-xs text-muted-foreground">ระบบจัดการครุภัณฑ์และวัสดุ</p></div>
+          <div><h2 className="text-lg font-semibold tracking-tight">CAMMS Portal</h2><p className="text-xs text-muted-foreground">ระบบจัดการครุภัณฑ์และพัสดุ</p></div>
         </div>
       <form action={formAction} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="space-y-2">

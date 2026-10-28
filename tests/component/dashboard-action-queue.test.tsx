@@ -75,7 +75,7 @@ test('DashboardActionQueue switches tabs using left/right arrow keys', async () 
   // Press ArrowRight to switch to low-stock tab
   fireEvent.keyDown(tablist, { key: 'ArrowRight' })
 
-  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
   assert.equal(lowStockTab.getAttribute('aria-selected'), 'true')
   assert.ok(screen.getByText('กระดาษ Double A A4 80gsm'))
 
@@ -94,7 +94,7 @@ test('DashboardActionQueue renders damaged items tab by default with details and
 
   // Verify tab headers and badges
   assert.ok(screen.getByText('พัสดุชำรุดและรอซ่อม'))
-  assert.ok(screen.getByText('วัสดุใกล้หมดคลัง'))
+  assert.ok(screen.getByText('พัสดุใกล้หมดคลัง'))
 
   // Verify damaged items details
   assert.ok(screen.getByText('เครื่องพิมพ์เลเซอร์ HP LaserJet Pro'))
@@ -122,7 +122,7 @@ test('DashboardActionQueue switches to low stock tab when clicked', async () => 
   render(element)
 
   // Click low stock tab
-  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
   fireEvent.click(lowStockTab)
 
   // Low stock items should now be visible
@@ -164,10 +164,10 @@ test('DashboardActionQueue displays empty state when low-stock items list is emp
   render(element)
 
   // Switch to low-stock tab
-  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
   fireEvent.click(lowStockTab)
 
-  assert.ok(screen.getByText('ระดับวัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ'))
+  assert.ok(screen.getByText('ระดับพัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ'))
 })
 
 test('DashboardActionQueue displays emerald badge when both queues are clear', async () => {

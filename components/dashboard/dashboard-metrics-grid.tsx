@@ -43,7 +43,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <p className="truncate">รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ</p>
+          <p className="truncate">รวมครุภัณฑ์และพัสดุทั้งหมดในระบบ</p>
           <span className="text-[11px] font-mono text-muted-foreground/80 bg-muted/60 px-1.5 py-0.5 rounded border border-border/40 shrink-0">
             {stats.locationCount || 0} สถานที่
           </span>
@@ -54,7 +54,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
       <div className="p-4 sm:p-4.5 flex flex-col justify-between gap-2.5 transition-colors hover:bg-muted/20">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs sm:text-sm font-medium text-muted-foreground">พัสดุและวัสดุทั้งหมด</span>
+            <span className="text-xs sm:text-sm font-medium text-muted-foreground">ครุภัณฑ์และพัสดุทั้งหมด</span>
             <div className="w-7 h-7 shrink-0 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
               <Package className="h-3.5 w-3.5" />
             </div>
@@ -75,12 +75,12 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
             <div
               className="bg-emerald-500 h-full transition-all duration-500"
               style={{ width: `${materialRatio}%` }}
-              title={`วัสดุ ${materialRatio.toFixed(1)}%`}
+              title={`พัสดุ ${materialRatio.toFixed(1)}%`}
             />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <p className="truncate">
-              ครุภัณฑ์ {assetCount.toLocaleString('th-TH')} | วัสดุ {materialCount.toLocaleString('th-TH')}
+              ครุภัณฑ์ {assetCount.toLocaleString('th-TH')} | พัสดุ {materialCount.toLocaleString('th-TH')}
             </p>
             <span className="text-[11px] font-mono text-muted-foreground/80 shrink-0">
               {stats.totalQuantity.toLocaleString('th-TH')} ชิ้น

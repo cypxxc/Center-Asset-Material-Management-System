@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockSupabaseRegistry } from '../mocks/supabase';
-import { createCategory, deleteLocation, updateCategory } from '../../features/settings/actions';
+import { createCategory, deleteLocation, updateCategory, updateProfile } from '../../features/settings/actions';
 import { getSettingsData } from '../../features/settings/queries';
 
 function isRedirectError(err: unknown): err is Error & { digest: string } {
@@ -148,4 +148,27 @@ test('getSettingsData can fetch only the active metadata section', async () => {
     mockSupabaseRegistry.getQueryLog().map((entry) => entry.table),
     ['categories']
   );
+});
+
+test('updateProfile prevents modifying self and redirects with error', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'admin-1', email: 'admin@example.com' },
+    { id: 'admin-1', email: 'admin@example.com', role: 'admin', is_active: true }
+  );
+
+  const formData = new FormData();
+  formData.set('role', 'staff');
+  formData.set('is_active', 'true');
+
+  try {
+    await updateProfile('admin-1', formData);
+    assert.fail('Should have redirected');
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
+      assert.ok(decodeURIComponent(err.digest).includes('ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้'));
+    } else {
+      throw err;
+    }
+  }
 });

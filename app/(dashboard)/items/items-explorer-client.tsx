@@ -205,6 +205,21 @@ function ItemsExplorerSession({
       }))
   }, [currentItems, selectedItemIds])
 
+  const disburseLabel = useMemo(() => {
+    if (selectedItemIds.length === 0) return 'ขอเบิกพัสดุ (0)'
+    const selectedSet = new Set(selectedItemIds)
+    const chosen = currentItems.filter((it) => selectedSet.has(it.id))
+    const allAssets = chosen.length > 0 && chosen.every((t) => t.item_type === 'asset')
+    if (allAssets) {
+      return `ขอเบิก/ยืมครุภัณฑ์ (${selectedItemIds.length})`
+    }
+    const allMaterials = chosen.length > 0 && chosen.every((t) => t.item_type === 'material')
+    if (allMaterials) {
+      return `ขอเบิกพัสดุ (${selectedItemIds.length})`
+    }
+    return `ขอเบิก/ยืม (${selectedItemIds.length})`
+  }, [currentItems, selectedItemIds])
+
   const effectiveSelectedItemId = inspectedItem?.id ?? null
   const selectedItem = useMemo(() => {
     if (!effectiveSelectedItemId) return inspectedItem
@@ -536,7 +551,7 @@ function ItemsExplorerSession({
               <div className="flex shrink-0 items-center min-w-0">
                 <h1 className="text-base sm:text-lg font-semibold tracking-tight text-card-foreground leading-none truncate">
                   {params.type === 'material'
-                    ? 'รายการทะเบียนวัสดุ'
+                    ? 'รายการทะเบียนพัสดุ'
                     : params.type === 'asset'
                     ? 'รายการทะเบียนครุภัณฑ์'
                     : 'รายการทะเบียนสิ่งของ'}
@@ -593,7 +608,7 @@ function ItemsExplorerSession({
                   {[
                     { value: '', label: 'ทั้งหมด' },
                     { value: 'asset', label: 'ครุภัณฑ์' },
-                    { value: 'material', label: 'วัสดุ' }
+                    { value: 'material', label: 'พัสดุ' }
                   ].map((type) => {
                     const isActive = (params.type || '') === type.value
                     return (
@@ -878,11 +893,25 @@ function ItemsExplorerSession({
         userCanDelete={userCanDelete}
         selectingAll={selectingAll}
         canPrintBatch={selectedItemsData.length === selectedItemIds.length}
+        disburseLabel={disburseLabel}
         onBulkEdit={() => setBulkEditOpen(true)}
         onSelectAllMatching={handleSelectAllMatching}
         onBatchPrint={() => setIsBatchPrintOpen(true)}
         onBulkDelete={handleBulkDelete}
         onClearSelection={() => setSelectedItemIds([])}
+        onDisburse={() => {
+          if (selectedItemIds.length === 0) return
+          const selectedSet = new Set(selectedItemIds)
+          const chosen = currentItems.filter((it) => selectedSet.has(it.id))
+          const allMaterials = chosen.length > 0 && chosen.every((t) => t.item_type === 'material')
+          const allAssets = chosen.length > 0 && chosen.every((t) => t.item_type === 'asset')
+          if (!allMaterials && !allAssets && chosen.length > 0) {
+            triggerToast('ไม่สามารถทำรายการพัสดุและครุภัณฑ์พร้อมกันได้ กรุณาเลือกประเภทเดียวกัน', 'error')
+            return
+          }
+          const typeParam = allMaterials ? '&type=material_issue' : allAssets ? '&type=asset_borrow' : ''
+          router.push(`/disbursements/new?items=${selectedItemIds.join(',')}${typeParam}`)
+        }}
       />
 
       <AssetTagModal
