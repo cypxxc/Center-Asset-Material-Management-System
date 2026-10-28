@@ -349,7 +349,7 @@ export function Inspector({
   )
 }
 
-export function InspectorBox({
+function InspectorBox({
   icon,
   label,
   children,

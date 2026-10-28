@@ -342,7 +342,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
   )
 })
 
-export function EmptyRows() {
+function EmptyRows() {
   return (
     <tr>
       <td colSpan={9} className="px-5 py-12">

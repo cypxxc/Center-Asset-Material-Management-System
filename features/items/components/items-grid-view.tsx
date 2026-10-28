@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { CategoryBadge } from './category-badge'
 import { typeIcons } from './item-type-icon'
 
-export interface ItemGridCardProps {
+interface ItemGridCardProps {
   item: ItemListRow
   isSelected: boolean
   isChecked: boolean
@@ -21,7 +21,7 @@ export interface ItemGridCardProps {
   onEdit?: (item: ItemListRow) => void
 }
 
-export const ItemGridCard = React.memo(function ItemGridCard({
+const ItemGridCard = React.memo(function ItemGridCard({
   item,
   isSelected,
   isChecked,

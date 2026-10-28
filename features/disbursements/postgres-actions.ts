@@ -15,6 +15,7 @@ import type {
   DisbursementItemRow,
   AssetCustodyLogRow,
 } from './types'
+import { computeThaiFiscalYear } from './fiscal-year'
 
 async function requireDisbursementWriter() {
   const profile = await getCurrentProfile()
@@ -23,9 +24,6 @@ async function requireDisbursementWriter() {
   }
   return profile
 }
-
-import { computeThaiFiscalYear } from './fiscal-year'
-export { computeThaiFiscalYear }
 
 /**
  * Create a new draft disbursement document with line items

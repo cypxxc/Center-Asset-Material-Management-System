@@ -586,7 +586,7 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
   return signItemImage(supabase, detail)
 }
 
-export async function getPublicPassportItem(id: string): Promise<ItemDetail | null> {
+async function getPublicPassportItem(id: string): Promise<ItemDetail | null> {
   if (isPostgresBackend()) return getPostgresItemById(id)
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
   const { createAdminClient } = await import('@/lib/supabase/server')
@@ -655,7 +655,7 @@ export async function getPublicPassportItem(id: string): Promise<ItemDetail | nu
   return signItemImage(adminClient, detail)
 }
 
-export const getSidebarData = cache(async function getSidebarData() {
+const getSidebarData = cache(async function getSidebarData() {
   if (isPostgresBackend()) return getPostgresSidebarData()
   return getCachedSidebarData()
 })

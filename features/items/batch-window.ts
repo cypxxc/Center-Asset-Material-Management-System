@@ -14,7 +14,7 @@ export interface WindowState {
   error: string | null
 }
 export type BatchFetcher = (cursor: string | undefined, signal: AbortSignal) => Promise<ItemBatchResult>
-export function areBatchesEqual(a?: (ItemListRow | null)[], b?: ItemListRow[]): boolean {
+function areBatchesEqual(a?: (ItemListRow | null)[], b?: ItemListRow[]): boolean {
   if (!a || !b) return a === b
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {

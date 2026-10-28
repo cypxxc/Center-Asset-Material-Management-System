@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers'
 
-export const DEVELOPMENT_AUTH_COOKIE_NAME = 'registry-dev-auth'
+const DEVELOPMENT_AUTH_COOKIE_NAME = 'registry-dev-auth'
 
-export type DevelopmentSeedAccount = {
+type DevelopmentSeedAccount = {
   email: string
   password: string
   role: 'admin' | 'staff' | 'viewer'
