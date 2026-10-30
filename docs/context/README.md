@@ -83,6 +83,12 @@ npm run dev          # http://localhost:3000
 | `npm run verify-db-release` | Read-only: migrations, RLS policies, RPC grants |
 | `npm run test:smoke` | Playwright smoke tests |
 | `npm run test:e2e` | Playwright E2E tests |
+| `npm run test:uat:ai` | AI Autonomous UAT testing via Gemini API |
+| `npm run postgres:setup` | Configure local Docker PostgreSQL |
+| `npm run postgres:up` | Start Docker PostgreSQL container |
+| `npm run postgres:stop` | Stop Docker PostgreSQL container |
+| `npm run postgres:app:setup` | Run migrations and seed initial admin on Docker |
+| `npm run postgres:activate` | Switch .env.local to use Docker PostgreSQL |
 | `npm run mcp` | Start local MCP server |
 
 ---

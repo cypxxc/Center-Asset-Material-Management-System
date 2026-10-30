@@ -8,7 +8,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql)](https://www.postgresql.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Supported-3ECF8E?logo=supabase)](https://supabase.com/)
 
-[English](#english-overview) • [ภาษาไทย](#ภาพรวมระบบภาษาไทย)
+[English](#english-overview) • [ภาษาไทย](#ภาพรวมระบบภาษาไทย) • [คู่มือการรันด้วย Docker](#-การรันระบบด้วย-docker-docker-execution-guide)
 
 ---
 
@@ -94,10 +94,14 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ```
 
 #### สำหรับการใช้งานผ่าน Local Docker PostgreSQL:
-> ศึกษาคู่มือการติดตั้งแบบ Docker ละเอียดที่ [docs/postgres/README.md](docs/postgres/README.md)
+> ศึกษาคู่มือแบบละเอียดที่หัวข้อ [การรันระบบด้วย Docker](#-การรันระบบด้วย-docker-docker-execution-guide) หรือ [docs/postgres/README.md](docs/postgres/README.md)
 ```bash
-# ติดตั้ง Docker Container และตั้งค่าคอนฟิกอัตโนมัติ
+# 1. ติดตั้งคอนฟิกและสร้างฐานข้อมูล Docker
 npm run postgres:setup
+npm run postgres:up
+npm run postgres:app:setup
+
+# 2. สลับค่ามาใช้งาน Local Docker PostgreSQL
 npm run postgres:activate
 ```
 
@@ -118,6 +122,170 @@ npm run dev
 
 ---
 
+## 🐳 การรันระบบด้วย Docker (Docker Execution Guide)
+
+ระบบ CAMMS ออกแบบให้สามารถรันบนสภาพแวดล้อม Docker ได้อย่างยืดหยุ่น โดยแบ่งรูปแบบการรันออกเป็น **3 รูปแบบหลัก** ตามลักษณะการใช้งาน:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      เลือกรูปแบบการรันด้วย Docker                      │
+├────────────────────────────────┬───────────────────────────────────────┤
+│ 1. Local Database Container    │ ฐานข้อมูล PostgreSQL บน Docker        │
+│    (เหมาะสำหรับการพัฒนา/ทั่วไป) │ + เว็บ Next.js รันบนเครื่อง Host     │
+├────────────────────────────────┼───────────────────────────────────────┤
+│ 2. Full-Stack Production       │ เว็บ Next.js Standalone + Caddy HTTPS │
+│    (เหมาะสำหรับ Production/Staging) │ + ฐานข้อมูล PostgreSQL บน Docker ทั้งหมด │
+├────────────────────────────────┼───────────────────────────────────────┤
+│ 3. Standalone Docker Image     │ Build Image เดี่ยวด้วยคำสั่ง Docker   │
+│    (เหมาะสำหรับ CI/CD & Deploy) │ มาตรฐาน เพื่อนำไปรันบน Container Host │
+└────────────────────────────────┴───────────────────────────────────────┘
+```
+
+---
+
+### รูปแบบที่ 1: รันฐานข้อมูลบน Docker + เว็บ Next.js บนเครื่อง (แนะนำสำหรับการพัฒนา)
+
+ในรูปแบบนี้ ฐานข้อมูล PostgreSQL 17 จะทำงานใน Docker Container แบบแยกเดี่ยว มี Volume เก็บข้อมูลถาวร และเว็บรันผ่าน Node.js ในเครื่อง
+
+#### คำสั่งการติดตั้งและรันครั้งแรก:
+```bash
+# 1. ติดตั้งไลบรารี
+npm ci
+
+# 2. สร้างคอนฟิกรหัสผ่านและไฟล์ .env.postgres.* อัตโนมัติ
+npm run postgres:setup
+
+# 3. เริ่มการทำงานของ PostgreSQL Container ผ่าน Docker Compose
+npm run postgres:up
+
+# 4. รัน Drizzle Migrations สร้างตาราง สิทธิ์ RBAC และบัญชีผู้ดูแลเริ่มต้น
+npm run postgres:app:setup
+
+# 5. สลับค่า .env.local ให้เชื่อมต่อกับ Docker PostgreSQL (พอร์ต 15432)
+npm run postgres:activate
+
+# 6. เริ่มการทำงานของเว็บแอปพลิเคชัน
+npm run dev
+```
+
+#### ข้อมูลการเข้าใช้งานเริ่มต้น:
+- **URL เว็บไซต์:** [http://localhost:3000](http://localhost:3000) (หรือ [http://127.0.0.1:3000](http://127.0.0.1:3000))
+- **อีเมลผู้ดูแลเริ่มต้น:** `admin@camms.local`
+- **รหัสผ่านผู้ดูแล:** สุ่มสร้างไว้ในไฟล์ `.env.postgres.admin` (สามารถเปิดดูและนำมาล็อกอิน จากนั้นเปลี่ยนรหัสผ่านได้ที่หน้า Profile)
+- **พอร์ตฐานข้อมูล:** `127.0.0.1:15432` (ฐานข้อมูล: `camms_registry`)
+
+#### คำสั่งเปิด/ปิดฐานข้อมูลในแต่ละวัน:
+```bash
+# หยุดการทำงานของฐานข้อมูล (เก็บข้อมูลใน Volume ถาวร)
+npm run postgres:stop
+
+# เริ่มการทำงานของฐานข้อมูลกลับขึ้นมา
+npm run postgres:up
+```
+
+---
+
+### รูปแบบที่ 2: รันทั้งระบบด้วย Docker Compose (Full-Stack Production with HTTPS)
+
+ในรูปแบบนี้ ระบบจะรันผ่าน Docker Container ทั้งหมด 100%:
+1. **Next.js Web Container**: Standalone build แบบ Non-root user (UID 10001) ปลอดภัยสูง
+2. **Caddy Reverse Proxy**: จัดการ HTTPS/TLS Certificate อัตโนมัติและจำกัดเส้นทาง
+3. **PostgreSQL Container**: ฐานข้อมูลพร้อม Volume และ Isolated Network
+
+#### ขั้นตอนและคำสั่งรัน:
+
+```bash
+# ขั้นตอนที่ 1: ตรวจสอบว่าฐานข้อมูล Docker รันและ Setup เรียบร้อยแล้ว
+npm run postgres:setup
+npm run postgres:up
+npm run postgres:app:setup
+
+# ขั้นตอนที่ 2: เตรียมการกำหนดค่า Production Endpoint
+# กรณี ก) ทดสอบบนเครื่องตัวเองผ่าน HTTPS (พอร์ต 8443 / 8080):
+npx tsx scripts/prepare-production.ts --site localhost --tls internal --https-port 8443 --http-port 8080
+
+# กรณี ข) รันใช้งานจริงด้วยชื่อโดเมน (Public Domain):
+# npx tsx scripts/prepare-production.ts --site asset.yourdomain.go.th --tls public --bind 0.0.0.0
+
+# ขั้นตอนที่ 3: Build Docker Image ของแอปพลิเคชัน
+docker compose --env-file .env.production.compose -f compose.production.yaml build
+
+# ขั้นตอนที่ 4: สั่งรัน Containers ทั้งหมดในโหมด Background (-d)
+docker compose --env-file .env.production.compose -f compose.production.yaml up -d --wait --wait-timeout 120
+
+# ขั้นตอนที่ 5: ตรวจสอบสถานะการทำงานและ Health Status
+docker compose --env-file .env.production.compose -f compose.production.yaml ps
+```
+
+#### การเข้าใช้งาน:
+- เปิดเบราว์เซอร์ไปที่: `https://localhost:8443` (หรือโดเมนที่กำหนด)
+- ตรวจสอบสถานะ Health Endpoint:
+  ```bash
+  curl -k https://localhost:8443/api/health/readiness
+  # คืนค่า: {"status":"ok",...}
+  ```
+
+#### คำสั่งจัดการ Production Compose:
+```bash
+# ดู Log การทำงานแบบ Realtime
+docker compose --env-file .env.production.compose -f compose.production.yaml logs -f app
+
+# รีสตาร์ทเซอร์วิสเว็บและพร็อกซี
+docker compose --env-file .env.production.compose -f compose.production.yaml restart app proxy
+
+# หยุดการทำงานของระบบ
+docker compose --env-file .env.production.compose -f compose.production.yaml stop
+```
+
+---
+
+### รูปแบบที่ 3: การ Build & Run ด้วยคำสั่ง Docker มาตรฐาน (Single Container)
+
+สำหรับทีม DevOps ที่ต้องการนำ Image ไปรันบน Kubernetes, Cloud Run หรือ Container Registry:
+
+#### 1. Build Image:
+```bash
+docker build -t camms-portal:latest .
+```
+
+#### 2. Run Container:
+```bash
+docker run -d \
+  --name camms-app \
+  -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e DATA_BACKEND=postgres \
+  -e NEXT_PUBLIC_DATA_BACKEND=postgres \
+  -e LOCAL_STORAGE_PATH=/data/storage \
+  -v camms_storage_data:/data/storage \
+  camms-portal:latest
+```
+
+---
+
+### 🤖 การรัน AI Autonomous UAT ร่วมกับระบบบน Docker
+
+เมื่อรันระบบ CAMMS ผ่าน Docker (ไม่ว่าจะรันบนพอร์ต 3000, 3001 หรือ 8443) คุณสามารถสั่งให้ AI Agent (Google Gemini API) เข้าตรวจรับระบบแบบอัตโนมัติได้ทันที:
+
+```bash
+# รัน AI UAT ครบทุกบทบาท (Admin, Staff, Viewer) ชี้ไปยัง Docker พอร์ต 3000
+npm run test:uat:ai
+
+# รันแบบเปิดหน้าต่างเบราว์เซอร์สด (Headed Mode) ให้เห็น AI คลิกและพิมพ์
+npm run test:uat:ai:headed
+
+# รันโดยระบุ URL หรือพอร์ตที่รันบน Docker โดยตรง
+npx tsx scripts/ai-uat/run.ts --url http://localhost:3001
+
+# ทดสอบเฉพาะบทบาทที่ต้องการ
+npm run test:uat:ai:admin
+npm run test:uat:ai:staff
+npm run test:uat:ai:viewer
+```
+หลังการทดสอบสิ้นสุด AI จะออกรายงาน **Interactive HTML Report** ให้ที่ `test-results/uat/index.html` อัตโนมัติ
+
+---
+
 ## 📜 คำสั่งพัฒนาที่สำคัญ (CLI Commands)
 
 | คำสั่ง (Command) | รายละเอียด (Description) |
@@ -128,12 +296,18 @@ npm run dev
 | `npm run typecheck` | ตรวจสอบ Strict TypeScript types และ Dead Code |
 | `npm run lint` | ตรวจสอบ Linting ด้วย ESLint 9 (Flat Config) |
 | `npm test` | รัน Test Suite ทั้งหมดผ่าน Node test runner (`tsx`) |
+| `npm run test:uat:ai` | **AI Autonomous UAT**: ตรวจรับระบบอัตโนมัติด้วย Google Gemini API (ครบทุก Role) |
+| `npm run test:uat:ai:headed` | รัน AI UAT แบบเปิดหน้าต่างเบราว์เซอร์สด (Headed Mode) |
+| `npm run test:uat:ai:admin` | รัน AI UAT เฉพาะสิทธิ์ผู้ดูแลระบบ (Admin Scenarios) |
+| `npm run test:uat:ai:staff` | รัน AI UAT เฉพาะสิทธิ์เจ้าหน้าที่ (Staff Scenarios) |
+| `npm run test:uat:ai:viewer` | รัน AI UAT เฉพาะสิทธิ์ผู้เข้าชม (Viewer Scenarios) |
 | `npm run test:e2e` | รัน Playwright End-to-End (E2E) Browser Tests |
 | `npm run test:smoke` | รัน Playwright Smoke Tests |
 | `npm run verify-env` | ตรวจสอบความสมบูรณ์ของค่าตัวแปรใน `.env.local` |
 | `npm run verify-db-release` | ตรวจสอบสถานะ Migrations, สิทธิ์ RPC และ RLS Policies แบบ Read-only |
 | `npm run postgres:setup` | ติดตั้งและกำหนดค่า Docker PostgreSQL เริ่มต้น |
 | `npm run postgres:up` | เริ่มการทำงานของ Docker PostgreSQL Container |
+| `npm run postgres:stop` | หยุดการทำงานของ Docker PostgreSQL Container (คงข้อมูลใน Volume) |
 | `npm run postgres:app:setup` | รัน Migration และสร้างบัญชี Admin เริ่มต้นสำหรับ Docker |
 | `npm run postgres:activate` | สลับค่า `.env.local` มาใช้งาน Local Docker PostgreSQL |
 | `npm run health:diagnose` | ตรวจสอบความผิดปกติของข้อมูลใน Database และ Storage |
