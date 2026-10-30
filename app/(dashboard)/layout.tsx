@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/header'
 import { getDashboardLayoutData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
+import { IdleSessionTimeout } from '@/components/auth/idle-session-timeout'
 
 export const instant = false
 
@@ -51,6 +52,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <ToastProvider>
+      <IdleSessionTimeout />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground focus:shadow-lg"

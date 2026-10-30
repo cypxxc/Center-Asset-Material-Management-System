@@ -174,3 +174,37 @@ button:not(:disabled),
   }
 }
 
+/* Enterprise Print Stylesheet (WCAG & Global Web Standard) */
+@media print {
+  aside,
+  nav,
+  header,
+  .no-print,
+  [role="navigation"],
+  button:not(.print-include) {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  a[href]:after {
+    content: none !important;
+  }
+
+  table,
+  tr,
+  img,
+  .print-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
