@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, LayoutDashboard, Layers, Package, Boxes, Settings, UserCog, History, Database, LogOut, MapPin, BarChart3 } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Layers, Package, Boxes, Settings, UserCog, History, LogOut, MapPin, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -27,7 +27,6 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
   const isSettingsActive = pathname === '/settings'
   const isUsersActive = pathname.startsWith('/admin/users')
   const isAuditLogsActive = pathname.startsWith('/admin/audit-logs')
-  const isDbPanelActive = pathname.startsWith('/admin/db-panel')
   const isProfileActive = pathname === '/profile'
 
   const activeLinkClass = 'bg-primary/10 text-primary font-bold border border-primary/20'
@@ -199,19 +198,6 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 >
                   <History className="h-4 w-4 text-orange-500 shrink-0" />
                   <span>ประวัติการทำรายการ (Audit Logs)</span>
-                </Link>
-
-                <Link
-                  href="/admin/db-panel"
-                  onClick={() => setMobileOpen(false)}
-                  aria-current={isDbPanelActive ? 'page' : undefined}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    isDbPanelActive ? activeLinkClass : inactiveLinkClass
-                  )}
-                >
-                  <Database className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>จัดการฐานข้อมูล (DB Panel)</span>
                 </Link>
               </>
             )}

@@ -9,7 +9,6 @@ import LocationsLoading from '../../app/(dashboard)/locations/loading';
 import ProfileLoading from '../../app/(dashboard)/profile/loading';
 import AuditLogsLoading from '../../app/(dashboard)/admin/audit-logs/loading';
 import UsersLoading from '../../app/(dashboard)/admin/users/loading';
-import DBPanelLoading from '../../app/(dashboard)/admin/db-panel/loading';
 
 test('ItemDetailLoading renders skeleton with pulse animations', () => {
   const { container } = render(React.createElement(ItemDetailLoading));
@@ -45,10 +44,4 @@ test('UsersLoading renders skeleton with pulse animations', () => {
   const { container } = render(React.createElement(UsersLoading));
   const pulseElements = container.querySelectorAll('.animate-pulse');
   assert.ok(pulseElements.length > 0, 'UsersLoading should render elements with animate-pulse');
-});
-
-test('DBPanelLoading renders skeleton with pulse animations', () => {
-  const { container } = render(React.createElement(DBPanelLoading));
-  const pulseElements = container.querySelectorAll('.animate-pulse');
-  assert.ok(pulseElements.length > 0, 'DBPanelLoading should render elements with animate-pulse');
 });

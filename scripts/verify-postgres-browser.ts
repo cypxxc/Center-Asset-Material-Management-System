@@ -37,7 +37,7 @@ async function main() {
     await page.locator('input[name=password]').fill(admin.INITIAL_ADMIN_PASSWORD)
     await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click()
     await page.waitForURL('**/dashboard',{timeout:90000})
-    for (const path of ['/dashboard','/items','/locations','/reports','/settings','/admin/users','/admin/audit-logs','/admin/db-panel','/profile']) {
+    for (const path of ['/dashboard','/items','/locations','/reports','/settings','/admin/users','/admin/audit-logs','/profile']) {
       const response = await page.request.get(`${baseURL}${path}`,{timeout:90000})
       expect(response.status(),path).toBe(200)
       await page.goto(`${baseURL}${path}`,{timeout:90000,waitUntil:'domcontentloaded'})

@@ -54,7 +54,6 @@ function failure(error: unknown): { error: string; success?: never } {
 }
 
 function invalidate() {
-  revalidatePath('/admin/db-panel')
   revalidatePath('/admin/users')
   revalidatePath('/', 'layout')
 }

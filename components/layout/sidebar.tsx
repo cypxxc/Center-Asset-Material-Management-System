@@ -20,7 +20,6 @@ import {
   Tag,
   User,
   UserCog,
-  Database,
   History,
   PanelLeftClose,
   PanelLeftOpen,
@@ -205,8 +204,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const isSettingsActive = currentPath === '/settings'
   const isUsersActive = currentPath.startsWith('/admin/users')
   const isAuditLogsActive = currentPath.startsWith('/admin/audit-logs')
-  const isDbPanelActive = currentPath.startsWith('/admin/db-panel')
-  const isAdminActive = isSettingsActive || isUsersActive || isAuditLogsActive || isDbPanelActive
+  const isAdminActive = isSettingsActive || isUsersActive || isAuditLogsActive
 
   // Compute folder expanded states: manual override wins; defaults to true if active child route
   const assetsFolderExpanded = assetsFolderManual ?? Boolean(effCategory)
@@ -650,20 +648,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                           <span className="truncate">ประวัติการทำรายการ</span>
                         </Link>
                       )}
-
-                      {/* Database Panel - Admin Only */}
-                      {isAdmin && (
-                        <Link
-                          href="/admin/db-panel"
-                          onPointerDown={() => handleOptimisticNavigate('/admin/db-panel')}
-                          onClick={() => handleOptimisticNavigate('/admin/db-panel')}
-                          aria-current={isDbPanelActive ? 'page' : undefined}
-                          className={navItemClass(isDbPanelActive)}
-                        >
-                          <Database className={navIconClass('text-teal-500', isDbPanelActive)} />
-                          <span className="truncate">จัดการฐานข้อมูล</span>
-                        </Link>
-                      )}
                     </div>
                   )}
                 </div>
@@ -707,20 +691,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                         className={navItemClass(isAuditLogsActive)}
                       >
                         <History className={navIconClass('text-orange-500', isAuditLogsActive)} />
-                      </Link>
-                    </NavItemTooltip>
-                  )}
-
-                  {isAdmin && (
-                    <NavItemTooltip label="จัดการฐานข้อมูล" enabled={isCollapsed}>
-                      <Link
-                        href="/admin/db-panel"
-                        onPointerDown={() => handleOptimisticNavigate('/admin/db-panel')}
-                        onClick={() => handleOptimisticNavigate('/admin/db-panel')}
-                        aria-current={isDbPanelActive ? 'page' : undefined}
-                        className={navItemClass(isDbPanelActive)}
-                      >
-                        <Database className={navIconClass('text-teal-500', isDbPanelActive)} />
                       </Link>
                     </NavItemTooltip>
                   )}

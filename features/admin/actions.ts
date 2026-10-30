@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeForStorage, stripBom } from '@/lib/unicode'
 import { logger } from '@/lib/logging'
@@ -143,7 +143,6 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
       newValues: cleanPayload,
     })
 
-    revalidatePath('/admin/db-panel')
     return { error: undefined, success: true, data: data?.[0] }
   } else {
     // Insert
@@ -168,7 +167,6 @@ export async function upsertTableRow(tableName: string, rowId: string | null, pa
       })
     }
 
-    revalidatePath('/admin/db-panel')
     return { error: undefined, success: true, data: data?.[0] }
   }
 }
@@ -214,55 +212,7 @@ export async function deleteTableRow(tableName: string, rowId: string) {
     oldValues: oldRow || null,
   })
 
-  revalidatePath('/admin/db-panel')
   return { error: undefined, success: true }
-}
-
-export async function runAdminSql(sqlQuery: string) {
-  const auth = await requireAdmin()
-  if (auth.error) return { error: auth.error }
-
-  if (isPostgresBackend()) return { error: 'Raw SQL is disabled for the standalone PostgreSQL backend. Use reviewed database migrations for maintenance.' }
-
-  if (process.env.ADMIN_SQL_ENABLED !== 'true') {
-    return { error: 'Raw SQL is disabled. Enable ADMIN_SQL_ENABLED only for a controlled maintenance window.' }
-  }
-
-  if (!sqlQuery || typeof sqlQuery !== 'string' || !sqlQuery.trim()) {
-    return { error: 'กรุณาระบุคำสั่ง SQL' }
-  }
-
-  const trimmed = sqlQuery.trim()
-  const stripped = trimmed.replace(/;+\s*$/, '')
-  if (stripped.includes(';')) {
-    return { error: 'ไม่อนุญาตให้รันคำสั่งหลายชุดพร้อมกัน (ห้ามใช้เครื่องหมาย ; คั่นคำสั่ง)' }
-  }
-
-  if (!/^(select|with|show|explain)\b/i.test(stripped)) {
-    return { error: 'SQL Runner อนุญาตเฉพาะคำสั่งอ่านข้อมูล (SELECT, WITH, SHOW, EXPLAIN) เท่านั้น' }
-  }
-
-  const supabase = createServiceRoleClient()
-  const { data, error } = await supabase.rpc('exec_admin_sql', { sql_query: stripped })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  // Log SQL execution in audit_logs with sanitized query text and query_hash
-  const queryHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(stripped)).then((buffer) => Buffer.from(buffer).toString('hex'))
-  await writeAuditLog({
-    operation: 'SQL_EXECUTE',
-    feature: 'admin',
-    userId: auth.profile.id,
-    targetType: 'multiple/raw_sql',
-    newValues: {
-      query: stripped.slice(0, 2000),
-      query_hash: queryHash,
-    },
-  })
-
-  return data
 }
 
 export async function exportDatabaseData() {
@@ -467,7 +417,6 @@ export async function createAuthUser(payload: {
       newValues: { email, full_name, role },
     })
 
-    revalidatePath('/admin/db-panel')
     trace.complete('success', { userId })
     return { error: undefined, success: true, userId }
   } catch (err) {
@@ -535,7 +484,6 @@ export async function deleteAuthUser(userId: string) {
     targetId: userId,
   })
 
-  revalidatePath('/admin/db-panel')
   return { error: undefined, success: true }
 }
 
@@ -578,7 +526,6 @@ export async function resetAuthPassword(userId: string, newPassword: string) {
       newValues: { note: 'Password reset by admin' },
     })
 
-    revalidatePath('/admin/db-panel')
     return { error: undefined, success: true, data }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
@@ -633,7 +580,6 @@ export async function updateUserEmail(userId: string, newEmail: string) {
       newValues: { new_email: trimmedEmail },
     })
 
-    revalidatePath('/admin/db-panel')
     return { error: undefined, success: true, data }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
@@ -770,7 +716,6 @@ export async function updateUserProfileRoleAndStatus(
   })
 
   revalidatePath('/admin/users')
-  revalidatePath('/admin/db-panel')
   revalidatePath('/', 'layout')
 
   return { error: undefined, success: true, profile: data?.[0] }
