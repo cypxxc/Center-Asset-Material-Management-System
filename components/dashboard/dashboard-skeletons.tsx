@@ -1,21 +1,21 @@
 export function MetricsGridSkeleton() {
   return (
     <div
-      className="w-full rounded-xl border border-border/70 bg-card/60 dark:bg-card/40 shadow-2xs divide-y lg:divide-y-0 lg:divide-x divide-border/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+      className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       data-testid="metrics-grid-skeleton"
     >
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="p-4 sm:p-4.5 flex flex-col justify-between gap-2.5 animate-pulse">
+        <div key={i} className="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs flex flex-col justify-between gap-4 animate-pulse">
           <div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between">
               <div className="h-4 w-28 bg-muted rounded" />
-              <div className="w-7 h-7 shrink-0 rounded-md bg-muted" />
+              <div className="h-4 w-16 bg-muted rounded" />
             </div>
-            <div className="mt-1">
-              <div className="h-7 w-32 bg-muted rounded" />
+            <div className="mt-3">
+              <div className="h-8 w-32 bg-muted rounded" />
             </div>
           </div>
-          <div className="h-3.5 w-36 bg-muted rounded mt-0.5" />
+          <div className="h-3.5 w-36 bg-muted rounded pt-3 border-t border-border/40" />
         </div>
       ))}
     </div>

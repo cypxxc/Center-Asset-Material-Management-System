@@ -219,18 +219,18 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const navItemClass = (isActive: boolean) =>
     cn(
-      'group flex items-center rounded-md font-medium outline-none transition-colors duration-150',
+      'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
       'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1',
-      isCollapsed ? 'justify-center h-9 w-9 mx-auto' : 'w-full px-2.5 py-2 text-xs',
+      isCollapsed ? 'justify-center h-9 w-9 mx-auto' : 'w-full px-2.5 py-2',
       isActive
-        ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-xs'
-        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-r before:bg-primary'
+        : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
     )
 
-  const navIconClass = (colorClass: string, isActive: boolean) =>
+  const navIconClass = (_colorClass: string, isActive: boolean) =>
     cn(
       'h-4 w-4 shrink-0 transition-colors',
-      isActive ? 'text-primary' : colorClass,
+      isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-sidebar-accent-foreground',
       !isCollapsed && 'mr-2.5'
     )
 

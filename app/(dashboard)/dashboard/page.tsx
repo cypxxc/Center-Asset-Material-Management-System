@@ -42,20 +42,28 @@ export default async function DashboardPage() {
     >
       <DashboardRealtimeBoundary tables={['items', 'categories']} />
       <PageHeader
-        title="ภาพรวมพัสดุ"
-        subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} ตรวจสอบทะเบียนและรายการที่ต้องดำเนินการได้ที่นี่`}
+        title={
+          <div className="flex items-center gap-2.5">
+            <span>ภาพรวมพัสดุ</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              ระบบออนไลน์
+            </span>
+          </div>
+        }
+        subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} • ศูนย์ควบคุมทะเบียนพัสดุ สินทรัพย์ และรายการที่ต้องดำเนินการ`}
         className="gap-3.5"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/items"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card hover:bg-muted/80 text-card-foreground px-3.5 py-2 text-xs sm:text-sm font-medium shadow-2xs hover:border-border transition-all duration-150"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted text-foreground px-3.5 py-2 text-xs font-semibold shadow-2xs hover:border-border transition-all duration-150"
             >
               <span>ดูทะเบียนทั้งหมด</span>
             </Link>
             {userCanWrite && (
-              <NewItemDialogTrigger className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs sm:text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all duration-150 cursor-pointer">
-                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+              <NewItemDialogTrigger className="inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background hover:bg-foreground/90 px-3.5 py-2 text-xs font-semibold shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all duration-150 cursor-pointer">
+                <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
                 <span>ขึ้นทะเบียนใหม่</span>
               </NewItemDialogTrigger>
             )}
