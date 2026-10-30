@@ -205,14 +205,14 @@ async function signItemImagesBatch<T extends { image_url?: string | null }>(
 /**
  * Returns active item reference options (categories, locations, units) with trimmed `id, name` projections.
  */
-export async function getItemReferences(): Promise<{
+export const getItemReferences = cache(async function getItemReferences(): Promise<{
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
 }> {
   if (isPostgresBackend()) return getPostgresItemReferences()
   return getCachedItemReferences()
-}
+})
 
 const getCachedSidebarData = unstable_cache(
   async () => {

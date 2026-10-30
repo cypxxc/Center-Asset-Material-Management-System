@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { isPostgresBackend } from '@/lib/backend'
 import { getPostgresSettingsData, getPostgresLocationsOverview } from './postgres-queries'
 
@@ -9,7 +10,7 @@ import type { LocationsOverview, SettingsData, SettingsPageData } from './types'
 
 export type SettingsDataSection = 'categories' | 'locations' | 'units' | 'all'
 
-export async function getSettingsData(section: SettingsDataSection = 'all'): Promise<SettingsData> {
+export const getSettingsData = cache(async function getSettingsData(section: SettingsDataSection = 'all'): Promise<SettingsData> {
   if (isPostgresBackend()) return getPostgresSettingsData(section)
   const supabase = await createClient()
   const queryCategories = () => supabase
@@ -64,9 +65,9 @@ export async function getSettingsData(section: SettingsDataSection = 'all'): Pro
     locations: locations.data ?? [],
     units: units.data ?? [],
   }
-}
+})
 
-export async function getLocationsOverview(): Promise<LocationsOverview> {
+export const getLocationsOverview = cache(async function getLocationsOverview(): Promise<LocationsOverview> {
   if (isPostgresBackend()) {
     return getPostgresLocationsOverview()
   }
@@ -132,7 +133,7 @@ export async function getLocationsOverview(): Promise<LocationsOverview> {
     locations: locations ?? [],
     items: mappedItems,
   }
-}
+})
 
 export async function getSettingsPageData(tabParam?: string): Promise<SettingsPageData> {
   const activeTab = ['categories', 'locations', 'units', 'import'].includes(tabParam ?? '')

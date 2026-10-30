@@ -24,7 +24,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { signOut } from '@/features/auth/actions'
+
+const IdleSessionTimeout = dynamic(
+  () => import('@/components/auth/idle-session-timeout').then((m) => m.IdleSessionTimeout),
+  { ssr: false }
+)
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from './nav-config'
@@ -768,6 +774,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             </form>
           </NavItemTooltip>
         </div>
+        <IdleSessionTimeout />
       </aside>
   )
 }

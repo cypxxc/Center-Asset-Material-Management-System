@@ -1,6 +1,5 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { PlusCircle } from 'lucide-react'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
@@ -56,7 +55,7 @@ export default async function DashboardPage() {
             </Link>
             {userCanWrite && (
               <NewItemDialogTrigger className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs sm:text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all duration-150 cursor-pointer">
-                <PlusCircle className="size-4" />
+                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
                 <span>ขึ้นทะเบียนใหม่</span>
               </NewItemDialogTrigger>
             )}

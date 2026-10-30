@@ -22,7 +22,7 @@ test('formatSystemPrompt includes role and goal instructions', () => {
 test('getUATConfig parses environment settings with sensible defaults', () => {
   const config = getUATConfig()
   assert.ok(config.baseUrl)
-  assert.equal(config.model, 'gemini-2.5-flash')
+  assert.equal(config.model, 'gemini-3.5-flash')
   assert.ok(config.maxSteps > 0)
 })
 
