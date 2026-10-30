@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { USER_ROLES } from '../../scripts/ai-uat/scenarios/types'
-import type { UATScenario, ScenarioResult, AgentStepAction, DefectFinding, UATRunReport } from '../../scripts/ai-uat/scenarios/types'
+import type { UATScenario, ScenarioResult, AgentStepAction, DefectFinding } from '../../scripts/ai-uat/scenarios/types'
 
 test('validates USER_ROLES constant', () => {
   assert.deepEqual(USER_ROLES, ['admin', 'staff', 'viewer'])

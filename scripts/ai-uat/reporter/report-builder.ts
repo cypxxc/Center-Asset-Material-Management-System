@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { UATRunReport, ScenarioResult } from '../scenarios/types'
+import type { UATRunReport } from '../scenarios/types'
 
 export function generateMarkdownContent(report: UATRunReport): string {
   const total = report.results.length

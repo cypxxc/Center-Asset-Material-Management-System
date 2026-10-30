@@ -10,9 +10,10 @@ test('parseCliArgs parses empty arguments as defaults', () => {
 })
 
 test('parseCliArgs handles role and headed flags', () => {
-  const args = parseCliArgs(['--role', 'admin', '--headed'])
+  const args = parseCliArgs(['--role', 'admin', '--headed', '--url', 'http://localhost:3001'])
   assert.equal(args.role, 'admin')
   assert.equal(args.headed, true)
+  assert.equal(args.url, 'http://localhost:3001')
 })
 
 test('parseCliArgs handles scenario ID flag', () => {

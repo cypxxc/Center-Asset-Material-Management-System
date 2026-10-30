@@ -3,6 +3,10 @@ import assert from 'node:assert/strict'
 import { getAllScenarios, ADMIN_SCENARIOS, STAFF_SCENARIOS, VIEWER_SCENARIOS } from '../../scripts/ai-uat/scenarios'
 
 test('getAllScenarios returns all 3 roles with expected test IDs', () => {
+  assert.ok(ADMIN_SCENARIOS.length > 0)
+  assert.ok(STAFF_SCENARIOS.length > 0)
+  assert.ok(VIEWER_SCENARIOS.length > 0)
+
   const all = getAllScenarios()
   const ids = all.map(s => s.id)
   assert.ok(ids.includes('TC-ADM-01'))

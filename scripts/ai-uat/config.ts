@@ -24,7 +24,7 @@ export function getUATConfig(): UATConfig {
   }
 
   const baseUrl = process.env.UAT_BASE_URL || 'http://localhost:3000'
-  const model = process.env.UAT_GEMINI_MODEL || 'gemini-2.5-flash'
+  const model = process.env.UAT_GEMINI_MODEL || 'gemini-3.5-flash'
   const maxSteps = Number(process.env.UAT_MAX_STEPS) || 15
   const timeoutMs = Number(process.env.UAT_TIMEOUT_MS) || 45000
 

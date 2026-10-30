@@ -4,19 +4,26 @@ import { chromium } from '@playwright/test'
 import { getUATConfig } from './config'
 import { GeminiUATClient } from './gemini-client'
 import { runScenario } from './agent-driver'
-import { getAllScenarios, type UserRole, type UATScenario, type ScenarioResult, type UATRunReport } from './scenarios'
+import { getAllScenarios, type UserRole, type ScenarioResult, type UATRunReport } from './scenarios'
 import { buildHTMLReport, buildMarkdownSummary } from './reporter/report-builder'
 
 export interface CliArgs {
   headed: boolean
   role?: UserRole
   scenarioId?: string
+  url?: string
 }
 
 export function parseCliArgs(argv: string[]): CliArgs {
   const headed = argv.includes('--headed')
   let role: UserRole | undefined = undefined
   let scenarioId: string | undefined = undefined
+  let url: string | undefined = undefined
+
+  const urlIdx = argv.indexOf('--url')
+  if (urlIdx !== -1 && argv[urlIdx + 1]) {
+    url = argv[urlIdx + 1]
+  }
 
   const roleIdx = argv.indexOf('--role')
   if (roleIdx !== -1 && argv[roleIdx + 1]) {
@@ -31,12 +38,15 @@ export function parseCliArgs(argv: string[]): CliArgs {
     scenarioId = argv[scenarioIdx + 1]
   }
 
-  return { headed, role, scenarioId }
+  return { headed, role, scenarioId, url }
 }
 
 export async function main() {
   const args = parseCliArgs(process.argv.slice(2))
   const config = getUATConfig()
+  if (args.url) {
+    config.baseUrl = args.url
+  }
 
   if (!config.apiKey || !config.apiKey.trim()) {
     console.error('\n❌ [AI UAT Error] ไม่พบ GEMINI_API_KEY กรุณากำหนดค่าในไฟล์ .env.local หรือส่งผ่าน environment variable')
