@@ -160,36 +160,36 @@ export function DashboardActionQueueClient({
               return (
                 <div
                   key={item.id}
-                  className="px-4 py-2.5 hover:bg-muted/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group"
+                  className="px-4 py-2.5 sm:px-5 hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     {/* Thumbnail */}
                     {item.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image_url}
                         alt={item.item_name}
-                        className="w-8 h-8 rounded-md object-cover border border-border/70 shrink-0"
+                        className="w-9 h-9 rounded-lg object-cover border border-border/70 shrink-0 shadow-2xs"
                       />
                     ) : (
                       <div
-                        className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 border ${
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border shadow-2xs ${
                           isWaitingRepair
                             ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
                             : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                         }`}
                       >
-                        <Hammer className="size-3.5" />
+                        <Hammer className="size-4" />
                       </div>
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-semibold text-card-foreground group-hover:text-primary transition-colors truncate">
+                      <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                         {item.item_name}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
                         {item.asset_no && (
-                          <span className="font-mono tabular-nums tracking-tight font-medium text-foreground/85 bg-muted/80 px-1 py-0.2 rounded text-[10.5px] border border-border/40">
+                          <span className="font-mono tabular-nums tracking-tight font-medium text-foreground/90 bg-muted px-1.5 py-0.5 rounded text-[11px] border border-border/60">
                             {item.asset_no}
                           </span>
                         )}
@@ -206,12 +206,12 @@ export function DashboardActionQueueClient({
                   <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                     {/* Status badge */}
                     {isWaitingRepair ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
                         <Hammer className="size-3" />
                         <span>รอส่งซ่อม</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
                         <AlertTriangle className="size-3" />
                         <span>ชำรุด</span>
                       </span>
@@ -219,7 +219,7 @@ export function DashboardActionQueueClient({
 
                     <Link
                       href={`/items/${item.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md border border-border/70 bg-background/80 hover:bg-muted hover:border-border text-card-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-border/70 bg-card hover:bg-muted text-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
                     >
                       <span>ดูข้อมูล</span>
                       <ChevronRight className="size-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
@@ -253,17 +253,17 @@ export function DashboardActionQueueClient({
             lowStockItems.map((item) => (
               <div
                 key={item.id}
-                className="px-4 py-2.5 hover:bg-muted/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group"
+                className="px-4 py-2.5 sm:px-5 hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    <Package className="size-3.5" />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
+                    <Package className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-semibold text-card-foreground group-hover:text-primary transition-colors truncate">
+                    <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                       {item.item_name}
                     </p>
-                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
                       <MapPin className="size-3 text-muted-foreground/70 shrink-0" />
                       <span className="truncate max-w-[160px] sm:max-w-[220px]">
                         {item.locationName || 'ไม่มีระบุสถานที่'}
@@ -272,12 +272,12 @@ export function DashboardActionQueueClient({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                   <div className="text-left sm:text-right">
                     <p className="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums tracking-tight font-mono">
                       {item.quantity} {item.unit_name || 'ชิ้น'}
                     </p>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 mt-0.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 mt-0.5">
                       <AlertTriangle className="size-2.5" />
                       <span>ต่ำกว่าเกณฑ์</span>
                     </span>
@@ -285,7 +285,7 @@ export function DashboardActionQueueClient({
 
                   <Link
                     href={`/items/${item.id}`}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md border border-border/70 bg-background/80 hover:bg-muted hover:border-border text-card-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-border/70 bg-card hover:bg-muted text-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
                   >
                     <span>ดูข้อมูล</span>
                     <ChevronRight className="size-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />

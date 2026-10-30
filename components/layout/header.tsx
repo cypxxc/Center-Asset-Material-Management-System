@@ -133,12 +133,36 @@ export function Header({ profile }: HeaderProps) {
 
   return (
     <header className="relative z-20 flex h-12 w-full shrink-0 items-center justify-between border-b border-border bg-card px-4 md:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pr-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-none pr-4">
         <MobileNavigation profile={profile} />
         {renderBreadcrumbs()}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
+        <Link
+          href="/items"
+          className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 text-xs text-muted-foreground bg-muted/60 hover:bg-muted border border-border/60 hover:border-border rounded-md transition-colors shadow-2xs"
+          title="ค้นหาพัสดุและครุภัณฑ์ (Ctrl+K)"
+        >
+          <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <span className="hidden md:inline">ค้นหาพัสดุ...</span>
+          <kbd className="hidden lg:inline-flex items-center gap-0.5 rounded border border-border/80 bg-background px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground shadow-2xs">
+            Ctrl+K
+          </kbd>
+        </Link>
         <ThemeToggle />
+        {profile && (
+          <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border/60">
+            <div
+              className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold uppercase shadow-2xs"
+              title={`${profile.full_name} (${profile.role})`}
+            >
+              {(profile.full_name || 'U').charAt(0)}
+            </div>
+            <span className="hidden xl:inline text-xs font-medium text-foreground truncate max-w-[120px]">
+              {profile.display_name?.trim() || profile.full_name}
+            </span>
+          </div>
+        )}
       </div>
     </header>
   )
