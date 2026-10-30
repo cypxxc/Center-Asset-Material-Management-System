@@ -58,17 +58,17 @@ export async function DashboardCategoryList() {
   return (
     <div className="flex flex-col gap-4 sm:gap-5 h-full">
       {/* Status Breakdown Section */}
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 dark:bg-card/40 backdrop-blur-xs p-3.5 sm:p-4 shadow-2xs hover:border-border transition-colors flex flex-col justify-between">
-        <div className="flex items-center justify-between pb-2.5 border-b border-border/40">
+      <div className="overflow-hidden rounded-2xl border border-border/80 bg-card dark:bg-card/90 backdrop-blur-xs p-4 sm:p-4.5 shadow-2xs hover:border-border transition-colors flex flex-col justify-between">
+        <div className="flex items-center justify-between pb-3 border-b border-border/50">
           <div>
-            <h3 className="font-semibold text-card-foreground text-xs sm:text-sm tracking-tight">
+            <h3 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
               สัดส่วนตามสภาพการใช้งาน
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               ปริมาณพัสดุแบ่งตามสถานะการครอบครอง
             </p>
           </div>
-          <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/60 px-2 py-0.5 rounded border border-border/40 shrink-0">
+          <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
             {statusTotalQty.toLocaleString()} ชิ้น
           </span>
         </div>
@@ -79,17 +79,17 @@ export async function DashboardCategoryList() {
       </div>
 
       {/* Category Breakdown Progress List */}
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 dark:bg-card/40 backdrop-blur-xs p-3.5 sm:p-4 shadow-2xs hover:border-border transition-colors flex flex-col justify-between flex-1">
-        <div className="flex items-center justify-between pb-2.5 border-b border-border/40">
+      <div className="overflow-hidden rounded-2xl border border-border/80 bg-card dark:bg-card/90 backdrop-blur-xs p-4 sm:p-4.5 shadow-2xs hover:border-border transition-colors flex flex-col justify-between flex-1">
+        <div className="flex items-center justify-between pb-3 border-b border-border/50">
           <div>
-            <h3 className="font-semibold text-card-foreground text-xs sm:text-sm tracking-tight">
+            <h3 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
               สถิติตามหมวดหมู่พัสดุ
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               จำแนกปริมาณพัสดุแยกตามหมวดหมู่หลัก
             </p>
           </div>
-          <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/60 px-2 py-0.5 rounded border border-border/40 shrink-0">
+          <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
             {categoryEntries.length} หมวดหมู่
           </span>
         </div>

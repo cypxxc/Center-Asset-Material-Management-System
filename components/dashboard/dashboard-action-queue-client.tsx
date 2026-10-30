@@ -46,12 +46,12 @@ export function DashboardActionQueueClient({
   return (
     <div
       id="action-queue"
-      className="overflow-hidden rounded-xl border border-border/70 bg-card/60 dark:bg-card/40 backdrop-blur-xs shadow-2xs flex flex-col h-full scroll-mt-6"
+      className="overflow-hidden rounded-2xl border border-border/80 bg-card dark:bg-card/90 backdrop-blur-xs shadow-2xs flex flex-col h-full scroll-mt-6"
     >
       {/* Header */}
-      <div className="px-4 py-3 sm:px-4.5 sm:py-3.5 border-b border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+      <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         <div className="space-y-0.5">
-          <h3 className="text-sm font-semibold tracking-tight text-card-foreground flex items-center gap-2">
+          <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
             <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
             คิวงานและรายการที่ต้องดำเนินการ
           </h3>
@@ -62,7 +62,7 @@ export function DashboardActionQueueClient({
 
         <div>
           {totalUrgent === 0 ? (
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
               <CheckCircle2 className="size-3.5 text-emerald-500" />
               <span>คิวงานเรียบร้อย</span>
             </div>
@@ -76,12 +76,12 @@ export function DashboardActionQueueClient({
       </div>
 
       {/* Segmented Tab Control */}
-      <div className="px-4 sm:px-4.5 py-2 border-b border-border/40 bg-muted/20 flex items-center">
+      <div className="px-4 sm:px-5 py-2 border-b border-border/50 bg-muted/20 flex items-center">
         <div
           role="tablist"
           aria-label="คิวงานที่ต้องดำเนินการ"
           onKeyDown={handleKeyDown}
-          className="inline-flex items-center p-0.5 rounded-lg bg-muted/60 dark:bg-muted/30 border border-border/40 gap-1"
+          className="inline-flex items-center p-0.5 rounded-lg bg-muted/80 dark:bg-muted/40 border border-border/60 gap-1"
         >
           <button
             type="button"
@@ -90,10 +90,10 @@ export function DashboardActionQueueClient({
             aria-selected={activeTab === 'damaged'}
             aria-controls="panel-damaged"
             onClick={() => setActiveTab('damaged')}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer ${
               activeTab === 'damaged'
-                ? 'bg-background text-foreground shadow-2xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-background/40 font-medium'
+                ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/50'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card/50 font-medium'
             }`}
           >
             <Hammer className="size-3.5" />
@@ -116,10 +116,10 @@ export function DashboardActionQueueClient({
             aria-selected={activeTab === 'low-stock'}
             aria-controls="panel-low-stock"
             onClick={() => setActiveTab('low-stock')}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer ${
               activeTab === 'low-stock'
-                ? 'bg-background text-foreground shadow-2xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-background/40 font-medium'
+                ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/50'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card/50 font-medium'
             }`}
           >
             <Package className="size-3.5" />
