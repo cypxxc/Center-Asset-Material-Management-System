@@ -35,19 +35,19 @@ export function CategoryComboChartSkeleton({ className }: { className?: string }
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] flex flex-col justify-between animate-pulse print:hidden',
+        'bg-card text-card-foreground p-6 rounded-2xl border border-border/80 shadow-2xs min-h-[480px] flex flex-col justify-between animate-pulse print:hidden',
         className
       )}
       data-testid="category-combo-chart-skeleton"
     >
       {/* Top KPI Strip Skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border/80">
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
           <div className="h-3 w-44 bg-muted/60 rounded mb-2" />
           <div className="h-8 w-48 bg-muted/80 rounded mb-2" />
           <div className="h-3 w-56 bg-muted/40 rounded" />
         </div>
-        <div>
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
           <div className="h-3 w-48 bg-muted/60 rounded mb-2" />
           <div className="flex items-center justify-between mb-2">
             <div className="h-8 w-20 bg-muted/80 rounded" />
@@ -61,18 +61,18 @@ export function CategoryComboChartSkeleton({ className }: { className?: string }
       {/* Chart Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-muted/60" />
+          <div className="w-8 h-8 rounded-lg bg-muted/60" />
           <div className="h-4 w-64 bg-muted/70 rounded" />
         </div>
         <div className="flex items-center gap-3">
-          <div className="h-3 w-24 bg-muted/50 rounded" />
-          <div className="h-3 w-24 bg-muted/50 rounded" />
+          <div className="h-6 w-24 bg-muted/40 rounded-md" />
+          <div className="h-6 w-24 bg-muted/40 rounded-md" />
         </div>
       </div>
 
       {/* Chart Visualization Area */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-center">
-        <div className="lg:col-span-8 h-[280px] bg-muted/20 border border-border/50 rounded-xl flex items-end gap-4 p-6">
+        <div className="lg:col-span-8 h-[280px] bg-muted/10 border border-border/50 rounded-xl flex items-end gap-4 p-6">
           <div className="w-full h-[55%] bg-muted/40 rounded-t" />
           <div className="w-full h-[85%] bg-muted/40 rounded-t" />
           <div className="w-full h-[40%] bg-muted/40 rounded-t" />
@@ -81,10 +81,10 @@ export function CategoryComboChartSkeleton({ className }: { className?: string }
         </div>
         <div className="lg:col-span-4 flex flex-col justify-center space-y-3">
           <div className="h-3 w-32 bg-muted/60 rounded" />
-          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
-          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
-          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
-          <div className="h-14 w-full bg-muted/30 border border-border/50 rounded-lg" />
+          <div className="h-14 w-full bg-muted/20 border border-border/50 rounded-xl" />
+          <div className="h-14 w-full bg-muted/20 border border-border/50 rounded-xl" />
+          <div className="h-14 w-full bg-muted/20 border border-border/50 rounded-xl" />
+          <div className="h-14 w-full bg-muted/20 border border-border/50 rounded-xl" />
         </div>
       </div>
     </div>
@@ -113,55 +113,79 @@ export function CategoryComboChart({
     return (
       <div
         className={cn(
-          'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] print:hidden',
+          'bg-card text-card-foreground p-6 rounded-2xl border border-border/80 shadow-2xs min-h-[480px] print:hidden',
           className
         )}
         data-testid="category-combo-chart-card"
       >
         {hasKpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border/80">
             {/* Metric 1: Total Valuation */}
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                มูลค่าทรัพย์สินทั้งหมด (Total Valuation)
-              </p>
-              <h3 className="text-2xl font-bold text-card-foreground mt-1">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  มูลค่าทรัพย์สินทั้งหมด (Total Valuation)
+                </p>
+                <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+                  THB / บาท
+                </span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-card-foreground mt-2">
                 {formattedTotalValue} บาท
               </h3>
-              <p className="text-xs text-muted-foreground mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
+              <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+                คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน
+              </p>
             </div>
 
             {/* Metric 2: Active Rate */}
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
-              </p>
-              <div className="flex items-center justify-between mt-1">
-                <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {activeRatePct}%
-                </h3>
-                <span className="text-xs text-muted-foreground font-bold">
-                  {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
-                </span>
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
+                  </p>
+                  <span className="text-xs font-mono font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40">
+                    {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-emerald-600 dark:text-emerald-400">
+                    {activeRatePct}%
+                  </h3>
+                  <span className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80">
+                    ความพร้อมในการใช้งาน
+                  </span>
+                </div>
               </div>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden mt-2">
-                <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${activeRatePct}%` }}
-                />
+              <div className="mt-3">
+                <div className="w-full h-2 bg-muted/80 rounded-full overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${activeRatePct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน</p>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2 mb-2">
-          <BarChart3 className="w-5 h-5 text-primary" />
-          <h3 className="font-bold text-sm text-card-foreground">
-            แผนภูมิแท่งและแนวโน้มเปรียบเทียบสัดส่วนตามหมวดหมู่ (Category Combo Chart)
-          </h3>
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm text-card-foreground">
+              แผนภูมิแท่งและแนวโน้มเปรียบเทียบสัดส่วนตามหมวดหมู่ (Category Combo Chart)
+            </h3>
+            <p className="text-xs text-muted-foreground">ไม่มีข้อมูลหมวดหมู่สำหรับแสดงผลแผนภูมิในขณะนี้</p>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">ไม่มีข้อมูลหมวดหมู่สำหรับแสดงผลแผนภูมิในขณะนี้</p>
       </div>
     )
   }
@@ -264,82 +288,104 @@ export function CategoryComboChart({
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground p-6 rounded-xl border border-border shadow-xs min-h-[480px] print:hidden',
+        'bg-card text-card-foreground p-6 rounded-2xl border border-border/80 shadow-2xs min-h-[480px] print:hidden',
         className
       )}
       data-testid="category-combo-chart-card"
     >
       {/* Top KPI Strip */}
       {hasKpis && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 mb-6 border-b border-border/80">
           {/* Metric 1: Total Valuation */}
-          <div>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              มูลค่าทรัพย์สินทั้งหมด (Total Valuation)
-            </p>
-            <h3 className="text-2xl font-bold text-card-foreground mt-1">
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                มูลค่าทรัพย์สินทั้งหมด (Total Valuation)
+              </p>
+              <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+                THB / บาท
+              </span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-card-foreground mt-2">
               {formattedTotalValue} บาท
             </h3>
-            <p className="text-xs text-muted-foreground mt-1">คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน</p>
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+              คำนวณจากราคาต่อหน่วยที่บันทึกในทะเบียน
+            </p>
           </div>
 
           {/* Metric 2: Active Rate */}
-          <div>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
-            </p>
-            <div className="flex items-center justify-between mt-1">
-              <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {activeRatePct}%
-              </h3>
-              <span className="text-xs text-muted-foreground font-bold">
-                {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
-              </span>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
+                </p>
+                <span className="text-xs font-mono font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40">
+                  {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2 mt-2">
+                <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-emerald-600 dark:text-emerald-400">
+                  {activeRatePct}%
+                </h3>
+                <span className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80">
+                  ความพร้อมในการใช้งาน
+                </span>
+              </div>
             </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${activeRatePct}%` }}
-              />
+            <div className="mt-3">
+              <div className="w-full h-2 bg-muted/80 rounded-full overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${activeRatePct}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน</p>
           </div>
         </div>
       )}
 
       {/* Header & Legend */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            <h3 className="font-bold text-sm text-card-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/80">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm text-card-foreground">
               แผนภูมิแท่งและแนวโน้มเปรียบเทียบสัดส่วนตามหมวดหมู่ (Category Combo Chart)
             </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              เปรียบเทียบปริมาณทั้งหมด ปริมาณพร้อมใช้งาน และอัตราความพร้อมใช้งานในแต่ละหมวดหมู่
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            เปรียบเทียบปริมาณทั้งหมด ปริมาณพร้อมใช้งาน และอัตราความพร้อมใช้งานในแต่ละหมวดหมู่
-          </p>
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-xs bg-blue-500 inline-block" />
-            <span className="font-semibold text-card-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/30 border border-border/60">
+            <span className="w-2.5 h-2.5 rounded-xs bg-blue-500 inline-block" />
+            <span className="font-medium text-card-foreground">
               จำนวนทั้งหมด: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{overallTotal.toLocaleString('th-TH')}</span>
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-xs bg-emerald-500 inline-block" />
-            <span className="font-semibold text-card-foreground">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/30 border border-border/60">
+            <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 inline-block" />
+            <span className="font-medium text-card-foreground">
               พร้อมใช้งาน: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{overallActive.toLocaleString('th-TH')}</span>
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/30 border border-border/60">
             <span className="w-4 h-0.5 bg-amber-500 inline-block relative">
               <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
             </span>
-            <span className="font-semibold text-card-foreground">
+            <span className="font-medium text-card-foreground">
               อัตราความพร้อมใช้งาน (% Usability)
             </span>
           </div>
@@ -565,9 +611,9 @@ export function CategoryComboChart({
 
         {/* Category Breakdown Details List */}
         <div className="lg:col-span-4 flex flex-col justify-center space-y-2.5">
-          <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 flex items-center justify-between">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center justify-between">
             <span>รายละเอียดแต่ละหมวดหมู่</span>
-            <span className="text-[11px] text-muted-foreground/80 font-normal">
+            <span className="text-[11px] font-mono text-muted-foreground/80 font-normal">
               {hoveredIndex !== null ? 'กำลังเลือกดู' : 'ชี้เพื่อดูเจาะจง'}
             </span>
           </div>
@@ -585,14 +631,14 @@ export function CategoryComboChart({
                   onMouseEnter={() => setHoveredIndex(idx)}
                   onMouseLeave={() => setHoveredIndex(null)}
                   className={cn(
-                    'p-2.5 rounded-lg border transition-all duration-200 cursor-pointer text-xs',
+                    'p-2.5 rounded-xl border transition-all duration-200 cursor-pointer text-xs',
                     isHovered
-                      ? 'bg-muted border-primary shadow-xs'
-                      : 'bg-card/50 border-border/70 hover:bg-muted/50'
+                      ? 'bg-muted border-primary shadow-2xs'
+                      : 'bg-muted/20 border-border/60 hover:bg-muted/50 hover:border-border'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-bold text-card-foreground truncate max-w-[130px]">
+                    <span className="font-semibold text-card-foreground truncate max-w-[130px]">
                       {item.category}
                     </span>
                     <span className="font-mono text-[11px] text-muted-foreground">
@@ -602,7 +648,7 @@ export function CategoryComboChart({
                   </div>
 
                   {/* Dual comparison bar */}
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden flex">
+                  <div className="w-full h-2 bg-muted/80 rounded-full overflow-hidden flex">
                     <div
                       className="bg-emerald-500 h-full transition-all duration-300"
                       style={{ width: `${activePct}%` }}
