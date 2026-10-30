@@ -245,7 +245,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {/* Brand Header */}
         <div
           className={cn(
-            'flex h-13 shrink-0 items-center border-b border-sidebar-border',
+            'flex h-12 shrink-0 items-center border-b border-sidebar-border',
             isCollapsed ? 'justify-center px-2' : 'justify-between px-3.5'
           )}
         >
