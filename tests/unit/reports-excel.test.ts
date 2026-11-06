@@ -5,7 +5,7 @@ import {
   buildReportExcelWorkbook,
   generateReportExcel,
   REPORT_EXCEL_HEADERS,
-} from '../../lib/reports-excel-generator'
+} from '../../features/reports/excel-generator'
 import type { ReportItemRow } from '../../features/reports/types'
 
 const mockReportItems: ReportItemRow[] = [
