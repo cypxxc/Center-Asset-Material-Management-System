@@ -88,6 +88,12 @@ export interface DisbursementListResult {
   page: number
   pageSize: number
   totalPages: number
+  stats?: {
+    total: number
+    active_borrow: number
+    draft: number
+    confirmed: number
+  }
 }
 
 export interface DisbursementSelectableItem {
@@ -99,5 +105,7 @@ export interface DisbursementSelectableItem {
   quantity: number
   category?: { id: string; name: string } | null
   unit?: { name: string } | null
+  location_name?: string | null
+  responsible_person?: string | null
 }
 

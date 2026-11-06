@@ -131,20 +131,15 @@
   }
 }
 
-/* Custom Scrollbar for a cleaner look */
+/* Hide scrollbars across all browsers while retaining scroll functionality */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--input);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  display: none; /* Chrome, Safari, Edge, Opera */
+  width: 0;
+  height: 0;
 }
 
 /* Enable Unicode-aware bidirectional text handling for inputs and text fields */
@@ -179,6 +174,11 @@ button:not(:disabled),
   aside,
   nav,
   header,
+  dialog:not(.print-include),
+  [role="dialog"]:not(.print-include),
+  [role="alertdialog"],
+  [role="status"],
+  .fixed:not(.print-include),
   .no-print,
   [role="navigation"],
   button:not(.print-include) {
@@ -202,7 +202,8 @@ button:not(:disabled),
   table,
   tr,
   img,
-  .print-card {
+  .print-card,
+  #printable-asset-tag {
     page-break-inside: avoid;
     break-inside: avoid;
   }

@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, LayoutDashboard, Layers, Package, Boxes, Settings, UserCog, History, LogOut, MapPin, BarChart3 } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Package, Boxes, Settings, UserCog, History, LogOut, MapPin, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -18,8 +19,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
   const initials = effectiveDisplayName?.trim()?.charAt(0)?.toUpperCase() || 'U'
 
   const isDashboardActive = pathname === '/dashboard'
-  const isItemsActive = pathname === '/items' && !searchParams.get('type') && !searchParams.get('deleted')
-  const isAssetsActive = pathname === '/items' && searchParams.get('type') === 'asset'
+  const isAssetsActive = pathname === '/items' && (searchParams.get('type') === 'asset' || !searchParams.get('type'))
   const isSuppliesActive = pathname === '/items' && searchParams.get('type') === 'material'
   const isLocationsActive = pathname === '/locations'
   const isReportsActive = pathname === '/reports'
@@ -37,7 +37,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
       <Dialog.Trigger asChild>
         <button
           aria-label="เปิดเมนูนำทาง"
-          className="flex md:hidden mr-1 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer shrink-0"
+          className="flex md:hidden mr-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer shrink-0 transition-colors"
           title="เมนูนำทาง"
           type="button"
         >
@@ -50,7 +50,18 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
         <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 flex w-[min(320px,90vw)] flex-col bg-card text-foreground shadow-xl">
           {/* Header */}
           <div className="flex h-16 items-center justify-between border-b border-border px-4">
-            <Dialog.Title className="text-base font-semibold">เมนูนำทาง</Dialog.Title>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden shadow-2xs ring-1 ring-border/60 bg-white/95 p-0.5">
+                <Image
+                  src="/images/moph-r7-emblem.webp"
+                  alt="โลโก้เขตสุขภาพที่ 7"
+                  width={32}
+                  height={32}
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <Dialog.Title className="text-base font-semibold">เมนูนำทาง</Dialog.Title>
+            </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <button
@@ -77,19 +88,6 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
             >
               <LayoutDashboard className="h-4 w-4 text-sky-500 shrink-0" />
               <span>แผงควบคุม (Dashboard)</span>
-            </Link>
-
-            <Link
-              href="/items"
-              onClick={() => setMobileOpen(false)}
-              aria-current={isItemsActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                isItemsActive ? activeLinkClass : inactiveLinkClass
-              )}
-            >
-              <Layers className="h-4 w-4 text-indigo-500 shrink-0" />
-              <span>พัสดุทั้งหมด (All Items)</span>
             </Link>
 
             <Link

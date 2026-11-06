@@ -12,6 +12,7 @@ interface ItemGridCardProps {
   item: ItemListRow
   isSelected: boolean
   isChecked: boolean
+  priority?: boolean
   onSelect: (item: ItemListRow) => void
   onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
@@ -25,6 +26,7 @@ const ItemGridCard = React.memo(function ItemGridCard({
   item,
   isSelected,
   isChecked,
+  priority = false,
   onSelect,
   onDoubleClick,
   onToggleSelectItem,
@@ -114,8 +116,8 @@ const ItemGridCard = React.memo(function ItemGridCard({
           <img
             src={item.image_url}
             alt={item.item_name}
-            loading="eager"
-            decoding="auto"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
             className="w-full h-full object-cover rounded-lg"
           />
         ) : (
@@ -175,12 +177,13 @@ export function ItemsGrid({
     <div className="bg-muted/20 p-4">
       {items.length ? (
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: 208 }}>
-          {items.map((item) => {
+          {items.map((item, idx) => {
             if (!item) return null
             return (
               <ItemGridCard
                 key={item.id}
                 item={item}
+                priority={idx < 6}
                 isSelected={selectedItemId === item.id}
                 isChecked={selectedItemIds.includes(item.id)}
                 onSelect={onSelect}

@@ -33,6 +33,9 @@ export interface ItemListRow {
   model?: string | null
   note?: string | null
   image_url?: string | null
+  gfmis_number?: string | null
+  budget_source?: string | null
+  acquired_date?: string | null
   depreciation_enabled?: boolean
   depreciation_method?: 'straight_line' | null
   depreciation_cost?: number | null

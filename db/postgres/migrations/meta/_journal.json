@@ -64,6 +64,13 @@
       "when": 1792125260000,
       "tag": "0008_disbursement_system",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793934000000,
+      "tag": "0009_asset_ledger_fields",
+      "breakpoints": true
     }
   ]
 }

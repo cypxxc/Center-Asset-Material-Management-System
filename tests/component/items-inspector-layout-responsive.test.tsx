@@ -178,6 +178,38 @@ test('Responsive Layout: ItemsList collapses secondary columns and adjusts min-w
   assert.ok(closedHeads[6].classList.contains('sm:table-cell'))
 })
 
+test('ItemsList: category header has sorting toggle and type header is static', () => {
+  let toggledSort = ''
+  const { container } = render(
+    <ItemsList
+      items={[mockItem]}
+      topSpace={0}
+      bottomSpace={0}
+      allLoadedSelected={false}
+      selectedItemId={null}
+      selectedItemIds={[]}
+      onSelect={() => {}}
+      onToggleSelectItem={() => {}}
+      onToggleSelectAll={() => {}}
+      params={{ sort_by: 'category', sort_dir: 'asc' }}
+      onToggleSort={(field) => { toggledSort = field }}
+      isInspectorOpen={false}
+    />
+  )
+
+  const heads = container.querySelectorAll('th')
+  // Head 3: Type -> no button, static text
+  assert.equal(heads[3].textContent?.trim(), 'ประเภท')
+  assert.equal(heads[3].querySelector('button'), null)
+
+  // Head 4: Category -> has sort button and aria-sort="ascending"
+  assert.equal(heads[4].getAttribute('aria-sort'), 'ascending')
+  const catBtn = heads[4].querySelector('button')
+  assert.ok(catBtn)
+  catBtn?.click()
+  assert.equal(toggledSort, 'category')
+})
+
 test('Responsive Layout: ItemsFilterBar wraps search, selects, and export button cleanly', () => {
   const { container } = render(
     <ItemsFilterBar

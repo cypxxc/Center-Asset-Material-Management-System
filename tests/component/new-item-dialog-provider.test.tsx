@@ -88,12 +88,12 @@ test.before(async () => {
   ({ NewItemDialogProvider, NewItemDialogTrigger } = await import('../../features/items/components/new-item-dialog-provider'));
 });
 
-test('NewItemDialogTrigger opens the creation sheet without navigation', () => {
+test('NewItemDialogTrigger opens the creation sheet without navigation', async () => {
   renderProvider(<NewItemDialogTrigger>ขึ้นทะเบียนใหม่</NewItemDialogTrigger>);
 
   fireEvent.click(screen.getByRole('button', { name: 'ขึ้นทะเบียนใหม่' }));
 
-  assert.ok(screen.getByRole('dialog'));
+  await waitFor(() => assert.ok(screen.getByRole('dialog')));
   assert.equal(routerPushCalls, 0);
 });
 

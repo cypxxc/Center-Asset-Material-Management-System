@@ -133,6 +133,26 @@ test('deleteLocation blocks deletion when any item still references the location
   }
 });
 
+test('deleteLocation blocks deletion for viewer and redirects with error', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-viewer', email: 'viewer@example.com' },
+    { id: 'user-viewer', email: 'viewer@example.com', role: 'viewer', is_active: true }
+  );
+
+  try {
+    await deleteLocation('location-uuid');
+    assert.fail('Should have redirected');
+  } catch (err: unknown) {
+    if (isRedirectError(err) && err.message === 'NEXT_REDIRECT') {
+      const decodedDigest = decodeURIComponent(err.digest);
+      assert.ok(decodedDigest.includes('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการตั้งค่าได้'));
+    } else {
+      throw err;
+    }
+  }
+});
+
 test('getSettingsData can fetch only the active metadata section', async () => {
   mockSupabaseRegistry.clear();
   mockSupabaseRegistry.setTableResponse('categories', [{ id: 'cat-1', name: 'IT' }]);

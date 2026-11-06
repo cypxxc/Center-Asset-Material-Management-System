@@ -313,6 +313,8 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
   if (params.sort_by) {
     if (params.sort_by === 'item_name') {
       orderColumn = 'item_name'
+    } else if (params.sort_by === 'category') {
+      orderColumn = 'category_id'
     } else if (params.sort_by === 'item_type') {
       orderColumn = 'item_type'
     } else if (params.sort_by === 'quantity') {
@@ -327,7 +329,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
   } else if (params.sort_dir === 'desc') {
     ascending = false
   } else {
-    if (params.sort_by === 'item_name' || params.sort_by === 'item_type') {
+    if (params.sort_by === 'item_name' || params.sort_by === 'category' || params.sort_by === 'item_type') {
       ascending = true
     } else {
       ascending = false
@@ -438,17 +440,18 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   if (normalized.location_id) query = query.eq('location_id', normalized.location_id)
 
   if (cursorValue) {
-    const column = normalized.sort_by
+    const column = normalized.sort_by === 'category' ? 'category_id' : normalized.sort_by
     const comparator = normalized.sort_dir === 'asc' ? 'gt' : 'lt'
     const key = typeof cursorValue.key === 'number' ? String(cursorValue.key) : escapePostgrestLiteral(cursorValue.key)
     const id = escapePostgrestLiteral(cursorValue.id)
     query = query.or(`${column}.${comparator}.${key},and(${column}.eq.${key},id.${comparator}.${id})`)
   }
 
+  const sortColumn = normalized.sort_by === 'category' ? 'category_id' : normalized.sort_by
   const [references, { data, count, error }] = await Promise.all([
     getItemReferences(),
     query
-      .order(normalized.sort_by, { ascending: normalized.sort_dir === 'asc' })
+      .order(sortColumn, { ascending: normalized.sort_dir === 'asc' })
       .order('id', { ascending: normalized.sort_dir === 'asc' })
       .limit(BATCH_SIZE + 1),
   ])
@@ -506,10 +509,16 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   const page = rows.slice(0, BATCH_SIZE)
   const items = await signItemImagesBatch(supabase, page)
   const last = items.at(-1)
+  const lastRaw = ((data ?? []) as unknown as ItemFkRow[]).at(-1)
+  const cursorKey = last
+    ? normalized.sort_by === 'category'
+      ? (lastRaw?.category_id ?? '')
+      : (last[normalized.sort_by] as ItemCursorKey)
+    : null
   return {
     items,
     total: cursorValue ? null : (count ?? 0),
-    nextCursor: hasMore && last ? encodeItemCursor(normalized, last[normalized.sort_by] as ItemCursorKey, last.id) : null,
+    nextCursor: hasMore && last && cursorKey !== null ? encodeItemCursor(normalized, cursorKey, last.id) : null,
   }
 }
 

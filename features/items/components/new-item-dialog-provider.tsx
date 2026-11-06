@@ -1,10 +1,15 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { createContext, startTransition, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { ReferenceOption } from '@/features/items/types'
-import { NewItemSheet } from './new-item-sheet'
+
+const NewItemSheet = dynamic(
+  () => import('./new-item-sheet').then((mod) => mod.NewItemSheet),
+  { ssr: false }
+)
 
 const NewItemDialogContext = createContext<(() => void) | null>(null)
 
@@ -73,15 +78,17 @@ export function NewItemDialogProvider({
   return (
     <NewItemDialogContext.Provider value={openNewItemSheet}>
       {children}
-      <NewItemSheet
-        open={isOpen}
-        item={null}
-        onClose={closeNewItemSheet}
-        onSuccess={handleSuccess}
-        categories={categories}
-        locations={locations}
-        units={units}
-      />
+      {isOpen && (
+        <NewItemSheet
+          open={isOpen}
+          item={null}
+          onClose={closeNewItemSheet}
+          onSuccess={handleSuccess}
+          categories={categories}
+          locations={locations}
+          units={units}
+        />
+      )}
     </NewItemDialogContext.Provider>
   )
 }

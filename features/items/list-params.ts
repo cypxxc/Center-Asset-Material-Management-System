@@ -5,7 +5,7 @@ export const BATCH_SIZE = 25
 export const ITEMS_PAGE_SIZE = 50
 export const itemTypes: readonly ItemType[] = ['material', 'asset']
 export const itemStatuses: readonly ItemStatus[] = ['active', 'spare', 'damaged', 'waiting_repair', 'inactive', 'disposed']
-const sortColumns = ['updated_at', 'item_name', 'item_type', 'quantity', 'status'] as const
+const sortColumns = ['updated_at', 'item_name', 'category', 'item_type', 'quantity', 'status'] as const
 export type ItemSortColumn = typeof sortColumns[number]
 export type ItemSortDirection = 'asc' | 'desc'
 export interface NormalizedItemListSearchParams {
@@ -22,7 +22,7 @@ export function normalizeItemListSearchParams(params: ItemListSearchParams): Nor
   const sort_by = sortColumns.includes(params.sort_by as ItemSortColumn) ? params.sort_by as ItemSortColumn : 'updated_at'
   const sort_dir: ItemSortDirection = params.sort_dir === 'asc' || params.sort_dir === 'desc'
     ? params.sort_dir
-    : (sort_by === 'item_name' || sort_by === 'item_type' ? 'asc' : 'desc')
+    : (sort_by === 'item_name' || sort_by === 'category' || sort_by === 'item_type' ? 'asc' : 'desc')
   return {
     // Keep displayed rows aligned with the existing all-matching bulk actions.
     q: normalizeForSearch(params.q ?? '').replaceAll(',', ' '),

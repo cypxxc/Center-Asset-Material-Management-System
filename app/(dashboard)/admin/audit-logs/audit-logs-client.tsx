@@ -39,6 +39,7 @@ import {
   formatJsonForDisplay,
 } from '@/features/audit-log-display/format'
 import { formatDateTime } from '@/lib/date'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 
 interface AuditLogsClientProps {
   currentUserId?: string
@@ -53,23 +54,21 @@ interface AuditLogsClientProps {
   }
 }
 
-const ACTION_FILTER_OPTIONS = [
-  { value: 'all', label: 'การทำรายการทั้งหมด' },
-  { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)' },
-  { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)' },
-  { value: 'DELETE', label: 'ลบข้อมูล (DELETE)' },
-  { value: 'EXPORT_REPORT', label: 'ส่งออกรายงาน (EXPORT)' },
-  { value: 'create_user', label: 'สร้างผู้ใช้' },
-  { value: 'update_user', label: 'แก้ไขผู้ใช้' },
-  { value: 'delete_user', label: 'ลบผู้ใช้' },
-  { value: 'sql_query', label: 'เรียกใช้ SQL' },
-  { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล' },
-  { value: 'restore', label: 'กู้คืนพัสดุ' },
-  { value: 'bulk_delete', label: 'ลบหลายรายการ' },
+const ACTION_DROPDOWN_OPTIONS: FilterOption[] = [
+  { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)', colorDot: 'bg-emerald-500' },
+  { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)', colorDot: 'bg-blue-500' },
+  { value: 'DELETE', label: 'ลบข้อมูล (DELETE)', colorDot: 'bg-rose-500' },
+  { value: 'EXPORT_REPORT', label: 'ส่งออกรายงาน (EXPORT)', colorDot: 'bg-purple-500' },
+  { value: 'create_user', label: 'สร้างผู้ใช้', colorDot: 'bg-emerald-500' },
+  { value: 'update_user', label: 'แก้ไขผู้ใช้', colorDot: 'bg-blue-500' },
+  { value: 'delete_user', label: 'ลบผู้ใช้', colorDot: 'bg-rose-500' },
+  { value: 'sql_query', label: 'เรียกใช้ SQL', colorDot: 'bg-amber-500' },
+  { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล', colorDot: 'bg-indigo-500' },
+  { value: 'restore', label: 'กู้คืนพัสดุ', colorDot: 'bg-teal-500' },
+  { value: 'bulk_delete', label: 'ลบหลายรายการ', colorDot: 'bg-rose-600' },
 ]
 
-const TABLE_FILTER_OPTIONS = [
-  { value: 'all', label: 'ทุกตารางข้อมูล' },
+const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
   { value: 'items', label: 'พัสดุครุภัณฑ์ (items)' },
   { value: 'categories', label: 'หมวดหมู่ (categories)' },
   { value: 'locations', label: 'สถานที่ (locations)' },
@@ -267,35 +266,35 @@ export default function AuditLogsClient({
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap gap-2">
-            <select
-              value={selectedAction}
-              onChange={(e) => {
-                setSelectedAction(e.target.value)
-                applyFilters({ action: e.target.value, page: 1 })
+            <FilterDropdown
+              label="การทำรายการ"
+              ariaLabel="กรองตามการทำรายการ"
+              name="action"
+              value={selectedAction === 'all' ? '' : selectedAction}
+              options={ACTION_DROPDOWN_OPTIONS}
+              onChange={(val) => {
+                const next = val || 'all'
+                setSelectedAction(next)
+                applyFilters({ action: next, page: 1 })
               }}
-              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {ACTION_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              icon={<History className="w-3.5 h-3.5" />}
+              allLabel="การทำรายการทั้งหมด"
+            />
 
-            <select
-              value={selectedTable}
-              onChange={(e) => {
-                setSelectedTable(e.target.value)
-                applyFilters({ target_table: e.target.value, page: 1 })
+            <FilterDropdown
+              label="ตารางข้อมูล"
+              ariaLabel="กรองตามตารางข้อมูล"
+              name="target_table"
+              value={selectedTable === 'all' ? '' : selectedTable}
+              options={TABLE_DROPDOWN_OPTIONS}
+              onChange={(val) => {
+                const next = val || 'all'
+                setSelectedTable(next)
+                applyFilters({ target_table: next, page: 1 })
               }}
-              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {TABLE_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              icon={<TableIcon className="w-3.5 h-3.5" />}
+              allLabel="ทุกตารางข้อมูล"
+            />
 
             <Button type="submit" size="sm" className="text-xs h-9 px-4">
               ค้นหา

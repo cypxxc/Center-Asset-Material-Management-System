@@ -18,8 +18,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CAMMS Portal",
-  description: "CAMMS Portal — ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลาง",
+  title: {
+    default: "CAMMS Portal — เขตสุขภาพที่ 7",
+    template: "%s | CAMMS Portal",
+  },
+  description: "CAMMS Portal — ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลาง เขตสุขภาพที่ 7 กระทรวงสาธารณสุข",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({

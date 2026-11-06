@@ -67,7 +67,7 @@ test('DashboardActionQueue switches tabs using left/right arrow keys', async () 
   })
   render(element)
 
-  const damagedTab = screen.getByRole('tab', { name: /พัสดุชำรุดและรอซ่อม/ })
+  const damagedTab = screen.getByRole('tab', { name: /ครุภัณฑ์ชำรุดและรอซ่อม/ })
   const tablist = screen.getByRole('tablist')
 
   assert.equal(damagedTab.getAttribute('aria-selected'), 'true')
@@ -93,7 +93,7 @@ test('DashboardActionQueue renders damaged items tab by default with details and
   render(element)
 
   // Verify tab headers and badges
-  assert.ok(screen.getByText('พัสดุชำรุดและรอซ่อม'))
+  assert.ok(screen.getByText('ครุภัณฑ์ชำรุดและรอซ่อม'))
   assert.ok(screen.getByText('พัสดุใกล้หมดคลัง'))
 
   // Verify damaged items details
@@ -107,11 +107,16 @@ test('DashboardActionQueue renders damaged items tab by default with details and
   assert.ok(screen.getByText('ห้องประชุมใหญ่'))
   assert.ok(screen.getByText('รอส่งซ่อม'))
 
-  // Verify action links
+  // Verify action links have accessible labels
   const viewLinks = screen.getAllByRole('link', { name: /ดูข้อมูล/ })
   assert.ok(viewLinks.length >= 2)
   assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-damaged-1'))
   assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-damaged-2'))
+  assert.equal(viewLinks[0].getAttribute('aria-label'), 'ดูข้อมูล เครื่องพิมพ์เลเซอร์ HP LaserJet Pro')
+
+  // Verify footer deep-link to full registry exists
+  const fullRegistryLink = screen.getByRole('link', { name: /ดูรายการครุภัณฑ์ชำรุดทั้งหมดในทะเบียน/ })
+  assert.equal(fullRegistryLink.getAttribute('href'), '/items?status=damaged')
 })
 
 test('DashboardActionQueue switches to low stock tab when clicked', async () => {
@@ -152,7 +157,7 @@ test('DashboardActionQueue displays empty state when damaged items list is empty
   render(element)
 
   assert.ok(
-    screen.getByText('ไม่มีพัสดุชำรุดหรือรอซ่อมในขณะนี้ อุปกรณ์ทั้งหมดอยู่ในสภาพพร้อมใช้งาน')
+    screen.getByText('ไม่มีครุภัณฑ์ชำรุดหรือรอซ่อมในขณะนี้ อุปกรณ์ทั้งหมดอยู่ในสภาพพร้อมใช้งาน')
   )
 })
 

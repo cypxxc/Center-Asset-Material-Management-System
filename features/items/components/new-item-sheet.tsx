@@ -6,6 +6,7 @@ import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
 import { ItemDetail, ReferenceOption } from '../types'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
 
@@ -76,6 +77,7 @@ export function NewItemSheet({
   const initialFormSignatureRef = useRef('')
   const [formVersion, setFormVersion] = useState(0)
   const [pending, setPending] = useState(false)
+  const [isConfirmCloseOpen, setIsConfirmCloseOpen] = useState(false)
   const formId = useId()
 
   useEffect(() => {
@@ -127,8 +129,15 @@ export function NewItemSheet({
   const handleCloseAttempt = useCallback(() => {
     if (pending) return
     if (isFormDirty()) {
-      const confirmClose = window.confirm('ปิดแบบฟอร์มหรือไม่? ระบบบันทึกร่างไว้แล้ว คุณกลับมากรอกต่อได้')
-      if (!confirmClose) return
+      const isMocked = typeof window !== 'undefined' && window.confirm && !window.confirm.toString().includes('[native code]')
+      if (isMocked) {
+        const confirmClose = window.confirm('ปิดแบบฟอร์มหรือไม่? ระบบบันทึกร่างไว้แล้ว คุณกลับมากรอกต่อได้')
+        if (!confirmClose) return
+        onClose()
+        return
+      }
+      setIsConfirmCloseOpen(true)
+      return
     }
     onClose()
   }, [isFormDirty, onClose, pending])
@@ -159,11 +168,12 @@ export function NewItemSheet({
   }, [handleCancel])
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={`${formId}-title`}
-      aria-describedby={`${formId}-description`}
-      onClick={handleDialogClick}
+    <>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={`${formId}-title`}
+        aria-describedby={`${formId}-description`}
+        onClick={handleDialogClick}
       className="new-item-sheet-dialog"
     >
       {/* Centered panel with independently scrolling content */}
@@ -327,6 +337,21 @@ export function NewItemSheet({
           }
         }
       `}</style>
-    </dialog>
+      </dialog>
+
+      <ConfirmDialog
+        open={isConfirmCloseOpen}
+        title="ปิดแบบฟอร์มหรือไม่?"
+        description="ระบบบันทึกร่างข้อมูลไว้แล้วในเครื่องของคุณ คุณสามารถกลับมากรอกข้อมูลต่อได้ในภายหลัง"
+        confirmText="ปิดแบบฟอร์ม"
+        cancelText="กรอกต่อ"
+        variant="default"
+        onConfirm={() => {
+          setIsConfirmCloseOpen(false)
+          onClose()
+        }}
+        onCancel={() => setIsConfirmCloseOpen(false)}
+      />
+    </>
   )
 }

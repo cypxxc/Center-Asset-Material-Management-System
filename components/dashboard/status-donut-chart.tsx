@@ -118,10 +118,13 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
             key={item.key}
             href={`/items?status=${item.key}`}
             title={`ดูรายการพัสดุสถานะ ${item.label}`}
+            aria-label={`ดูรายการพัสดุสถานะ ${item.label} จำนวน ${item.qty.toLocaleString()} ชิ้น คิดเป็น ${Math.round(item.pct)}%`}
             onMouseEnter={() => setHoveredKey(item.key)}
             onMouseLeave={() => setHoveredKey((prev) => (prev === item.key ? null : prev))}
+            onFocus={() => setHoveredKey(item.key)}
+            onBlur={() => setHoveredKey(null)}
             className={cn(
-              "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150",
+              "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40",
               hoveredKey === item.key
                 ? "bg-muted/80 border-border text-card-foreground font-semibold shadow-2xs"
                 : "border-border/40 hover:border-border/80 hover:bg-muted/40 text-muted-foreground"

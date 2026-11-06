@@ -61,9 +61,9 @@ export async function DashboardCategoryList() {
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-card dark:bg-card/90 backdrop-blur-xs p-4 sm:p-4.5 shadow-2xs hover:border-border transition-colors flex flex-col justify-between">
         <div className="flex items-center justify-between pb-3 border-b border-border/50">
           <div>
-            <h3 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
+            <h2 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
               สัดส่วนตามสภาพการใช้งาน
-            </h3>
+            </h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               ปริมาณพัสดุแบ่งตามสถานะการครอบครอง
             </p>
@@ -82,9 +82,9 @@ export async function DashboardCategoryList() {
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-card dark:bg-card/90 backdrop-blur-xs p-4 sm:p-4.5 shadow-2xs hover:border-border transition-colors flex flex-col justify-between flex-1">
         <div className="flex items-center justify-between pb-3 border-b border-border/50">
           <div>
-            <h3 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
+            <h2 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
               สถิติตามหมวดหมู่พัสดุ
-            </h3>
+            </h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               จำแนกปริมาณพัสดุแยกตามหมวดหมู่หลัก
             </p>

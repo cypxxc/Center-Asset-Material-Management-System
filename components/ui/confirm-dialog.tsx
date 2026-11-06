@@ -13,6 +13,7 @@ export interface ConfirmDialogProps {
   isPending?: boolean
   variant?: "default" | "destructive"
   closeOnOutsideClick?: boolean
+  role?: "dialog" | "alertdialog"
 }
 
 export function ConfirmDialog({
@@ -26,6 +27,7 @@ export function ConfirmDialog({
   isPending = false,
   variant = "default",
   closeOnOutsideClick = true,
+  role = "dialog",
 }: ConfirmDialogProps) {
   const dialogRef = React.useRef<HTMLDivElement>(null)
   const previousActiveElement = React.useRef<HTMLElement | null>(null)
@@ -91,23 +93,23 @@ export function ConfirmDialog({
     >
       <div 
         ref={dialogRef}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby="dialog-title"
         aria-describedby="dialog-desc"
-        className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 focus-visible:outline-none focus:outline-none"
+        className="bg-card text-card-foreground rounded-2xl shadow-2xl border border-border p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 focus-visible:outline-none focus:outline-none"
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
       >
-        <div className="flex items-start gap-3 mb-4">
-          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-            variant === "destructive" ? "bg-rose-100 text-rose-600" : "bg-blue-100 text-blue-600"
+        <div className="flex items-start gap-3.5 mb-4">
+          <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
+            variant === "destructive" ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-primary/10 text-primary border border-primary/20"
           }`}>
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 id="dialog-title" className="text-base font-bold text-slate-900 leading-6">{title}</h3>
-            <p id="dialog-desc" className="text-xs text-slate-600 mt-1.5 leading-relaxed">{description}</p>
+            <h3 id="dialog-title" className="text-base font-bold text-foreground leading-6">{title}</h3>
+            <p id="dialog-desc" className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{description}</p>
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-6">

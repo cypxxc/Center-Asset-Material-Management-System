@@ -24,11 +24,12 @@ const optionalUrl = z.preprocess(
 )
 
 const optionalTextLimit = (maxLen: number) => z.preprocess(
-  (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
+  (val) => typeof val === 'string' ? normalizeForStorage(val) : (val ?? undefined),
   z
     .string()
     .refine((val) => getGraphemeLength(val) <= maxLen, `ความยาวต้องไม่เกิน ${maxLen} ตัวอักษร`)
     .optional()
+    .nullable()
     .transform((value) => (value && value.length > 0 ? value : null))
 )
 
@@ -89,6 +90,9 @@ export const itemFormSchema = z.object({
   serial_no: optionalTextLimit(150),
   brand: optionalTextLimit(150),
   model: optionalTextLimit(150),
+  gfmis_number: optionalTextLimit(150),
+  budget_source: optionalTextLimit(255),
+  acquired_date: optionalDate,
   location_id: optionalUuid,
   responsible_person: optionalTextLimit(150),
   status: itemStatusSchema,

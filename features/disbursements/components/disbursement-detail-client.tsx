@@ -342,8 +342,8 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                 <th className="py-2 px-3 text-center w-10">ลำดับ</th>
                 <th className="py-2 px-3">รายการพัสดุ / เลขทะเบียน</th>
                 <th className="py-2 px-3">หมวดหมู่</th>
-                <th className="py-2 px-3 text-center">จำนวนขอเบิก</th>
-                <th className="py-2 px-3 text-center">จำนวนจ่ายจริง</th>
+                <th className="py-2 px-3 text-right">จำนวนขอเบิก</th>
+                <th className="py-2 px-3 text-right">จำนวนจ่ายจริง</th>
                 {isBorrow && <th className="py-2 px-3 text-center">คืนแล้ว</th>}
                 <th className="py-2 px-3 text-right">ราคา/หน่วย</th>
                 {canReturn && <th className="py-2 px-3 text-right">การรับคืน</th>}
@@ -367,11 +367,31 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                       )}
                     </td>
                     <td className="py-2 px-3 text-muted-foreground">{item.category_name_snapshot || '-'}</td>
-                    <td className="py-2 px-3 text-center font-mono">
-                      {item.requested_qty} {item.unit_name_snapshot || ''}
+                    <td className="py-2 px-3 text-right">
+                      <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0 font-mono text-xs">
+                        <span className="tabular-nums text-right flex-1 min-w-0 text-foreground">
+                          {item.requested_qty}
+                        </span>
+                        <span
+                          className="text-xs font-normal text-muted-foreground truncate w-10 text-left shrink-0"
+                          title={item.unit_name_snapshot || undefined}
+                        >
+                          {item.unit_name_snapshot || ''}
+                        </span>
+                      </div>
                     </td>
-                    <td className="py-2 px-3 text-center font-mono font-medium">
-                      {item.issued_qty} {item.unit_name_snapshot || ''}
+                    <td className="py-2 px-3 text-right">
+                      <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0 font-mono font-medium text-xs">
+                        <span className="tabular-nums text-right flex-1 min-w-0 text-foreground">
+                          {item.issued_qty}
+                        </span>
+                        <span
+                          className="text-xs font-normal text-muted-foreground truncate w-10 text-left shrink-0"
+                          title={item.unit_name_snapshot || undefined}
+                        >
+                          {item.unit_name_snapshot || ''}
+                        </span>
+                      </div>
                     </td>
                     {isBorrow && (
                       <td className="py-2 px-3 text-center font-mono">

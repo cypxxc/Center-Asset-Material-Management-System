@@ -242,6 +242,64 @@ test('ItemTableRow: maintains strict 64px height classes for virtual scrolling c
   assert.ok(tr.classList.contains('[&>td]:py-0'), 'td elements must have py-0 to prevent height bloating')
 })
 
+test('ItemTableRow: supports compact density with h-[42px] row height', () => {
+  const { container } = render(
+    <table>
+      <tbody>
+        <ItemTableRow
+          item={mockItem}
+          density="compact"
+          isSelected={false}
+          isChecked={false}
+          onSelect={() => {}}
+          onToggleSelectItem={() => {}}
+        />
+      </tbody>
+    </table>
+  )
+
+  const tr = container.querySelector('tr')
+  assert.ok(tr, 'tr should exist')
+  assert.ok(tr.classList.contains('h-[42px]'), 'compact row must have explicit h-[42px]')
+  assert.ok(tr.classList.contains('max-h-[42px]'), 'compact row must have max-h-[42px]')
+  assert.ok(tr.classList.contains('[&>td]:h-[42px]'), 'compact td elements must have h-[42px]')
+})
+
+test('ItemTableRow: handles ArrowDown and ArrowUp keyboard navigation between adjacent rows', () => {
+  const { container } = render(
+    <table>
+      <tbody>
+        <ItemTableRow
+          item={mockItem}
+          isSelected={false}
+          isChecked={false}
+          onSelect={() => {}}
+          onToggleSelectItem={() => {}}
+        />
+        <ItemTableRow
+          item={{ ...mockItem, id: 'item-2', item_name: 'Second Item' }}
+          isSelected={false}
+          isChecked={false}
+          onSelect={() => {}}
+          onToggleSelectItem={() => {}}
+        />
+      </tbody>
+    </table>
+  )
+
+  const rows = container.querySelectorAll('tr')
+  assert.equal(rows.length, 2)
+
+  // Focus first row and press ArrowDown
+  rows[0].focus()
+  fireEvent.keyDown(rows[0], { key: 'ArrowDown' })
+  assert.equal(document.activeElement, rows[1], 'ArrowDown should move focus to second row')
+
+  // Press ArrowUp on second row
+  fireEvent.keyDown(rows[1], { key: 'ArrowUp' })
+  assert.equal(document.activeElement, rows[0], 'ArrowUp should move focus back to first row')
+})
+
 test('ItemTableRow: handles long Thai item name with safe truncation and full title tooltip', () => {
   const longNameItem: ItemListRow = {
     ...mockItem,
@@ -347,7 +405,7 @@ test('ItemTableRow: formats quantity with tabular-nums for vertical eye-scanning
     <table>
       <tbody>
         <ItemTableRow
-          item={{ ...mockItem, quantity: 1250 }}
+          item={{ ...mockItem, quantity: 1250, unit: { id: 'u-1', name: 'แพ็ค' } }}
           isSelected={false}
           isChecked={false}
           onSelect={() => {}}
@@ -360,6 +418,11 @@ test('ItemTableRow: formats quantity with tabular-nums for vertical eye-scanning
   const quantitySpan = screen.getByText('1250')
   assert.ok(quantitySpan.classList.contains('tabular-nums'), 'quantity must use tabular-nums for aligned scanning')
   assert.ok(quantitySpan.classList.contains('font-extrabold'), 'quantity must use font-extrabold for prominent hierarchy')
+  assert.ok(quantitySpan.classList.contains('text-right'), 'quantity number must be right-aligned')
+
+  const unitSpan = screen.getByText('แพ็ค')
+  assert.ok(unitSpan.classList.contains('text-left'), 'unit must be left-aligned in its dedicated slot')
+  assert.ok(unitSpan.classList.contains('shrink-0'), 'unit slot must not collapse')
 
   const quantityCell = quantitySpan.closest('td')
   assert.ok(quantityCell?.classList.contains('text-right'), 'quantity cell must be right-aligned for enterprise comparison')

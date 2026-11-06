@@ -117,7 +117,6 @@ export function ItemForm({
           </div>
       )}
 
-      <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุประเภทและข้อมูลที่จำเป็นของสิ่งของ">
       {/* Tabs Navigation */}
       <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-border mb-2">
         <button
@@ -154,7 +153,7 @@ export function ItemForm({
 
       <input type="hidden" name="item_type" value={itemType} />
 
-
+      <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุชื่อสิ่งของ หมวดหมู่ จำนวน และหน่วยนับ">
         <FormGrid className="sm:grid-cols-2">
           <FormField className="sm:col-span-2">
             <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
@@ -214,12 +213,10 @@ export function ItemForm({
             </FormSelect>
             <FieldError errors={state?.fieldErrors?.unit_id} />
           </FormField>
-
-
         </FormGrid>
       </FormSection>
 
-      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="เลขทะเบียน คุณลักษณะ และราคา">
+      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="ราคา ยี่ห้อ/รุ่น วันที่รับ และเลขทะเบียนราชการ">
         <FormGrid className="sm:grid-cols-2">
           <FormField>
             <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
@@ -234,34 +231,48 @@ export function ItemForm({
           </FormField>
         </FormGrid>
 
-      {activeTab === 'asset' ? (
-        <div id="asset-details" role="tabpanel">
+        {activeTab === 'asset' ? (
+          <div id="asset-details" role="tabpanel">
+            <FormGrid className="sm:grid-cols-2 mt-4">
+              <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
+              <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
+              <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
+              <FormField>
+                <FormLabel htmlFor="acquired_date">วัน เดือน ปีที่รับ</FormLabel>
+                <FormInput
+                  id="acquired_date"
+                  name="acquired_date"
+                  type="date"
+                  defaultValue={item?.acquired_date ? item.acquired_date.slice(0, 10) : ''}
+                  aria-invalid={!!state?.fieldErrors?.acquired_date}
+                />
+                <FieldError errors={state?.fieldErrors?.acquired_date} />
+              </FormField>
 
-          <FormGrid className="sm:grid-cols-2">
-            <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
-            <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
-            <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
-            <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
-          </FormGrid>
-
-        </div>
-      ) : (
-        <div id="material-details" role="tabpanel">
-          <input type="hidden" name="asset_no" value="" />
-          <input type="hidden" name="serial_no" value="" />
-          <input type="hidden" name="brand" value="" />
-          <input type="hidden" name="model" value="" />
-          <input type="hidden" name="depreciation_enabled" value="false" />
-          <input type="hidden" name="depreciation_cost" value="" />
-          <input type="hidden" name="depreciation_useful_life_years" value="" />
-          <input type="hidden" name="depreciation_start_basis" value="" />
-          <input type="hidden" name="depreciation_start_date" value="" />
-        </div>
-      )}
-
+              <TextInput name="budget_source" label="รับจาก (งปม.) / แหล่งเงิน" defaultValue={item?.budget_source} errors={state?.fieldErrors?.budget_source} />
+              <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
+              <TextInput name="gfmis_number" label="เลขสินทรัพย์ (GFMIS 12 หลัก)" defaultValue={item?.gfmis_number} errors={state?.fieldErrors?.gfmis_number} />
+            </FormGrid>
+          </div>
+        ) : (
+          <div id="material-details" role="tabpanel">
+            <input type="hidden" name="asset_no" value="" />
+            <input type="hidden" name="gfmis_number" value="" />
+            <input type="hidden" name="serial_no" value="" />
+            <input type="hidden" name="brand" value="" />
+            <input type="hidden" name="model" value="" />
+            <input type="hidden" name="budget_source" value="" />
+            <input type="hidden" name="acquired_date" value="" />
+            <input type="hidden" name="depreciation_enabled" value="false" />
+            <input type="hidden" name="depreciation_cost" value="" />
+            <input type="hidden" name="depreciation_useful_life_years" value="" />
+            <input type="hidden" name="depreciation_start_basis" value="" />
+            <input type="hidden" name="depreciation_start_date" value="" />
+          </div>
+        )}
       </FormSection>
 
-      <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />} description="จัดเก็บที่ไหน ใครดูแล และสถานะปัจจุบัน">
+      <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />} description="จัดเก็บที่ไหน ใครดูแล และสภาพพัสดุ">
         <FormGrid className="sm:grid-cols-2">
           <FormField>
             <FormLabel htmlFor="location_id">สถานที่</FormLabel>
@@ -278,6 +289,7 @@ export function ItemForm({
             </FormSelect>
             <FieldError errors={state?.fieldErrors?.location_id} />
           </FormField>
+
           <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
 
           <FormField>
@@ -287,15 +299,16 @@ export function ItemForm({
               name="status"
               defaultValue={item?.status ?? 'active'}
             >
-              <option value="active">ใช้งานอยู่</option>
-              <option value="spare">สำรอง</option>
+              <option value="active">ใช้งานได้ (ปกติ)</option>
               <option value="damaged">ชำรุด</option>
-              <option value="waiting_repair">รอซ่อม</option>
-              <option value="inactive">ไม่ใช้งาน</option>
+              <option value="inactive">เสื่อมสภาพ / ไม่ใช้งาน</option>
+              {(activeTab === 'asset' || item?.status === 'waiting_repair') && (
+                <option value="waiting_repair">รอซ่อม</option>
+              )}
+              <option value="spare">สำรอง</option>
               <option value="disposed">จำหน่ายแล้ว</option>
             </FormSelect>
           </FormField>
-
         </FormGrid>
       </FormSection>
 

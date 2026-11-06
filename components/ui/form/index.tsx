@@ -18,11 +18,11 @@ export const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
   ({ className, required, children, ...props }, ref) => (
     <label
       ref={ref}
-      className={cn("text-[11px] font-bold text-slate-700 dark:text-slate-200 select-none flex items-center gap-0.5", className)}
+      className={cn("text-[11px] font-bold text-foreground/90 select-none flex items-center gap-0.5", className)}
       {...props}
     >
       {children}
-      {required && <span className="text-red-500 font-bold">*</span>}
+      {required && <span className="text-destructive font-bold">*</span>}
     </label>
   )
 )
@@ -32,7 +32,13 @@ export type FormErrorProps = React.HTMLAttributes<HTMLParagraphElement>
 
 export const FormError = React.forwardRef<HTMLParagraphElement, FormErrorProps>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-[10px] font-semibold text-red-500 leading-normal animate-in fade-in-50 duration-200", className)} {...props} />
+    <p
+      ref={ref}
+      role="alert"
+      aria-live="polite"
+      className={cn("text-[10px] font-semibold text-destructive leading-normal animate-in fade-in-50 duration-200", className)}
+      {...props}
+    />
   )
 )
 FormError.displayName = "FormError"

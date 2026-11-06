@@ -22,6 +22,8 @@ interface SettingsPageProps {
   }>
 }
 
+export const metadata = { title: 'ตั้งค่าระบบ' }
+
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const [currentProfile, params] = await Promise.all([
     getCurrentProfile(),
@@ -55,24 +57,17 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       )}
 
       {params.error && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl text-card-foreground animate-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <AlertCircle className="size-7" />
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-card-foreground">เกิดข้อผิดพลาดในการตั้งค่า</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{params.error}</p>
-              </div>
-              <Link
-                href={`/settings?tab=${activeTab}`}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center"
-              >
-                ตกลง (เข้าใจแล้ว)
-              </Link>
-            </div>
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-semibold text-destructive animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <AlertCircle className="size-4 shrink-0 text-destructive" />
+            <span>{params.error}</span>
           </div>
+          <Link
+            href={`/settings?tab=${activeTab}`}
+            className="shrink-0 px-2.5 py-1 rounded-md bg-destructive/15 hover:bg-destructive/25 text-destructive font-bold transition-colors"
+          >
+            ปิด
+          </Link>
         </div>
       )}
 

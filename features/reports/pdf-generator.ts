@@ -1,6 +1,5 @@
 import type { ReportItemRow } from '@/features/reports/types'
-import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
-import { formatDate } from '@/lib/date'
+import { formatDate, formatDateThaiBE } from '@/lib/date'
 
 export function generateReportPdf(
   items: ReportItemRow[],
@@ -24,36 +23,39 @@ export function generateReportPdf(
   const tableRowsHtml = items.length > 0
     ? items
         .map((item, index) => {
-          const typeLabel =
-            ITEM_TYPE_LABELS[item.item_type as keyof typeof ITEM_TYPE_LABELS] || item.item_type
-          const statusLabel =
-            ITEM_STATUS_LABELS[item.status as keyof typeof ITEM_STATUS_LABELS] || item.status
           const unitPrice = item.unit_price ?? 0
-          const totalRowVal = unitPrice * item.quantity
+          const brandModel = [item.brand, item.model].filter(Boolean).join(' ')
+          const isUsable = item.status === 'active' || item.status === 'spare'
+          const isDamaged = item.status === 'damaged' || item.status === 'waiting_repair'
+          const isDeteriorated = item.status === 'inactive' || item.status === 'disposed'
 
           return `
             <tr>
-              <td style="text-align: center;">${index + 1}</td>
+              <td style="text-align: center; font-variant-numeric: tabular-nums;">${index + 1}</td>
+              <td style="text-align: center; white-space: nowrap;">${item.acquired_date ? formatDateThaiBE(item.acquired_date) : '-'}</td>
+              <td style="word-break: break-word;">${escapeHtml(item.budget_source || '-')}</td>
+              <td style="word-break: break-word; font-weight: 500;">${escapeHtml(item.item_name)}</td>
               <td style="word-break: break-word;">
-                <strong>${escapeHtml(item.item_name)}</strong>
-                ${item.asset_no || item.serial_no ? `<br><small style="color: #64748b; font-family: monospace;">${escapeHtml(item.asset_no || item.serial_no || '')}</small>` : ''}
+                ${escapeHtml(brandModel || '-')}
+                ${item.serial_no ? `<br><small style="color: #64748b; font-family: monospace;">s/n : ${escapeHtml(item.serial_no)}</small>` : ''}
               </td>
-              <td style="text-align: center;">${escapeHtml(typeLabel)}</td>
-              <td>${escapeHtml(item.category?.name || '-')}</td>
-              <td>${escapeHtml(item.location?.name || '-')}</td>
-              <td style="text-align: center; font-variant-numeric: tabular-nums;">${item.quantity.toLocaleString('th-TH')} ${escapeHtml(item.unit?.name || '')}</td>
               <td style="text-align: right; font-variant-numeric: tabular-nums;">${formatCurrency(unitPrice)}</td>
-              <td style="text-align: right; font-weight: bold; font-variant-numeric: tabular-nums;">${formatCurrency(totalRowVal)}</td>
-              <td style="text-align: center;">
-                <span class="status-badge status-${escapeHtml(item.status)}">${escapeHtml(statusLabel)}</span>
-              </td>
+              <td style="text-align: center;">${escapeHtml(item.unit?.name || 'เครื่อง')}</td>
+              <td style="font-family: monospace; font-size: 10px; word-break: break-all;">${escapeHtml(item.asset_no || '-')}</td>
+              <td style="font-family: monospace; font-size: 10px; text-align: center;">${escapeHtml(item.gfmis_number || '-')}</td>
+              <td>${escapeHtml(item.responsible_person || '-')}</td>
+              <td>${escapeHtml(item.location?.name || '-')}</td>
+              <td style="text-align: center; font-weight: bold; font-size: 13px;">${isUsable ? '/' : ''}</td>
+              <td style="text-align: center; font-weight: bold; font-size: 13px; color: #dc2626;">${isDamaged ? '/' : ''}</td>
+              <td style="text-align: center; font-weight: bold; font-size: 13px; color: #d97706;">${isDeteriorated ? '/' : ''}</td>
+              <td>${escapeHtml(item.note || 'ส่วนกลาง')}</td>
             </tr>
           `
         })
         .join('')
     : `
         <tr>
-          <td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">
+          <td colspan="15" style="text-align: center; padding: 24px; color: #64748b;">
             ไม่พบข้อมูลสิ่งของตามตัวกรองที่ระบุ
           </td>
         </tr>
@@ -112,6 +114,11 @@ export function generateReportPdf(
       font-size: 11px;
       color: #475569;
       margin: 0;
+    }
+    .header-logo {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
     }
     .logo-text {
       text-align: right;
@@ -243,9 +250,13 @@ export function generateReportPdf(
 </head>
 <body>
   <div class="header">
-    <div>
-      <h1 class="title">รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS Portal)</h1>
-      <p class="subtitle">วันที่พิมพ์รายงาน: ${currentDate} | ตัวกรอง: ${escapeHtml(filterSummary)}</p>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <img src="/images/moph-r7-logo.png" alt="เขตสุขภาพที่ 7" class="header-logo" />
+      <div>
+        <h1 class="title">ทะเบียนคุมสินทรัพย์</h1>
+        <p class="subtitle" style="font-size: 13px; font-weight: 500; color: #1e293b;">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
+        <p class="subtitle">หน่วยงาน: สำนักงานเขตสุขภาพที่ 7 | หมวดครุภัณฑ์: ${escapeHtml(filterSummary)} | วันที่พิมพ์รายงาน: ${currentDate}</p>
+      </div>
     </div>
     <div class="logo-text">
       <h2>CAMMS Portal</h2>
@@ -256,15 +267,24 @@ export function generateReportPdf(
   <table>
     <thead>
       <tr>
-        <th style="width: 4%; text-align: center;">ลำดับ</th>
-        <th style="width: 24%;">ชื่อสิ่งของ / หมายเลข</th>
-        <th style="width: 10%; text-align: center;">ประเภท</th>
-        <th style="width: 11%;">หมวดหมู่</th>
-        <th style="width: 12%;">สถานที่</th>
-        <th style="width: 9%; text-align: center;">จำนวน</th>
-        <th style="width: 11%; text-align: right;">ราคา/หน่วย (บาท)</th>
-        <th style="width: 11%; text-align: right;">ราคารวม (บาท)</th>
-        <th style="width: 8%; text-align: center;">สถานะ</th>
+        <th rowspan="2" style="width: 3%; text-align: center;">ลำดับ</th>
+        <th rowspan="2" style="width: 6%; text-align: center;">วัน เดือน ปีที่รับ</th>
+        <th rowspan="2" style="width: 8%;">รับจาก (งปม.)</th>
+        <th rowspan="2" style="width: 16%;">รายการครุภัณฑ์</th>
+        <th rowspan="2" style="width: 14%;">ยี่ห้อ/รุ่น</th>
+        <th rowspan="2" style="width: 7%; text-align: right;">ราคา</th>
+        <th rowspan="2" style="width: 4%; text-align: center;">หน่วย</th>
+        <th rowspan="2" style="width: 11%;">เลขครุภัณฑ์</th>
+        <th rowspan="2" style="width: 8%; text-align: center;">เลขสินทรัพย์</th>
+        <th rowspan="2" style="width: 8%;">ผู้ครอบครอง</th>
+        <th rowspan="2" style="width: 7%;">ใช้งานที่</th>
+        <th colspan="3" style="text-align: center; border-bottom: none;">สภาพพัสดุ</th>
+        <th rowspan="2" style="width: 5%;">หมายเหตุ</th>
+      </tr>
+      <tr>
+        <th style="width: 2.6%; text-align: center; font-size: 10px; padding: 4px 2px;">ใช้งานได้</th>
+        <th style="width: 2.3%; text-align: center; font-size: 10px; padding: 4px 2px;">ชำรุด</th>
+        <th style="width: 2.6%; text-align: center; font-size: 10px; padding: 4px 2px;">เสื่อมสภาพ</th>
       </tr>
     </thead>
     <tbody>

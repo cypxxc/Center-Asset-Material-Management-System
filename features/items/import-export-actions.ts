@@ -17,6 +17,156 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { isPostgresBackend } from '@/lib/backend'
 import { importPostgresItems } from './postgres-actions'
 import { requireEditor } from './auth-guard'
+import { parseDateThaiBEToISO } from '@/lib/date'
+
+const HEADER_ALIASES: Record<string, string> = {
+  // item_name
+  'item_name': 'item_name',
+  'ชื่อสิ่งของ': 'item_name',
+  'ชื่อพัสดุ': 'item_name',
+  'รายการ': 'item_name',
+  'รายการครุภัณฑ์': 'item_name',
+  'ชื่อ': 'item_name',
+
+  // item_type
+  'item_type': 'item_type',
+  'ประเภท': 'item_type',
+  'ประเภทสิ่งของ': 'item_type',
+
+  // acquired_date
+  'acquired_date': 'acquired_date',
+  'วัน เดือน ปีที่รับ': 'acquired_date',
+  'วันเดือนปีที่รับ': 'acquired_date',
+  'วันที่รับ': 'acquired_date',
+  'วันที่ได้มา': 'acquired_date',
+  'วันที่รับเข้า': 'acquired_date',
+
+  // budget_source
+  'budget_source': 'budget_source',
+  'รับจาก (งปม.)': 'budget_source',
+  'รับจาก(งปม.)': 'budget_source',
+  'รับจาก (งปม.) / แหล่งเงิน': 'budget_source',
+  'รับจาก': 'budget_source',
+  'งบประมาณ': 'budget_source',
+  'แหล่งเงิน': 'budget_source',
+
+  // brand / model
+  'brand': 'brand',
+  'ยี่ห้อ': 'brand',
+  'model': 'model',
+  'รุ่น': 'model',
+  'ยี่ห้อ/รุ่น': 'brand_model_combined',
+  'ยี่ห้อรุ่น': 'brand_model_combined',
+
+  // unit_price
+  'unit_price': 'unit_price',
+  'ราคา': 'unit_price',
+  'ราคาต่อหน่วย': 'unit_price',
+  'มูลค่า': 'unit_price',
+
+  // quantity
+  'quantity': 'quantity',
+  'จำนวน': 'quantity',
+
+  // unit_name
+  'unit_name': 'unit_name',
+  'หน่วย': 'unit_name',
+  'หน่วยนับ': 'unit_name',
+
+  // asset_no
+  'asset_no': 'asset_no',
+  'เลขครุภัณฑ์': 'asset_no',
+  'รหัสครุภัณฑ์': 'asset_no',
+  'หมายเลขครุภัณฑ์': 'asset_no',
+
+  // gfmis_number
+  'gfmis_number': 'gfmis_number',
+  'เลขสินทรัพย์': 'gfmis_number',
+  'เลขสินทรัพย์ gfmis': 'gfmis_number',
+  'เลขสินทรัพย์ (gfmis)': 'gfmis_number',
+  'เลข gfmis': 'gfmis_number',
+  'gfmis': 'gfmis_number',
+
+  // serial_no
+  'serial_no': 'serial_no',
+  'serial number': 'serial_no',
+  'serialno': 'serial_no',
+  's/n': 'serial_no',
+  'sn': 'serial_no',
+
+  // responsible_person
+  'responsible_person': 'responsible_person',
+  'ผู้ครอบครอง': 'responsible_person',
+  'ผู้รับผิดชอบ': 'responsible_person',
+  'ผู้ดูแล': 'responsible_person',
+
+  // location_name
+  'location_name': 'location_name',
+  'ใช้งานที่': 'location_name',
+  'สถานที่': 'location_name',
+  'สถานที่ติดตั้ง': 'location_name',
+  'สถานที่จัดเก็บ': 'location_name',
+
+  // category_name
+  'category_name': 'category_name',
+  'หมวดหมู่': 'category_name',
+  'หมวด': 'category_name',
+  'หมวดครุภัณฑ์': 'category_name',
+
+  // status
+  'status': 'status',
+  'สถานะ': 'status',
+  'สภาพพัสดุ': 'status',
+
+  // Condition columns (from 3-check column layout in ledger)
+  'ใช้งานได้': 'condition_usable',
+  'ชำรุด': 'condition_damaged',
+  'เสื่อมสภาพ': 'condition_deteriorated',
+
+  // note
+  'note': 'note',
+  'หมายเหตุ': 'note',
+}
+
+function extractBrandModelAndSerial(rawText: string): { brandModel: string; serialNo: string | null } {
+  if (!rawText) return { brandModel: '', serialNo: null }
+  const snMatch = rawText.match(/(?:s\/n|sn|serial(?:\s*no)?)\s*[:\s#]\s*([A-Za-z0-9_-]+)/i)
+  if (snMatch) {
+    const serialNo = snMatch[1].trim()
+    const cleaned = rawText
+      .replace(/\(?(?:s\/n|sn|serial(?:\s*no)?)\s*[:\s#]\s*[A-Za-z0-9_-]+\)?/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+    return { brandModel: cleaned, serialNo }
+  }
+  return { brandModel: rawText.trim(), serialNo: null }
+}
+
+function parseConditionStatus(
+  explicitStatus: string,
+  usable: string,
+  damaged: string,
+  deteriorated: string
+): string {
+  const isMarked = (val: string) => {
+    const s = val.trim().toLowerCase()
+    return s === '/' || s === '✓' || s === 'x' || s === '1' || s === 'y' || s === 'yes' || s === 'true' || s === 'ชำรุด' || s === 'เสื่อมสภาพ' || s === 'ใช้งานได้'
+  }
+
+  if (isMarked(damaged)) return 'damaged'
+  if (isMarked(deteriorated)) return 'inactive'
+  if (isMarked(usable)) return 'active'
+
+  const s = explicitStatus.trim().toLowerCase()
+  if (!s) return 'active'
+  if (s === 'ชำรุด' || s === 'damaged') return 'damaged'
+  if (s === 'เสื่อมสภาพ' || s === 'ไม่ใช้งาน' || s === 'inactive') return 'inactive'
+  if (s === 'รอซ่อม' || s === 'waiting_repair') return 'waiting_repair'
+  if (s === 'สำรอง' || s === 'spare') return 'spare'
+  if (s === 'จำหน่ายแล้ว' || s === 'disposed') return 'disposed'
+  if (s === 'ใช้งานได้' || s === 'ใช้งานอยู่' || s === 'active') return 'active'
+  return s
+}
 
 function revalidateSidebarCache() {
   revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
@@ -82,25 +232,45 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
   }
 
   try {
-    const headers = parseCSVLine(lines[0]).map((h) => normalizeForSearch(h))
-    if (!headers.includes('item_name')) {
+    // Find header line (allows title rows above table in official spreadsheets)
+    let headerLineIdx = 0
+    let mappedHeaders: string[] = []
+
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      const rawCols = parseCSVLine(lines[i]).map((h) => normalizeForSearch(h))
+      const aliases = rawCols.map(col => HEADER_ALIASES[col] || col)
+      if (aliases.includes('item_name')) {
+        headerLineIdx = i
+        mappedHeaders = aliases
+        break
+      }
+    }
+
+    if (!mappedHeaders.includes('item_name')) {
       return errorResponse('ไม่พบหัวคอลัมน์ "item_name" (ชื่อสิ่งของ) กรุณาตรวจสอบไฟล์ของคุณว่ามีหัวตารางที่ถูกต้อง')
     }
 
-    const rows = lines.slice(1)
+    const rows = lines.slice(headerLineIdx + 1)
 
     const itemsToInsert = []
-    let lineNum = 1
+    let lineNum = headerLineIdx + 1
 
     for (const row of rows) {
       lineNum++
       const cols = parseCSVLine(row)
-      if (cols.length < headers.length) {
-        return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนคอลัมน์ไม่ครบถ้วน (พบ ${cols.length} คอลัมน์, ต้องการอย่างน้อย ${headers.length} คอลัมน์)`)
+
+      // Skip empty or summary rows (e.g., 'รวมทั้งสิ้น', 'มูลค่ารวม')
+      const firstCol = cols[0]?.trim() || ''
+      if (firstCol.startsWith('รวม') || firstCol.startsWith('มูลค่ารวม') || firstCol.startsWith('ผู้รายงาน') || firstCol.startsWith('หมายเหตุ:')) {
+        continue
+      }
+
+      if (cols.length < mappedHeaders.length) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนคอลัมน์ไม่ครบถ้วน (พบ ${cols.length} คอลัมน์, ต้องการอย่างน้อย ${mappedHeaders.length} คอลัมน์)`)
       }
 
       const getVal = (name: string) => {
-        const idx = headers.indexOf(name)
+        const idx = mappedHeaders.indexOf(name)
         return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
       }
 
@@ -109,14 +279,15 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return errorResponse(`บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง`)
       }
 
-      const itemType = getVal('item_type').toLowerCase() || 'asset'
+      const rawItemType = getVal('item_type').toLowerCase()
+      const itemType = rawItemType ? rawItemType : 'asset'
       if (itemType !== 'asset' && itemType !== 'material') {
         return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
       }
 
       const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
       const rawUnitPrice = getVal('unit_price')
-      const parsedUnitPrice = rawUnitPrice === '' ? null : Number(rawUnitPrice)
+      const parsedUnitPrice = rawUnitPrice === '' ? null : Number(rawUnitPrice.replace(/,/g, ''))
       if (
         parsedUnitPrice !== null &&
         (!Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0)
@@ -124,7 +295,33 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return errorResponse(`บรรทัดที่ ${lineNum}: ราคาต่อหน่วย (unit_price) ต้องเป็นตัวเลขที่ไม่ติดลบ`)
       }
       const unitPrice = parsedUnitPrice
-      const status = getVal('status').toLowerCase() || 'active'
+
+      // Condition status determination (supports 3-column checkmark or single status column)
+      const status = parseConditionStatus(
+        getVal('status'),
+        getVal('condition_usable'),
+        getVal('condition_damaged'),
+        getVal('condition_deteriorated')
+      )
+
+      // Handle brand/model and serial number extraction
+      let brand = getVal('brand') || null
+      const model = getVal('model') || null
+      let serialNo = getVal('serial_no') || null
+
+      const combinedBrandModel = getVal('brand_model_combined')
+      if (combinedBrandModel) {
+        const extracted = extractBrandModelAndSerial(combinedBrandModel)
+        if (!serialNo && extracted.serialNo) {
+          serialNo = extracted.serialNo
+        }
+        if (!brand) {
+          brand = extracted.brandModel
+        }
+      }
+
+      const rawAcquiredDate = getVal('acquired_date')
+      const acquiredDate = rawAcquiredDate ? parseDateThaiBEToISO(rawAcquiredDate) : null
 
       itemsToInsert.push({
         item_name: itemName,
@@ -136,10 +333,13 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         unit_price: unitPrice,
         status,
         asset_no: getVal('asset_no') || null,
-        serial_no: getVal('serial_no') || null,
-        brand: getVal('brand') || null,
-        model: getVal('model') || null,
+        serial_no: serialNo,
+        brand,
+        model,
         responsible_person: getVal('responsible_person') || null,
+        gfmis_number: getVal('gfmis_number') || null,
+        budget_source: getVal('budget_source') || null,
+        acquired_date: acquiredDate,
         note: getVal('note') || null,
       })
     }

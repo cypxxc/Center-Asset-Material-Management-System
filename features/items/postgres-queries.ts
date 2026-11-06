@@ -17,14 +17,14 @@ export const itemRelations = sql`left join public.categories c on c.id = i.categ
 
 export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at,
-  i.brand, i.model,
+  i.brand, i.model, i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
   case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
 const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
-  i.brand, i.model,
+  i.brand, i.model, i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
   case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
@@ -37,7 +37,8 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
     const pattern = `%${q}%`
     clauses.push(sql`(i.item_name ilike ${pattern} or i.asset_no ilike ${pattern}
       or i.serial_no ilike ${pattern} or i.brand ilike ${pattern}
-      or i.model ilike ${pattern} or i.responsible_person ilike ${pattern})`)
+      or i.model ilike ${pattern} or i.responsible_person ilike ${pattern}
+      or i.gfmis_number ilike ${pattern} or i.budget_source ilike ${pattern})`)
   }
   if (params.type && (!validateEnums || ['material', 'asset'].includes(params.type))) {
     clauses.push(sql`i.item_type = ${params.type}`)
@@ -63,10 +64,16 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
   const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(Math.floor(pageSize), 1), 100) : 10
   const parsedPage = Number(params.page ?? '1')
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1
-  const columns: Record<string, SQL> = { item_name: sql`i.item_name`, item_type: sql`i.item_type`, quantity: sql`i.quantity`, status: sql`i.status` }
+  const columns: Record<string, SQL> = {
+    item_name: sql`i.item_name`,
+    category: sql`c.name collate "th-TH-x-icu"`,
+    item_type: sql`i.item_type`,
+    quantity: sql`i.quantity`,
+    status: sql`i.status`,
+  }
   const sortBy = params.sort_by ?? ''
   const order = Object.hasOwn(columns, sortBy) ? columns[sortBy] : sql`i.updated_at`
-  const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'item_type'].includes(params.sort_by ?? ''))
+  const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type'].includes(params.sort_by ?? ''))
   return withUserDatabase(async (tx) => {
     const where = itemFilters(params, true)
     const totals = await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
@@ -83,7 +90,12 @@ export async function getPostgresItemBatch(
   cursor: { key: ItemCursorKey; id: string } | null,
 ): Promise<ItemBatchResult> {
   const columns: Record<NormalizedItemListSearchParams['sort_by'], SQL> = {
-    updated_at: sql`i.updated_at`, item_name: sql`i.item_name`, item_type: sql`i.item_type`, quantity: sql`i.quantity`, status: sql`i.status`,
+    updated_at: sql`i.updated_at`,
+    item_name: sql`i.item_name`,
+    category: sql`coalesce(c.name, '') collate "th-TH-x-icu"`,
+    item_type: sql`i.item_type`,
+    quantity: sql`i.quantity`,
+    status: sql`i.status`,
   }
   const order = columns[params.sort_by]
   const ascending = params.sort_dir === 'asc'
@@ -101,10 +113,15 @@ export async function getPostgresItemBatch(
     const hasMore = rows.rows.length > BATCH_SIZE
     const items = rows.rows.slice(0, BATCH_SIZE).map((item) => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) }))
     const last = items.at(-1)
+    const cursorKey = last
+      ? params.sort_by === 'category'
+        ? (last.category?.name ?? '')
+        : (last[params.sort_by] as ItemCursorKey)
+      : null
     return {
       items,
       total: totals?.rows[0]?.total ?? null,
-      nextCursor: hasMore && last ? encodeItemCursor(params, last[params.sort_by] as ItemCursorKey, last.id) : null,
+      nextCursor: hasMore && last && cursorKey !== null ? encodeItemCursor(params, cursorKey, last.id) : null,
     }
   })
 }

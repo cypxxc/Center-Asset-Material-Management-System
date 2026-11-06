@@ -27,6 +27,7 @@ export const items = pgTable('items', {
   category_id: uuid().references(() => categories.id), location_id: uuid().references(() => locations.id), unit_id: uuid().references(() => units.id),
   quantity: integer().notNull().default(1), unit_price: numeric({ precision: 12, scale: 2, mode: 'number' }),
   asset_no: text(), serial_no: text(), brand: text(), model: text(), responsible_person: text(), status: text().notNull().default('active'), note: text(), image_url: text(),
+  budget_source: text(), gfmis_number: text(), acquired_date: date({ mode: 'string' }),
   created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }), updated_by: uuid().references(() => profiles.id, { onDelete: 'set null' }), deleted_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
   deleted_at: timestamp({ withTimezone: true, mode: 'string' }),
   depreciation_enabled: boolean().notNull().default(false), depreciation_method: text(), depreciation_cost: numeric({ precision: 12, scale: 2, mode: 'number' }), depreciation_useful_life_years: integer(), depreciation_start_basis: text(), depreciation_start_date: date({ mode: 'string' }), depreciation_residual_value: numeric({ precision: 12, scale: 2, mode: 'number' }).notNull().default(1), ...stamps(),

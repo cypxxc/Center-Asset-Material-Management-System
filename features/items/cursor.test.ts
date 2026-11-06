@@ -13,6 +13,10 @@ test('item cursors round trip the normalized sort, filters, key and id', () => {
   const cursor = encodeItemCursor(params, 'Monitor', '33333333-3333-4333-8333-333333333333')
   assert.equal(BATCH_SIZE, 25)
   assert.deepEqual(decodeItemCursor(cursor, params), { key: 'Monitor', id: '33333333-3333-4333-8333-333333333333' })
+
+  const categoryParams = normalizeItemListSearchParams({ sort_by: 'category', sort_dir: 'asc' })
+  const categoryCursor = encodeItemCursor(categoryParams, 'ครุภัณฑ์สำนักงาน', '33333333-3333-4333-8333-333333333333')
+  assert.deepEqual(decodeItemCursor(categoryCursor, categoryParams), { key: 'ครุภัณฑ์สำนักงาน', id: '33333333-3333-4333-8333-333333333333' })
 })
 
 test('item cursors reject malformed and filter-mismatched values', () => {

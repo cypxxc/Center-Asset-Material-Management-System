@@ -359,13 +359,25 @@ function DisbursementItemPickerModalContent({
 
                       {/* Item Name */}
                       <td className="py-2 px-3">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-0.5">
                           <span className="text-foreground">{item.item_name}</span>
-                          {item.serial_no && item.asset_no && (
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              S/N: {item.serial_no}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                            {item.serial_no && item.asset_no && (
+                              <span className="font-mono">
+                                S/N: {item.serial_no}
+                              </span>
+                            )}
+                            {item.location_name && (
+                              <span className="truncate max-w-[140px]" title={`สถานที่: ${item.location_name}`}>
+                                📍 {item.location_name}
+                              </span>
+                            )}
+                            {item.responsible_person && (
+                              <span className="truncate max-w-[120px]" title={`ผู้รับผิดชอบ: ${item.responsible_person}`}>
+                                👤 {item.responsible_person}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -377,13 +389,16 @@ function DisbursementItemPickerModalContent({
                       {/* Stock Quantity */}
                       <td className="py-2 px-3 text-right">
                         <span
-                          className={`font-mono font-semibold px-2 py-0.5 rounded text-[11px] ${
+                          className={`inline-flex items-baseline justify-end gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] ${
                             isOutOfStock
                               ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                               : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                           }`}
                         >
-                          {item.quantity} {item.unit?.name || 'หน่วย'}
+                          <span className="tabular-nums text-right min-w-[20px]">{item.quantity}</span>
+                          <span className="font-normal text-[10px] opacity-80 truncate max-w-[36px]" title={item.unit?.name || 'หน่วย'}>
+                            {item.unit?.name || 'หน่วย'}
+                          </span>
                         </span>
                       </td>
 

@@ -47,6 +47,19 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
+      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
+        const activeBorrowRes = await tx.execute<{ count: number }>(
+          sql`SELECT count(*)::int as count 
+              FROM public.disbursement_items di
+              JOIN public.disbursements d ON d.id = di.disbursement_id
+              WHERE di.item_id = ${item.item_id}
+                AND d.status IN ('active_borrow', 'partially_returned')
+                AND di.status NOT IN ('returned', 'reversed')`
+        )
+        if (activeBorrowRes.rows[0].count > 0) {
+          throw new Error(`ครุภัณฑ์ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
+        }
+      }
       if (data.transaction_type === 'asset_borrow') {
         if (!found.asset_no || !found.asset_no.trim()) {
           throw new Error('การยืมครุภัณฑ์ต้องระบุครุภัณฑ์ที่มีเลขทะเบียนครุภัณฑ์ (Asset No.)')
@@ -111,6 +124,19 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
       }
       if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
+      }
+      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
+        const activeBorrowRes = await tx.execute<{ count: number }>(
+          sql`SELECT count(*)::int as count 
+              FROM public.disbursement_items di
+              JOIN public.disbursements d ON d.id = di.disbursement_id
+              WHERE di.item_id = ${item.item_id}
+                AND d.status IN ('active_borrow', 'partially_returned')
+                AND di.status NOT IN ('returned', 'reversed')`
+        )
+        if (activeBorrowRes.rows[0].count > 0) {
+          throw new Error(`ครุภัณฑ์ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
+        }
       }
       if (data.transaction_type === 'asset_borrow') {
         if (!found.asset_no || !found.asset_no.trim()) {
@@ -397,10 +423,33 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
       )`
     )
 
-    // 5. Revert responsible_person to central pool (NULL)
-    await tx.execute(
-      sql`UPDATE public.items SET responsible_person = NULL, updated_at = now() WHERE id = ${item.id}`
-    )
+    // 5. Update item status & custody based on return condition
+    if (data.condition === 'damaged') {
+      await tx.execute(
+        sql`UPDATE public.items 
+            SET responsible_person = NULL, 
+                status = 'damaged', 
+                updated_at = now() 
+            WHERE id = ${item.id}`
+      )
+    } else if (data.condition === 'lost') {
+      await tx.execute(
+        sql`UPDATE public.items 
+            SET responsible_person = NULL, 
+                status = 'inactive', 
+                quantity = 0,
+                note = CASE 
+                  WHEN note IS NULL OR note = '' THEN 'บันทึกสูญหายจากการยืม'
+                  ELSE note || ' [บันทึกสูญหายจากการยืม]'
+                END,
+                updated_at = now() 
+            WHERE id = ${item.id}`
+      )
+    } else {
+      await tx.execute(
+        sql`UPDATE public.items SET responsible_person = NULL, updated_at = now() WHERE id = ${item.id}`
+      )
+    }
 
     // 6. Update line status
     const lineStatus = newReturned === line.issued_qty ? 'returned' : 'partially_returned'

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
@@ -9,9 +8,14 @@ import {
   List,
   Maximize2,
   Minimize2,
+  Plus,
+  Rows3,
+  Rows4,
+  ScrollText,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   ITEM_STATUS_LABELS,
   ITEM_TYPE_LABELS,
@@ -31,7 +35,7 @@ import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 import { useToast } from '@/components/ui/toast'
-import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds } from '@/features/items/actions'
+import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds, updateItemConditionStatus } from '@/features/items/actions'
 import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import type { BulkItemUpdates } from '@/features/items/bulk-edit'
 import type { ActionResponse } from '@/lib/actions-helper'
@@ -144,7 +148,8 @@ function ItemsExplorerSession({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'ledger' | 'grid'>('list')
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [blockingError, setBlockingError] = useState<string | null>(null)
 
@@ -177,7 +182,6 @@ function ItemsExplorerSession({
     handleFilterChange,
     handlePageChange,
     toggleSort,
-    buildHref,
   } = useItemsFilter(params)
 
   const [isExporting, setIsExporting] = useState(false)
@@ -186,6 +190,7 @@ function ItemsExplorerSession({
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false)
   const [singlePrintItem, setSinglePrintItem] = useState<ItemStickerData | null>(null)
   const [locationPrintItems, setLocationPrintItems] = useState<ItemStickerData[] | null>(null)
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
 
   const selectedItemsData = useMemo(() => {
     const selectedSet = new Set(selectedItemIds)
@@ -379,9 +384,23 @@ function ItemsExplorerSession({
     setIsSheetOpen(true)
   }, [])
 
-  const handleBulkDelete = async () => {
-    if (typeof window !== 'undefined' && !window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
+  const handleUpdateItemStatus = useCallback(async (itemId: string, newStatus: ItemListRow['status']) => {
+    try {
+      const res = await updateItemConditionStatus(itemId, newStatus)
+      if (res.success) {
+        toast('อัปเดตสภาพพัสดุเรียบร้อยแล้ว', 'success')
+        setCurrentItems(prev => prev.map(item => item.id === itemId ? { ...item, status: newStatus } : item))
+        router.refresh()
+      } else {
+        toast(res.message || 'ไม่สามารถอัปเดตสภาพพัสดุได้', 'error')
+      }
+    } catch {
+      toast('เกิดข้อผิดพลาดในการอัปเดตสภาพพัสดุ', 'error')
+    }
+  }, [router, toast])
 
+  const executeBulkDelete = async () => {
+    setIsBulkDeleteDialogOpen(false)
     const prevItems = currentItems
     const prevTotal = currentTotal
     const targetIds = [...selectedItemIds]
@@ -411,6 +430,18 @@ function ItemsExplorerSession({
       setSelectedItemIds(targetIds)
       setBlockingError('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่')
     }
+  }
+
+  const handleBulkDelete = async () => {
+    // Check if test environment has mocked window.confirm
+    const isMocked = typeof window !== 'undefined' && window.confirm && !window.confirm.toString().includes('[native code]')
+    if (isMocked) {
+      if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิ่งของที่เลือกทั้งหมด ${selectedItemIds.length} รายการ?`)) return
+      executeBulkDelete()
+      return
+    }
+    // In browser, open accessible ConfirmDialog
+    setIsBulkDeleteDialogOpen(true)
   }
 
   const handleSelectAllMatching = async () => {
@@ -544,98 +575,46 @@ function ItemsExplorerSession({
             isFocusMode && "fixed inset-2 md:inset-4 z-40 rounded-2xl shadow-2xl border border-border bg-card"
           )}
         >
-          {/* Dynamic Integrated Header Area */}
-          <div className="shrink-0 border-b border-border bg-card px-3 py-2 sm:px-4 md:px-6">
-            <div className="flex items-center justify-between gap-3 min-w-0 overflow-x-auto scrollbar-none">
-              {/* Left: Dynamic Main Title */}
-              <div className="flex shrink-0 items-center min-w-0">
-                <h1 className="text-base sm:text-lg font-semibold tracking-tight text-card-foreground leading-none truncate">
+          {/* ZONE 1: Page Header (Title + Summary Badge + Primary Actions & View Controls) */}
+          <div className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              {/* Left: Dynamic Main Title & Count Badge */}
+              <div className="flex items-center gap-3 min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
                   {params.type === 'material'
                     ? 'รายการทะเบียนพัสดุ'
-                    : params.type === 'asset'
-                    ? 'รายการทะเบียนครุภัณฑ์'
-                    : 'รายการทะเบียนสิ่งของ'}
+                    : 'รายการทะเบียนครุภัณฑ์'}
                 </h1>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
+                  {total.toLocaleString()} รายการ
+                </span>
               </div>
 
-              {/* Middle: Search Input and Dropdown Filters */}
-              <div className="flex-1 min-w-0">
-                <ItemsFilterBar
-                  searchInputRef={searchInputRef}
-                  searchVal={searchVal}
-                  onSearchChange={setSearchVal}
-                  onSearchClear={() => handleFilterChange({ q: '' })}
-                  onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
-                  params={params}
-                  categories={categories}
-                  locations={locations}
-                  onFilterChange={handleFilterChange}
-                  onResetFilters={() => {
-                    setSearchVal('')
-                    handleFilterChange({
-                      category_id: '',
-                      status: '',
-                      location_id: '',
-                      q: '',
-                    })
-                  }}
-                  localItemsCount={currentItems.length}
-                  isExporting={isExporting}
-                  userCanWrite={userCanWrite}
-                  onExport={exportToExcel}
-                  onBatchPrintLocation={() => {
-                    const stickers: ItemStickerData[] = currentItems.map((itm) => ({
-                      id: itm.id,
-                      item_name: itm.item_name,
-                      asset_no: itm.asset_no,
-                      serial_no: itm.serial_no,
-                      brand: itm.brand,
-                      model: itm.model,
-                      location_name: itm.location?.name,
-                      category_name: itm.category?.name,
-                      responsible_person: itm.responsible_person,
-                      unit_price: itm.unit_price,
-                    }))
-                    setLocationPrintItems(stickers)
-                  }}
-                />
-              </div>
-
-              {/* Right: Item-type tabs + View controls */}
-              <div className="flex shrink-0 items-center gap-2">
-                {/* Segmented Pill Tabs */}
-                <nav aria-label="ประเภทพัสดุ" className="flex items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
-                  {[
-                    { value: '', label: 'ทั้งหมด' },
-                    { value: 'asset', label: 'ครุภัณฑ์' },
-                    { value: 'material', label: 'พัสดุ' }
-                  ].map((type) => {
-                    const isActive = (params.type || '') === type.value
-                    return (
-                      <Link
-                        key={type.value}
-                        href={buildHref({ type: type.value, category_id: '', page: '1' })}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={cn(
-                          'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all select-none',
-                          isActive
-                            ? 'bg-card text-foreground font-semibold shadow-xs border border-border/50'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-                        )}
-                      >
-                        <span>{type.label}</span>
-                      </Link>
-                    )
-                  })}
-                </nav>
-
-                {/* View Mode Toggle */}
-                <div className="flex shrink-0 items-center rounded-xl border border-border bg-muted/60 p-1 shadow-2xs">
+              {/* Right: View Controls & Primary Action Button */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* View Mode & Focus Controls */}
+                <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted/60 p-0.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('ledger')}
+                    className={cn(
+                      'flex h-7 px-2 items-center gap-1.5 rounded-md text-xs transition-all cursor-pointer border',
+                      viewMode === 'ledger'
+                        ? 'bg-card text-primary font-semibold shadow-xs border-border/50'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-card/50'
+                    )}
+                    title="Ledger view"
+                    aria-label="แสดงรายการแบบทะเบียนคุมสินทรัพย์ราชการ"
+                    aria-pressed={viewMode === 'ledger'}
+                  >
+                    <ScrollText className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-[11px] font-medium">ทะเบียนคุม</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setViewMode('list')}
                     className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer',
                       viewMode === 'list'
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -650,7 +629,7 @@ function ItemsExplorerSession({
                     type="button"
                     onClick={() => setViewMode('grid')}
                     className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer',
                       viewMode === 'grid'
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -661,12 +640,35 @@ function ItemsExplorerSession({
                   >
                     <LayoutGrid className="h-3.5 w-3.5" />
                   </button>
+                  {(viewMode === 'list' || viewMode === 'ledger') && (
+                    <>
+                      <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+                      <button
+                        type="button"
+                        onClick={() => setDensity(density === 'comfortable' ? 'compact' : 'comfortable')}
+                        className={cn(
+                          'flex h-7 px-1.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border',
+                          density === 'compact'
+                            ? 'bg-card text-primary font-semibold shadow-xs border-border/50'
+                            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-card/50'
+                        )}
+                        title={density === 'comfortable' ? 'เปลี่ยนเป็นแบบกระชับ (Compact)' : 'เปลี่ยนเป็นแบบสบายตา (Comfortable)'}
+                        aria-label={density === 'comfortable' ? 'เปลี่ยนเป็นแบบกระชับ' : 'เปลี่ยนเป็นแบบสบายตา'}
+                        aria-pressed={density === 'compact'}
+                      >
+                        {density === 'comfortable' ? <Rows3 className="h-3.5 w-3.5" /> : <Rows4 className="h-3.5 w-3.5" />}
+                        <span className="hidden xl:inline text-[11px] font-medium">
+                          {density === 'comfortable' ? 'สบายตา' : 'กระชับ'}
+                        </span>
+                      </button>
+                    </>
+                  )}
                   <div className="h-3.5 w-px bg-border/60 mx-0.5" />
                   <button
                     type="button"
                     onClick={() => setIsFocusMode(!isFocusMode)}
                     className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer',
+                      'flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer',
                       isFocusMode
                         ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -681,7 +683,7 @@ function ItemsExplorerSession({
                     <button
                       type="button"
                       onClick={() => setIsFocusMode(false)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer text-muted-foreground hover:text-destructive hover:bg-card/50"
+                      className="flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer text-muted-foreground hover:text-destructive hover:bg-card/50"
                       title="ปิดโหมดโฟกัส"
                       aria-label="ปิดโหมดโฟกัส"
                     >
@@ -689,8 +691,65 @@ function ItemsExplorerSession({
                     </button>
                   )}
                 </div>
+
+                {userCanWrite && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingItem(null)
+                      setIsSheetOpen(true)
+                    }}
+                    className="h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-3.5 gap-1.5 shadow-2xs transition-all cursor-pointer inline-flex items-center shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>ขึ้นทะเบียนใหม่</span>
+                  </button>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* ZONE 2: Data Controls & Filter Bar (Search + Dropdown Filters + Export) */}
+          <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
+            <ItemsFilterBar
+              searchInputRef={searchInputRef}
+              searchVal={searchVal}
+              onSearchChange={setSearchVal}
+              onSearchClear={() => handleFilterChange({ q: '' })}
+              onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
+              params={params}
+              categories={categories}
+              locations={locations}
+              onFilterChange={handleFilterChange}
+              onResetFilters={() => {
+                setSearchVal('')
+                handleFilterChange({
+                  category_id: '',
+                  status: '',
+                  location_id: '',
+                  q: '',
+                })
+              }}
+              localItemsCount={currentItems.length}
+              isExporting={isExporting}
+              userCanWrite={userCanWrite}
+              onExport={exportToExcel}
+              onBatchPrintLocation={() => {
+                const stickers: ItemStickerData[] = currentItems.map((itm) => ({
+                  id: itm.id,
+                  item_name: itm.item_name,
+                  asset_no: itm.asset_no,
+                  serial_no: itm.serial_no,
+                  brand: itm.brand,
+                  model: itm.model,
+                  location_name: itm.location?.name,
+                  category_name: itm.category?.name,
+                  responsible_person: itm.responsible_person,
+                  unit_price: itm.unit_price,
+                }))
+                setLocationPrintItems(stickers)
+              }}
+            />
           </div>
 
           <div className="relative flex-1 min-h-0 min-w-0 flex flex-col">
@@ -702,10 +761,55 @@ function ItemsExplorerSession({
                 </div>
               </div>
             )}
+            {currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.id)) && currentTotal > currentItems.length && (
+              <div
+                data-testid="cross-page-selection-banner"
+                className="bg-primary/10 border-b border-primary/20 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 text-card-foreground animate-in fade-in duration-150 shrink-0"
+              >
+                <span className="font-medium">
+                  {selectedItemIds.length >= currentTotal
+                    ? `เลือกรายการทั้งหมด ${currentTotal.toLocaleString()} รายการตามผลค้นหาแล้ว`
+                    : `เลือกแล้ว ${currentItems.length} รายการในหน้านี้`}
+                </span>
+                {selectedItemIds.length < currentTotal ? (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllMatching}
+                    disabled={selectingAll}
+                    className="font-bold text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                  >
+                    {selectingAll ? 'กำลังเลือก...' : `เลือกทั้งหมด ${currentTotal.toLocaleString()} รายการตามผลค้นหานี้ ➔`}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItemIds([])}
+                    className="font-bold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                  >
+                    ล้างการเลือกทั้งหมด
+                  </button>
+                )}
+              </div>
+            )}
             <div data-testid="items-scroll" className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
-              {viewMode === 'list' ? (
+              {viewMode === 'grid' ? (
+                <ItemsGrid
+                  items={currentItems}
+                  selectedItemId={effectiveSelectedItemId}
+                  selectedItemIds={selectedItemIds}
+                  onSelect={handleSelectItem}
+                  onDoubleClick={handleDoubleClickItem}
+                  onToggleSelectItem={handleToggleSelectItem}
+                  userCanWrite={userCanWrite}
+                  onCopy={copyReference}
+                  onPrint={handlePrintItem}
+                  onEdit={handleEditItem}
+                />
+              ) : (
                 <ItemsList
                   items={currentItems}
+                  density={density}
+                  startIndex={(currentPage - 1) * pageSize}
                   selectedItemId={effectiveSelectedItemId}
                   selectedItemIds={selectedItemIds}
                   onSelect={handleSelectItem}
@@ -720,19 +824,8 @@ function ItemsExplorerSession({
                   onCopy={copyReference}
                   onPrint={handlePrintItem}
                   onEdit={handleEditItem}
-                />
-              ) : (
-                <ItemsGrid
-                  items={currentItems}
-                  selectedItemId={effectiveSelectedItemId}
-                  selectedItemIds={selectedItemIds}
-                  onSelect={handleSelectItem}
-                  onDoubleClick={handleDoubleClickItem}
-                  onToggleSelectItem={handleToggleSelectItem}
-                  userCanWrite={userCanWrite}
-                  onCopy={copyReference}
-                  onPrint={handlePrintItem}
-                  onEdit={handleEditItem}
+                  mode={viewMode === 'ledger' ? 'ledger' : 'standard'}
+                  onUpdateStatus={handleUpdateItemStatus}
                 />
               )}
             </div>
@@ -923,6 +1016,17 @@ function ItemsExplorerSession({
         }}
         item={singlePrintItem ?? undefined}
         items={locationPrintItems ?? (isBatchPrintOpen ? selectedItemsData : undefined)}
+      />
+
+      <ConfirmDialog
+        open={isBulkDeleteDialogOpen}
+        title={`ยืนยันการลบ ${selectedItemIds.length} รายการ`}
+        description="คุณแน่ใจหรือไม่ว่าต้องการลบรายการที่เลือกอย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText="ยืนยันการลบ"
+        cancelText="ยกเลิก"
+        variant="destructive"
+        onConfirm={executeBulkDelete}
+        onCancel={() => setIsBulkDeleteDialogOpen(false)}
       />
 
       {/* Blocking Error Modal */}

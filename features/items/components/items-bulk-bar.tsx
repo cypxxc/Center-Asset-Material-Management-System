@@ -37,7 +37,7 @@ export function ItemsBulkBar({
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-[max(3.5rem,calc(1rem+env(safe-area-inset-bottom)))] left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
+    <div className="fixed bottom-6 md:bottom-8 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-2.5 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
       <span className="text-xs font-bold text-card-foreground">
         เลือกอยู่ <span className="text-primary font-black">{selectedCount}</span> รายการ
       </span>
@@ -50,9 +50,9 @@ export function ItemsBulkBar({
             <Button
               onClick={onDisburse}
               variant="default"
-              className="h-9 px-3.5 text-sm font-bold flex items-center gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+              className="h-8.5 rounded-lg px-3.5 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5" />
               <span>{disburseLabel ?? `ขอเบิกพัสดุ (${selectedCount})`}</span>
             </Button>
           )}
@@ -60,7 +60,8 @@ export function ItemsBulkBar({
             id="bulk-edit-trigger"
             disabled={selectingAll}
             onClick={onBulkEdit}
-            className="h-9 text-sm"
+            variant="outline"
+            className="h-8.5 rounded-lg px-3 text-xs font-semibold cursor-pointer"
           >
             แก้ไขหลายรายการ
           </Button>
@@ -68,7 +69,7 @@ export function ItemsBulkBar({
             variant="outline"
             disabled={selectingAll}
             onClick={onSelectAllMatching}
-            className="h-9 text-sm"
+            className="h-8.5 rounded-lg px-3 text-xs font-semibold cursor-pointer"
           >
             {selectingAll ? 'กำลังเลือก...' : `เลือกทั้งหมดตามผลค้นหา (${total})`}
           </Button>
@@ -77,16 +78,16 @@ export function ItemsBulkBar({
 
       {/* Bulk Print Asset Tag */}
       {userCanWrite && (
-      <Button
-        disabled={!canPrintBatch}
-        title={!canPrintBatch ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
-        onClick={onBatchPrint}
-        variant="outline"
-        className="h-8 rounded-lg px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
-      >
-        <Tag className="h-3.5 w-3.5" />
-        <span>พิมพ์ลาเบล ({selectedCount})</span>
-      </Button>
+        <Button
+          disabled={!canPrintBatch}
+          title={!canPrintBatch ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
+          onClick={onBatchPrint}
+          variant="outline"
+          className="h-8.5 rounded-lg px-3 text-xs font-semibold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
+        >
+          <Tag className="h-3.5 w-3.5" />
+          <span>พิมพ์ลาเบล ({selectedCount})</span>
+        </Button>
       )}
 
       {/* Bulk Delete - Admin Only */}
@@ -94,7 +95,7 @@ export function ItemsBulkBar({
         <Button
           onClick={onBulkDelete}
           variant="outline"
-          className="h-8 rounded-lg px-3 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
+          className="h-8.5 rounded-lg px-3 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
         >
           ลบทั้งหมด
         </Button>
@@ -105,7 +106,7 @@ export function ItemsBulkBar({
       {/* Clear Selection */}
       <button
         onClick={onClearSelection}
-        className="text-xs text-muted-foreground hover:text-card-foreground font-bold transition-colors cursor-pointer"
+        className="text-xs text-muted-foreground hover:text-card-foreground font-semibold transition-colors cursor-pointer"
       >
         ยกเลิก
       </button>

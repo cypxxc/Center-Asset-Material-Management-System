@@ -4,6 +4,8 @@ import { ProfileForm } from '@/features/auth/components/profile-form'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 
+export const metadata = { title: 'ข้อมูลส่วนตัว' }
+
 export default async function ProfilePage() {
   const profile = await getCurrentProfile()
   if (!profile) {

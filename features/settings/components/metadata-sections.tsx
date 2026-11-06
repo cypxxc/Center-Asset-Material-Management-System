@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
-import { Box, Building2, Save, Tag, Upload, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react'
+import { Box, Building2, Save, Tag, Upload, FileText, CheckCircle2, AlertCircle, Trash2, Download, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import dynamic from 'next/dynamic'
 import { importItemsBulk } from '@/features/items/actions'
@@ -130,7 +130,7 @@ function SectionShell({
 import { CategoryColorPicker } from './category-color-picker'
 import { CategoryIconPicker } from './category-icon-picker'
 
-export function CategorySection({ categories }: { categories: CategoryRow[] }) {
+export function CategorySection({ categories, canDelete = true }: { categories: CategoryRow[]; canDelete?: boolean }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -193,15 +193,18 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
                 <Save className="h-3.5 w-3.5 mr-1" />
                 บันทึก
               </SubmitButton>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
-                onClick={() => setConfirmDeleteId(category.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                  onClick={() => setConfirmDeleteId(category.id)}
+                  title="ลบหมวดหมู่"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </form>
         ))}
@@ -222,7 +225,7 @@ export function CategorySection({ categories }: { categories: CategoryRow[] }) {
   )
 }
 
-export function LocationSection({ locations }: { locations: LocationRow[] }) {
+export function LocationSection({ locations, canDelete = true }: { locations: LocationRow[]; canDelete?: boolean }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -275,15 +278,18 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
                 <Save className="h-3.5 w-3.5 mr-1" />
                 บันทึก
               </SubmitButton>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
-                onClick={() => setConfirmDeleteId(location.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                  onClick={() => setConfirmDeleteId(location.id)}
+                  title="ลบสถานที่"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </form>
         ))}
@@ -304,7 +310,7 @@ export function LocationSection({ locations }: { locations: LocationRow[] }) {
   )
 }
 
-export function UnitSection({ units }: { units: UnitRow[] }) {
+export function UnitSection({ units, canDelete = true }: { units: UnitRow[]; canDelete?: boolean }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -349,15 +355,18 @@ export function UnitSection({ units }: { units: UnitRow[] }) {
                 <Save className="h-3.5 w-3.5 mr-1" />
                 บันทึก
               </SubmitButton>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
-                onClick={() => setConfirmDeleteId(unit.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="h-9 w-9 flex-shrink-0 cursor-pointer rounded-lg"
+                  onClick={() => setConfirmDeleteId(unit.id)}
+                  title="ลบหน่วยนับ"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </form>
         ))}
@@ -386,63 +395,69 @@ export function ImportSection() {
     try {
       const ExcelJS = (await import('exceljs')).default
       const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('เทมเพลตนำเข้าพัสดุครุภัณฑ์')
+      const worksheet = workbook.addWorksheet('ทะเบียนคุมสินทรัพย์')
 
       worksheet.columns = [
-        { header: 'item_name', key: 'item_name', width: 30 },
-        { header: 'item_type', key: 'item_type', width: 15 },
-        { header: 'quantity', key: 'quantity', width: 10 },
-        { header: 'unit_price', key: 'unit_price', width: 14 },
-        { header: 'brand', key: 'brand', width: 15 },
-        { header: 'model', key: 'model', width: 15 },
-        { header: 'asset_no', key: 'asset_no', width: 20 },
-        { header: 'serial_no', key: 'serial_no', width: 20 },
-        { header: 'status', key: 'status', width: 15 },
-        { header: 'category_name', key: 'category_name', width: 20 },
-        { header: 'location_name', key: 'location_name', width: 20 },
-        { header: 'unit_name', key: 'unit_name', width: 15 },
-        { header: 'note', key: 'note', width: 25 },
+        { header: 'ลำดับ', key: 'index', width: 8 },
+        { header: 'วัน เดือน ปีที่รับ', key: 'acquired_date', width: 16 },
+        { header: 'รับจาก (งปม.)', key: 'budget_source', width: 24 },
+        { header: 'รายการครุภัณฑ์', key: 'item_name', width: 35 },
+        { header: 'ยี่ห้อ/รุ่น', key: 'brand_model', width: 35 },
+        { header: 'ราคา', key: 'unit_price', width: 14 },
+        { header: 'หน่วย', key: 'unit_name', width: 10 },
+        { header: 'เลขครุภัณฑ์', key: 'asset_no', width: 26 },
+        { header: 'เลขสินทรัพย์', key: 'gfmis_number', width: 18 },
+        { header: 'ผู้ครอบครอง', key: 'responsible_person', width: 22 },
+        { header: 'ใช้งานที่', key: 'location_name', width: 22 },
+        { header: 'ใช้งานได้', key: 'condition_usable', width: 12 },
+        { header: 'ชำรุด', key: 'condition_damaged', width: 10 },
+        { header: 'เสื่อมสภาพ', key: 'condition_deteriorated', width: 12 },
+        { header: 'หมายเหตุ', key: 'note', width: 20 },
       ]
 
-      // Add a styled header row
+      // Add a styled header row matching official government ledger styling
       worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
       worksheet.getRow(1).fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF2563EB' }, // Blue 600
+        fgColor: { argb: 'FF1E293B' }, // Slate 800
       }
 
-      // Add example rows
+      // Add official example rows
       worksheet.addRow({
-        item_name: 'เครื่องคอมพิวเตอร์ MacBook Air (ตัวอย่าง)',
-        item_type: 'asset',
-        quantity: 1,
-        unit_price: 35900,
-        brand: 'Apple',
-        model: 'M2',
-        asset_no: 'CAMMS-AS-9872',
-        serial_no: 'C02H20YQ088G',
-        status: 'active',
-        category_name: 'ครุภัณฑ์คอมพิวเตอร์',
-        location_name: 'ห้องทำงาน 301',
+        index: 1,
+        acquired_date: '22-ก.ค.-64',
+        budget_source: 'เงินบำรุง สสจ.ขก.',
+        item_name: 'เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล (ตัวอย่าง)',
+        brand_model: 'Notebook Acer TravelMate TMP214-53-53XD/T01C (Black) s/n : NXVPNST01C1210D4027600',
+        unit_price: 21800,
         unit_name: 'เครื่อง',
-        note: 'ของฝ่ายไอที',
+        asset_no: 'สนง.7 7440-002-0005-2/2564',
+        gfmis_number: '110000069558',
+        responsible_person: 'กลุ่มงานสุขภาพดิจิทัล',
+        location_name: 'กลุ่มงานสุขภาพดิจิทัล',
+        condition_usable: '/',
+        condition_damaged: '',
+        condition_deteriorated: '',
+        note: 'ส่วนกลาง',
       })
 
       worksheet.addRow({
-        item_name: 'กระดาษ A4 80 แกรม (ตัวอย่าง)',
-        item_type: 'material',
-        quantity: 5,
-        unit_price: 125,
-        brand: 'Double A',
-        model: '-',
-        asset_no: '',
-        serial_no: '',
-        status: 'active',
-        category_name: 'วัสดุสำนักงาน',
-        location_name: 'ห้องเก็บของชั้น 1',
-        unit_name: 'รีม',
-        note: 'สำรองสำหรับฝ่ายบุคคล',
+        index: 2,
+        acquired_date: '19-พ.ย.-64',
+        budget_source: 'เงินกู้ (ไวรัสโคโรนา 2019)',
+        item_name: 'เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล (ตัวอย่าง)',
+        brand_model: 'Lenovo/ThinkPad L13 Gen2 20VH002F TA',
+        unit_price: 22000,
+        unit_name: 'ชุด',
+        asset_no: 'สนง.7 7440-002-0005-1/2565',
+        gfmis_number: '110000105470',
+        responsible_person: 'กลุ่มงานสุขภาพดิจิทัล',
+        location_name: 'ห้องประชุม EOC (ชั้น 4)',
+        condition_usable: '/',
+        condition_damaged: '',
+        condition_deteriorated: '',
+        note: '',
       })
 
       const buffer = await workbook.xlsx.writeBuffer()
@@ -483,8 +498,25 @@ export function ImportSection() {
           return
         }
 
-        // Get headers from row 1
-        const headerRow = worksheet.getRow(1)
+        // Find header row in first 10 rows
+        let headerRowNumber = 1
+        const headerKeywords = ['item_name', 'รายการครุภัณฑ์', 'ชื่อสิ่งของ', 'ชื่อพัสดุ', 'เลขครุภัณฑ์']
+        for (let r = 1; r <= Math.min(worksheet.rowCount, 10); r++) {
+          const testRow = worksheet.getRow(r)
+          let matchFound = false
+          testRow.eachCell((cell) => {
+            const val = String(cell.value || '').trim().toLowerCase()
+            if (headerKeywords.some(k => val.includes(k.toLowerCase()))) {
+              matchFound = true
+            }
+          })
+          if (matchFound) {
+            headerRowNumber = r
+            break
+          }
+        }
+
+        const headerRow = worksheet.getRow(headerRowNumber)
         const headers: string[] = []
         headerRow.eachCell((cell) => {
           headers.push(String(cell.value || '').trim())
@@ -496,18 +528,25 @@ export function ImportSection() {
         csvLines.push(headers.join(','))
 
         worksheet.eachRow((row, rowNumber) => {
-          // Skip header row
-          if (rowNumber === 1) return
+          // Skip header row and preceding title rows
+          if (rowNumber <= headerRowNumber) return
 
           // Skip example rows
-          const itemNameVal = String(row.getCell(1).value || '')
-          if (itemNameVal.includes('(ตัวอย่าง)')) return
+          let isExampleRow = false
+          row.eachCell((cell) => {
+            if (String(cell.value || '').includes('(ตัวอย่าง)')) {
+              isExampleRow = true
+            }
+          })
+          if (isExampleRow) return
 
           const lineValues: string[] = []
           for (let i = 1; i <= headers.length; i++) {
             const cell = row.getCell(i)
             let val = ''
-            if (cell.value && typeof cell.value === 'object') {
+            if (cell.value instanceof Date) {
+              val = cell.value.toISOString().slice(0, 10)
+            } else if (cell.value && typeof cell.value === 'object') {
               // @ts-expect-error - ExcelJS CellValue can be cell formula object
               val = String(cell.value.result || cell.value.text || '')
             } else {
@@ -579,7 +618,7 @@ export function ImportSection() {
           ) : (
             <>
               <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shadow-2xs">
-                <span className="material-symbols-outlined text-[28px]">upload_file</span>
+                <FileSpreadsheet className="h-6 w-6 text-primary" />
               </div>
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-card-foreground">เลือกไฟล์ Excel (.xlsx) หรือ CSV เพื่อนำเข้าข้อมูล</h4>
@@ -591,7 +630,7 @@ export function ImportSection() {
                   onClick={downloadTemplate}
                   className="h-9 px-4 rounded-lg border border-input hover:bg-muted bg-card text-card-foreground text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px]">download</span>
+                  <Download className="h-4 w-4 text-muted-foreground" />
                   <span>ดาวน์โหลดเทมเพลต (Excel)</span>
                 </button>
                 <label className="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">

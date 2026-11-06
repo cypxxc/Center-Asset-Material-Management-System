@@ -78,21 +78,21 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   }, [toast, onClose])
 
   const icons = {
-    success: <CheckCircle className="h-4 w-4 text-emerald-600" />,
-    error: <AlertCircle className="h-4 w-4 text-rose-600" />,
-    warning: <AlertTriangle className="h-4 w-4 text-amber-600" />,
-    info: <Info className="h-4 w-4 text-blue-600" />,
+    success: <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
+    error: <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />,
+    warning: <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />,
+    info: <Info className="h-4 w-4 text-primary" />,
   }
 
   const bgColors = {
-    success: "bg-emerald-50 border-emerald-200 text-emerald-800",
-    error: "bg-rose-50 border-rose-200 text-rose-800",
-    warning: "bg-amber-50 border-amber-200 text-amber-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800",
+    success: "bg-emerald-50/90 border-emerald-200 text-emerald-900 dark:bg-emerald-950/90 dark:border-emerald-800 dark:text-emerald-100",
+    error: "bg-rose-50/90 border-rose-200 text-rose-900 dark:bg-rose-950/90 dark:border-rose-800 dark:text-rose-100",
+    warning: "bg-amber-50/90 border-amber-200 text-amber-900 dark:bg-amber-950/90 dark:border-amber-800 dark:text-amber-100",
+    info: "bg-primary/10 border-primary/20 text-foreground dark:bg-primary/15 dark:border-primary/30",
   }
 
   return (
-    <div className={`flex items-start gap-3 p-3.5 rounded-xl border shadow-lg pointer-events-auto transition-all animate-in slide-in-from-top-2 duration-300 ${bgColors[toast.type]}`}>
+    <div className={`flex items-start gap-3 p-3.5 rounded-xl border shadow-lg pointer-events-auto backdrop-blur-sm transition-all animate-in slide-in-from-top-2 duration-300 ${bgColors[toast.type]}`}>
       <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
       <div className="flex-1 text-[11px] font-semibold leading-relaxed">{toast.message}</div>
       <button
@@ -100,9 +100,9 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         onClick={onClose}
         aria-label="ปิดการแจ้งเตือน"
         title="ปิดการแจ้งเตือน"
-        className="flex-shrink-0 text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors cursor-pointer"
+        className="flex-shrink-0 text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
       >
-        <X className="h-3 w-3" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   )

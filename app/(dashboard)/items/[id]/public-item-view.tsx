@@ -36,43 +36,43 @@ const STATUS_CONFIG: Record<
 > = {
   active: {
     label: ITEM_STATUS_LABELS.active,
-    bgClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-    textClass: 'text-emerald-700',
+    bgClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+    textClass: 'text-emerald-700 dark:text-emerald-300',
     dotClass: 'bg-emerald-500 animate-pulse',
     ringClass: 'ring-emerald-500/20',
   },
   spare: {
     label: ITEM_STATUS_LABELS.spare,
-    bgClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
-    textClass: 'text-sky-700',
+    bgClass: 'bg-sky-50 text-sky-700 border-sky-200/80 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800',
+    textClass: 'text-sky-700 dark:text-sky-300',
     dotClass: 'bg-sky-500',
     ringClass: 'ring-sky-500/20',
   },
   waiting_repair: {
     label: ITEM_STATUS_LABELS.waiting_repair,
-    bgClass: 'bg-amber-50 text-amber-700 border-amber-200/80',
-    textClass: 'text-amber-700',
+    bgClass: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    textClass: 'text-amber-700 dark:text-amber-300',
     dotClass: 'bg-amber-500',
     ringClass: 'ring-amber-500/20',
   },
   damaged: {
     label: ITEM_STATUS_LABELS.damaged,
-    bgClass: 'bg-rose-50 text-rose-700 border-rose-200/80',
-    textClass: 'text-rose-700',
+    bgClass: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+    textClass: 'text-rose-700 dark:text-rose-300',
     dotClass: 'bg-rose-500',
     ringClass: 'ring-rose-500/20',
   },
   inactive: {
     label: ITEM_STATUS_LABELS.inactive,
-    bgClass: 'bg-slate-100 text-slate-700 border-slate-200',
-    textClass: 'text-slate-600',
+    bgClass: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    textClass: 'text-slate-600 dark:text-slate-300',
     dotClass: 'bg-slate-400',
     ringClass: 'ring-slate-400/20',
   },
   disposed: {
     label: ITEM_STATUS_LABELS.disposed,
-    bgClass: 'bg-zinc-100 text-zinc-700 border-zinc-200',
-    textClass: 'text-zinc-600',
+    bgClass: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+    textClass: 'text-zinc-600 dark:text-zinc-300',
     dotClass: 'bg-zinc-400',
     ringClass: 'ring-zinc-400/20',
   },
@@ -105,13 +105,13 @@ function CopyableCodePill({
     <div
       className={`group flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
         highlight
-          ? 'bg-blue-50/70 border-blue-200 text-blue-950'
-          : 'bg-slate-50/90 border-slate-200/80 text-slate-900'
+          ? 'bg-primary/10 border-primary/20 text-foreground'
+          : 'bg-muted/50 border-border text-foreground'
       }`}
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase flex items-center gap-1.5">
-          <Tag className="h-3 w-3 text-slate-400" />
+        <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+          <Tag className="h-3 w-3 text-muted-foreground" />
           <span>{label}</span>
         </div>
         <div className="mt-0.5 font-mono text-sm sm:text-base font-bold tracking-tight truncate select-all">
@@ -123,16 +123,16 @@ function CopyableCodePill({
         onClick={handleCopy}
         aria-label={`คัดลอก ${label}`}
         title={`คัดลอก ${label}`}
-        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-2xs transition-colors shrink-0 cursor-pointer active:scale-95"
+        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-background border border-border text-foreground hover:bg-accent hover:text-accent-foreground shadow-2xs transition-colors shrink-0 cursor-pointer active:scale-95"
       >
         {copied ? (
           <>
-            <Check className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="text-emerald-700 text-[11px]">คัดลอกแล้ว</span>
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-emerald-700 dark:text-emerald-300 text-[11px]">คัดลอกแล้ว</span>
           </>
         ) : (
           <>
-            <Copy className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700" />
+            <Copy className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
             <span className="text-[11px]">คัดลอก</span>
           </>
         )}
@@ -153,19 +153,19 @@ function StatTile({
   subvalue?: string | null
 }) {
   return (
-    <div className="p-3.5 rounded-xl border border-slate-200/70 bg-white shadow-2xs flex items-start gap-3">
-      <div className="p-2 rounded-lg bg-slate-100/90 text-slate-600 shrink-0 mt-0.5">
+    <div className="p-3.5 rounded-xl border border-border bg-card shadow-2xs flex items-start gap-3">
+      <div className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0 mt-0.5">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
           {label}
         </div>
-        <div className="mt-0.5 text-sm font-bold text-slate-900 break-words leading-snug">
+        <div className="mt-0.5 text-sm font-bold text-foreground break-words leading-snug">
           {value || '-'}
         </div>
         {subvalue && (
-          <div className="text-[11px] text-slate-500 mt-0.5 font-medium">
+          <div className="text-[11px] text-muted-foreground mt-0.5 font-medium">
             {subvalue}
           </div>
         )}
@@ -210,7 +210,13 @@ export function PublicItemView({ item }: PublicItemViewProps) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-100/70 p-3 sm:p-6 md:p-10 flex flex-col items-center justify-start antialiased text-slate-900">
+    <div className="min-h-screen w-full bg-background p-3 sm:p-6 md:p-10 flex flex-col items-center justify-start antialiased text-foreground">
+      <a
+        href="#passport-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        ข้ามไปเนื้อหาข้อมูลครุภัณฑ์
+      </a>
       <main className="w-full max-w-2xl space-y-4 sm:space-y-5">
         
         {/* Top Official Banner with Passport Verification Badge */}
@@ -262,23 +268,26 @@ export function PublicItemView({ item }: PublicItemViewProps) {
         </header>
 
         {/* Hero Card / Passport Information */}
-        <section aria-label="ข้อมูลพัสดุและครุภัณฑ์" className="bg-white rounded-2xl border border-slate-200/90 shadow-xl overflow-hidden p-5 sm:p-7 space-y-6">
-          
+        <section
+          id="passport-content"
+          aria-label="ข้อมูลพัสดุและครุภัณฑ์"
+          className="bg-card rounded-2xl border border-border shadow-xl overflow-hidden p-5 sm:p-7 space-y-6 text-card-foreground"
+        >
           {/* Header Title & Status Badge */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-100 pb-5">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-border pb-5">
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
                   <Layers className="h-3 w-3" />
                   {ITEM_TYPE_LABELS[item.item_type]}
                 </span>
                 {item.category?.name && (
-                  <span className="text-xs font-medium text-slate-500">
+                  <span className="text-xs font-medium text-muted-foreground">
                     • {item.category.name}
                   </span>
                 )}
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight tracking-tight break-words">
+              <h2 className="text-xl sm:text-2xl font-black text-foreground leading-tight tracking-tight break-words">
                 {item.item_name}
               </h2>
             </div>
@@ -303,11 +312,11 @@ export function PublicItemView({ item }: PublicItemViewProps) {
           {/* Item Photo Showcase */}
           {item.image_url ? (
             <div className="space-y-1.5">
-              <div className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+              <div className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
                 <span>รูปภาพครุภัณฑ์ประจำทะเบียน</span>
               </div>
-              <div className="rounded-xl overflow-hidden border border-slate-200 aspect-video sm:aspect-16/9 bg-slate-50 relative shadow-inner group">
+              <div className="rounded-xl overflow-hidden border border-border aspect-video sm:aspect-16/9 bg-muted/40 relative shadow-inner group">
                 <ZoomableImage
                   src={item.image_url}
                   alt={item.item_name}
@@ -319,7 +328,7 @@ export function PublicItemView({ item }: PublicItemViewProps) {
 
           {/* Key Attributes Grid */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               ข้อมูลจำเพาะและสถานที่จัดเก็บ
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -349,7 +358,7 @@ export function PublicItemView({ item }: PublicItemViewProps) {
                 value={`${item.quantity} ${item.unit?.name ?? ''}`}
               />
               <StatTile
-                icon={<DollarSign className="h-4 w-4 text-emerald-600" />}
+                icon={<DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
                 label="ราคาต่อหน่วย"
                 value={item.unit_price == null ? null : `${item.unit_price.toLocaleString('th-TH')} บาท`}
               />
@@ -358,24 +367,24 @@ export function PublicItemView({ item }: PublicItemViewProps) {
 
           {/* Notes Card */}
           {item.note && (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-              <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Info className="h-3.5 w-3.5 text-slate-400" />
+            <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-1">
+              <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>หมายเหตุ</span>
               </div>
-              <p className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">
+              <p className="text-xs sm:text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
                 {item.note}
               </p>
             </div>
           )}
 
           {/* Verification Timestamp */}
-          <div className="pt-1 text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-100">
+          <div className="pt-1 text-[11px] text-muted-foreground flex items-center justify-between border-t border-border">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span>ปรับปรุงข้อมูลล่าสุด:</span>
             </span>
-            <span className="font-medium text-slate-600">
+            <span className="font-medium text-foreground">
               {item.updated_at
                 ? new Date(item.updated_at).toLocaleDateString('th-TH', {
                     year: 'numeric',
@@ -389,12 +398,12 @@ export function PublicItemView({ item }: PublicItemViewProps) {
           </div>
 
           {/* Staff Login CTA Banner */}
-          <div className="pt-5 border-t border-slate-150 flex flex-col items-center justify-center space-y-2.5 bg-slate-50/70 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 p-6 rounded-b-2xl">
+          <div className="pt-5 border-t border-border flex flex-col items-center justify-center space-y-2.5 bg-muted/30 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 p-6 rounded-b-2xl">
             <div className="text-center">
-              <p className="text-xs sm:text-sm font-bold text-slate-800">
+              <p className="text-xs sm:text-sm font-bold text-foreground">
                 คุณเป็นเจ้าหน้าที่ผู้ดูแลพัสดุใช่หรือไม่?
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 เข้าสู่ระบบเพื่อแก้ไขข้อมูล ตรวจนับทางกายภาพ หรือจัดการสถานะครุภัณฑ์นี้
               </p>
             </div>
@@ -405,7 +414,7 @@ export function PublicItemView({ item }: PublicItemViewProps) {
             >
               <Button
                 type="button"
-                className="w-full sm:w-auto h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                className="w-full sm:w-auto h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
               >
                 <LogIn className="h-4 w-4" />
                 <span>เข้าสู่ระบบเพื่อจัดการ (สำหรับเจ้าหน้าที่)</span>
@@ -417,7 +426,7 @@ export function PublicItemView({ item }: PublicItemViewProps) {
         </section>
 
         {/* Footer Credit */}
-        <footer className="text-center py-2 text-[11px] text-slate-400">
+        <footer className="text-center py-2 text-[11px] text-muted-foreground">
           ระบบบริหารจัดการทรัพย์สินและพัสดุส่วนกลาง (CAMMS)
         </footer>
       </main>

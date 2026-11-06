@@ -48,6 +48,9 @@ function assertKey(params: NormalizedItemListSearchParams, key: unknown): assert
   if (params.sort_by === 'item_type' && (typeof key !== 'string' || !itemTypes.includes(key as ItemType))) {
     throw new CursorError()
   }
+  if (params.sort_by === 'category' && (typeof key !== 'string' || key.length > 512)) {
+    throw new CursorError()
+  }
   if (params.sort_by === 'status' && (typeof key !== 'string' || !itemStatuses.includes(key as ItemStatus))) {
     throw new CursorError()
   }

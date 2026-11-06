@@ -424,13 +424,16 @@ export function DisbursementDraftFormClient({
                         {/* Stock Balance */}
                         <td className="py-2.5 px-3 text-right">
                           <span
-                            className={`font-mono font-medium px-2 py-0.5 rounded text-[11px] ${
+                            className={`inline-flex items-baseline justify-end gap-1 font-mono font-medium px-2 py-0.5 rounded text-[11px] ${
                               (currentItem?.quantity ?? 0) <= 0
                                 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                                 : 'bg-muted text-foreground'
                             }`}
                           >
-                            {currentItem?.quantity ?? 0} {currentItem?.unit?.name || 'หน่วย'}
+                            <span className="tabular-nums text-right min-w-[20px]">{currentItem?.quantity ?? 0}</span>
+                            <span className="font-normal text-[10px] text-muted-foreground truncate max-w-[36px]" title={currentItem?.unit?.name || 'หน่วย'}>
+                              {currentItem?.unit?.name || 'หน่วย'}
+                            </span>
                           </span>
                         </td>
 

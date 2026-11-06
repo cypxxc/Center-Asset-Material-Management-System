@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Download, Tag, X, RotateCcw } from 'lucide-react'
+import { Activity, Download, MapPin, Tag, X, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import { parseScannedAssetCode } from '@/lib/qr-scan-parser'
 import { ITEM_STATUS_LABELS, type ItemStatus, type ItemListSearchParams } from '@/features/items/types'
 import type { ItemsFilterUpdates } from '@/features/items/hooks/use-items-filter'
@@ -28,6 +29,15 @@ export interface ItemsFilterBarProps {
   className?: string
   searchInputRef?: React.Ref<HTMLInputElement>
   rightContent?: React.ReactNode
+}
+
+const STATUS_DOT_MAP: Record<string, string> = {
+  active: 'bg-emerald-500',
+  spare: 'bg-sky-500',
+  waiting_repair: 'bg-amber-500',
+  damaged: 'bg-rose-500',
+  disposed: 'bg-purple-500',
+  inactive: 'bg-slate-400',
 }
 
 export function ItemsFilterBar({
@@ -97,9 +107,25 @@ export function ItemsFilterBar({
     return chips
   }, [params.category_id, params.status, params.location_id, params.q, categories, locations, onFilterChange, onSearchClear])
 
-  const isCategoryActive = Boolean(params.category_id)
-  const isStatusActive = Boolean(params.status)
-  const isLocationActive = Boolean(params.location_id)
+  const categoryOptions: FilterOption[] = useMemo(
+    () => categories.map((cat) => ({ value: cat.id, label: cat.name })),
+    [categories]
+  )
+
+  const statusOptions: FilterOption[] = useMemo(
+    () =>
+      Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        colorDot: STATUS_DOT_MAP[value] || 'bg-slate-400',
+      })),
+    []
+  )
+
+  const locationOptions: FilterOption[] = useMemo(
+    () => locations.map((loc) => ({ value: loc.id, label: loc.name })),
+    [locations]
+  )
 
   return (
     <div className={cn('flex flex-col gap-3 min-w-0', className)} data-testid="items-filter-bar">
@@ -148,61 +174,37 @@ export function ItemsFilterBar({
             {/* Dropdown Filters */}
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               {/* Category Filter */}
-              <select
+              <FilterDropdown
+                label="หมวดหมู่"
+                ariaLabel="กรองตามหมวดหมู่"
                 name="category_id"
-                aria-label="กรองตามหมวดหมู่"
                 value={params.category_id ?? ''}
-                onChange={(e) => onFilterChange({ category_id: e.target.value })}
-                className={cn(
-                  'h-9 max-w-[160px] truncate rounded-lg border px-2.5 text-xs font-semibold focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors',
-                  isCategoryActive
-                    ? 'border-primary/60 bg-primary/10 text-primary font-bold'
-                    : 'border-input bg-card text-card-foreground'
-                )}
-              >
-                <option value="">กรองตามหมวดหมู่</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+                options={categoryOptions}
+                onChange={(val) => onFilterChange({ category_id: val })}
+                icon={<Tag className="h-3.5 w-3.5" />}
+              />
 
               {/* Status Filter */}
-              <select
+              <FilterDropdown
+                label="สถานะ"
+                ariaLabel="กรองตามสถานะ"
                 name="status"
-                aria-label="กรองตามสถานะ"
                 value={params.status ?? ''}
-                onChange={(e) => onFilterChange({ status: e.target.value })}
-                className={cn(
-                  'h-9 max-w-[140px] truncate rounded-lg border px-2.5 text-xs font-semibold focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors',
-                  isStatusActive
-                    ? 'border-primary/60 bg-primary/10 text-primary font-bold'
-                    : 'border-input bg-card text-card-foreground'
-                )}
-              >
-                <option value="">กรองตามสถานะ</option>
-                {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+                options={statusOptions}
+                onChange={(val) => onFilterChange({ status: val })}
+                icon={<Activity className="h-3.5 w-3.5" />}
+              />
 
               {/* Location Filter */}
-              <select
+              <FilterDropdown
+                label="สถานที่"
+                ariaLabel="กรองตามสถานที่"
                 name="location_id"
-                aria-label="กรองตามสถานที่"
                 value={params.location_id ?? ''}
-                onChange={(e) => onFilterChange({ location_id: e.target.value })}
-                className={cn(
-                  'h-9 max-w-[150px] truncate rounded-lg border px-2.5 text-xs font-semibold focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors',
-                  isLocationActive
-                    ? 'border-primary/60 bg-primary/10 text-primary font-bold'
-                    : 'border-input bg-card text-card-foreground'
-                )}
-              >
-                <option value="">กรองตามสถานที่</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
+                options={locationOptions}
+                onChange={(val) => onFilterChange({ location_id: val })}
+                icon={<MapPin className="h-3.5 w-3.5" />}
+              />
 
               {/* Quick Reset Filters Button */}
               {activeChips.length > 0 && (

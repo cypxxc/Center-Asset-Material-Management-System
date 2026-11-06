@@ -3,6 +3,9 @@
 import { useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
+  Banknote,
+  Building2,
+  Calendar,
   Copy,
   Edit,
   ExternalLink,
@@ -22,6 +25,7 @@ import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
 import { CategoryBadge } from '@/features/items/components/category-badge'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { formatDateThaiBE } from '@/lib/date'
 
 export interface InspectorProps {
   onOpenDetails: () => void
@@ -199,12 +203,39 @@ export function Inspector({
               </div>
             </InspectorBox>
 
-            <InspectorBox icon={<span className="material-symbols-outlined text-[15px] text-primary shrink-0">payments</span>} label="ราคาต่อหน่วย">
+            <InspectorBox icon={<Banknote className="h-3.5 w-3.5 text-primary shrink-0" />} label="ราคาต่อหน่วย">
               <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
                 {item.unit_price !== null && item.unit_price !== undefined ? `฿${item.unit_price.toLocaleString()}` : '-'}
               </div>
             </InspectorBox>
           </div>
+
+          {/* GFMIS & Budget Source & Acquired Date */}
+          {(item.gfmis_number || item.budget_source || item.acquired_date) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+              {item.gfmis_number && (
+                <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary shrink-0" />} label="เลขสินทรัพย์ (GFMIS)">
+                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 font-mono text-xs font-semibold text-card-foreground truncate" title={item.gfmis_number}>
+                    {item.gfmis_number}
+                  </div>
+                </InspectorBox>
+              )}
+              {item.budget_source && (
+                <InspectorBox icon={<Building2 className="h-3.5 w-3.5 text-primary shrink-0" />} label="รับจาก (งปม.)">
+                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={item.budget_source}>
+                    {item.budget_source}
+                  </div>
+                </InspectorBox>
+              )}
+              {item.acquired_date && (
+                <InspectorBox icon={<Calendar className="h-3.5 w-3.5 text-primary shrink-0" />} label="วันที่รับเข้า">
+                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate">
+                    {formatDateThaiBE(item.acquired_date)}
+                  </div>
+                </InspectorBox>
+              )}
+            </div>
+          )}
 
           {/* Location */}
           <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary shrink-0" />} label="สถานที่จัดเก็บ">

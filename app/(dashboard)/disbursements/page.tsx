@@ -7,6 +7,7 @@ import { DisbursementListClient } from '@/features/disbursements/components/disb
 import DisbursementsLoading from './loading'
 
 export const instant = false
+export const metadata = { title: 'ทะเบียนเบิก-จ่าย' }
 
 interface DisbursementsPageProps {
   searchParams: Promise<{
@@ -51,6 +52,7 @@ async function DisbursementListSection({
       currentStatus={params.status || ''}
       currentType={params.type || ''}
       canCreate={canWrite(role)}
+      stats={result.stats}
     />
   )
 }

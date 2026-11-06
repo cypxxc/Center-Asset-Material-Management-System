@@ -126,3 +126,56 @@ test('importItemsBulk parses RFC 4180 quotes and preserves legitimate symbols wi
   assert.equal(items[0].model, '+5V Supply');
 });
 
+test('importItemsBulk parses official Thai government ledger CSV with BE date and checkmarks', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  mockSupabaseRegistry.setRpcResponse('import_items_bulk_tx', {
+    ok: true,
+    count: 2,
+  });
+
+  const thaiCsv = [
+    'บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)',
+    'ลำดับ,วัน เดือน ปีที่รับ,รับจาก (งปม.),รายการครุภัณฑ์,ยี่ห้อ/รุ่น,ราคา,หน่วย,เลขครุภัณฑ์,เลขสินทรัพย์,ผู้ครอบครอง,ใช้งานที่,ใช้งานได้,ชำรุด,เสื่อมสภาพ,หมายเหตุ',
+    '1,22-ก.ค.-64,เงินบำรุง สสจ.ขก.,เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล,"Notebook Acer TravelMate TMP214-53-53XD/T01C (Black) s/n : NXVPNST01C1210D4027600",21800.00,เครื่อง,สนง.7 7440-002-0005-2/2564,110000069558,กลุ่มงานสุขภาพดิจิทัล,กลุ่มงานสุขภาพดิจิทัล,/,,-,ส่วนกลาง',
+    '2,19-พ.ย.-64,เงินกู้ (ไวรัสโคโรนา 2019),เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล,Lenovo/ThinkPad L13 Gen2 20VH002F TA,22000.00,ชุด,สนง.7 7440-002-0005-1/2565,110000105470,กลุ่มงานสุขภาพดิจิทัล,ห้องประชุม EOC (ชั้น 4),,✓,,',
+    'รวมทั้งสิ้น 2 รายการ มูลค่า 43800.00 บาท',
+  ].join('\n');
+
+  const res = await importItemsBulk(thaiCsv);
+  assert.equal(res.success, true);
+
+  const rpcLog = mockSupabaseRegistry.getRpcLog();
+  const txCall = rpcLog.find((c) => c.name === 'import_items_bulk_tx');
+  assert.ok(txCall);
+  const items = (txCall.args as { items_json: Array<{
+    item_name: string;
+    brand: string;
+    serial_no: string | null;
+    acquired_date: string | null;
+    budget_source: string | null;
+    gfmis_number: string | null;
+    status: string;
+    quantity: number;
+    unit_price: number | null;
+  }> }).items_json;
+
+  assert.equal(items.length, 2);
+  assert.equal(items[0].item_name, 'เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล');
+  assert.equal(items[0].acquired_date, '2021-07-22'); // 22-ก.ค.-64
+  assert.equal(items[0].budget_source, 'เงินบำรุง สสจ.ขก.');
+  assert.equal(items[0].serial_no, 'NXVPNST01C1210D4027600');
+  assert.equal(items[0].brand, 'Notebook Acer TravelMate TMP214-53-53XD/T01C (Black)');
+  assert.equal(items[0].gfmis_number, '110000069558');
+  assert.equal(items[0].status, 'active'); // marked with '/'
+  assert.equal(items[0].unit_price, 21800);
+
+  assert.equal(items[1].acquired_date, '2021-11-19'); // 19-พ.ย.-64
+  assert.equal(items[1].budget_source, 'เงินกู้ (ไวรัสโคโรนา 2019)');
+  assert.equal(items[1].status, 'damaged'); // marked in ชำรุด column
+});
+

@@ -58,6 +58,9 @@ function parseFormData(formData: FormData) {
     model: formData.get('model'),
     location_id: formData.get('location_id'),
     responsible_person: formData.get('responsible_person'),
+    gfmis_number: formData.get('gfmis_number'),
+    budget_source: formData.get('budget_source'),
+    acquired_date: formData.get('acquired_date'),
     status: formData.get('status'),
     note: formData.get('note'),
     image_url: formData.get('image_url'),
@@ -502,6 +505,13 @@ export async function bulkUpdateItems(ids: string[], updates: BulkItemUpdates): 
     revalidateSidebarCache()
     return successResponse(`แก้ไขสำเร็จ ${count} จาก ${parsed.data.ids.length} รายการ`)
   } catch (error) { return handleActionError(error, 'bulkUpdateItems', 'items') }
+}
+
+export async function updateItemConditionStatus(
+  id: string,
+  status: 'active' | 'spare' | 'damaged' | 'waiting_repair' | 'inactive' | 'disposed'
+): Promise<ActionResponse> {
+  return bulkUpdateItems([id], { status })
 }
 
 export async function getMatchingItemIds(params: ItemListSearchParams): Promise<ActionResponse<string[]>> {

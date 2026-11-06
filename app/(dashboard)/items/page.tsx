@@ -11,6 +11,13 @@ interface ItemsPageProps {
   searchParams: Promise<ItemListSearchParams & { deleted?: string }>
 }
 
+export async function generateMetadata({ searchParams }: ItemsPageProps) {
+  const params = await searchParams
+  return {
+    title: params.type === 'material' ? 'ทะเบียนพัสดุ' : 'ทะเบียนครุภัณฑ์',
+  }
+}
+
 export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   const params = await searchParams
   if (params.deleted === 'true') redirect('/items')

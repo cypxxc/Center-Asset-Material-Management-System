@@ -5,6 +5,8 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { getLocationsOverview } from '@/features/settings/queries'
 import { LocationsClient } from './locations-client'
 
+export const metadata = { title: 'สถานที่จัดเก็บ' }
+
 export default async function LocationsPage() {
   const [profile, { locations, items }] = await Promise.all([
     getCurrentProfile(),

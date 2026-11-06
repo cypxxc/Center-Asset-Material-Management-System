@@ -101,24 +101,24 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                   aria-pressed={isSelected}
                   onClick={() => setSelectedLocationId(isSelected ? null : loc.id)}
                   className={cn(
-                    'w-full text-left p-4 rounded-xl border transition-colors flex items-center justify-between gap-3 cursor-pointer h-auto shrink-0 select-none font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'w-full text-left p-4 rounded-xl border transition-colors flex items-center justify-between gap-3 cursor-pointer h-auto shrink-0 select-none font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     isSelected
-                      ? 'bg-blue-50 text-blue-950 border-blue-300 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-50 dark:border-blue-700 dark:hover:bg-blue-900'
-                      : 'bg-card text-foreground border-border hover:border-border shadow-sm hover:bg-muted'
+                      ? 'bg-primary/10 text-primary border-primary/40 font-bold shadow-2xs'
+                      : 'bg-card text-foreground border-border hover:border-border shadow-xs hover:bg-muted'
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div
                       className={cn(
                         'shrink-0 p-2 rounded-lg',
-                        'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'
                       )}
                     >
                       <MapPin className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
                       <p className="break-words font-semibold text-sm">{loc.name}</p>
-                      <p className={cn('text-xs mt-1', isSelected ? 'text-blue-800 dark:text-blue-200' : 'text-muted-foreground')}>
+                      <p className={cn('text-xs mt-1', isSelected ? 'text-primary/90 font-medium' : 'text-muted-foreground')}>
                         มีอุปกรณ์ {locItems.length} รายการ ({totalQty} ชิ้น)
                       </p>
                     </div>
@@ -126,7 +126,7 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                   <ChevronRight
                     className={cn(
                       'w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none',
-                      isSelected ? 'rotate-90 text-blue-700 dark:text-blue-200' : 'text-muted-foreground'
+                      isSelected ? 'rotate-90 text-primary' : 'text-muted-foreground'
                     )}
                   />
                 </button>
@@ -145,7 +145,7 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
               <div className="p-5 bg-muted text-foreground flex flex-wrap gap-3 items-center justify-between">
                 <div>
                   <h3 className="font-bold text-base flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-blue-400" />
+                    <MapPin className="w-4 h-4 text-primary" />
                     <span>สิ่งของทั้งหมดที่ตั้งอยู่ที่: {selectedLocation.name}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -159,10 +159,10 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                     size="sm"
                     onClick={() => setIsBatchPrintModalOpen(true)}
                     disabled={locationStickerItems.length === 0}
-                    className="h-8 px-2.5 text-xs font-semibold flex items-center gap-1.5 border-slate-300 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                    className="h-8 px-2.5 text-xs font-semibold flex items-center gap-1.5 border-border hover:bg-muted cursor-pointer shadow-2xs"
                     title="พิมพ์ป้ายลาเบลสิ่งของทั้งหมดในสถานที่นี้"
                   >
-                    <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                    <Tag className="w-3.5 h-3.5 text-primary" />
                     <span>พิมพ์ป้ายทั้งสถานที่ ({locationStickerItems.length} ชิ้น)</span>
                   </Button>
                   <span className="bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full text-xs">
@@ -182,14 +182,14 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
               </div>
 
               {/* Item Cards List */}
-              <div className="p-4 space-y-2.5 max-h-[500px] overflow-y-auto">
+              <div className="p-4 space-y-2.5 max-h-[580px] overflow-y-auto">
                 {selectedLocationItems.map((item) => (
                   <div
                     key={item.id}
                     className="p-3 bg-card hover:bg-muted/50 border border-border hover:border-border rounded-xl transition-all flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
                         {typeIcons[item.type] || <Folder className="w-4 h-4 text-muted-foreground" />}
                       </div>
                       <div className="min-w-0">

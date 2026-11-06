@@ -51,12 +51,12 @@ export function DashboardActionQueueClient({
       {/* Header */}
       <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         <div className="space-y-0.5">
-          <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
+          <h2 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
             <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
             คิวงานและรายการที่ต้องดำเนินการ
-          </h3>
+          </h2>
           <p className="text-xs text-muted-foreground">
-            รายการพัสดุชำรุดรอส่งซ่อมและพัสดุที่ต้องเติมสต็อกเร่งด่วน
+            รายการครุภัณฑ์ชำรุดรอส่งซ่อมและพัสดุที่ต้องเติมสต็อกเร่งด่วน
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export function DashboardActionQueueClient({
             }`}
           >
             <Hammer className="size-3.5" />
-            <span>พัสดุชำรุดและรอซ่อม</span>
+            <span>ครุภัณฑ์ชำรุดและรอซ่อม</span>
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
                 damagedItems.length > 0
@@ -151,7 +151,7 @@ export function DashboardActionQueueClient({
                 <CheckCircle2 className="size-4" />
               </div>
               <p className="text-xs text-muted-foreground max-w-md">
-                ไม่มีพัสดุชำรุดหรือรอซ่อมในขณะนี้ อุปกรณ์ทั้งหมดอยู่ในสภาพพร้อมใช้งาน
+                ไม่มีครุภัณฑ์ชำรุดหรือรอซ่อมในขณะนี้ อุปกรณ์ทั้งหมดอยู่ในสภาพพร้อมใช้งาน
               </p>
             </div>
           ) : (
@@ -168,7 +168,8 @@ export function DashboardActionQueueClient({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image_url}
-                        alt={item.item_name}
+                        alt=""
+                        aria-hidden="true"
                         className="w-9 h-9 rounded-lg object-cover border border-border/70 shrink-0 shadow-2xs"
                       />
                     ) : (
@@ -219,6 +220,7 @@ export function DashboardActionQueueClient({
 
                     <Link
                       href={`/items/${item.id}`}
+                      aria-label={`ดูข้อมูล ${item.item_name}`}
                       className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-border/70 bg-card hover:bg-muted text-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
                     >
                       <span>ดูข้อมูล</span>
@@ -285,6 +287,7 @@ export function DashboardActionQueueClient({
 
                   <Link
                     href={`/items/${item.id}`}
+                    aria-label={`ดูข้อมูล ${item.item_name}`}
                     className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-border/70 bg-card hover:bg-muted text-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
                   >
                     <span>ดูข้อมูล</span>
@@ -296,6 +299,22 @@ export function DashboardActionQueueClient({
           )}
         </div>
       )}
+
+      {/* Action Queue Footer / Registry Deep-link */}
+      <div className="px-4 py-2.5 sm:px-5 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+        <span className="text-muted-foreground text-[11px] sm:text-xs">
+          {activeTab === 'damaged'
+            ? `แสดงคิวชำรุด ${damagedItems.length} รายการล่าสุด`
+            : `แสดงคิวใกล้หมดคลัง ${lowStockItems.length} รายการล่าสุด`}
+        </span>
+        <Link
+          href={activeTab === 'damaged' ? '/items?status=damaged' : '/items'}
+          className="font-medium text-primary hover:underline inline-flex items-center gap-1 shrink-0"
+        >
+          <span>{activeTab === 'damaged' ? 'ดูรายการครุภัณฑ์ชำรุดทั้งหมดในทะเบียน' : 'ดูทะเบียนพัสดุทั้งหมด'}</span>
+          <ChevronRight className="size-3.5" />
+        </Link>
+      </div>
     </div>
   )
 }

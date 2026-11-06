@@ -87,9 +87,9 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('items')
-    .select('id, item_name, item_type, asset_no, serial_no, quantity, category:categories(id, name), unit:units(name)')
+    .select('id, item_name, item_type, asset_no, serial_no, quantity, responsible_person, category:categories(id, name), unit:units(name), location:locations(name)')
     .is('deleted_at', null)
-    .neq('status', 'disposed')
+    .in('status', ['active', 'spare'])
     .order('item_type', { ascending: true })
     .order('item_name', { ascending: true })
 
@@ -102,8 +102,10 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
       asset_no: string | null
       serial_no: string | null
       quantity: number
+      responsible_person: string | null
       category: { id: string; name: string } | { id: string; name: string }[] | null
       unit: { name: string } | { name: string }[] | null
+      location: { name: string } | { name: string }[] | null
     }
     return {
       id: row.id,
@@ -114,6 +116,8 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
       quantity: Number(row.quantity) || 0,
       category: Array.isArray(row.category) ? row.category[0] : row.category ?? null,
       unit: Array.isArray(row.unit) ? row.unit[0] : row.unit ?? null,
+      location_name: Array.isArray(row.location) ? row.location[0]?.name ?? null : row.location?.name ?? null,
+      responsible_person: row.responsible_person ?? null,
     }
   })
 }

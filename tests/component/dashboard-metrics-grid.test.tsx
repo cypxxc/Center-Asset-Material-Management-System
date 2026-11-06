@@ -60,6 +60,15 @@ test('DashboardMetricsGrid renders all 4 Bento Cards with expected test values',
   assert.ok(screen.getByText('รายการเร่งด่วน'))
   assert.ok(screen.getByText('8 รายการ'))
   assert.ok(screen.getByText('5 รายการรอซ่อม • 3 สต็อกต่ำ'))
+
+  // Verify semantic h2 headings for WCAG hierarchy
+  const h2Elements = screen.getAllByRole('heading', { level: 2 })
+  assert.equal(h2Elements.length, 4, 'All 4 bento cards must have h2 titles')
+
+  // Verify progressbar accessibility
+  const progressBar = screen.getByRole('progressbar')
+  assert.ok(progressBar)
+  assert.equal(progressBar.getAttribute('aria-label'), 'สัดส่วนครุภัณฑ์และพัสดุ')
 })
 
 test('DashboardMetricsGrid applies tabular-nums and tracking-tight to numeric displays', async () => {

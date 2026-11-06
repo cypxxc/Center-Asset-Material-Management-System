@@ -2,22 +2,19 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  Armchair,
   BarChart3,
   Boxes,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
-  Layers,
-  Laptop,
   LogOut,
   MapPin,
   Package,
   Plus,
   Settings,
-  Tag,
   User,
   UserCog,
   History,
@@ -32,6 +29,7 @@ const IdleSessionTimeout = dynamic(
   { ssr: false }
 )
 import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from './nav-config'
 
@@ -52,30 +50,6 @@ interface SidebarProps {
       trash_count: number
     }
   }
-}
-
-function renderCategoryIcon(_iconName?: string | null, categoryName?: string) {
-  const n = (categoryName || '').toLowerCase()
-  if (
-    n.includes('comp') ||
-    n.includes('จอ') ||
-    n.includes('พิมพ์') ||
-    n.includes('it') ||
-    n.includes('tech') ||
-    n.includes('คอม')
-  ) {
-    return <Laptop className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
-  }
-  if (
-    n.includes('โต๊ะ') ||
-    n.includes('เก้าอี้') ||
-    n.includes('เฟอร์') ||
-    n.includes('furn') ||
-    n.includes('chair')
-  ) {
-    return <Armchair className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
-  }
-  return <Tag className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
 }
 
 interface NavItemTooltipProps {
@@ -117,9 +91,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
     }
   })
 
-  // User-controlled manual overrides for folder expansion
-  const [assetsFolderManual, setAssetsFolderManual] = useState<boolean | null>(null)
-  const [locationsFolderManual, setLocationsFolderManual] = useState<boolean | null>(null)
+  // User-controlled manual overrides for admin folder expansion
   const [adminFolderManual, setAdminFolderManual] = useState<boolean | null>(null)
 
   const [optimisticTarget, setOptimisticTarget] = useState<string | null>(null)
@@ -159,7 +131,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const effCategory = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('category_id') : currentCategory
   const effLocation = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('location_id') : currentLocation
 
-  const categories = sidebarData?.categories ?? []
   const locations = sidebarData?.locations ?? []
   const counts = sidebarData?.counts ?? {
     total_assets: 0,
@@ -171,29 +142,16 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const totalAssetsCount = counts.total_assets
   const totalSuppliesCount = counts.total_supplies
 
-  const getCategoryCount = (catId: string) => {
-    return categories.find((c) => c.id === catId)?.count ?? 0
-  }
-
-  const getLocationCount = (locId: string) => {
-    return locations.find((l) => l.id === locId)?.count ?? 0
-  }
-
   const isAdmin = profile?.role === 'admin'
   const isStaff = profile?.role === 'staff'
   const canWrite = isAdmin || isStaff
 
   const isOverviewActive = currentPath === '/dashboard'
 
-  const isAllItemsActive =
-    currentPath === '/items' &&
-    !effType &&
-    !effCategory &&
-    !effLocation
-
   const isAssetsActive =
     currentPath === '/items' &&
-    effType === 'asset' &&
+    (effType === 'asset' || !effType) &&
+    !effLocation &&
     !effCategory
 
   const isSuppliesActive =
@@ -212,9 +170,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const isAuditLogsActive = currentPath.startsWith('/admin/audit-logs')
   const isAdminActive = isSettingsActive || isUsersActive || isAuditLogsActive
 
-  // Compute folder expanded states: manual override wins; defaults to true if active child route
-  const assetsFolderExpanded = assetsFolderManual ?? Boolean(effCategory)
-  const locationsFolderExpanded = locationsFolderManual ?? Boolean(effLocation)
   const adminFolderExpanded = adminFolderManual ?? isAdminActive
 
   const navItemClass = (isActive: boolean) =>
@@ -257,15 +212,22 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               'flex items-center min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
               isCollapsed ? 'justify-center' : 'gap-2.5 flex-1'
             )}
-            title="CAMMS Portal"
+            title="CAMMS Portal — เขตสุขภาพที่ 7"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-              <Package className="h-4 w-4" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-2xs ring-1 ring-border/60 bg-white/95 p-0.5">
+              <Image
+                src="/images/moph-r7-emblem.webp"
+                alt="โลโก้เขตสุขภาพที่ 7"
+                width={32}
+                height={32}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
             {!isCollapsed && (
               <div className="min-w-0 leading-tight">
                 <div className="truncate text-sm font-bold tracking-tight text-foreground">CAMMS Portal</div>
-                <div className="truncate text-[10px] font-normal text-muted-foreground">ระบบทะเบียนครุภัณฑ์และพัสดุ</div>
+                <div className="truncate text-[10px] font-medium text-muted-foreground">เขตสุขภาพที่ 7</div>
               </div>
             )}
           </Link>
@@ -333,118 +295,39 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             </NavItemTooltip>
           </div>
 
-          {/* Group 1: ทะเบียนพัสดุ */}
+          {/* Group 1: งานทะเบียนพัสดุ */}
           <div className="space-y-1">
             {!isCollapsed ? (
               <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-                ทะเบียนพัสดุ
+                งานทะเบียนพัสดุ
               </p>
             ) : (
               <div className="my-1 border-t border-sidebar-border" />
             )}
 
-            {/* รายการทั้งหมด */}
-            <NavItemTooltip label="รายการทั้งหมด" enabled={isCollapsed}>
-              <Link
-                href="/items"
-                onPointerDown={() => handleOptimisticNavigate('/items')}
-                onClick={() => handleOptimisticNavigate('/items')}
-                aria-current={isAllItemsActive ? 'page' : undefined}
-                className={navItemClass(isAllItemsActive)}
-              >
-                <Layers className={navIconClass('text-indigo-500', isAllItemsActive)} />
-                {!isCollapsed && <span className="truncate">รายการทั้งหมด</span>}
-              </Link>
-            </NavItemTooltip>
-
             {/* ครุภัณฑ์ */}
-            <div className="space-y-0.5">
-              <div
+            <NavItemTooltip label={`ครุภัณฑ์ (${totalAssetsCount})`} enabled={isCollapsed}>
+              <Link
+                href="/items?type=asset"
+                onPointerDown={() => handleOptimisticNavigate('/items?type=asset')}
+                onClick={() => handleOptimisticNavigate('/items?type=asset')}
+                aria-current={isAssetsActive ? 'page' : undefined}
                 className={cn(
-                  'group flex items-center rounded-md font-medium transition-colors duration-150',
-                  isCollapsed ? 'justify-center h-9 w-9 mx-auto' : 'w-full px-1 py-0.5',
-                  isAssetsActive
-                    ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-xs'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  navItemClass(isAssetsActive),
+                  !isCollapsed && 'justify-between'
                 )}
               >
-                {!isCollapsed && (
-                  <button
-                    type="button"
-                    aria-label="แสดงหรือซ่อนหมวดหมู่ครุภัณฑ์"
-                    aria-expanded={assetsFolderExpanded}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setAssetsFolderManual((prev) => (prev ?? Boolean(effCategory)) ? false : true)
-                    }}
-                    className="p-1 rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    {assetsFolderExpanded ? (
-                      <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150" />
-                    )}
-                  </button>
-                )}
-
-                <NavItemTooltip label={`ครุภัณฑ์ (${totalAssetsCount})`} enabled={isCollapsed}>
-                  <Link
-                    href="/items?type=asset"
-                    onPointerDown={() => handleOptimisticNavigate('/items?type=asset')}
-                    onClick={() => handleOptimisticNavigate('/items?type=asset')}
-                    aria-current={isAssetsActive ? 'page' : undefined}
-                    className={cn(
-                      'flex items-center min-w-0 flex-1 py-1.5 outline-none rounded focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                      isCollapsed ? 'justify-center p-0' : 'px-1 text-xs'
-                    )}
-                  >
-                    <Package className={navIconClass('text-blue-500', isAssetsActive)} />
-                    {!isCollapsed && <span className="truncate flex-1 text-left">ครุภัณฑ์</span>}
-                  </Link>
-                </NavItemTooltip>
-
+                <div className="flex items-center min-w-0 flex-1">
+                  <Package className={navIconClass('text-blue-500', isAssetsActive)} />
+                  {!isCollapsed && <span className="truncate">ครุภัณฑ์</span>}
+                </div>
                 {!isCollapsed && (
                   <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
                     {totalAssetsCount}
                   </span>
                 )}
-              </div>
-
-              {/* Sub-categories */}
-              {!isCollapsed && assetsFolderExpanded && (
-                <div className="pl-5 ml-3 border-l border-sidebar-border space-y-0.5 pt-0.5 transition-all duration-150 motion-reduce:transition-none">
-                  {categories.map((cat) => {
-                    const href = `/items?type=asset&category_id=${cat.id}`
-                    const isCurrent = effCategory === cat.id && currentPath === '/items'
-                    const count = getCategoryCount(cat.id)
-                    return (
-                      <Link
-                        key={cat.id}
-                        href={href}
-                        onPointerDown={() => handleOptimisticNavigate(href)}
-                        onClick={() => handleOptimisticNavigate(href)}
-                        aria-current={isCurrent ? 'page' : undefined}
-                        className={cn(
-                          'text-left py-1.5 px-2 rounded-md flex items-center justify-between text-xs transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                          isCurrent
-                            ? 'bg-primary/10 text-primary font-bold shadow-xs'
-                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <div className="flex items-center min-w-0 pr-1">
-                          {renderCategoryIcon(cat.icon, cat.name)}
-                          <span className="truncate">{cat.name}</span>
-                        </div>
-                        <span className="text-[9px] font-semibold text-muted-foreground tabular-nums">
-                          {count}
-                        </span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+              </Link>
+            </NavItemTooltip>
 
             {/* พัสดุ */}
             <NavItemTooltip label={`พัสดุ (${totalSuppliesCount})`} enabled={isCollapsed}>
@@ -470,116 +353,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               </Link>
             </NavItemTooltip>
 
-            {/* สถานที่ */}
-            <div className="space-y-0.5">
-              <div
-                className={cn(
-                  'group flex items-center rounded-md font-medium transition-colors duration-150',
-                  isCollapsed ? 'justify-center h-9 w-9 mx-auto' : 'w-full px-1 py-0.5',
-                  isLocationsActive
-                    ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-xs'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                )}
-              >
-                {!isCollapsed && (
-                  <button
-                    type="button"
-                    aria-label="แสดงหรือซ่อนรายการสถานที่"
-                    aria-expanded={locationsFolderExpanded}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setLocationsFolderManual((prev) => (prev ?? Boolean(effLocation)) ? false : true)
-                    }}
-                    className="p-1 rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    {locationsFolderExpanded ? (
-                      <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150" />
-                    )}
-                  </button>
-                )}
-
-                <NavItemTooltip label={`สถานที่ (${locations.length})`} enabled={isCollapsed}>
-                  <Link
-                    href="/locations"
-                    onPointerDown={() => handleOptimisticNavigate('/locations')}
-                    onClick={() => handleOptimisticNavigate('/locations')}
-                    aria-current={isLocationsActive ? 'page' : undefined}
-                    className={cn(
-                      'flex items-center min-w-0 flex-1 py-1.5 outline-none rounded focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                      isCollapsed ? 'justify-center p-0' : 'px-1 text-xs'
-                    )}
-                  >
-                    <MapPin className={navIconClass('text-rose-500', isLocationsActive)} />
-                    {!isCollapsed && <span className="truncate flex-1 text-left">สถานที่</span>}
-                  </Link>
-                </NavItemTooltip>
-
-                {!isCollapsed && (
-                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
-                    {locations.length}
-                  </span>
-                )}
-              </div>
-
-              {/* Sub-locations */}
-              {!isCollapsed && locationsFolderExpanded && (
-                <div className="pl-5 ml-3 border-l border-sidebar-border space-y-0.5 pt-0.5 transition-all duration-150 motion-reduce:transition-none">
-                  {locations.map((loc) => {
-                    const href = `/items?location_id=${loc.id}`
-                    const isCurrent = effLocation === loc.id && currentPath === '/items'
-                    const count = getLocationCount(loc.id)
-                    return (
-                      <Link
-                        key={loc.id}
-                        href={href}
-                        onPointerDown={() => handleOptimisticNavigate(href)}
-                        onClick={() => handleOptimisticNavigate(href)}
-                        aria-current={isCurrent ? 'page' : undefined}
-                        className={cn(
-                          'text-left py-1.5 px-2 rounded-md flex items-center justify-between text-xs transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                          isCurrent
-                            ? 'bg-primary/10 text-primary font-bold shadow-xs'
-                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <span className="truncate pr-1">{loc.name}</span>
-                        <span className="text-[9px] font-semibold text-muted-foreground tabular-nums">
-                          {count}
-                        </span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Group 2: สรุปข้อมูล / รายงาน */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-                สรุปข้อมูล
-              </p>
-            ) : (
-              <div className="my-1 border-t border-sidebar-border" />
-            )}
-
-            <NavItemTooltip label="รายงาน" enabled={isCollapsed}>
-              <Link
-                href="/reports"
-                onPointerDown={() => handleOptimisticNavigate('/reports')}
-                onClick={() => handleOptimisticNavigate('/reports')}
-                aria-current={isReportsActive ? 'page' : undefined}
-                className={navItemClass(isReportsActive)}
-              >
-                <BarChart3 className={navIconClass('text-emerald-500', isReportsActive)} />
-                {!isCollapsed && <span className="truncate">รายงาน</span>}
-              </Link>
-            </NavItemTooltip>
-
             {/* เบิก-จ่ายพัสดุ */}
             <NavItemTooltip label="เบิก-จ่ายพัสดุ" enabled={isCollapsed}>
               <Link
@@ -589,8 +362,56 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 aria-current={isDisbursementsActive ? 'page' : undefined}
                 className={navItemClass(isDisbursementsActive)}
               >
-                <Boxes className={navIconClass('text-amber-500', isDisbursementsActive)} />
+                <Boxes className={navIconClass('text-orange-500', isDisbursementsActive)} />
                 {!isCollapsed && <span className="truncate">เบิก-จ่ายพัสดุ</span>}
+              </Link>
+            </NavItemTooltip>
+
+            {/* สถานที่ */}
+            <NavItemTooltip label={`สถานที่ (${locations.length})`} enabled={isCollapsed}>
+              <Link
+                href="/locations"
+                onPointerDown={() => handleOptimisticNavigate('/locations')}
+                onClick={() => handleOptimisticNavigate('/locations')}
+                aria-current={isLocationsActive ? 'page' : undefined}
+                className={cn(
+                  navItemClass(isLocationsActive),
+                  !isCollapsed && 'justify-between'
+                )}
+              >
+                <div className="flex items-center min-w-0 flex-1">
+                  <MapPin className={navIconClass('text-rose-500', isLocationsActive)} />
+                  {!isCollapsed && <span className="truncate">สถานที่</span>}
+                </div>
+                {!isCollapsed && (
+                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
+                    {locations.length}
+                  </span>
+                )}
+              </Link>
+            </NavItemTooltip>
+          </div>
+
+          {/* Group 2: สรุปและรายงาน */}
+          <div className="space-y-1">
+            {!isCollapsed ? (
+              <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+                สรุปและรายงาน
+              </p>
+            ) : (
+              <div className="my-1 border-t border-sidebar-border" />
+            )}
+
+            <NavItemTooltip label="รายงานและสถิติ" enabled={isCollapsed}>
+              <Link
+                href="/reports"
+                onPointerDown={() => handleOptimisticNavigate('/reports')}
+                onClick={() => handleOptimisticNavigate('/reports')}
+                aria-current={isReportsActive ? 'page' : undefined}
+                className={navItemClass(isReportsActive)}
+              >
+                <BarChart3 className={navIconClass('text-emerald-500', isReportsActive)} />
+                {!isCollapsed && <span className="truncate">รายงานและสถิติ</span>}
               </Link>
             </NavItemTooltip>
           </div>
@@ -758,21 +579,26 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             </NavItemTooltip>
           )}
 
-          <NavItemTooltip label="ออกจากระบบ" enabled={isCollapsed}>
-            <form action={signOut} className={isCollapsed ? 'flex justify-center' : 'w-full'}>
-              <button
-                type="submit"
-                aria-label="ออกจากระบบ"
-                className={cn(
-                  'flex items-center rounded-lg text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive',
-                  isCollapsed ? 'h-9 w-9 justify-center p-0' : 'w-full px-2.5 py-1.5 gap-2'
-                )}
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                {!isCollapsed && <span>ออกจากระบบ</span>}
-              </button>
-            </form>
-          </NavItemTooltip>
+          <div className={cn('flex items-center gap-1.5', isCollapsed && 'flex-col')}>
+            <NavItemTooltip label="ออกจากระบบ" enabled={isCollapsed}>
+              <form action={signOut} className={isCollapsed ? 'flex justify-center' : 'flex-1 min-w-0'}>
+                <button
+                  type="submit"
+                  aria-label="ออกจากระบบ"
+                  className={cn(
+                    'flex items-center rounded-lg text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive',
+                    isCollapsed ? 'h-9 w-9 justify-center p-0' : 'w-full px-2.5 py-1.5 gap-2'
+                  )}
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span>ออกจากระบบ</span>}
+                </button>
+              </form>
+            </NavItemTooltip>
+            <NavItemTooltip label="สลับโหมดสี (สว่าง/มืด)" enabled={isCollapsed}>
+              <ThemeToggle className={cn('shrink-0 border-sidebar-border bg-card/60 hover:bg-sidebar-accent', isCollapsed ? 'h-9 w-9' : 'h-8 w-8')} />
+            </NavItemTooltip>
+          </div>
         </div>
         <IdleSessionTimeout />
       </aside>

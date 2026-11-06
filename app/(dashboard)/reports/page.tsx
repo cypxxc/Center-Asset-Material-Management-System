@@ -15,6 +15,8 @@ interface ReportsPageProps {
   searchParams: Promise<ItemListSearchParams>
 }
 
+export const metadata = { title: 'สรุปรายงาน' }
+
 interface DeferredReportSectionProps {
   reportDataPromise: ReturnType<typeof getReportItemsList>
   depreciationPromise: ReturnType<typeof getDepreciationReport>

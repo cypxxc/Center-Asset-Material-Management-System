@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import type { ReportItemRow } from '@/features/reports/types'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
-import { formatDate } from '@/lib/date'
+import { formatDate, formatDateThaiBE } from '@/lib/date'
 import { preventCSVInjection } from '@/lib/unicode'
 
 export interface ReportExcelOptions {
@@ -259,5 +259,121 @@ export async function generateReportExcel(
     legacyTotalQty,
     legacyTotalVal
   )
+  return workbook.xlsx.writeBuffer()
+}
+
+export const GOVERNMENT_LEDGER_HEADERS = [
+  'ลำดับ',
+  'วัน เดือน ปีที่รับ',
+  'รับจาก (งปม.)',
+  'รายการครุภัณฑ์',
+  'ยี่ห้อ/รุ่น',
+  'ราคา',
+  'หน่วย',
+  'เลขครุภัณฑ์',
+  'เลขสินทรัพย์',
+  'ผู้ครอบครอง',
+  'ใช้งานที่',
+  'ใช้งานได้',
+  'ชำรุด',
+  'เสื่อมสภาพ',
+  'หมายเหตุ',
+] as const
+
+export async function buildGovernmentLedgerExcelWorkbook(
+  items: ReportItemRow[],
+  filterSummary = 'ครุภัณฑ์ทั้งหมด'
+): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'CAMMS'
+  workbook.created = new Date()
+
+  const worksheet = workbook.addWorksheet('ทะเบียนคุมสินทรัพย์', {
+    views: [{ showGridLines: true }],
+  })
+
+  // Title block
+  const titleRow1 = worksheet.addRow(['ทะเบียนคุมสินทรัพย์'])
+  titleRow1.font = { name: 'Sarabun', bold: true, size: 14 }
+  const titleRow2 = worksheet.addRow(['บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'])
+  titleRow2.font = { name: 'Sarabun', bold: true, size: 12 }
+  const titleRow3 = worksheet.addRow([
+    `หน่วยงาน: สำนักงานเขตสุขภาพที่ 7    หมวด: ${filterSummary}    วันที่พิมพ์: ${formatDate()}`,
+  ])
+  titleRow3.font = { name: 'Sarabun', italic: true, size: 10, color: { argb: 'FF475569' } }
+  worksheet.addRow([]) // Spacer
+
+  // Header row
+  const headerRow = worksheet.addRow([...GOVERNMENT_LEDGER_HEADERS])
+  headerRow.height = 28
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Sarabun', bold: true, size: 11, color: { argb: 'FFFFFFFF' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      right: { style: 'thin', color: { argb: 'FF94A3B8' } },
+    }
+  })
+
+  items.forEach((item, index) => {
+    const unitPrice = item.unit_price ?? 0
+    const brandModel = [item.brand, item.model].filter(Boolean).join(' ') + (item.serial_no ? ` s/n: ${item.serial_no}` : '')
+    const isUsable = item.status === 'active' || item.status === 'spare'
+    const isDamaged = item.status === 'damaged' || item.status === 'waiting_repair'
+    const isDeteriorated = item.status === 'inactive' || item.status === 'disposed'
+
+    const row = worksheet.addRow([
+      index + 1,
+      item.acquired_date ? formatDateThaiBE(item.acquired_date) : '-',
+      preventCSVInjection(item.budget_source || '-'),
+      preventCSVInjection(item.item_name),
+      preventCSVInjection(brandModel || '-'),
+      unitPrice,
+      preventCSVInjection(item.unit?.name || 'เครื่อง'),
+      preventCSVInjection(item.asset_no || '-'),
+      preventCSVInjection(item.gfmis_number || '-'),
+      preventCSVInjection(item.responsible_person || '-'),
+      preventCSVInjection(item.location?.name || '-'),
+      isUsable ? '/' : '',
+      isDamaged ? '/' : '',
+      isDeteriorated ? '/' : '',
+      preventCSVInjection(item.note || 'ส่วนกลาง'),
+    ])
+
+    row.height = 22
+    const priceCell = row.getCell(6)
+    priceCell.numFmt = '#,##0.00'
+    priceCell.alignment = { vertical: 'middle', horizontal: 'right' }
+
+    row.eachCell((cell, colNumber) => {
+      cell.font = { name: 'Sarabun', size: 10 }
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      }
+      if ([1, 2, 7, 12, 13, 14].includes(colNumber)) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      }
+    })
+  })
+
+  worksheet.columns.forEach((column, colIdx) => {
+    const colHeader = GOVERNMENT_LEDGER_HEADERS[colIdx] || ''
+    column.width = Math.max(colHeader.length * 2, 12)
+  })
+
+  return workbook
+}
+
+export async function generateGovernmentLedgerExcel(
+  items: ReportItemRow[],
+  filterSummary = 'ครุภัณฑ์ทั้งหมด'
+): Promise<ExcelJS.Buffer> {
+  const workbook = await buildGovernmentLedgerExcelWorkbook(items, filterSummary)
   return workbook.xlsx.writeBuffer()
 }

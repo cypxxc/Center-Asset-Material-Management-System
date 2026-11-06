@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
+  Activity,
   Boxes,
   Plus,
   RotateCcw,
@@ -13,6 +14,7 @@ import {
   Clock,
   FileEdit,
   CheckCircle2,
+  Tag,
   X,
   FileText,
 } from 'lucide-react'
@@ -22,6 +24,7 @@ import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
   DataTable,
@@ -41,6 +44,22 @@ import {
   DISBURSEMENT_STATUS_LABELS,
 } from '@/features/disbursements/print-generator'
 
+const DISBURSEMENT_STATUS_OPTIONS: FilterOption[] = [
+  { value: 'draft', label: 'ฉบับร่าง', colorDot: 'bg-slate-400' },
+  { value: 'confirmed', label: 'ยืนยันแล้ว', colorDot: 'bg-emerald-500' },
+  { value: 'active_borrow', label: 'กำลังยืม', colorDot: 'bg-amber-500' },
+  { value: 'partially_returned', label: 'คืนบางส่วน', colorDot: 'bg-sky-500' },
+  { value: 'returned', label: 'คืนครบแล้ว', colorDot: 'bg-teal-500' },
+  { value: 'reversed', label: 'คืนสภาพแล้ว', colorDot: 'bg-purple-500' },
+  { value: 'cancelled', label: 'ยกเลิกแล้ว', colorDot: 'bg-rose-500' },
+]
+
+const DISBURSEMENT_TYPE_OPTIONS: FilterOption[] = [
+  { value: 'material_issue', label: 'เบิกจ่ายพัสดุ' },
+  { value: 'asset_handover', label: 'ส่งมอบครุภัณฑ์' },
+  { value: 'asset_borrow', label: 'ยืมครุภัณฑ์' },
+]
+
 interface DisbursementListClientProps {
   initialItems: DisbursementRow[]
   total: number
@@ -51,6 +70,12 @@ interface DisbursementListClientProps {
   currentStatus: string
   currentType: string
   canCreate: boolean
+  stats?: {
+    total: number
+    active_borrow: number
+    draft: number
+    confirmed: number
+  }
 }
 
 export function DisbursementListClient({
@@ -63,6 +88,7 @@ export function DisbursementListClient({
   currentStatus,
   currentType,
   canCreate,
+  stats,
 }: DisbursementListClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -209,7 +235,7 @@ export function DisbursementListClient({
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground font-medium">กำลังยืม</div>
             <div className="text-xl font-bold font-mono tracking-tight text-amber-600 dark:text-amber-400">
-              {initialItems.filter((i) => i.status === 'active_borrow').length || (status === 'active_borrow' ? total : 0)}
+              {stats?.active_borrow ?? (initialItems.filter((i) => i.status === 'active_borrow').length || (status === 'active_borrow' ? total : 0))}
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -232,7 +258,7 @@ export function DisbursementListClient({
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground font-medium">ฉบับร่าง</div>
             <div className="text-xl font-bold font-mono tracking-tight text-slate-700 dark:text-slate-300">
-              {initialItems.filter((i) => i.status === 'draft').length || (status === 'draft' ? total : 0)}
+              {stats?.draft ?? (initialItems.filter((i) => i.status === 'draft').length || (status === 'draft' ? total : 0))}
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
@@ -255,7 +281,7 @@ export function DisbursementListClient({
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground font-medium">ยืนยันแล้ว</div>
             <div className="text-xl font-bold font-mono tracking-tight text-emerald-600 dark:text-emerald-400">
-              {initialItems.filter((i) => i.status === 'confirmed').length || (status === 'confirmed' ? total : 0)}
+              {stats?.confirmed ?? (initialItems.filter((i) => i.status === 'confirmed').length || (status === 'confirmed' ? total : 0))}
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -280,40 +306,34 @@ export function DisbursementListClient({
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             {/* Status Filter Dropdown */}
-            <select
+            <FilterDropdown
+              label="สถานะเอกสาร"
+              ariaLabel="กรองตามสถานะเอกสาร"
+              name="status"
               value={status}
-              aria-label="กรองตามสถานะเอกสาร"
-              onChange={(e) => {
-                setStatus(e.target.value)
-                applyFilters(q, e.target.value, type, 1)
+              options={DISBURSEMENT_STATUS_OPTIONS}
+              onChange={(val) => {
+                setStatus(val)
+                applyFilters(q, val, type, 1)
               }}
-              className="h-9 px-3 rounded-lg border border-input bg-background text-xs text-foreground font-medium hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
-            >
-              <option value="">ทุกสถานะเอกสาร</option>
-              <option value="draft">ฉบับร่าง</option>
-              <option value="confirmed">ยืนยันแล้ว</option>
-              <option value="active_borrow">กำลังยืม</option>
-              <option value="partially_returned">คืนบางส่วน</option>
-              <option value="returned">คืนครบแล้ว</option>
-              <option value="reversed">คืนสภาพแล้ว</option>
-              <option value="cancelled">ยกเลิกแล้ว</option>
-            </select>
+              icon={<Activity className="h-3.5 w-3.5" />}
+              allLabel="ทุกสถานะเอกสาร"
+            />
 
             {/* Type Filter Dropdown */}
-            <select
+            <FilterDropdown
+              label="ประเภทรายการ"
+              ariaLabel="กรองตามประเภทรายการ"
+              name="type"
               value={type}
-              aria-label="กรองตามประเภทรายการ"
-              onChange={(e) => {
-                setType(e.target.value)
-                applyFilters(q, status, e.target.value, 1)
+              options={DISBURSEMENT_TYPE_OPTIONS}
+              onChange={(val) => {
+                setType(val)
+                applyFilters(q, status, val, 1)
               }}
-              className="h-9 px-3 rounded-lg border border-input bg-background text-xs text-foreground font-medium hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
-            >
-              <option value="">ทุกประเภทรายการ</option>
-              <option value="material_issue">เบิกจ่ายพัสดุ</option>
-              <option value="asset_handover">ส่งมอบครุภัณฑ์</option>
-              <option value="asset_borrow">ยืมครุภัณฑ์</option>
-            </select>
+              icon={<Tag className="h-3.5 w-3.5" />}
+              allLabel="ทุกประเภทรายการ"
+            />
 
             {hasActiveFilters && (
               <Button

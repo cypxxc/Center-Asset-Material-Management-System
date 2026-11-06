@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/header'
 import { getDashboardLayoutData } from '@/features/items/queries'
 import { NewItemDialogProvider } from '@/features/items/components/new-item-dialog-provider'
 import { ToastProvider } from '@/components/ui/toast'
+import { OfflineBanner } from '@/components/offline-banner'
 
 export const instant = false
 
@@ -57,20 +58,23 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       >
         ข้ามไปเนื้อหาหลัก
       </a>
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-        <NewItemDialogProvider
-          categories={references.categories}
-          locations={references.locations}
-          units={references.units}
-        >
-          <Sidebar profile={profile} sidebarData={sidebarData} />
-          <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-            <Header profile={profile} />
-            <main id="main-content" className="flex-1 min-w-0 overflow-hidden">
-              {children}
-            </main>
-          </div>
-        </NewItemDialogProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground flex-col">
+        <OfflineBanner />
+        <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+          <NewItemDialogProvider
+            categories={references.categories}
+            locations={references.locations}
+            units={references.units}
+          >
+            <Sidebar profile={profile} sidebarData={sidebarData} />
+            <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+              <Header profile={profile} />
+              <main id="main-content" className="flex-1 min-w-0 overflow-hidden">
+                {children}
+              </main>
+            </div>
+          </NewItemDialogProvider>
+        </div>
       </div>
     </ToastProvider>
   )

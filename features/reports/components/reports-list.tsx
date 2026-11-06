@@ -1,11 +1,12 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useTransition, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Download, Printer, FileText, AlertTriangle, CheckCircle, Loader2, Filter, RotateCcw } from 'lucide-react'
+import { Download, Printer, FileText, AlertTriangle, CheckCircle, Loader2, Filter, RotateCcw, Activity, Boxes, MapPin, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
 import type { ReportItemRow, ReportStats } from '../types'
@@ -95,6 +96,37 @@ export function ReportsList({
     searchParams.location_id ||
     searchParams.type ||
     searchParams.status
+  )
+
+  const categoryOptions: FilterOption[] = useMemo(
+    () => categories.map((cat) => ({ value: cat.id, label: cat.name })),
+    [categories]
+  )
+
+  const locationOptions: FilterOption[] = useMemo(
+    () => locations.map((loc) => ({ value: loc.id, label: loc.name })),
+    [locations]
+  )
+
+  const typeOptions: FilterOption[] = useMemo(
+    () =>
+      Object.entries(ITEM_TYPE_LABELS).map(([value, label]) => ({
+        value,
+        label,
+      })),
+    []
+  )
+
+  const statusOptions: FilterOption[] = useMemo(
+    () => [
+      { value: 'active', label: 'ใช้งานได้', colorDot: 'bg-emerald-500' },
+      { value: 'spare', label: 'สำรอง', colorDot: 'bg-sky-500' },
+      { value: 'waiting_repair', label: 'ส่งซ่อม', colorDot: 'bg-amber-500' },
+      { value: 'damaged', label: 'ชำรุด', colorDot: 'bg-rose-500' },
+      { value: 'disposed', label: 'จำหน่ายแล้ว', colorDot: 'bg-purple-500' },
+      { value: 'inactive', label: 'ปลดระวาง', colorDot: 'bg-slate-400' },
+    ],
+    []
   )
 
   const buildFilterSummary = () => {
@@ -255,7 +287,7 @@ export function ReportsList({
           <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนพัสดุ</h1>
+                <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนครุภัณฑ์และพัสดุ</h1>
                 <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()}{preparedBy ? ` | จัดเตรียมโดย: ${preparedBy}` : ''}</p>
                 <p className="mt-2 text-xs text-foreground">
                   เงื่อนไข: {[
@@ -285,7 +317,7 @@ export function ReportsList({
                   <FileText className="w-4.5 h-4.5" />
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <span className="font-bold tracking-tight">รายงานพัสดุ</span>
+                  <span className="font-bold tracking-tight">รายงานทะเบียนครุภัณฑ์และพัสดุ</span>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     ระบบเรียลไทม์
@@ -404,55 +436,49 @@ export function ReportsList({
               />
             </div>
 
-            <select 
-              name="category_id" 
-              value={searchParams.category_id ?? ''} 
-              onChange={(e) => handleFilterChange({ category_id: e.target.value, page: '1' })}
-              className="h-9 rounded-lg border border-border/80 bg-background px-3 text-xs font-medium text-foreground hover:border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors"
-            >
-              <option value="">ทุกหมวดหมู่</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            <FilterDropdown
+              label="หมวดหมู่"
+              ariaLabel="กรองตามหมวดหมู่"
+              name="category_id"
+              value={searchParams.category_id ?? ''}
+              options={categoryOptions}
+              onChange={(val) => handleFilterChange({ category_id: val, page: '1' })}
+              icon={<Tag className="h-3.5 w-3.5" />}
+              allLabel="ทุกหมวดหมู่"
+            />
 
-            <select
+            <FilterDropdown
+              label="สถานที่"
+              ariaLabel="กรองตามสถานที่"
               name="location_id"
               value={searchParams.location_id ?? ''}
-              onChange={(e) => handleFilterChange({ location_id: e.target.value, page: '1' })}
-              className="h-9 rounded-lg border border-border/80 bg-background px-3 text-xs font-medium text-foreground hover:border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors"
-            >
-              <option value="">ทุกสถานที่ตั้ง</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
+              options={locationOptions}
+              onChange={(val) => handleFilterChange({ location_id: val, page: '1' })}
+              icon={<MapPin className="h-3.5 w-3.5" />}
+              allLabel="ทุกสถานที่ตั้ง"
+            />
 
-            <select 
-              name="type" 
-              value={searchParams.type ?? ''} 
-              onChange={(e) => handleFilterChange({ type: e.target.value, page: '1' })}
-              className="h-9 rounded-lg border border-border/80 bg-background px-3 text-xs font-medium text-foreground hover:border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors"
-            >
-              <option value="">ทุกประเภท</option>
-              {Object.entries(ITEM_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <FilterDropdown
+              label="ประเภท"
+              ariaLabel="กรองตามประเภท"
+              name="type"
+              value={searchParams.type ?? ''}
+              options={typeOptions}
+              onChange={(val) => handleFilterChange({ type: val, page: '1' })}
+              icon={<Boxes className="h-3.5 w-3.5" />}
+              allLabel="ทุกประเภท"
+            />
 
-            <select 
-              name="status" 
-              value={searchParams.status ?? ''} 
-              onChange={(e) => handleFilterChange({ status: e.target.value, page: '1' })}
-              className="h-9 rounded-lg border border-border/80 bg-background px-3 text-xs font-medium text-foreground hover:border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs transition-colors"
-            >
-              <option value="">ทุกสถานะ</option>
-              {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <FilterDropdown
+              label="สถานะ"
+              ariaLabel="กรองตามสถานะ"
+              name="status"
+              value={searchParams.status ?? ''}
+              options={statusOptions}
+              onChange={(val) => handleFilterChange({ status: val, page: '1' })}
+              icon={<Activity className="h-3.5 w-3.5" />}
+              allLabel="ทุกสถานะ"
+            />
           </form>
         </div>
 
@@ -538,7 +564,7 @@ export function ReportsList({
                 <tr className="border-b border-border/80 bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <DataTableHead className="py-3 px-4">ชื่อครุภัณฑ์ / หมายเลข</DataTableHead>
                   <DataTableHead className="py-3 px-4">หมวดหมู่</DataTableHead>
-                  <DataTableHead className="py-3 px-4 text-center">จำนวน</DataTableHead>
+                  <DataTableHead className="py-3 px-4 text-right">จำนวน</DataTableHead>
                   <DataTableHead className="py-3 px-4 text-right">ราคาต่อหน่วย</DataTableHead>
                   <DataTableHead className="py-3 px-4 text-right">ราคารวม</DataTableHead>
                 </tr>
@@ -558,7 +584,19 @@ export function ReportsList({
                         </div>
                       </DataTableCell>
                       <DataTableCell className="py-3 px-4 text-xs text-muted-foreground">{item.category?.name || 'ทั่วไป'}</DataTableCell>
-                      <DataTableCell className="py-3 px-4 text-center font-mono font-semibold text-xs text-card-foreground">{item.quantity} {item.unit?.name ?? ''}</DataTableCell>
+                      <DataTableCell className="py-3 px-4 text-right">
+                        <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0">
+                          <span className="font-mono font-semibold text-xs tabular-nums text-right flex-1 min-w-0 text-card-foreground">
+                            {item.quantity.toLocaleString('th-TH')}
+                          </span>
+                          <span
+                            className="text-xs font-normal text-muted-foreground truncate w-10 sm:w-12 text-left shrink-0"
+                            title={item.unit?.name || undefined}
+                          >
+                            {item.unit?.name ?? ''}
+                          </span>
+                        </div>
+                      </DataTableCell>
                       <DataTableCell className="py-3 px-4 text-right font-mono text-xs tabular-nums text-muted-foreground">{unitPrice.toLocaleString('th-TH')} บาท</DataTableCell>
                       <DataTableCell className="py-3 px-4 text-right font-mono font-bold text-xs tabular-nums text-card-foreground print:text-black">
                         {totalPrice.toLocaleString('th-TH')} บาท
@@ -583,7 +621,16 @@ export function ReportsList({
                 <tfoot>
                   <tr className="border-t-2 border-border/80 bg-muted/30 font-semibold">
                     <td colSpan={2} className="py-3.5 px-4 text-card-foreground text-right font-bold text-xs sm:text-sm">มูลค่ารวมทั้งสิ้น:</td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-xs sm:text-sm text-card-foreground">{totalQuantity} ชิ้น</td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0 font-mono font-bold text-xs sm:text-sm text-card-foreground">
+                        <span className="tabular-nums text-right flex-1 min-w-0">
+                          {totalQuantity.toLocaleString('th-TH')}
+                        </span>
+                        <span className="text-xs font-normal text-muted-foreground truncate w-10 sm:w-12 text-left shrink-0">
+                          ชิ้น
+                        </span>
+                      </div>
+                    </td>
                     <td colSpan={2} className="py-3.5 px-4 text-right font-mono font-extrabold text-sm sm:text-base text-primary">{totalValue.toLocaleString('th-TH')} บาท</td>
                   </tr>
                 </tfoot>

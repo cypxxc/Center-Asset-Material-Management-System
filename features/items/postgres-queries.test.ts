@@ -63,6 +63,10 @@ test('item pagination normalizes invalid pages and rejects external image URLs',
   assert.equal(result.totalPages, 2)
   assert.equal(result.items[0].image_url, null)
   assert.match(statements[1].sql, /order by i\.item_name asc/)
+
+  responses = [[{ total: 1 }], [{ id: 'two', image_url: null }]]
+  await getItems({ sort_by: 'category', sort_dir: 'asc' })
+  assert.match(statements[3].sql, /order by c\.name collate "th-TH-x-icu" asc/)
 })
 
 test('Postgres item batches use a precise timestamp projection and omit count after a cursor', async () => {

@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/data-table'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/date'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 
 interface UsersClientProps {
   currentUserId: string
@@ -76,6 +77,17 @@ const ROLE_CONFIG: Record<
     icon: <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" />,
   },
 }
+
+const ROLE_FILTER_OPTIONS: FilterOption[] = [
+  { value: 'admin', label: 'ผู้ดูแลระบบ (Admin)', icon: <ShieldCheck className="h-3.5 w-3.5 text-blue-500" /> },
+  { value: 'staff', label: 'เจ้าหน้าที่ (Staff)', icon: <Shield className="h-3.5 w-3.5 text-emerald-500" /> },
+  { value: 'viewer', label: 'ผู้เข้าชม (Viewer)', icon: <Eye className="h-3.5 w-3.5 text-slate-500" /> },
+]
+
+const STATUS_FILTER_OPTIONS: FilterOption[] = [
+  { value: 'true', label: 'เปิดใช้งาน (Active)', colorDot: 'bg-emerald-500' },
+  { value: 'false', label: 'ปิดการใช้งาน (Inactive)', colorDot: 'bg-rose-500' },
+]
 
 export default function UsersClient({
   currentUserId,
@@ -354,32 +366,35 @@ export default function UsersClient({
         </form>
 
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selectedRole}
-            onChange={(e) => {
-              setSelectedRole(e.target.value)
-              applyFilters({ role: e.target.value })
+          <FilterDropdown
+            label="บทบาท"
+            ariaLabel="กรองตามบทบาท"
+            name="role"
+            value={selectedRole === 'all' ? '' : selectedRole}
+            options={ROLE_FILTER_OPTIONS}
+            onChange={(val) => {
+              const next = val || 'all'
+              setSelectedRole(next)
+              applyFilters({ role: next })
             }}
-            className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
-          >
-            <option value="all">บทบาททั้งหมด (All Roles)</option>
-            <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-            <option value="staff">เจ้าหน้าที่ (Staff)</option>
-            <option value="viewer">ผู้เข้าชม (Viewer)</option>
-          </select>
+            icon={<Shield className="h-3.5 w-3.5" />}
+            allLabel="บทบาททั้งหมด"
+          />
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value)
-              applyFilters({ is_active: e.target.value })
+          <FilterDropdown
+            label="สถานะ"
+            ariaLabel="กรองตามสถานะ"
+            name="is_active"
+            value={selectedStatus === 'all' ? '' : selectedStatus}
+            options={STATUS_FILTER_OPTIONS}
+            onChange={(val) => {
+              const next = val || 'all'
+              setSelectedStatus(next)
+              applyFilters({ is_active: next })
             }}
-            className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
-          >
-            <option value="all">สถานะทั้งหมด (All Status)</option>
-            <option value="true">เปิดใช้งาน (Active)</option>
-            <option value="false">ปิดการใช้งาน (Inactive)</option>
-          </select>
+            icon={<UserCheck className="h-3.5 w-3.5" />}
+            allLabel="สถานะทั้งหมด"
+          />
 
           {(searchTerm || selectedRole !== 'all' || selectedStatus !== 'all') && (
             <Button
