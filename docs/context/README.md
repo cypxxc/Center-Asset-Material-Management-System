@@ -13,7 +13,7 @@ Thai-first UI, RBAC, dark mode, audit logging.
 | Layer | Technology |
 |-------|-----------|
 | **Framework** | Next.js 16.3.8 (App Router, webpack, `proxy.ts` middleware) |
-| **UI** | React 19, Tailwind CSS v4, Radix UI, Lucide Icons, Capriola & Sarabun fonts |
+| **UI** | React 19, Tailwind CSS v4, Radix UI, Lucide Icons, IBM Plex Sans Thai & Geist Mono fonts |
 | **Database** | Supabase PostgreSQL / Standalone PostgreSQL + Drizzle ORM, RLS |
 | **Auth** | Supabase Auth or local Postgres auth (`private_auth` schema) |
 | **Validation** | Zod v4 + custom Unicode preprocessors |

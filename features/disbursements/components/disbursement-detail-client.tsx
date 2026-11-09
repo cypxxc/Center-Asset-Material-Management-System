@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   FileText,
 } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { formatDate } from '@/lib/date'
 import type { DisbursementRow, DisbursementItemRow, ItemCondition } from '@/features/disbursements/types'
 import {
@@ -176,82 +179,79 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="space-y-6">
       {/* Top Navigation & Status Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/disbursements"
-            className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-500" />
-              <span>{doc.document_no || 'เอกสารฉบับร่าง (ยังไม่ยืนยัน)'}</span>
-            </h1>
-            <p className="text-[11px] text-muted-foreground">
-              สร้างเมื่อ {formatDate(doc.created_at)}
-            </p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Print Button (Available for confirmed/terminal docs) */}
-          {!isDraft && (
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors shadow-xs cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 text-blue-500" />
-              <span>พิมพ์ใบเบิก-จ่าย (A4)</span>
-            </button>
-          )}
-
-          {canMutate && isDraft && (
-            <>
-              <Link
-                href={`/disbursements/${doc.id}/edit`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors shadow-xs"
-              >
-                <span>แก้ไขร่าง</span>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-sm" asChild className="mr-1">
+              <Link href="/disbursements" aria-label="กลับไปหน้ารายการ">
+                <ArrowLeft className="h-4 w-4" />
               </Link>
-
-              <button
-                type="button"
-                onClick={() => setCancelModalOpen(true)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+            </Button>
+            <FileText className="h-5 w-5 text-amber-500 shrink-0" aria-hidden="true" />
+            <span>{doc.document_no || 'เอกสารฉบับร่าง (ยังไม่ยืนยัน)'}</span>
+          </span>
+        }
+        subtitle={`สร้างเมื่อ ${formatDate(doc.created_at)}`}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Print Button (Available for confirmed/terminal docs) */}
+            {!isDraft && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="gap-1.5 shadow-xs"
               >
-                <XCircle className="h-3.5 w-3.5" />
-                <span>ยกเลิกร่าง</span>
-              </button>
+                <Printer className="h-3.5 w-3.5 text-primary" />
+                <span>พิมพ์ใบเบิก-จ่าย (A4)</span>
+              </Button>
+            )}
 
-              <button
-                type="button"
-                onClick={() => setConfirmModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
+            {canMutate && isDraft && (
+              <>
+                <Button variant="outline" size="sm" asChild className="shadow-xs">
+                  <Link href={`/disbursements/${doc.id}/edit`}>
+                    <span>แก้ไขร่าง</span>
+                  </Link>
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setCancelModalOpen(true)}
+                  className="gap-1 shadow-xs"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>ยกเลิกร่าง</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmModalOpen(true)}
+                  className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>ยืนยันการเบิก-จ่าย</span>
+                </Button>
+              </>
+            )}
+
+            {canMutate && canReverse && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setReverseModalOpen(true)}
+                className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 shadow-xs"
               >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>ยืนยันการเบิก-จ่าย</span>
-              </button>
-            </>
-          )}
-
-          {canMutate && canReverse && (
-            <button
-              type="button"
-              onClick={() => setReverseModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950 transition-colors cursor-pointer"
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-              <span>คืนสภาพเอกสาร (Reverse)</span>
-            </button>
-          )}
-        </div>
-      </div>
+                <Undo2 className="h-3.5 w-3.5" />
+                <span>คืนสภาพเอกสาร (Reverse)</span>
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {errorMsg && (
         <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:border-rose-900 dark:text-rose-300 text-xs flex items-center gap-2">
@@ -406,18 +406,20 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                     {canReturn && (
                       <td className="py-2 px-3 text-right">
                         {unreturned > 0 ? (
-                          <button
+                          <Button
                             type="button"
+                            size="xs"
+                            variant="secondary"
                             onClick={() => {
                               setActiveReturnLine(item)
                               setReturnQty(unreturned)
                               setReturnModalOpen(true)
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 text-[11px] font-medium transition-colors cursor-pointer"
+                            className="gap-1 text-[11px]"
                           >
                             <RotateCcw className="h-3 w-3" />
                             <span>บันทึกคืน ({unreturned})</span>
-                          </button>
+                          </Button>
                         ) : (
                           <span className="text-emerald-600 text-[11px] font-medium">คืนครบแล้ว</span>
                         )}
@@ -432,79 +434,39 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
       </div>
 
       {/* Confirmation Modal */}
-      {confirmModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card text-card-foreground border border-border rounded-lg max-w-md w-full p-4 space-y-3 shadow-xl">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span>ยืนยันการเบิก-จ่ายพัสดุ</span>
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              เมื่อยืนยันแล้ว ระบบจะทำการตัดสต็อก หรือเปลี่ยนผู้รับผิดชอบครุภัณฑ์ทันที
-              และจะออกเลขที่เอกสารทางการซึ่งไม่สามารถลบได้ คุณต้องการดำเนินการต่อหรือไม่?
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setConfirmModalOpen(false)}
-                className="px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={handleConfirm}
-                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
-              >
-                {isLoading ? 'กำลังประมวลผล...' : 'ยืนยันทำรายการ'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmModalOpen}
+        onCancel={() => setConfirmModalOpen(false)}
+        onConfirm={handleConfirm}
+        isPending={isLoading}
+        title="ยืนยันการเบิก-จ่ายพัสดุ"
+        description="เมื่อยืนยันแล้ว ระบบจะทำการตัดสต็อก หรือเปลี่ยนผู้รับผิดชอบครุภัณฑ์ทันที และจะออกเลขที่เอกสารทางการซึ่งไม่สามารถลบได้ คุณต้องการดำเนินการต่อหรือไม่?"
+        confirmText="ยืนยันทำรายการ"
+        cancelText="ยกเลิก"
+      />
 
       {/* Cancel Draft Modal */}
-      {cancelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card text-card-foreground border border-border rounded-lg max-w-md w-full p-4 space-y-3 shadow-xl">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-rose-600">
-              <XCircle className="h-4 w-4" />
-              <span>ยกเลิกเอกสารฉบับร่าง</span>
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              คุณต้องการยกเลิกเอกสารฉบับร่างนี้ใช่หรือไม่? เอกสารจะเปลี่ยนสถานะเป็น &quot;ยกเลิกแล้ว&quot;
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setCancelModalOpen(false)}
-                className="px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted cursor-pointer"
-              >
-                ปิด
-              </button>
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={handleCancelDraft}
-                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
-              >
-                {isLoading ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิกร่าง'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={cancelModalOpen}
+        onCancel={() => setCancelModalOpen(false)}
+        onConfirm={handleCancelDraft}
+        isPending={isLoading}
+        variant="destructive"
+        title="ยกเลิกเอกสารฉบับร่าง"
+        description="คุณต้องการยกเลิกเอกสารฉบับร่างนี้ใช่หรือไม่? เอกสารจะเปลี่ยนสถานะเป็น 'ยกเลิกแล้ว' และไม่สามารถนำกลับมาแก้ไขได้"
+        confirmText="ยืนยันยกเลิกร่าง"
+        cancelText="ปิด"
+      />
 
       {/* Return Item Modal */}
       {canMutate && returnModalOpen && activeReturnLine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <form
             onSubmit={handleReturnSubmit}
-            className="bg-card text-card-foreground border border-border rounded-lg max-w-md w-full p-4 space-y-3 shadow-xl text-xs"
+            className="bg-card text-card-foreground border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-200 text-xs"
           >
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <RotateCcw className="h-4 w-4 text-blue-500" />
+            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+              <RotateCcw className="h-4 w-4 text-primary" />
               <span>บันทึกรับคืนครุภัณฑ์</span>
             </h3>
             <p className="text-muted-foreground text-[11px]">
@@ -512,7 +474,7 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </p>
 
             <div>
-              <label className="block font-medium mb-1">
+              <label className="block font-medium mb-1 text-foreground">
                 จำนวนที่ต้องการคืน (คงเหลือ: {activeReturnLine.issued_qty - activeReturnLine.returned_qty})
               </label>
               <input
@@ -522,16 +484,16 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                 value={returnQty}
                 onChange={(e) => setReturnQty(Number(e.target.value))}
                 required
-                className="w-full px-2.5 py-1.5 rounded border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block font-medium mb-1">สภาพครุภัณฑ์</label>
+              <label className="block font-medium mb-1 text-foreground">สภาพครุภัณฑ์</label>
               <select
                 value={returnCondition}
                 onChange={(e) => setReturnCondition(e.target.value as ItemCondition)}
-                className="w-full px-2.5 py-1.5 rounded border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="normal">ปกติ / พร้อมใช้งาน</option>
                 <option value="damaged">ชำรุด / ต้องส่งซ่อม</option>
@@ -540,31 +502,32 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </div>
 
             <div>
-              <label className="block font-medium mb-1">หมายเหตุการคืน (ถ้ามี)</label>
+              <label className="block font-medium mb-1 text-foreground">หมายเหตุการคืน (ถ้ามี)</label>
               <input
                 type="text"
                 value={returnNote}
                 onChange={(e) => setReturnNote(e.target.value)}
                 placeholder="เช่น ส่งคืนห้องพัสดุครบถ้วน"
-                className="w-full px-2.5 py-1.5 rounded border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setReturnModalOpen(false)}
-                className="px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted cursor-pointer"
               >
                 ยกเลิก
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                size="sm"
                 disabled={isLoading}
-                className="px-3.5 py-1.5 rounded-md font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? 'กำลังบันทึก...' : 'บันทึกรับคืน'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -572,12 +535,12 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
 
       {/* Reverse Disbursement Modal */}
       {reverseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <form
             onSubmit={handleReverseSubmit}
-            className="bg-card text-card-foreground border border-border rounded-lg max-w-md w-full p-4 space-y-3 shadow-xl text-xs"
+            className="bg-card text-card-foreground border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-200 text-xs"
           >
-            <h3 className="text-sm font-bold flex items-center gap-2 text-rose-600">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-destructive">
               <Undo2 className="h-4 w-4" />
               <span>คืนสภาพเอกสาร (Reversal)</span>
             </h3>
@@ -588,7 +551,7 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
 
             <div>
               <label className="block font-medium mb-1 text-foreground">
-                เหตุผลการคืนสภาพ <span className="text-rose-500">*</span>
+                เหตุผลการคืนสภาพ <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={reversalReason}
@@ -596,25 +559,27 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                 placeholder="ระบุเหตุผลความจำเป็นในการยกเลิกและคืนสภาพ"
                 rows={3}
                 required
-                className="w-full px-2.5 py-1.5 rounded border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setReverseModalOpen(false)}
-                className="px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted cursor-pointer"
               >
                 ปิด
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="destructive"
+                size="sm"
                 disabled={isLoading}
-                className="px-3.5 py-1.5 rounded-md font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? 'กำลังประมวลผล...' : 'ยืนยันคืนสภาพ'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

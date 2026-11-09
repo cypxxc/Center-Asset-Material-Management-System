@@ -13,24 +13,24 @@ export function EmptyState({
   className,
   title,
   description,
-  icon = <Folder className="h-10 w-10 text-slate-300 opacity-60" />,
+  icon = <Folder className="h-10 w-10 text-muted-foreground/50" />,
   action,
   ...props
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center p-12 bg-white rounded-2xl border border-dashed border-slate-200 min-h-[250px] shadow-sm select-none",
+        "flex flex-col items-center justify-center text-center p-12 bg-card rounded-2xl border border-dashed border-border min-h-[250px] shadow-xs select-none",
         className
       )}
       {...props}
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mb-4 border border-slate-100">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mb-4 border border-border/60">
         {icon}
       </div>
-      <h4 className="text-sm font-bold text-slate-700 leading-tight">{title}</h4>
+      <h4 className="text-sm font-bold text-foreground leading-tight">{title}</h4>
       {description && (
-        <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
+        <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
           {description}
         </p>
       )}

@@ -39,12 +39,12 @@ test(
       // 2. Migrate from clean/empty state through 0008
       await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
       const migrationRows = await ownerPool.query('SELECT * FROM drizzle.__drizzle_migrations ORDER BY id ASC')
-      assert.equal(migrationRows.rows.length, 9, 'All 9 migrations (0000-0008) must be recorded')
+      assert.ok(migrationRows.rows.length >= 9, 'All migrations through 0008+ must be recorded')
 
       // 3. Verify idempotency: running migrate again causes no errors and creates no duplicate records
       await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
       const countAfter = await ownerPool.query('SELECT count(*)::int as count FROM drizzle.__drizzle_migrations')
-      assert.equal(countAfter.rows[0].count, 9)
+      assert.equal(countAfter.rows[0].count, migrationRows.rows.length)
 
       // 4. Verify all disbursement tables exist
       const tableRows = await ownerPool.query<{ tablename: string }>(

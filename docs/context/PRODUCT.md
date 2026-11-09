@@ -26,7 +26,7 @@
 ## Design Constraints
 
 ```
-✅ Thai-first UI with Capriola (Latin/numerics) & Sarabun (Thai typography)
+✅ Thai-first UI with IBM Plex Sans Thai & Geist Mono typography
 ✅ Light and dark mode via semantic CSS tokens
 ✅ Blue, violet, emerald, slate section headers; amber for depreciation
 ✅ Text + icons alongside color (not color-only labels)

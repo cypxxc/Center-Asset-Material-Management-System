@@ -28,12 +28,20 @@ const tables = [
   'audit_logs',
   'app_migrations',
   'asset_number_templates',
+  'disbursements',
+  'disbursement_items',
+  'disbursement_sequences',
+  'stock_movements',
+  'asset_custody_logs',
 ] as const
 
 async function readAllRows(table: string) {
   const rows: unknown[] = []
+  const orderCol = table === 'disbursement_sequences' ? 'fiscal_year' : 'id'
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from(table).select('*').range(from, from + 999)
+    const query = supabase.from(table).select('*')
+    const orderedQuery = typeof query.order === 'function' ? query.order(orderCol, { ascending: true }) : query
+    const { data, error } = await orderedQuery.range(from, from + 999)
     if (error) throw new Error(`Unable to back up ${table}: ${error.message}`)
     rows.push(...(data ?? []))
     if (!data || data.length < 1000) return rows

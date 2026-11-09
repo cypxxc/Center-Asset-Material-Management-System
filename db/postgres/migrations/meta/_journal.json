@@ -71,6 +71,13 @@
       "when": 1793934000000,
       "tag": "0009_asset_ledger_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794500000000,
+      "tag": "0010_restrict_item_delete_and_harden_ledgers",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { DisbursementTransactionType, DisbursementSelectableItem } from '@/features/disbursements/types'
 
 interface DisbursementItemPickerModalProps {
@@ -172,7 +173,7 @@ function DisbursementItemPickerModalContent({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -180,7 +181,7 @@ function DisbursementItemPickerModalContent({
         role="dialog"
         aria-modal="true"
         aria-labelledby="item-picker-title"
-        className="w-full max-w-4xl bg-card border border-border rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150"
+        className="w-full max-w-4xl bg-card border border-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -207,14 +208,15 @@ function DisbursementItemPickerModalContent({
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             aria-label="ปิดหน้าต่าง"
           >
-            <X className="h-5 w-5" />
-          </button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Toolbar: Search & Filters */}
@@ -232,13 +234,15 @@ function DisbursementItemPickerModalContent({
                 className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               {searchTerm && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-2 p-0.5 rounded text-muted-foreground hover:text-foreground"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               )}
             </div>
 
@@ -280,10 +284,12 @@ function DisbursementItemPickerModalContent({
             </div>
 
             {selectableVisibleItems.length > 0 && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={handleToggleSelectAll}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                className="gap-1 text-[11px] font-medium text-primary hover:bg-primary/10"
               >
                 {allVisibleSelected ? (
                   <>
@@ -296,7 +302,7 @@ function DisbursementItemPickerModalContent({
                     <span>เลือกทั้งหมดที่แสดง ({selectableVisibleItems.length})</span>
                   </>
                 )}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -434,29 +440,33 @@ function DisbursementItemPickerModalContent({
             <strong className="text-foreground font-mono">{selectedIds.size}</strong>
             <span className="text-muted-foreground"> รายการ</span>
             {selectedIds.size > 0 && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => setSelectedIds(new Set())}
-                className="ml-3 text-[11px] text-rose-600 hover:underline cursor-pointer"
+                className="h-auto p-0 ml-3 text-[11px] text-destructive hover:underline cursor-pointer"
               >
                 ล้างที่เลือก
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
               ยกเลิก
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               onClick={handleConfirm}
               disabled={selectedIds.size === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none transition-colors shadow-xs cursor-pointer"
+              className="gap-1.5 shadow-xs"
             >
               <Check className="h-4 w-4" />
               <span>
@@ -466,7 +476,7 @@ function DisbursementItemPickerModalContent({
                     ? `เพิ่มเข้ารายการยืม (${selectedIds.size})`
                     : `เพิ่มเข้ารายการส่งมอบ (${selectedIds.size})`}
               </span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

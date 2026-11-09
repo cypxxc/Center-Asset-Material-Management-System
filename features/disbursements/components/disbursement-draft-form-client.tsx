@@ -14,6 +14,8 @@ import {
   Search,
   Package,
 } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { createDisbursementDraft, updateDisbursementDraft } from '@/features/disbursements/actions'
 import type {
   DisbursementRow,
@@ -185,25 +187,29 @@ export function DisbursementDraftFormClient({
   const totalRequestedQty = selectedItems.reduce((acc, it) => acc + it.requested_qty, 0)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/disbursements"
-            className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <FileText className="h-4 w-4 text-amber-500" />
+    <div className="space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-sm" asChild className="mr-1">
+              <Link href="/disbursements" aria-label="กลับไปหน้ารายการ">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <FileText className="h-5 w-5 text-amber-500 shrink-0" aria-hidden="true" />
             <span>{isEditing ? 'แก้ไขเอกสารฉบับร่าง' : 'สร้างเอกสารเบิก-จ่ายใหม่'}</span>
-          </h1>
-        </div>
-      </div>
+          </span>
+        }
+        subtitle={
+          isEditing
+            ? `แก้ไขข้อมูลเอกสาร ${initialDoc?.document_no || 'ฉบับร่าง'}`
+            : 'กรอกรายละเอียดการเบิกจ่ายและเลือกพัสดุจากคลังตามระเบียบพัสดุ'
+        }
+      />
 
       {errorMsg && (
-        <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:border-rose-900 dark:text-rose-300 text-xs flex items-center gap-2">
+        <div className="p-3 rounded-lg border border-destructive/20 bg-destructive/10 text-destructive text-xs flex items-center gap-2 mb-4">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -212,15 +218,19 @@ export function DisbursementDraftFormClient({
       {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Document Metadata Card */}
-        <div className="p-4 rounded-lg border border-border bg-card shadow-xs space-y-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            ข้อมูลทั่วไปของเอกสาร
-          </h2>
+        <div className="p-4 sm:p-5 rounded-xl border border-border bg-card shadow-xs space-y-4 border-l-4 border-l-blue-500">
+          <div className="flex items-center gap-2 pb-1 border-b border-border/60">
+            <h2 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <span>ข้อมูลทั่วไปของเอกสาร</span>
+            </h2>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             {/* Transaction Type */}
             <div>
-              <label className="block font-medium text-foreground mb-1">ประเภทการทำรายการ</label>
+              <label className="block font-medium text-foreground mb-1.5">
+                ประเภทการทำรายการ <span className="text-destructive">*</span>
+              </label>
               <select
                 value={transactionType}
                 onChange={(e) => {
@@ -228,7 +238,7 @@ export function DisbursementDraftFormClient({
                   setSelectedItems([]) // reset selected items when type changes
                 }}
                 disabled={isEditing}
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                className="w-full h-8 px-2.5 rounded-lg border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
                 <option value="material_issue">เบิกจ่ายพัสดุ (ตัดยอดสต็อกถาวร)</option>
                 <option value="asset_handover">ส่งมอบครุภัณฑ์ (โอนผู้ถือครองถาวร)</option>
@@ -239,64 +249,72 @@ export function DisbursementDraftFormClient({
             {/* Due Date (for borrow only) */}
             {transactionType === 'asset_borrow' ? (
               <div>
-                <label className="block font-medium text-foreground mb-1">กำหนดส่งคืน (Due Date)</label>
+                <label className="block font-medium text-foreground mb-1.5">
+                  กำหนดส่งคืน (Due Date) <span className="text-destructive">*</span>
+                </label>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                   required
-                  className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="w-full h-8 px-2.5 rounded-lg border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             ) : <div />}
 
             {/* Recipient */}
             <div>
-              <label className="block font-medium text-foreground mb-1">ชื่อผู้รับพัสดุ / ผู้ยืม</label>
+              <label className="block font-medium text-foreground mb-1.5">
+                ชื่อผู้รับพัสดุ / ผู้ยืม <span className="text-destructive">*</span>
+              </label>
               <input
                 type="text"
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="เช่น นายสมชาย สายตรวจ"
                 required
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full h-8 px-2.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             {/* Department */}
             <div>
-              <label className="block font-medium text-foreground mb-1">กลุ่มงาน</label>
+              <label className="block font-medium text-foreground mb-1.5">
+                กลุ่มงาน / สังกัด <span className="text-destructive">*</span>
+              </label>
               <input
                 type="text"
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
                 placeholder="เช่น กลุ่มงานบริหารจัดการ / กลุ่มงานสารสนเทศ"
                 required
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full h-8 px-2.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             {/* Purpose */}
             <div className="sm:col-span-2">
-              <label className="block font-medium text-foreground mb-1">วัตถุประสงค์การใช้งาน</label>
+              <label className="block font-medium text-foreground mb-1.5">
+                วัตถุประสงค์การใช้งาน <span className="text-destructive">*</span>
+              </label>
               <textarea
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="ระบุเหตุผลความจำเป็นในการเบิกจ่ายหรือยืมใช้งาน"
                 rows={2}
                 required
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
           </div>
         </div>
 
         {/* Line Items Card */}
-        <div className="p-4 rounded-lg border border-border bg-card shadow-xs space-y-3">
+        <div className="p-4 sm:p-5 rounded-xl border border-border bg-card shadow-xs space-y-4 border-l-4 border-l-violet-500">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <h2 className="text-xs font-bold text-foreground">
                   รายการพัสดุที่ขอเบิก
                 </h2>
                 {selectedItems.length > 0 && (
@@ -314,20 +332,23 @@ export function DisbursementDraftFormClient({
 
             <div className="flex items-center gap-2">
               {selectedItems.length > 0 && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="xs"
                   onClick={handleClearAllItems}
-                  className="px-2.5 py-1.5 rounded-md text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+                  className="text-destructive hover:bg-destructive/10"
                 >
                   ล้างทั้งหมด
-                </button>
+                </Button>
               )}
 
               {/* Primary Action: Open Item Picker Modal Table */}
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => setIsPickerModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
+                className="gap-1.5 shadow-xs font-semibold"
               >
                 <Search className="h-3.5 w-3.5" />
                 <span>
@@ -335,7 +356,7 @@ export function DisbursementDraftFormClient({
                     ? 'ค้นหาและเลือกพัสดุจากคลัง'
                     : 'ค้นหาและเลือกครุภัณฑ์จากคลัง'}
                 </span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -352,10 +373,11 @@ export function DisbursementDraftFormClient({
                   กดปุ่ม &quot;{transactionType === 'material_issue' ? 'ค้นหาและเลือกพัสดุจากคลัง' : 'ค้นหาและเลือกครุภัณฑ์จากคลัง'}&quot; เพื่อเปิดตารางค้นหาและเลือกสิ่งของ
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => setIsPickerModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
+                className="gap-1.5 shadow-xs font-semibold"
               >
                 <Search className="h-3.5 w-3.5" />
                 <span>
@@ -363,7 +385,7 @@ export function DisbursementDraftFormClient({
                     ? 'เปิดตารางเลือกพัสดุ'
                     : 'เปิดตารางเลือกครุภัณฑ์'}
                 </span>
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto border border-border rounded-lg">
@@ -426,7 +448,7 @@ export function DisbursementDraftFormClient({
                           <span
                             className={`inline-flex items-baseline justify-end gap-1 font-mono font-medium px-2 py-0.5 rounded text-[11px] ${
                               (currentItem?.quantity ?? 0) <= 0
-                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                                ? 'bg-destructive/10 text-destructive'
                                 : 'bg-muted text-foreground'
                             }`}
                           >
@@ -449,34 +471,36 @@ export function DisbursementDraftFormClient({
                               </div>
                             ) : (
                               <div className="flex items-center gap-1">
-                                <button
+                                <Button
                                   type="button"
+                                  variant="outline"
+                                  size="icon-xs"
                                   onClick={() => handleQtyChange(idx, selected.requested_qty - 1)}
                                   disabled={selected.requested_qty <= 1}
-                                  className="p-1 rounded border border-input hover:bg-muted disabled:opacity-30 transition-colors"
                                   title="ลดจำนวน"
                                 >
                                   <Minus className="h-3 w-3" />
-                                </button>
+                                </Button>
                                 <input
                                   type="number"
                                   min="1"
                                   max={currentItem?.quantity ?? 9999}
                                   value={selected.requested_qty}
                                   onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
-                                  className="w-16 px-1.5 py-0.5 rounded border border-input bg-background text-center text-xs font-mono font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  className="w-16 h-6 px-1.5 rounded-md border border-input bg-background text-center text-xs font-mono font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 />
-                                <button
+                                <Button
                                   type="button"
+                                  variant="outline"
+                                  size="icon-xs"
                                   onClick={() => handleQtyChange(idx, selected.requested_qty + 1)}
                                   disabled={
                                     Boolean(currentItem && selected.requested_qty >= currentItem.quantity)
                                   }
-                                  className="p-1 rounded border border-input hover:bg-muted disabled:opacity-30 transition-colors"
                                   title="เพิ่มจำนวน"
                                 >
                                   <Plus className="h-3 w-3" />
-                                </button>
+                                </Button>
                                 <span className="text-[11px] text-muted-foreground ml-1">
                                   {currentItem?.unit?.name || 'หน่วย'}
                                 </span>
@@ -484,7 +508,7 @@ export function DisbursementDraftFormClient({
                             )}
 
                             {isOverStock && (
-                              <span className="text-[10px] text-rose-600 font-medium">
+                              <span className="text-[10px] text-destructive font-medium">
                                 เกินสต็อก (มี {currentItem?.quantity})
                               </span>
                             )}
@@ -493,14 +517,16 @@ export function DisbursementDraftFormClient({
 
                         {/* Remove Action */}
                         <td className="py-2.5 px-3 text-center">
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleRemoveItem(idx)}
-                            className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+                            className="text-destructive hover:bg-destructive/10"
                             title="ลบรายการนี้"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </td>
                       </tr>
                     )
@@ -526,21 +552,21 @@ export function DisbursementDraftFormClient({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Link
-            href="/disbursements"
-            className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            ยกเลิก
-          </Link>
-          <button
+        <div className="flex items-center justify-end gap-2.5 pt-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/disbursements">
+              ยกเลิก
+            </Link>
+          </Button>
+          <Button
             type="submit"
+            size="sm"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+            className="gap-1.5 font-semibold"
           >
             <Save className="h-4 w-4" />
             <span>{isSubmitting ? 'กำลังบันทึก...' : 'บันทึกฉบับร่าง'}</span>
-          </button>
+          </Button>
         </div>
       </form>
 

@@ -131,15 +131,35 @@ export function ItemsList({
         responsive={false}
         wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-x-auto min-w-0"
         className={cn(
-          "text-card-foreground table-fixed w-full min-w-0",
+          "text-card-foreground table-fixed min-w-0",
           isLedger
-            ? "min-w-[1360px]"
+            ? "w-max min-w-[1880px]"
             : isInspectorOpen
-              ? "min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
-              : "min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
+              ? "w-full min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
+              : "w-full min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
         )}
       >
         <caption className="sr-only">รายการทะเบียนพัสดุและครุภัณฑ์</caption>
+        {isLedger && (
+          <colgroup>
+            <col style={{ width: '40px' }} />
+            <col style={{ width: '48px' }} />
+            <col style={{ width: '112px' }} />
+            <col style={{ width: '128px' }} />
+            <col style={{ width: '256px' }} />
+            <col style={{ width: '224px' }} />
+            <col style={{ width: '96px' }} />
+            <col style={{ width: '64px' }} />
+            <col style={{ width: '176px' }} />
+            <col style={{ width: '144px' }} />
+            <col style={{ width: '144px' }} />
+            <col style={{ width: '144px' }} />
+            <col style={{ width: '64px' }} />
+            <col style={{ width: '56px' }} />
+            <col style={{ width: '64px' }} />
+            <col style={{ width: '120px' }} />
+          </colgroup>
+        )}
         <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10">
           {isLedger ? (
             <>
@@ -179,10 +199,10 @@ export function ItemsList({
                   {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
-                <DataTableHead colSpan={3} className="text-center font-bold text-muted-foreground border-l border-r border-border/60 py-1 bg-muted/40 text-xs">
+                <DataTableHead colSpan={3} className="w-[184px] text-center font-bold text-muted-foreground border-l border-r border-border/60 py-1 bg-muted/40 text-xs">
                   สภาพพัสดุ
                 </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-28 px-2.5 align-middle font-bold text-muted-foreground">หมายเหตุ</DataTableHead>
+                <DataTableHead rowSpan={2} className="w-[120px] px-2.5 align-middle font-bold text-muted-foreground">หมายเหตุ</DataTableHead>
               </tr>
               <tr className="border-b border-border/80 text-[11px]">
                 <DataTableHead className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-l border-border/40 py-1">ใช้งานได้</DataTableHead>
@@ -235,7 +255,7 @@ export function ItemsList({
               />
             )
           })}
-          {!items.length && <EmptyRows colSpan={isLedger ? 15 : 9} />}
+          {!items.length && <EmptyRows colSpan={isLedger ? 16 : 9} />}
         </DataTableBody>
       </DataTable>
     </div>
@@ -356,7 +376,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
 
           {/* รับจาก (งปม.) */}
           <DataTableCell className="w-32 px-2.5 text-xs text-foreground truncate" title={item.budget_source || undefined}>
-            {item.budget_source || '-'}
+            {item.budget_source || <span className="text-muted-foreground/40 italic">-</span>}
           </DataTableCell>
 
           {/* รายการครุภัณฑ์ (Asset Name) */}
@@ -420,7 +440,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
 
           {/* เลขสินทรัพย์ GFMIS */}
           <DataTableCell className="w-36 px-2.5 font-mono text-xs text-foreground truncate" title={item.gfmis_number || undefined}>
-            {item.gfmis_number || '-'}
+            {item.gfmis_number || <span className="text-muted-foreground/40 italic">-</span>}
           </DataTableCell>
 
           {/* ผู้ครอบครอง */}
@@ -497,7 +517,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           </DataTableCell>
 
           {/* หมายเหตุ */}
-          <DataTableCell className="w-28 px-2.5 text-xs text-muted-foreground truncate" title={item.note || undefined}>
+          <DataTableCell className="w-[120px] px-2.5 text-xs text-muted-foreground truncate" title={item.note || undefined}>
             {item.note || '-'}
           </DataTableCell>
         </>
