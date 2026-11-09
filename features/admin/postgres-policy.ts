@@ -10,7 +10,7 @@ export const tableColumns: Record<BackupTable, readonly string[]> = {
   categories: ['id', 'name', 'description', 'color', 'icon', 'is_active', ...timestamps],
   locations: ['id', 'name', 'building', 'floor', 'room', 'department', 'description', 'is_active', ...timestamps],
   units: ['id', 'name', 'is_active', ...timestamps],
-  items: ['id', 'item_name', 'item_type', 'category_id', 'quantity', 'unit_price', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note', 'image_url', 'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at', 'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years', 'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value'],
+  items: ['id', 'item_name', 'item_type', 'category_id', 'quantity', 'unit_price', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note', 'image_url', 'budget_source', 'gfmis_number', 'acquired_date', 'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at', 'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years', 'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value'],
   audit_logs: ['id', 'user_id', 'action', 'target_table', 'target_id', 'old_data', 'new_data', 'created_at'],
 }
 
@@ -19,7 +19,7 @@ export const searchColumns: Record<AdminTable, readonly string[]> = {
   categories: ['name', 'description'],
   locations: ['name', 'building', 'room', 'department'],
   units: ['name'],
-  items: ['item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person'],
+  items: ['item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person', 'gfmis_number', 'budget_source'],
   audit_logs: ['action', 'target_table', 'target_id'],
 }
 

@@ -83,3 +83,30 @@ test('parseBusinessBackup rejects unknown category properties', () => {
     /Unsupported backup field: categories\.malicious_injected_column/
   )
 })
+
+test('parseBusinessBackup supports asset ledger fields on items (gfmis_number, budget_source, acquired_date)', () => {
+  const payload = {
+    __meta: { version: 1 },
+    profiles: [],
+    categories: [],
+    locations: [],
+    units: [],
+    items: [
+      {
+        id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+        item_name: 'ครุภัณฑ์ทดสอบ',
+        item_type: 'asset',
+        budget_source: 'งบดำเนินงาน',
+        gfmis_number: '110000069558',
+        acquired_date: '2026-01-15',
+      },
+    ],
+    audit_logs: [],
+  }
+
+  const parsed = parseBusinessBackup(JSON.stringify(payload))
+  assert.equal(parsed.items.length, 1)
+  assert.equal(parsed.items[0].gfmis_number, '110000069558')
+  assert.equal(parsed.items[0].budget_source, 'งบดำเนินงาน')
+  assert.equal(parsed.items[0].acquired_date, '2026-01-15')
+})

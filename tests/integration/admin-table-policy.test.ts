@@ -23,6 +23,11 @@ test('admin postgres policy defines searchColumns and tableColumns parity', asyn
   assert.ok(tableColumns.categories.includes('color'))
   assert.ok(tableColumns.items.includes('depreciation_cost'))
   assert.ok(tableColumns.items.includes('depreciation_method'))
+  assert.ok(tableColumns.items.includes('budget_source'))
+  assert.ok(tableColumns.items.includes('gfmis_number'))
+  assert.ok(tableColumns.items.includes('acquired_date'))
+  assert.ok(searchColumns.items.includes('gfmis_number'))
+  assert.ok(searchColumns.items.includes('budget_source'))
 
   // pageBounds clamping
   assert.deepEqual(pageBounds(-5, 999), { limit: 200, offset: 0 })
