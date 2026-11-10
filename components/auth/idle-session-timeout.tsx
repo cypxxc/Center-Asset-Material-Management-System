@@ -15,11 +15,13 @@ export function IdleSessionTimeout({
   const [isWarningOpen, setIsWarningOpen] = useState(false)
   const [secondsRemaining, setSecondsRemaining] = useState(warningSeconds)
 
-  const lastActivityRef = useRef<number>(0)
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isWarningOpenRef = useRef(false)
+  const hasLoggedOutRef = useRef(false)
+  const lastActivityRef = useRef<number>(Date.now())
 
   const handleLogout = useCallback(() => {
     setIsWarningOpen(false)
+    isWarningOpenRef.current = false
     signOut().catch(() => {})
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/login?reason=idle_timeout'
@@ -27,59 +29,59 @@ export function IdleSessionTimeout({
 
   const stayLoggedIn = useCallback(() => {
     lastActivityRef.current = Date.now()
+    isWarningOpenRef.current = false
+    hasLoggedOutRef.current = false
     setIsWarningOpen(false)
     setSecondsRemaining(warningSeconds)
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current)
-      countdownTimerRef.current = null
-    }
   }, [warningSeconds])
 
   useEffect(() => {
     lastActivityRef.current = Date.now()
+    hasLoggedOutRef.current = false
 
     const onActivity = () => {
-      if (!isWarningOpen) lastActivityRef.current = Date.now()
+      if (!isWarningOpenRef.current) {
+        lastActivityRef.current = Date.now()
+      }
     }
 
-    window.addEventListener('keydown', onActivity, { passive: true })
-    window.addEventListener('click', onActivity, { passive: true })
-    window.addEventListener('scroll', onActivity, { passive: true })
+    const activityEvents = ['keydown', 'click', 'scroll', 'pointerdown'] as const
+    for (const ev of activityEvents) {
+      window.addEventListener(ev, onActivity, { passive: true })
+    }
 
     const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000)
-      const threshold = timeoutSeconds - warningSeconds
+      if (hasLoggedOutRef.current) return
 
-      if (elapsed >= timeoutSeconds) {
+      const now = Date.now()
+      const elapsed = Math.floor((now - lastActivityRef.current) / 1000)
+      const remaining = timeoutSeconds - elapsed
+
+      if (remaining <= 0) {
+        hasLoggedOutRef.current = true
         clearInterval(interval)
         handleLogout()
-      } else if (elapsed >= threshold && !isWarningOpen) {
-        setIsWarningOpen(true)
-        setSecondsRemaining(timeoutSeconds - elapsed)
-
-        if (!countdownTimerRef.current) {
-          countdownTimerRef.current = setInterval(() => {
-            setSecondsRemaining((prev) => {
-              if (prev <= 1) {
-                if (countdownTimerRef.current) clearInterval(countdownTimerRef.current)
-                handleLogout()
-                return 0
-              }
-              return prev - 1
-            })
-          }, 1000)
+      } else if (remaining <= warningSeconds) {
+        if (!isWarningOpenRef.current) {
+          isWarningOpenRef.current = true
+          setIsWarningOpen(true)
+        }
+        setSecondsRemaining(remaining)
+      } else {
+        if (isWarningOpenRef.current) {
+          isWarningOpenRef.current = false
+          setIsWarningOpen(false)
         }
       }
-    }, 2000)
+    }, 1000)
 
     return () => {
-      window.removeEventListener('keydown', onActivity)
-      window.removeEventListener('click', onActivity)
-      window.removeEventListener('scroll', onActivity)
+      for (const ev of activityEvents) {
+        window.removeEventListener(ev, onActivity)
+      }
       clearInterval(interval)
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current)
     }
-  }, [handleLogout, isWarningOpen, timeoutSeconds, warningSeconds])
+  }, [handleLogout, timeoutSeconds, warningSeconds])
 
   if (!isWarningOpen) return null
 
