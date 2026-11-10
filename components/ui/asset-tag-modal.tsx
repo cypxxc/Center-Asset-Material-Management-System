@@ -218,11 +218,11 @@ function SingleStickerItem({
 
         {/* Right Column: Direct Link QR Code with Scan Prompt */}
         {visibility.showQr && qrCodeData && (
-          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200/80 pl-2 self-center">
-            <div className="p-0.5 bg-white border border-slate-200/90 rounded-sm shadow-2xs flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200/80 pl-2.5 self-center">
+            <div className="p-0.5 bg-white border border-slate-200/90 rounded-sm shadow-2xs flex flex-col items-center justify-center shrink-0">
               <svg
                 viewBox={`0 0 ${qrCodeData.size} ${qrCodeData.size}`}
-                className={presetConfig.qrSize}
+                className={`${presetConfig.qrSize} shrink-0`}
                 role="img"
                 aria-label={`QR Code ลิงก์ ${itemUrl}`}
               >

@@ -498,9 +498,6 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
-    if (!['confirmed', 'active_borrow'].includes(doc.status)) {
-      throw new Error(`ไม่สามารถคืนสภาพเอกสารในสถานะ ${doc.status} ได้`)
-    }
 
     // 2. Reversal guard: cannot reverse if any return has taken place
     const returnedCheck = await tx.execute<{ count: number }>(
@@ -508,6 +505,10 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
     )
     if (returnedCheck.rows[0].count > 0) {
       throw new Error('ไม่สามารถคืนสภาพเอกสารได้เนื่องจากมีการบันทึกคืนพัสดุบางส่วนไปแล้ว กรุณาใช้การรับคืนจนครบแทน')
+    }
+
+    if (!['confirmed', 'active_borrow'].includes(doc.status)) {
+      throw new Error(`ไม่สามารถคืนสภาพเอกสารในสถานะ ${doc.status} ได้`)
     }
 
     // 3. Process lines (deterministic order by item_id ASC to match global lock hierarchy)

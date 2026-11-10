@@ -460,12 +460,19 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
 
       {/* Return Item Modal */}
       {canMutate && returnModalOpen && activeReturnLine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={() => setReturnModalOpen(false)}
+        >
           <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="return-modal-title"
             onSubmit={handleReturnSubmit}
+            onClick={(e) => e.stopPropagation()}
             className="bg-card text-card-foreground border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-200 text-xs"
           >
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+            <h3 id="return-modal-title" className="text-sm font-bold flex items-center gap-2 text-foreground">
               <RotateCcw className="h-4 w-4 text-primary" />
               <span>บันทึกรับคืนครุภัณฑ์</span>
             </h3>
@@ -474,10 +481,11 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </p>
 
             <div>
-              <label className="block font-medium mb-1 text-foreground">
+              <label htmlFor="return-quantity-input" className="block font-medium mb-1 text-foreground">
                 จำนวนที่ต้องการคืน (คงเหลือ: {activeReturnLine.issued_qty - activeReturnLine.returned_qty})
               </label>
               <input
+                id="return-quantity-input"
                 type="number"
                 min="1"
                 max={activeReturnLine.issued_qty - activeReturnLine.returned_qty}
@@ -489,8 +497,11 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </div>
 
             <div>
-              <label className="block font-medium mb-1 text-foreground">สภาพครุภัณฑ์</label>
+              <label htmlFor="return-condition-select" className="block font-medium mb-1 text-foreground">
+                สภาพครุภัณฑ์
+              </label>
               <select
+                id="return-condition-select"
                 value={returnCondition}
                 onChange={(e) => setReturnCondition(e.target.value as ItemCondition)}
                 className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -502,8 +513,11 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </div>
 
             <div>
-              <label className="block font-medium mb-1 text-foreground">หมายเหตุการคืน (ถ้ามี)</label>
+              <label htmlFor="return-note-input" className="block font-medium mb-1 text-foreground">
+                หมายเหตุการคืน (ถ้ามี)
+              </label>
               <input
+                id="return-note-input"
                 type="text"
                 value={returnNote}
                 onChange={(e) => setReturnNote(e.target.value)}
@@ -535,12 +549,19 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
 
       {/* Reverse Disbursement Modal */}
       {reverseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={() => setReverseModalOpen(false)}
+        >
           <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reverse-modal-title"
             onSubmit={handleReverseSubmit}
+            onClick={(e) => e.stopPropagation()}
             className="bg-card text-card-foreground border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-200 text-xs"
           >
-            <h3 className="text-sm font-bold flex items-center gap-2 text-destructive">
+            <h3 id="reverse-modal-title" className="text-sm font-bold flex items-center gap-2 text-destructive">
               <Undo2 className="h-4 w-4" />
               <span>คืนสภาพเอกสาร (Reversal)</span>
             </h3>
@@ -550,10 +571,11 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
             </p>
 
             <div>
-              <label className="block font-medium mb-1 text-foreground">
+              <label htmlFor="reverse-reason-textarea" className="block font-medium mb-1 text-foreground">
                 เหตุผลการคืนสภาพ <span className="text-destructive">*</span>
               </label>
               <textarea
+                id="reverse-reason-textarea"
                 value={reversalReason}
                 onChange={(e) => setReversalReason(e.target.value)}
                 placeholder="ระบุเหตุผลความจำเป็นในการยกเลิกและคืนสภาพ"

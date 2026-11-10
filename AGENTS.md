@@ -10,6 +10,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ---
 
+## 🚀 ติดตั้งและตั้งค่าระบบครั้งแรกสำหรับ Agent (Agent Onboarding)
+
+หากเพิ่ง download / clone โปรเจกต์มาใหม่ และต้องการให้ agent ดำเนินการติดตั้ง dependencies, ตั้งค่าฐานข้อมูล และเตรียมระบบให้พร้อมทำงาน:
+👉 **อ่านและปฏิบัติตาม [`AGENT_SETUP.md`](AGENT_SETUP.md)**
+
+---
+
 ## 📚 บังคับ: อ่าน Context ก่อนทำงานทุกครั้ง
 
 **ทุก agent ต้องอ่านไฟล์ต่อไปนี้ก่อนเริ่มงาน (ตามลำดับ):**

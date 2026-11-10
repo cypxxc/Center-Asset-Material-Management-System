@@ -228,10 +228,11 @@ export function DisbursementDraftFormClient({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             {/* Transaction Type */}
             <div>
-              <label className="block font-medium text-foreground mb-1.5">
+              <label htmlFor="disbursement-transaction-type" className="block font-medium text-foreground mb-1.5">
                 ประเภทการทำรายการ <span className="text-destructive">*</span>
               </label>
               <select
+                id="disbursement-transaction-type"
                 value={transactionType}
                 onChange={(e) => {
                   setTransactionType(e.target.value as DisbursementTransactionType)
@@ -249,10 +250,11 @@ export function DisbursementDraftFormClient({
             {/* Due Date (for borrow only) */}
             {transactionType === 'asset_borrow' ? (
               <div>
-                <label className="block font-medium text-foreground mb-1.5">
+                <label htmlFor="disbursement-due-date" className="block font-medium text-foreground mb-1.5">
                   กำหนดส่งคืน (Due Date) <span className="text-destructive">*</span>
                 </label>
                 <input
+                  id="disbursement-due-date"
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
@@ -264,10 +266,11 @@ export function DisbursementDraftFormClient({
 
             {/* Recipient */}
             <div>
-              <label className="block font-medium text-foreground mb-1.5">
+              <label htmlFor="disbursement-recipient-name" className="block font-medium text-foreground mb-1.5">
                 ชื่อผู้รับพัสดุ / ผู้ยืม <span className="text-destructive">*</span>
               </label>
               <input
+                id="disbursement-recipient-name"
                 type="text"
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
@@ -279,10 +282,11 @@ export function DisbursementDraftFormClient({
 
             {/* Department */}
             <div>
-              <label className="block font-medium text-foreground mb-1.5">
+              <label htmlFor="disbursement-department-name" className="block font-medium text-foreground mb-1.5">
                 กลุ่มงาน / สังกัด <span className="text-destructive">*</span>
               </label>
               <input
+                id="disbursement-department-name"
                 type="text"
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
@@ -294,10 +298,11 @@ export function DisbursementDraftFormClient({
 
             {/* Purpose */}
             <div className="sm:col-span-2">
-              <label className="block font-medium text-foreground mb-1.5">
+              <label htmlFor="disbursement-purpose" className="block font-medium text-foreground mb-1.5">
                 วัตถุประสงค์การใช้งาน <span className="text-destructive">*</span>
               </label>
               <textarea
+                id="disbursement-purpose"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="ระบุเหตุผลความจำเป็นในการเบิกจ่ายหรือยืมใช้งาน"
@@ -478,6 +483,7 @@ export function DisbursementDraftFormClient({
                                   onClick={() => handleQtyChange(idx, selected.requested_qty - 1)}
                                   disabled={selected.requested_qty <= 1}
                                   title="ลดจำนวน"
+                                  aria-label={`ลดจำนวน ${currentItem?.item_name || 'รายการ'}`}
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
@@ -487,6 +493,7 @@ export function DisbursementDraftFormClient({
                                   max={currentItem?.quantity ?? 9999}
                                   value={selected.requested_qty}
                                   onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
+                                  aria-label={`จำนวนขอเบิก ${currentItem?.item_name || 'รายการ'}`}
                                   className="w-16 h-6 px-1.5 rounded-md border border-input bg-background text-center text-xs font-mono font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 />
                                 <Button
@@ -498,6 +505,7 @@ export function DisbursementDraftFormClient({
                                     Boolean(currentItem && selected.requested_qty >= currentItem.quantity)
                                   }
                                   title="เพิ่มจำนวน"
+                                  aria-label={`เพิ่มจำนวน ${currentItem?.item_name || 'รายการ'}`}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
@@ -524,6 +532,7 @@ export function DisbursementDraftFormClient({
                             onClick={() => handleRemoveItem(idx)}
                             className="text-destructive hover:bg-destructive/10"
                             title="ลบรายการนี้"
+                            aria-label={`ลบรายการ ${currentItem?.item_name || ''}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>

@@ -146,7 +146,9 @@ export async function getPostgresItemById(id: string): Promise<ItemDetail | null
   } catch (err) {
     if (!(err instanceof AuthorizationError)) throw err
     const { getDatabase } = await import('@/lib/postgres/db')
-    const rows = await getDatabase().execute<ItemDetail & Record<string, unknown>>(query)
+    const rows = await getDatabase().execute<ItemDetail & Record<string, unknown>>(
+      sql`select * from private.get_public_item(${id})`
+    )
     const item = rows.rows[0]
     return item ? { ...item, image_url: resolveLocalItemImageUrl(item.image_url) } : null
   }

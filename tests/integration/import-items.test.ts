@@ -179,3 +179,48 @@ test('importItemsBulk parses official Thai government ledger CSV with BE date an
   assert.equal(items[1].status, 'damaged'); // marked in ชำรุด column
 });
 
+test('importItemsBulk gracefully skips 2-tier subheader rows and parses hyphen price as null', async () => {
+  mockSupabaseRegistry.clear();
+  mockSupabaseRegistry.setAuth(
+    { id: 'user-staff', email: 'staff@example.com' },
+    { id: 'user-staff', email: 'staff@example.com', role: 'staff', is_active: true }
+  );
+
+  mockSupabaseRegistry.setRpcResponse('import_items_bulk_tx', {
+    ok: true,
+    count: 2,
+  });
+
+  // Simulating 2-tier header table where row 2 is a subheader containing 'ราคา' and 'รายการครุภัณฑ์'
+  const twoTierCsv = [
+    'ลำดับ,รายการครุภัณฑ์,ยี่ห้อ/รุ่น,ราคา,หน่วย,เลขครุภัณฑ์,เลขครุภัณฑ์',
+    'ลำดับ,รายการครุภัณฑ์,ยี่ห้อ/รุ่น,ราคา,หน่วย,เลขครุภัณฑ์,เลขครุภัณฑ์', // Subheader row that caused previous error
+    '1,ชุดโต๊ะไม้ผู้บริหาร,-,-,ชุด,สขส 7.,7110-007-0010-1/58', // Row with hyphen price '-'
+    '2,เก้าอี้สำนักงาน,OfficePro,1500,ตัว,สขส 7.,7110-007-0020-1/58',
+  ].join('\n');
+
+  const res = await importItemsBulk(twoTierCsv);
+  assert.equal(res.success, true);
+
+  const rpcLog = mockSupabaseRegistry.getRpcLog();
+  const txCall = rpcLog.find((c) => c.name === 'import_items_bulk_tx');
+  assert.ok(txCall);
+  const items = (txCall.args as { items_json: Array<{
+    item_name: string;
+    unit_price: number | null;
+    asset_no: string | null;
+  }> }).items_json;
+
+  assert.equal(items.length, 2);
+  // First item has unit_price null and combined asset_no
+  assert.equal(items[0].item_name, 'ชุดโต๊ะไม้ผู้บริหาร');
+  assert.equal(items[0].unit_price, null);
+  assert.equal(items[0].asset_no, 'สขส 7. 7110-007-0010-1/58');
+
+  // Second item has unit_price 1500
+  assert.equal(items[1].item_name, 'เก้าอี้สำนักงาน');
+  assert.equal(items[1].unit_price, 1500);
+  assert.equal(items[1].asset_no, 'สขส 7. 7110-007-0020-1/58');
+});
+
+

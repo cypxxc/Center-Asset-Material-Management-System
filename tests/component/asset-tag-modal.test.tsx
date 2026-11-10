@@ -408,19 +408,19 @@ test('calculateCustomGridDimensions correctly calculates label dimensions', () =
 
 test('getTypographyForHeight returns scalable text styles and heights', () => {
   const large = getTypographyForHeight(50)
-  assert.equal(large.qrSize, 'h-14 w-14')
+  assert.equal(large.qrSize, 'h-[32mm] w-[32mm]')
   assert.equal(large.nameSize, 'text-[11px] font-bold')
 
   const medium = getTypographyForHeight(38)
-  assert.equal(medium.qrSize, 'h-11 w-11')
+  assert.equal(medium.qrSize, 'h-[28mm] w-[28mm]')
   assert.equal(medium.nameSize, 'text-[10px] font-bold')
 
   const small = getTypographyForHeight(28)
-  assert.equal(small.qrSize, 'h-10 w-10')
+  assert.equal(small.qrSize, 'h-[18mm] w-[18mm]')
   assert.equal(small.nameSize, 'text-[9.5px] font-bold')
 
   const compact = getTypographyForHeight(20)
-  assert.equal(compact.qrSize, 'h-8 w-8')
+  assert.equal(compact.qrSize, 'h-[13mm] w-[13mm]')
   assert.equal(compact.nameSize, 'text-[8.5px] font-bold')
 })
 

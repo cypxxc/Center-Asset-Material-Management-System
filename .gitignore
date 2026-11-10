@@ -77,6 +77,8 @@ scratch/
 !docs/superpowers/specs/*.md
 !docs/production/2026-10-14-production-readiness-capriola.md
 !/AGENTS.md
+!/AGENT_SETUP.md
+!/CLAUDE.md
 
 
 # env files (can opt-in for committing if needed)

@@ -63,6 +63,7 @@ const HEADER_ALIASES: Record<string, string> = {
   'ราคา': 'unit_price',
   'ราคาต่อหน่วย': 'unit_price',
   'มูลค่า': 'unit_price',
+  'จำนวนเงิน': 'unit_price',
 
   // quantity
   'quantity': 'quantity',
@@ -78,6 +79,8 @@ const HEADER_ALIASES: Record<string, string> = {
   'เลขครุภัณฑ์': 'asset_no',
   'รหัสครุภัณฑ์': 'asset_no',
   'หมายเลขครุภัณฑ์': 'asset_no',
+  'ทะเบียนกำหนดใหม่ (เขต 7)': 'asset_no',
+  'ทะเบียนกำหนดใหม่': 'asset_no',
 
   // gfmis_number
   'gfmis_number': 'gfmis_number',
@@ -86,6 +89,8 @@ const HEADER_ALIASES: Record<string, string> = {
   'เลขสินทรัพย์ (gfmis)': 'gfmis_number',
   'เลข gfmis': 'gfmis_number',
   'gfmis': 'gfmis_number',
+  'รหัสสินทรัพย์ gf': 'gfmis_number',
+  'รหัสสินทรัพย์': 'gfmis_number',
 
   // serial_no
   'serial_no': 'serial_no',
@@ -97,13 +102,16 @@ const HEADER_ALIASES: Record<string, string> = {
   // responsible_person
   'responsible_person': 'responsible_person',
   'ผู้ครอบครอง': 'responsible_person',
+  '(ผู้ครอบครอง)': 'responsible_person',
   'ผู้รับผิดชอบ': 'responsible_person',
   'ผู้ดูแล': 'responsible_person',
 
   // location_name
   'location_name': 'location_name',
   'ใช้งานที่': 'location_name',
+  'ใช้ประจำที่': 'location_name',
   'สถานที่': 'location_name',
+  'สถานที่ใช้งาน': 'location_name',
   'สถานที่ติดตั้ง': 'location_name',
   'สถานที่จัดเก็บ': 'location_name',
 
@@ -226,9 +234,9 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
     return errorResponse('ไม่พบข้อมูลในไฟล์ CSV')
   }
 
-  // 3. Rows count check (1,000 data rows max)
-  if (lines.length > 1001) {
-    return errorResponse('จำนวนแถวข้อมูลเกินขีดจำกัด (สูงสุด 1,000 แถวต่อการนำเข้าหนึ่งครั้ง)')
+  // 3. Rows count check (2,500 data rows max)
+  if (lines.length > 2501) {
+    return errorResponse('จำนวนแถวข้อมูลเกินขีดจำกัด (สูงสุด 2,500 แถวต่อการนำเข้าหนึ่งครั้ง)')
   }
 
   try {
@@ -259,9 +267,21 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       lineNum++
       const cols = parseCSVLine(row)
 
+      // Skip completely empty lines
+      if (cols.every((c) => !c.trim())) {
+        continue
+      }
+
       // Skip empty or summary rows (e.g., 'รวมทั้งสิ้น', 'มูลค่ารวม')
       const firstCol = cols[0]?.trim() || ''
-      if (firstCol.startsWith('รวม') || firstCol.startsWith('มูลค่ารวม') || firstCol.startsWith('ผู้รายงาน') || firstCol.startsWith('หมายเหตุ:')) {
+      if (
+        firstCol.startsWith('รวม') ||
+        firstCol.startsWith('มูลค่ารวม') ||
+        firstCol.startsWith('ผู้รายงาน') ||
+        firstCol.startsWith('หมายเหตุ') ||
+        firstCol.startsWith('ส่วนราชการ') ||
+        firstCol.startsWith('หมวดครุภัณฑ์')
+      ) {
         continue
       }
 
@@ -274,7 +294,33 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
       }
 
+      const getAllVals = (name: string): string[] => {
+        const vals: string[] = []
+        mappedHeaders.forEach((h, idx) => {
+          if (h === name && cols[idx] !== undefined) {
+            const v = normalizeForStorage(cols[idx])
+            if (v) vals.push(v)
+          }
+        })
+        return vals
+      }
+
       const itemName = getVal('item_name')
+      const rawUnitPrice = getVal('unit_price')
+
+      // Detect and skip subheader rows (e.g., Row 8 in 2-tier official headers)
+      if (
+        itemName === 'รายการ' ||
+        itemName === 'รายการครุภัณฑ์' ||
+        itemName === 'ชื่อสิ่งของ' ||
+        itemName === 'ยี่ห้อ/รุ่น' ||
+        rawUnitPrice === 'ราคา' ||
+        rawUnitPrice === 'จำนวนเงิน' ||
+        rawUnitPrice === 'ราคาต่อหน่วย'
+      ) {
+        continue
+      }
+
       if (!itemName) {
         return errorResponse(`บรรทัดที่ ${lineNum}: ชื่อสิ่งของ (item_name) ห้ามว่าง`)
       }
@@ -285,16 +331,24 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
       }
 
-      const quantity = Math.max(1, parseInt(getVal('quantity')) || 1)
-      const rawUnitPrice = getVal('unit_price')
-      const parsedUnitPrice = rawUnitPrice === '' ? null : Number(rawUnitPrice.replace(/,/g, ''))
-      if (
-        parsedUnitPrice !== null &&
-        (!Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0)
-      ) {
-        return errorResponse(`บรรทัดที่ ${lineNum}: ราคาต่อหน่วย (unit_price) ต้องเป็นตัวเลขที่ไม่ติดลบ`)
+      const rawQuantity = getVal('quantity')
+      let quantity = 1
+      if (rawQuantity && rawQuantity !== '-' && rawQuantity !== 'ไม่มี') {
+        const parsedQ = parseInt(rawQuantity.replace(/,/g, ''), 10)
+        if (Number.isFinite(parsedQ) && parsedQ > 0) {
+          quantity = parsedQ
+        }
       }
-      const unitPrice = parsedUnitPrice
+
+      let unitPrice: number | null = null
+      if (rawUnitPrice && rawUnitPrice !== '-' && rawUnitPrice !== 'ไม่มี' && rawUnitPrice !== 'ไม่ระบุ' && rawUnitPrice.toLowerCase() !== 'n/a') {
+        const cleanedPrice = rawUnitPrice.replace(/,/g, '').trim()
+        const parsed = Number(cleanedPrice)
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return errorResponse(`บรรทัดที่ ${lineNum}: ราคาต่อหน่วย (unit_price) ต้องเป็นตัวเลขที่ไม่ติดลบ`)
+        }
+        unitPrice = parsed
+      }
 
       // Condition status determination (supports 3-column checkmark or single status column)
       const status = parseConditionStatus(
@@ -320,6 +374,16 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         }
       }
 
+      // Merge asset_no columns if multiple exist (e.g. prefix in col 8 and number in col 9)
+      const assetVals = getAllVals('asset_no')
+      let assetNo: string | null = null
+      if (assetVals.length === 1) {
+        assetNo = assetVals[0]
+      } else if (assetVals.length > 1) {
+        const uniqueParts = [...new Set(assetVals.filter(Boolean))]
+        assetNo = uniqueParts.join(' ').trim() || null
+      }
+
       const rawAcquiredDate = getVal('acquired_date')
       const acquiredDate = rawAcquiredDate ? parseDateThaiBEToISO(rawAcquiredDate) : null
 
@@ -332,7 +396,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         quantity,
         unit_price: unitPrice,
         status,
-        asset_no: getVal('asset_no') || null,
+        asset_no: assetNo,
         serial_no: serialNo,
         brand,
         model,
@@ -356,7 +420,10 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
     if (error) {
       logger.error({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id }, error)
-      return errorResponse('เกิดข้อผิดพลาดในการประมวลผลฐานข้อมูล: ' + error.message)
+      const msg = error.message.includes('ซ้ำ') || error.message.includes('แถวที่')
+        ? error.message
+        : 'เกิดข้อผิดพลาดในการประมวลผลฐานข้อมูล: ' + error.message
+      return errorResponse(msg)
     }
 
     const res = data as { ok: boolean; count?: number; error?: string }

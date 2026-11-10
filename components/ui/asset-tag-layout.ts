@@ -54,21 +54,21 @@ export function getTypographyForHeight(heightMm: number): {
 } {
   if (heightMm >= 45) {
     return {
-      padding: "px-3 py-2",
+      padding: "px-3 py-1.5",
       titleSize: "text-[8.5px]",
       nameSize: "text-[11px] font-bold",
       metaSize: "text-[8.5px]",
       codeSize: "text-[10.5px]",
-      qrSize: "h-14 w-14",
+      qrSize: "h-[32mm] w-[32mm]",
     }
   } else if (heightMm >= 35) {
     return {
-      padding: "px-2.5 py-1.5",
+      padding: "px-2.5 py-1",
       titleSize: "text-[8px]",
       nameSize: "text-[10px] font-bold",
       metaSize: "text-[7.5px]",
       codeSize: "text-[9.5px]",
-      qrSize: "h-11 w-11",
+      qrSize: "h-[28mm] w-[28mm]",
     }
   } else if (heightMm >= 25) {
     return {
@@ -77,7 +77,7 @@ export function getTypographyForHeight(heightMm: number): {
       nameSize: "text-[9.5px] font-bold",
       metaSize: "text-[7.5px]",
       codeSize: "text-[9px]",
-      qrSize: "h-10 w-10",
+      qrSize: "h-[18mm] w-[18mm]",
     }
   } else {
     return {
@@ -86,7 +86,7 @@ export function getTypographyForHeight(heightMm: number): {
       nameSize: "text-[8.5px] font-bold",
       metaSize: "text-[6.5px]",
       codeSize: "text-[8px]",
-      qrSize: "h-8 w-8",
+      qrSize: "h-[13mm] w-[13mm]",
     }
   }
 }
@@ -109,12 +109,12 @@ export const STICKER_PRESETS: Record<StickerSizePreset, PresetConfig> = {
     },
     width: "96mm",
     height: "38.5mm",
-    padding: "px-2.5 py-1.5",
+    padding: "px-2.5 py-1",
     titleSize: "text-[8px]",
     nameSize: "text-[10px] font-bold",
     metaSize: "text-[7.5px]",
     codeSize: "text-[9.5px]",
-    qrSize: "h-11 w-11",
+    qrSize: "h-[28mm] w-[28mm]",
   },
   custom_grid: {
     id: "custom_grid",
@@ -133,11 +133,11 @@ export const STICKER_PRESETS: Record<StickerSizePreset, PresetConfig> = {
     },
     width: "96.0mm",
     height: "38.5mm",
-    padding: "px-2.5 py-1.5",
+    padding: "px-2.5 py-1",
     titleSize: "text-[8px]",
     nameSize: "text-[10px] font-bold",
     metaSize: "text-[7.5px]",
     codeSize: "text-[9.5px]",
-    qrSize: "h-11 w-11",
+    qrSize: "h-[28mm] w-[28mm]",
   },
 }

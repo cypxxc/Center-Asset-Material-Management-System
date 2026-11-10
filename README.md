@@ -76,6 +76,9 @@
 
 ## 🚀 เริ่มต้นใช้งาน (Quick Start)
 
+> 🤖 **ทำงานร่วมกับ AI Coding Agent (Cursor, Claude Code, Windsurf, Copilot, Antigravity ฯลฯ):**  
+> หากต้องการให้ Agent ช่วยติดตั้ง dependencies, ตั้งค่าคอนฟิก และเตรียมฐานข้อมูลให้อัตโนมัติ สามารถสั่งให้ Agent อ่าน [**`AGENT_SETUP.md`**](AGENT_SETUP.md) ได้ทันที
+
 ### 1. ความต้องการของระบบ (Prerequisites)
 
 - **Node.js**: `>=24.0.0 <25` (LTS)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Activity, Download, MapPin, Tag, X, RotateCcw } from 'lucide-react'
+import { Activity, Download, Layers, MapPin, Tag, X, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
@@ -63,6 +63,15 @@ export function ItemsFilterBar({
   const activeChips = useMemo(() => {
     const chips: { id: string; label: string; value: string; onRemove: () => void }[] = []
 
+    if (params.type) {
+      chips.push({
+        id: 'type',
+        label: 'เกณฑ์',
+        value: params.type === 'material' ? 'ต่ำกว่าเกณฑ์ (ต.)' : 'ครุภัณฑ์ตามเกณฑ์',
+        onRemove: () => onFilterChange({ type: '' }),
+      })
+    }
+
     if (params.category_id) {
       const cat = categories.find((c) => c.id === params.category_id)
       chips.push({
@@ -105,7 +114,15 @@ export function ItemsFilterBar({
     }
 
     return chips
-  }, [params.category_id, params.status, params.location_id, params.q, categories, locations, onFilterChange, onSearchClear])
+  }, [params.type, params.category_id, params.status, params.location_id, params.q, categories, locations, onFilterChange, onSearchClear])
+
+  const typeOptions: FilterOption[] = useMemo(
+    () => [
+      { value: 'asset', label: 'ครุภัณฑ์ตามเกณฑ์' },
+      { value: 'material', label: 'ต่ำกว่าเกณฑ์ (ต.)' },
+    ],
+    []
+  )
 
   const categoryOptions: FilterOption[] = useMemo(
     () => categories.map((cat) => ({ value: cat.id, label: cat.name })),
@@ -173,6 +190,17 @@ export function ItemsFilterBar({
 
             {/* Dropdown Filters */}
             <div className="flex flex-wrap items-center gap-2 min-w-0">
+              {/* Threshold / Type Filter */}
+              <FilterDropdown
+                label="เกณฑ์ครุภัณฑ์"
+                ariaLabel="กรองตามเกณฑ์ครุภัณฑ์"
+                name="type"
+                value={params.type ?? ''}
+                options={typeOptions}
+                onChange={(val) => onFilterChange({ type: val })}
+                icon={<Layers className="h-3.5 w-3.5" />}
+              />
+
               {/* Category Filter */}
               <FilterDropdown
                 label="หมวดหมู่"

@@ -8,12 +8,13 @@ import { ItemDetail, ReferenceOption } from '../types'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
-const NEW_ITEM_DRAFT_KEY = 'omni-asset:new-item-draft'
+const NEW_ITEM_DRAFT_KEY = 'center-asset-material-management-system:new-item-draft'
+const LEGACY_DRAFT_KEYS = ['omni-asset:new-item-draft', 'camms:new-item-draft']
 
 interface NewItemSheetProps {
   open: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (keepOpen?: boolean) => void
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
@@ -33,7 +34,13 @@ function getDraftControls(root: ParentNode) {
 
 function readDraft(): Record<string, string> {
   try {
-    const raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
+    let raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
+    if (!raw) {
+      for (const legacyKey of LEGACY_DRAFT_KEYS) {
+        raw = window.localStorage.getItem(legacyKey)
+        if (raw) break
+      }
+    }
     if (!raw) return {}
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? parsed : {}
@@ -96,13 +103,15 @@ export function NewItemSheet({
   useEffect(() => {
     const dialog = dialogRef.current
     if (!open || !dialog) return
-    restoreDraft(dialog)
+    if (!item) {
+      restoreDraft(dialog)
+    }
     initialFormSignatureRef.current = formSignature(dialog)
-  }, [open, formVersion])
+  }, [open, formVersion, item])
 
   useEffect(() => {
     const dialog = dialogRef.current
-    if (!open || !dialog) return
+    if (!open || !dialog || item) return
 
     const handleDraftChange = () => saveDraft(dialog)
     dialog.addEventListener('input', handleDraftChange)
@@ -112,7 +121,7 @@ export function NewItemSheet({
       dialog.removeEventListener('input', handleDraftChange)
       dialog.removeEventListener('change', handleDraftChange)
     }
-  }, [open, formVersion])
+  }, [open, formVersion, item])
 
   const isFormDirty = useCallback(() => {
     const dialog = dialogRef.current
@@ -120,10 +129,28 @@ export function NewItemSheet({
     return formSignature(dialog) !== initialFormSignatureRef.current
   }, [])
 
-  const handleSuccess = useCallback(() => {
-    window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
-    setFormVersion((version) => version + 1)
-    onSuccess()
+  const handleSuccess = useCallback((data?: { itemId?: string; intent?: string }) => {
+    const isSaveAndAnother = data?.intent === 'save_and_another'
+    if (isSaveAndAnother) {
+      const draft = readDraft()
+      delete draft.item_name
+      delete draft.asset_no
+      delete draft.serial_no
+      delete draft.unit_price
+      delete draft.image_file
+      delete draft.note
+      delete draft.gfmis_number
+      window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
+      setFormVersion((v) => v + 1)
+      onSuccess(true)
+    } else {
+      window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
+      for (const legacyKey of LEGACY_DRAFT_KEYS) {
+        window.localStorage.removeItem(legacyKey)
+      }
+      setFormVersion((version) => version + 1)
+      onSuccess(false)
+    }
   }, [onSuccess])
 
   const handleCloseAttempt = useCallback(() => {
@@ -225,9 +252,23 @@ export function NewItemSheet({
         </div>
 
         <div className="new-item-sheet-footer bg-card text-card-foreground border-border">
-          <span className="mr-auto hidden text-xs text-slate-500 dark:text-slate-400 sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
-          <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt}>ยกเลิก</Button>
-          <Button type="submit" form={formId} disabled={pending} className="gap-2 font-semibold">
+          <span className="mr-auto hidden text-xs text-muted-foreground sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
+          <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt} className="cursor-pointer">ยกเลิก</Button>
+          {!item && (
+            <Button
+              type="submit"
+              name="intent"
+              value="save_and_another"
+              form={formId}
+              disabled={pending}
+              variant="secondary"
+              className="gap-2 font-semibold cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>บันทึกและเพิ่มรายการถัดไป</span>
+            </Button>
+          )}
+          <Button type="submit" name="intent" value="save_and_close" form={formId} disabled={pending} className="gap-2 font-semibold cursor-pointer">
             <Save className="h-4 w-4" />
             {pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
           </Button>

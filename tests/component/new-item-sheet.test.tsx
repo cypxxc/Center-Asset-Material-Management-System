@@ -77,7 +77,7 @@ test('NewItemSheet uses a standard centered dialog without sheet animation CSS',
 
 test('NewItemSheet restores a saved draft when opened', () => {
   mockDialogMethods();
-  window.localStorage.setItem('omni-asset:new-item-draft', JSON.stringify({ item_name: 'Draft Chair' }));
+  window.localStorage.setItem('center-asset-material-management-system:new-item-draft', JSON.stringify({ item_name: 'Draft Chair' }));
 
   render(
     React.createElement(NewItemSheet, {
@@ -94,8 +94,29 @@ test('NewItemSheet restores a saved draft when opened', () => {
   assert.equal(input?.value, 'Draft Chair');
 });
 
+test('NewItemSheet restores a legacy saved draft when opened', () => {
+  mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
+  window.localStorage.setItem('omni-asset:new-item-draft', JSON.stringify({ item_name: 'Legacy Draft Chair' }));
+
+  render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const input = document.querySelector('input[name="item_name"]') as HTMLInputElement | null;
+  assert.equal(input?.value, 'Legacy Draft Chair');
+});
+
 test('NewItemSheet saves draft field changes', () => {
   mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
   window.localStorage.removeItem('omni-asset:new-item-draft');
 
   render(
@@ -112,12 +133,13 @@ test('NewItemSheet saves draft field changes', () => {
   const input = document.querySelector('input[name="item_name"]') as HTMLInputElement;
   fireEvent.change(input, { target: { value: 'Draft Desk' } });
 
-  const draft = JSON.parse(window.localStorage.getItem('omni-asset:new-item-draft') ?? '{}') as { item_name?: string };
+  const draft = JSON.parse(window.localStorage.getItem('center-asset-material-management-system:new-item-draft') ?? '{}') as { item_name?: string };
   assert.equal(draft.item_name, 'Draft Desk');
 });
 
 test('NewItemSheet shows all entry sections together and submits from its footer', () => {
   mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
   window.localStorage.removeItem('omni-asset:new-item-draft');
   const view = render(React.createElement(NewItemSheet, {
     open: true, onClose: () => {}, onSuccess: () => {},
@@ -151,7 +173,8 @@ test('ItemForm switches item type on the same page without hiding common fields'
   assert.equal((within(view.container).getByLabelText(/^ชื่อสิ่งของ/) as HTMLInputElement).value, 'Paper');
   assert.equal((view.container.querySelector('[name="item_type"]') as HTMLInputElement).value, 'material');
   assert.ok(within(view.container).getByLabelText('สถานที่'));
-  assert.equal(within(view.container).queryByLabelText('Serial Number'), null);
+  assert.ok(within(view.container).getByLabelText('Serial Number'));
+  assert.ok(within(view.container).getByLabelText(/เลขทะเบียน/));
 });
 
 test('NewItemSheet adapts to theme using CSS variables and semantic tokens', () => {

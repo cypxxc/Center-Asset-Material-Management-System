@@ -295,7 +295,10 @@ export async function buildGovernmentLedgerExcelWorkbook(
   // Title block
   const titleRow1 = worksheet.addRow(['ทะเบียนคุมสินทรัพย์'])
   titleRow1.font = { name: 'Sarabun', bold: true, size: 14 }
-  const titleRow2 = worksheet.addRow(['บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'])
+  const subTitle = filterSummary.includes('ต่ำกว่าเกณฑ์') || filterSummary.includes('พัสดุ')
+    ? 'บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์)'
+    : 'บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'
+  const titleRow2 = worksheet.addRow([subTitle])
   titleRow2.font = { name: 'Sarabun', bold: true, size: 12 }
   const titleRow3 = worksheet.addRow([
     `หน่วยงาน: สำนักงานเขตสุขภาพที่ 7    หมวด: ${filterSummary}    วันที่พิมพ์: ${formatDate()}`,

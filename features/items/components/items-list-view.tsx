@@ -44,7 +44,7 @@ export interface ItemsListProps {
 
 export function ItemsList({
   items,
-  density = 'comfortable',
+  density = 'compact',
   startIndex = 0,
   allLoadedSelected,
   selectedItemId,
@@ -109,19 +109,16 @@ export function ItemsList({
   const isLedger = mode === 'ledger'
 
   return (
-    <div className="bg-muted/10 min-w-0">
+    <div className={cn("bg-muted/10 min-w-0", isLedger ? "w-max min-w-full" : "w-full")}>
       {isLedger && (
-        <div className="bg-card/90 backdrop-blur-xs border-b border-border/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+        <div className="sr-only print:not-sr-only print:block bg-card/90 border-b border-border/80 px-4 py-3 text-xs">
           <div>
-            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-              <span>ทะเบียนคุมสินทรัพย์</span>
-              <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                แบบราชการ
-              </span>
+            <h3 className="font-bold text-sm text-foreground">
+              ทะเบียนคุมสินทรัพย์
             </h3>
             <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
             <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
             <span><strong className="text-foreground">หมวด:</strong> {params.category_id ? 'ตามตัวกรอง' : 'ครุภัณฑ์ทั้งหมด'}</span>
           </div>
@@ -129,7 +126,10 @@ export function ItemsList({
       )}
       <DataTable
         responsive={false}
-        wrapperClassName="border-0 rounded-none bg-transparent shadow-none overflow-x-auto min-w-0"
+        wrapperClassName={cn(
+          "border-0 rounded-none bg-transparent shadow-none min-w-0",
+          isLedger ? "overflow-visible w-max min-w-full" : "w-full"
+        )}
         className={cn(
           "text-card-foreground table-fixed min-w-0",
           isLedger
@@ -144,9 +144,9 @@ export function ItemsList({
           <colgroup>
             <col style={{ width: '40px' }} />
             <col style={{ width: '48px' }} />
+            <col style={{ width: '256px' }} />
             <col style={{ width: '112px' }} />
             <col style={{ width: '128px' }} />
-            <col style={{ width: '256px' }} />
             <col style={{ width: '224px' }} />
             <col style={{ width: '96px' }} />
             <col style={{ width: '64px' }} />
@@ -175,14 +175,14 @@ export function ItemsList({
                   />
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-12 px-2 text-center align-middle font-bold text-muted-foreground">ลำดับ</DataTableHead>
+                <DataTableHead rowSpan={2} className="w-64 min-w-[200px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
+                  {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
+                </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-28 px-2 text-center align-middle font-bold text-muted-foreground" aria-sort={getSortAria('acquired_date')}>
                   {renderSortHeader('acquired_date', 'วัน เดือน ปีที่รับ', 'center')}
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-32 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('budget_source')}>
                   {renderSortHeader('budget_source', 'รับจาก (งปม.)')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-64 min-w-[200px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
-                  {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-56 px-2.5 align-middle font-bold text-muted-foreground">ยี่ห้อ/รุ่น</DataTableHead>
                 <DataTableHead rowSpan={2} className="w-24 px-2.5 text-right align-middle font-bold text-muted-foreground" aria-sort={getSortAria('unit_price')}>
@@ -369,16 +369,6 @@ export const ItemTableRow = React.memo(function ItemTableRow({
             {index + 1}
           </DataTableCell>
 
-          {/* วัน เดือน ปีที่รับ */}
-          <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate" title={item.acquired_date ?? undefined}>
-            {formatDateThaiBE(item.acquired_date)}
-          </DataTableCell>
-
-          {/* รับจาก (งปม.) */}
-          <DataTableCell className="w-32 px-2.5 text-xs text-foreground truncate" title={item.budget_source || undefined}>
-            {item.budget_source || <span className="text-muted-foreground/40 italic">-</span>}
-          </DataTableCell>
-
           {/* รายการครุภัณฑ์ (Asset Name) */}
           <DataTableCell className="w-64 min-w-[200px] px-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -390,10 +380,30 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                 className={isCompact ? "h-6 w-6 rounded shrink-0" : "h-8 w-8 rounded shrink-0"}
                 showZoom={!isCompact}
               />
-              <span className="truncate text-xs font-semibold text-foreground hover:text-primary transition-colors block flex-1" title={item.item_name}>
-                {item.item_name}
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="truncate text-xs font-semibold text-foreground hover:text-primary transition-colors block" title={item.item_name}>
+                  {item.item_name}
+                </span>
+                {item.item_type === 'material' && (
+                  <span
+                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
+                    title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
+                  >
+                    ต่ำกว่าเกณฑ์
+                  </span>
+                )}
+              </div>
             </div>
+          </DataTableCell>
+
+          {/* วัน เดือน ปีที่รับ */}
+          <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate" title={item.acquired_date ?? undefined}>
+            {formatDateThaiBE(item.acquired_date)}
+          </DataTableCell>
+
+          {/* รับจาก (งปม.) */}
+          <DataTableCell className="w-32 px-2.5 text-xs text-foreground truncate" title={item.budget_source || undefined}>
+            {item.budget_source || <span className="text-muted-foreground/40 italic">-</span>}
           </DataTableCell>
 
           {/* ยี่ห้อ/รุ่น */}
@@ -538,13 +548,21 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           {/* Rich Primary Compound Column: Title, Asset Code Badge, Brand/Model */}
           <DataTableCell className="w-[300px] min-w-[300px] max-w-[320px] px-3 overflow-hidden">
             {isCompact ? (
-              <div className="flex items-center gap-2 min-w-0 pr-2">
+              <div className="flex items-center gap-1.5 min-w-0 pr-2">
                 <span
-                  className="truncate text-xs font-bold text-foreground hover:text-primary transition-colors block max-w-[170px]"
+                  className="truncate text-xs font-bold text-foreground hover:text-primary transition-colors block max-w-[150px]"
                   title={item.item_name}
                 >
                   {item.item_name}
                 </span>
+                {item.item_type === 'material' && (
+                  <span
+                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
+                    title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
+                  >
+                    ต่ำกว่าเกณฑ์
+                  </span>
+                )}
                 {assetCode && (
                   <button
                     type="button"
@@ -566,11 +584,19 @@ export const ItemTableRow = React.memo(function ItemTableRow({
               <div className="flex flex-col justify-center min-w-0 pr-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5 block w-full"
+                    className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5 block"
                     title={item.item_name}
                   >
                     {item.item_name}
                   </span>
+                  {item.item_type === 'material' && (
+                    <span
+                      className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
+                      title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
+                    >
+                      ต่ำกว่าเกณฑ์
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-1 flex items-center gap-2 min-w-0 text-xs leading-none">

@@ -1,9 +1,9 @@
 'use client'
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList, MapPin, Tag } from 'lucide-react'
+import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList, MapPin, Tag, Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ItemActionState } from '../actions'
 import {
@@ -31,7 +31,7 @@ interface ItemFormProps {
   inline?: boolean
   onCancel?: () => void
   /** Called after a successful inline create (modal mode). Not called when redirect happens. */
-  onSuccess?: () => void
+  onSuccess?: (result?: { itemId?: string; intent?: string }) => void
   /** Shares action status with the modal footer. */
   onPendingChange?: (pending: boolean) => void
   /** Lets a submit button outside the form reference this form. */
@@ -45,16 +45,6 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <FormError>{errors[0]}</FormError>
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <Button type="submit" disabled={pending} className="h-10 px-4 font-semibold flex items-center gap-1.5">
-      <Save className="h-4 w-4" />
-      <span>{pending ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
-    </Button>
-  )
-}
 
 export function ItemForm({
   action,
@@ -85,13 +75,25 @@ export function ItemForm({
 
   useEffect(() => {
     if (state?.success) {
-      onSuccessRef.current?.()
+      onSuccessRef.current?.(state.data as { itemId?: string; intent?: string } | undefined)
     }
   }, [state])
 
   const [activeTab, setActiveTab] = useState<'asset' | 'material'>(
     item?.item_type === 'asset' || !item?.item_type ? 'asset' : 'material'
   )
+
+  const [currentQty, setCurrentQty] = useState<number>(Number(item?.quantity) || 1)
+  const [currentUnitPrice, setCurrentUnitPrice] = useState<number | null>(
+    item?.unit_price !== null && item?.unit_price !== undefined ? Number(item.unit_price) : null
+  )
+
+  const liveTotal = useMemo(() => {
+    if (currentQty > 0 && currentUnitPrice !== null && currentUnitPrice >= 0) {
+      return currentQty * currentUnitPrice
+    }
+    return null
+  }, [currentQty, currentUnitPrice])
 
   const itemType = activeTab
 
@@ -104,55 +106,91 @@ export function ItemForm({
       {inline && <input type="hidden" name="inline" value="true" />}
       {showError && (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              <div className="flex items-center justify-between gap-3">
-                <p>{state.message}</p>
-              <button
-                type="button"
-                onClick={() => { dismissedRef.current = state; setDismissed(state) }}
-                className="shrink-0 font-semibold underline underline-offset-2"
-              >
-                ปิด
-              </button>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <p>{state.message}</p>
+            <button
+              type="button"
+              onClick={() => { dismissedRef.current = state; setDismissed(state) }}
+              className="shrink-0 font-semibold underline underline-offset-2 cursor-pointer"
+            >
+              ปิด
+            </button>
           </div>
+        </div>
       )}
 
-      {/* Tabs Navigation */}
-      <div role="tablist" aria-label="ประเภทสิ่งของ" className="flex border-b border-border mb-2">
+      {/* Type Selector Hero Segmented Cards */}
+      <div role="tablist" aria-label="ประเภทสิ่งของ" className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
         <button
           type="button"
           role="tab"
+          aria-label="ครุภัณฑ์"
           aria-selected={activeTab === 'asset'}
           aria-controls="asset-details"
           onClick={() => setActiveTab('asset')}
-          className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+          className={cn(
+            'flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer relative select-none',
             activeTab === 'asset'
-              ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-          }`}
+              ? 'border-blue-600/60 bg-blue-500/10 shadow-xs ring-1 ring-blue-500/30'
+              : 'border-border bg-card/60 hover:bg-muted/50 hover:border-border/80'
+          )}
         >
-          <Package className="h-4 w-4" />
-          <span>ครุภัณฑ์</span>
+          <div className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-xs transition-colors',
+            activeTab === 'asset' ? 'bg-blue-600 text-white shadow-xs' : 'bg-muted text-muted-foreground'
+          )}>
+            <Package className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-xs text-foreground">ครุภัณฑ์ตามเกณฑ์</span>
+              <span className="inline-flex items-center rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/25">
+                มูลค่า ≥ 10,000฿
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              มีเลขครุภัณฑ์หลัก ทะเบียนสินทรัพย์ GFMIS และคำนวณค่าเสื่อมราคา
+            </p>
+          </div>
         </button>
+
         <button
           type="button"
           role="tab"
+          aria-label="พัสดุ"
           aria-selected={activeTab === 'material'}
           aria-controls="material-details"
           onClick={() => setActiveTab('material')}
-          className={`flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3 sm:px-6 border-b-2 font-bold text-xs transition-all cursor-pointer ${
+          className={cn(
+            'flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer relative select-none',
             activeTab === 'material'
-              ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-          }`}
+              ? 'border-amber-500/60 bg-amber-500/10 shadow-xs ring-1 ring-amber-500/30'
+              : 'border-border bg-card/60 hover:bg-muted/50 hover:border-border/80'
+          )}
         >
-          <ClipboardList className="h-4 w-4" />
-          <span>พัสดุ</span>
+          <div className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-xs transition-colors',
+            activeTab === 'material' ? 'bg-amber-600 text-white shadow-xs' : 'bg-muted text-muted-foreground'
+          )}>
+            <ClipboardList className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-xs text-foreground">พัสดุ / ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)</span>
+              <span className="inline-flex items-center rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                พัสดุคงทน
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              มีเลขทะเบียนคุมพัสดุ (ต.) บันทึกประวัติและสถานที่ ไม่คิดค่าเสื่อมราคา
+            </p>
+          </div>
         </button>
       </div>
 
       <input type="hidden" name="item_type" value={itemType} />
 
+      {/* SECTION 1: ข้อมูลหลัก */}
       <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุชื่อสิ่งของ หมวดหมู่ จำนวน และหน่วยนับ">
         <FormGrid className="sm:grid-cols-2">
           <FormField className="sm:col-span-2">
@@ -161,6 +199,7 @@ export function ItemForm({
               id="item_name"
               name="item_name"
               defaultValue={item?.item_name}
+              placeholder="เช่น คอมพิวเตอร์ All-in-One, เก้าอี้ทำงานพนักพิงสูง, เครื่องพิมพ์เลเซอร์..."
               dir="auto"
               required
               aria-invalid={!!state?.fieldErrors?.item_name}
@@ -191,6 +230,10 @@ export function ItemForm({
               name="quantity"
               allowDecimals={false}
               defaultValue={item?.quantity ?? 1}
+              onChange={(e) => {
+                const val = parseInt(e.target.value.replace(/,/g, ''), 10)
+                setCurrentQty(isNaN(val) ? 0 : val)
+              }}
               required
               aria-invalid={!!state?.fieldErrors?.quantity}
             />
@@ -216,62 +259,56 @@ export function ItemForm({
         </FormGrid>
       </FormSection>
 
-      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="ราคา ยี่ห้อ/รุ่น วันที่รับ และเลขทะเบียนราชการ">
+      {/* SECTION 2: รายละเอียดสิ่งของ */}
+      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="เลขทะเบียน วันที่รับ แหล่งเงิน ยี่ห้อ/รุ่น และ Serial Number">
         <FormGrid className="sm:grid-cols-2">
-          <FormField>
-            <FormLabel htmlFor="unit_price">ราคาต่อหน่วย</FormLabel>
-            <FormattedNumberInput
-              id="unit_price"
-              name="unit_price"
-              allowDecimals={true}
-              defaultValue={item?.unit_price ?? ''}
-              aria-invalid={!!state?.fieldErrors?.unit_price}
+          <TextInput
+            name="asset_no"
+            label={activeTab === 'asset' ? 'เลขครุภัณฑ์' : 'เลขทะเบียนพัสดุ / ครุภัณฑ์ (ต.)'}
+            defaultValue={item?.asset_no}
+            errors={state?.fieldErrors?.asset_no}
+            placeholder={activeTab === 'asset' ? 'เช่น 7110-001-0001/67' : 'เช่น ต.7110-001-0001/67'}
+          />
+
+          {activeTab === 'asset' ? (
+            <TextInput
+              name="gfmis_number"
+              label="เลขสินทรัพย์ (GFMIS 12 หลัก)"
+              defaultValue={item?.gfmis_number}
+              errors={state?.fieldErrors?.gfmis_number}
+              placeholder="เช่น 100000012345"
             />
-            <FieldError errors={state?.fieldErrors?.unit_price} />
-          </FormField>
-        </FormGrid>
-
-        {activeTab === 'asset' ? (
-          <div id="asset-details" role="tabpanel">
-            <FormGrid className="sm:grid-cols-2 mt-4">
-              <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} />
-              <TextInput name="model" label="รุ่น" defaultValue={item?.model} />
-              <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} />
-              <FormField>
-                <FormLabel htmlFor="acquired_date">วัน เดือน ปีที่รับ</FormLabel>
-                <FormInput
-                  id="acquired_date"
-                  name="acquired_date"
-                  type="date"
-                  defaultValue={item?.acquired_date ? item.acquired_date.slice(0, 10) : ''}
-                  aria-invalid={!!state?.fieldErrors?.acquired_date}
-                />
-                <FieldError errors={state?.fieldErrors?.acquired_date} />
-              </FormField>
-
-              <TextInput name="budget_source" label="รับจาก (งปม.) / แหล่งเงิน" defaultValue={item?.budget_source} errors={state?.fieldErrors?.budget_source} />
-              <TextInput name="asset_no" label="เลขครุภัณฑ์" defaultValue={item?.asset_no} errors={state?.fieldErrors?.asset_no} />
-              <TextInput name="gfmis_number" label="เลขสินทรัพย์ (GFMIS 12 หลัก)" defaultValue={item?.gfmis_number} errors={state?.fieldErrors?.gfmis_number} />
-            </FormGrid>
-          </div>
-        ) : (
-          <div id="material-details" role="tabpanel">
-            <input type="hidden" name="asset_no" value="" />
+          ) : (
             <input type="hidden" name="gfmis_number" value="" />
-            <input type="hidden" name="serial_no" value="" />
-            <input type="hidden" name="brand" value="" />
-            <input type="hidden" name="model" value="" />
-            <input type="hidden" name="budget_source" value="" />
-            <input type="hidden" name="acquired_date" value="" />
-            <input type="hidden" name="depreciation_enabled" value="false" />
-            <input type="hidden" name="depreciation_cost" value="" />
-            <input type="hidden" name="depreciation_useful_life_years" value="" />
-            <input type="hidden" name="depreciation_start_basis" value="" />
-            <input type="hidden" name="depreciation_start_date" value="" />
-          </div>
-        )}
+          )}
+
+          <FormField>
+            <FormLabel htmlFor="acquired_date">วัน เดือน ปีที่รับ</FormLabel>
+            <FormInput
+              id="acquired_date"
+              name="acquired_date"
+              type="date"
+              defaultValue={item?.acquired_date ? item.acquired_date.slice(0, 10) : ''}
+              aria-invalid={!!state?.fieldErrors?.acquired_date}
+            />
+            <FieldError errors={state?.fieldErrors?.acquired_date} />
+          </FormField>
+
+          <TextInput
+            name="budget_source"
+            label="รับจาก (งปม.) / แหล่งเงิน"
+            defaultValue={item?.budget_source}
+            errors={state?.fieldErrors?.budget_source}
+            placeholder="เช่น เงินงบประมาณ, เงินบำรุง, งปม.67..."
+          />
+
+          <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} placeholder="เช่น Dell, HP, Toyota..." />
+          <TextInput name="model" label="รุ่น" defaultValue={item?.model} placeholder="เช่น Latitude 5420, Camry..." />
+          <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} placeholder="เช่น CN-098XYZ..." />
+        </FormGrid>
       </FormSection>
 
+      {/* SECTION 3: สถานที่และผู้รับผิดชอบ */}
       <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />} description="จัดเก็บที่ไหน ใครดูแล และสภาพพัสดุ">
         <FormGrid className="sm:grid-cols-2">
           <FormField>
@@ -290,7 +327,7 @@ export function ItemForm({
             <FieldError errors={state?.fieldErrors?.location_id} />
           </FormField>
 
-          <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} />
+          <TextInput name="responsible_person" label="ผู้รับผิดชอบ" defaultValue={item?.responsible_person} placeholder="ชื่อ-นามสกุล หรือตำแหน่งผู้ครองครอง" />
 
           <FormField>
             <FormLabel htmlFor="status" required>สถานะ</FormLabel>
@@ -312,8 +349,43 @@ export function ItemForm({
         </FormGrid>
       </FormSection>
 
-      <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />} description="เพิ่มภาพประกอบและข้อมูลอื่น ๆ (ไม่บังคับ)">
+      {/* SECTION 4: รูปภาพและหมายเหตุ */}
+      <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />} description="ราคาต่อหน่วย มูลค่ารวม ภาพประกอบ และหมายเหตุ">
         <FormGrid className="sm:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="unit_price">ราคาต่อหน่วย (บาท)</FormLabel>
+            <FormattedNumberInput
+              id="unit_price"
+              name="unit_price"
+              allowDecimals={true}
+              defaultValue={item?.unit_price ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/,/g, '')
+                const val = parseFloat(raw)
+                setCurrentUnitPrice(isNaN(val) ? null : val)
+              }}
+              aria-invalid={!!state?.fieldErrors?.unit_price}
+            />
+            <FieldError errors={state?.fieldErrors?.unit_price} />
+          </FormField>
+
+          {/* Live Total Value Card */}
+          <div className="flex flex-col justify-end">
+            <div className="rounded-xl border border-border/80 bg-muted/40 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-medium text-muted-foreground block">มูลค่ารวมทั้งหมด (คำนวณสด)</span>
+                <span className="text-xs text-muted-foreground/80">
+                  {currentQty} {units.find((u) => u.id === item?.unit?.id)?.name || 'หน่วย'} × {currentUnitPrice !== null ? `฿${currentUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </span>
+              </div>
+              <span className="text-base font-bold font-mono text-primary tabular-nums">
+                {liveTotal !== null
+                  ? `฿${liveTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : '฿0.00'}
+              </span>
+            </div>
+          </div>
+
           <ImageUploadInput defaultValue={item?.image_url} />
 
           <FormField className="sm:col-span-2">
@@ -324,22 +396,63 @@ export function ItemForm({
               defaultValue={item?.note ?? ''}
               rows={3}
               dir="auto"
+              placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)..."
             />
           </FormField>
         </FormGrid>
       </FormSection>
-      {activeTab === 'asset' && <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10 p-4"><DepreciationFields item={item} /></div>}
 
-      {showActions && <FormActions>
-        {onCancel ? (
-          <Button type="button" variant="outline" className="h-10 px-4" onClick={onCancel}>ยกเลิก</Button>
-        ) : (
-          <Link href={item ? `/items/${item.id}` : '/items'}>
-            <Button type="button" variant="outline" className="h-10 px-4">ยกเลิก</Button>
-          </Link>
-        )}
-        <SubmitButton />
-      </FormActions>}
+      {/* Depreciation or Below-threshold Regulatory notice */}
+      {activeTab === 'asset' ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10 p-4">
+          <DepreciationFields item={item} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2.5 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-muted-foreground">
+          <span className="font-semibold text-amber-700 dark:text-amber-400 shrink-0">💡 ระเบียบพัสดุ:</span>
+          <span>ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.) จัดเป็นพัสดุคงทน ไม่ต้องคำนวณค่าเสื่อมราคาตามระเบียบกระทรวงการคลัง</span>
+          <input type="hidden" name="depreciation_enabled" value="false" />
+          <input type="hidden" name="depreciation_cost" value="" />
+          <input type="hidden" name="depreciation_useful_life_years" value="" />
+          <input type="hidden" name="depreciation_start_basis" value="" />
+          <input type="hidden" name="depreciation_start_date" value="" />
+        </div>
+      )}
+
+      {showActions && (
+        <FormActions className="flex items-center justify-between gap-3 pt-2">
+          {onCancel ? (
+            <Button type="button" variant="outline" className="h-10 px-4 cursor-pointer" onClick={onCancel}>
+              ยกเลิก
+            </Button>
+          ) : (
+            <Link href={item ? `/items/${item.id}` : '/items'}>
+              <Button type="button" variant="outline" className="h-10 px-4 cursor-pointer">
+                ยกเลิก
+              </Button>
+            </Link>
+          )}
+          <div className="flex items-center gap-2">
+            {!item && (
+              <Button
+                type="submit"
+                name="intent"
+                value="save_and_another"
+                variant="secondary"
+                disabled={pending}
+                className="h-10 px-4 font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>บันทึกและเพิ่มรายการถัดไป</span>
+              </Button>
+            )}
+            <Button type="submit" name="intent" value="save_and_close" disabled={pending} className="h-10 px-4 font-semibold flex items-center gap-1.5 cursor-pointer">
+              <Save className="h-4 w-4" />
+              <span>{pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}</span>
+            </Button>
+          </div>
+        </FormActions>
+      )}
     </form>
   )
 }
@@ -378,12 +491,14 @@ function TextInput({
   defaultValue,
   errors,
   required,
+  placeholder,
 }: {
   name: string
   label: string
   defaultValue?: string | null
   errors?: string[]
   required?: boolean
+  placeholder?: string
 }) {
   return (
     <FormField>
@@ -392,6 +507,7 @@ function TextInput({
         id={name}
         name={name}
         defaultValue={defaultValue ?? ''}
+        placeholder={placeholder}
         dir="auto"
         aria-invalid={!!errors}
       />

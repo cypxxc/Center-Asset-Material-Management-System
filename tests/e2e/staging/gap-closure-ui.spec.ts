@@ -28,6 +28,7 @@ test.describe('CAMMS Final Gap Closure E2E (Staging Port 3001)', () => {
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(() => {
         try {
+          window.localStorage.removeItem('center-asset-material-management-system:new-item-draft')
           window.localStorage.removeItem('omni-asset:new-item-draft')
         } catch {}
       })

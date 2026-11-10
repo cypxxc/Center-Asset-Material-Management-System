@@ -113,28 +113,19 @@ test('ItemsExplorerClient renders table rows with full width', () => {
   assert.equal(screen.queryByRole('dialog'), null)
 })
 
-test('list and grid render 50 items and view toggles preserve inspected item without virtual scrolling', () => {
+test('ledger renders 50 items and preserves inspected item without virtual scrolling', () => {
   const items = Array.from({ length: 50 }, (_, i) => ({ ...mockItems[0], id: `item-page-${i}`, item_name: `Page Item ${i}` }))
   const { container } = renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
-  // In list view, all 50 items are rendered directly without virtual spacer rows
+  // In ledger view, all 50 items are rendered directly without virtual spacer rows
   const rows = screen.getAllByRole('row')
-  // 1 header row + 50 data rows = 51 rows
-  assert.equal(rows.length, 51)
+  // 2 header rows in ledger + 50 data rows = 52 rows
+  assert.equal(rows.length, 52)
   assert.equal(container.querySelector('[key="__virtual-top-spacer__"]'), null)
   assert.equal(container.querySelector('[key="__virtual-bottom-spacer__"]'), null)
 
   // Click on item 10 to inspect it
   fireEvent.click(screen.getByText('Page Item 10'))
   assert.ok(screen.getAllByText('Page Item 10').length >= 1)
-
-  // Toggle to Grid view
-  fireEvent.click(screen.getByTitle('Grid view'))
-  assert.equal(container.querySelectorAll('.grid > div[tabindex="0"]').length, 50)
-  assert.ok(screen.getAllByText('Page Item 10').length >= 1)
-
-  // Toggle back to List view
-  fireEvent.click(screen.getByTitle('List view'))
-  assert.equal(screen.getAllByRole('row').length, 51)
 })
 
 test('pagination footer displays range, total, single valuation metric, and handles page buttons', () => {
@@ -354,16 +345,15 @@ test('ItemsExplorerClient: table contracts width class when inspector is opened'
   assert.ok(main?.classList.contains('min-w-0'))
   assert.equal(main?.classList.contains('w-full'), false)
 
-  // Before opening inspector: uses adaptive min-w without inspector
+  // Uses ledger table min-w-[1880px]
   let table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[480px]'))
+  assert.ok(table?.classList.contains('min-w-[1880px]'))
 
   // Click row to open inspector
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
 
-  // Table contracts to smaller min-w (min-w-[420px]) to allow side-by-side room without overflow
   table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[420px]'))
+  assert.ok(table?.classList.contains('min-w-[1880px]'))
 })
 
 test('Keyboard Navigation: ArrowDown and ArrowUp navigate through items and synchronize inspector', () => {
@@ -488,33 +478,13 @@ test('List View: does not render print quick action in table row; printing is ac
   assert.ok(within(dialog as HTMLElement).getAllByText('EQ-2026-001').length > 0)
 })
 
-test('Quick Actions in Grid View: Print and Copy buttons work and RBAC Viewer hides Edit and Print', () => {
-  // Render with userCanWrite=false (Viewer role)
-  const { unmount } = renderComponent({ ...defaultProps, userCanWrite: false })
+test('Quick Actions in Table Row: Copy button works for asset number', () => {
+  renderComponent({ ...defaultProps, userCanWrite: false })
 
-  // Switch to Grid View
-  fireEvent.click(screen.getByTitle('Grid view'))
-
-  // Copy button should exist on card
+  // Copy button should exist on table row
   const copyBtn = screen.getByLabelText(`คัดลอก ${mockItems[0].asset_no}`)
   assert.ok(copyBtn)
-
-  // Edit and Print buttons MUST NOT exist for viewer (guarded by userCanWrite)
-  assert.equal(screen.queryByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`), null)
-  assert.equal(screen.queryByLabelText(`แก้ไขข้อมูล ${mockItems[0].item_name}`), null)
-  unmount()
-
-  // Render with userCanWrite=true (Staff/Admin) to verify Print action
-  renderComponent({ ...defaultProps, userCanWrite: true })
-  fireEvent.click(screen.getByTitle('Grid view'))
-
-  const printBtn = screen.getByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`)
-  assert.ok(printBtn)
-
-  // Clicking print button opens sticker modal without opening inspector drawer
-  fireEvent.click(printBtn)
-  assert.ok(screen.getByText(/พิมพ์ลาเบลติดครุภัณฑ์/))
-  assert.equal(screen.queryByTestId('inspector-panel'), null)
+  fireEvent.click(copyBtn)
 })
 
 test('Table Focus Mode: toggle button toggles focused workspace and preserves state', () => {

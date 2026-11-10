@@ -105,7 +105,7 @@ export function IdleSessionTimeout({
               แจ้งเตือนการหมดเวลาเซสชัน (Idle Timeout)
             </h2>
             <p id="idle-timeout-desc" className="text-xs text-muted-foreground mt-0.5">
-              เพื่อความปลอดภัยของข้อมูลในระบบราชการ
+              เพื่อความปลอดภัยของข้อมูลในระบบ
             </p>
           </div>
         </div>

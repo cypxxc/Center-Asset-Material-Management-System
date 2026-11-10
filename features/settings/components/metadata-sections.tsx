@@ -487,79 +487,18 @@ export function ImportSection() {
 
       if (isXlsx) {
         const ExcelJS = (await import('exceljs')).default
+        const { convertExcelToStandardCSV } = await import('@/features/items/excel-importer')
         const workbook = new ExcelJS.Workbook()
         const arrayBuffer = await file.arrayBuffer()
         await workbook.xlsx.load(arrayBuffer)
 
-        const worksheet = workbook.worksheets[0]
-        if (!worksheet) {
+        if (!workbook.worksheets || workbook.worksheets.length === 0) {
           setIsUploading(false)
           setResult({ type: 'error', message: 'ไม่พบตารางข้อมูลในไฟล์ Excel' })
           return
         }
 
-        // Find header row in first 10 rows
-        let headerRowNumber = 1
-        const headerKeywords = ['item_name', 'รายการครุภัณฑ์', 'ชื่อสิ่งของ', 'ชื่อพัสดุ', 'เลขครุภัณฑ์']
-        for (let r = 1; r <= Math.min(worksheet.rowCount, 10); r++) {
-          const testRow = worksheet.getRow(r)
-          let matchFound = false
-          testRow.eachCell((cell) => {
-            const val = String(cell.value || '').trim().toLowerCase()
-            if (headerKeywords.some(k => val.includes(k.toLowerCase()))) {
-              matchFound = true
-            }
-          })
-          if (matchFound) {
-            headerRowNumber = r
-            break
-          }
-        }
-
-        const headerRow = worksheet.getRow(headerRowNumber)
-        const headers: string[] = []
-        headerRow.eachCell((cell) => {
-          headers.push(String(cell.value || '').trim())
-        })
-
-        // Build CSV string from the sheet data
-        const csvLines: string[] = []
-        // Push headers
-        csvLines.push(headers.join(','))
-
-        worksheet.eachRow((row, rowNumber) => {
-          // Skip header row and preceding title rows
-          if (rowNumber <= headerRowNumber) return
-
-          // Skip example rows
-          let isExampleRow = false
-          row.eachCell((cell) => {
-            if (String(cell.value || '').includes('(ตัวอย่าง)')) {
-              isExampleRow = true
-            }
-          })
-          if (isExampleRow) return
-
-          const lineValues: string[] = []
-          for (let i = 1; i <= headers.length; i++) {
-            const cell = row.getCell(i)
-            let val = ''
-            if (cell.value instanceof Date) {
-              val = cell.value.toISOString().slice(0, 10)
-            } else if (cell.value && typeof cell.value === 'object') {
-              // @ts-expect-error - ExcelJS CellValue can be cell formula object
-              val = String(cell.value.result || cell.value.text || '')
-            } else {
-              val = cell.value !== null && cell.value !== undefined ? String(cell.value) : ''
-            }
-            // Escape double quotes and wrap in quotes to prevent CSV parsing issues
-            const escaped = val.replace(/"/g, '""')
-            lineValues.push(`"${escaped}"`)
-          }
-          csvLines.push(lineValues.join(','))
-        })
-
-        const csvContent = csvLines.join('\n')
+        const csvContent = convertExcelToStandardCSV(workbook)
         const res = await importItemsBulk(csvContent)
         setIsUploading(false)
         if (res.success) {
@@ -660,9 +599,11 @@ export function ImportSection() {
             ) : (
               <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
             )}
-            <div className="space-y-1">
+            <div className="space-y-1 w-full min-w-0">
               <h5 className="text-xs font-bold">{result.type === 'success' ? 'การนำเข้าสำเร็จ' : 'เกิดข้อผิดพลาดในการนำเข้า'}</h5>
-              <p className="text-[11px] leading-relaxed opacity-90">{result.message}</p>
+              <div className="text-[11px] leading-relaxed opacity-90 whitespace-pre-line max-h-60 overflow-y-auto pr-2 font-mono font-normal">
+                {result.message}
+              </div>
             </div>
           </div>
         )}

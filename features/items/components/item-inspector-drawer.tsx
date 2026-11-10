@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
   Banknote,
+  Boxes,
   Building2,
   Calendar,
   Copy,
@@ -21,7 +22,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
-import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
+import { type ItemListRow } from '@/features/items/types'
 import { CategoryBadge } from '@/features/items/components/category-badge'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { useMediaQuery } from '@/hooks/use-media-query'
@@ -142,15 +143,22 @@ export function Inspector({
                 icon={item.category?.icon}
                 className="max-w-[200px]"
               />
-              <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
-                {ITEM_TYPE_LABELS[item.item_type]}
-              </span>
+              {item.item_type === 'material' ? (
+                <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                  ต่ำกว่าเกณฑ์ (ต.)
+                </span>
+              ) : (
+                <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
+                  ครุภัณฑ์ตามเกณฑ์
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Asset No / Serial Number */}
+          {/* SECTION 1: ข้อมูลระบุตัวตน (Tone Blue) */}
+          <DrawerSectionHeading tone="blue" icon={<Tag className="h-3 w-3" />} label="ข้อมูลระบุตัวตน" />
           {item.asset_no && (
-            <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary shrink-0" />} label="เลขครุภัณฑ์">
+            <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />} label={item.item_type === 'material' ? 'เลขทะเบียน (ต.)' : 'เลขครุภัณฑ์'}>
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground min-w-0 flex-1" title={item.asset_no}>
                   {item.asset_no}
@@ -169,7 +177,7 @@ export function Inspector({
           )}
 
           {item.serial_no && (
-            <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary shrink-0" />} label="Serial Number">
+            <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-500 shrink-0" />} label="Serial Number">
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground min-w-0 flex-1" title={item.serial_no}>
                   {item.serial_no}
@@ -188,85 +196,89 @@ export function Inspector({
           )}
 
           {!item.asset_no && !item.serial_no && (
-            <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary shrink-0" />} label="เลขอ้างอิง">
+            <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-500 shrink-0" />} label="เลขอ้างอิง">
               <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs text-muted-foreground min-w-0">
                 - ไม่มีเลขอ้างอิง -
               </p>
             </InspectorBox>
           )}
 
-          {/* Quantity & Unit Price */}
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
-            <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary shrink-0" />} label="จำนวนคงเหลือ">
+          {/* SECTION 2: คุณลักษณะและยี่ห้อ (Tone Violet) */}
+          <DrawerSectionHeading tone="violet" icon={<Boxes className="h-3 w-3" />} label="คุณลักษณะ & ยี่ห้อ" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+            {(item.brand || item.model) ? (
+              <InspectorBox tone="violet" icon={<Boxes className="h-3.5 w-3.5 text-violet-500 shrink-0" />} label="ยี่ห้อ / รุ่น">
+                <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={[item.brand, item.model].filter(Boolean).join(' - ')}>
+                  {[item.brand, item.model].filter(Boolean).join(' - ') || '-'}
+                </div>
+              </InspectorBox>
+            ) : null}
+
+            <InspectorBox tone="violet" icon={<Package className="h-3.5 w-3.5 text-violet-500 shrink-0" />} label="จำนวนคงเหลือ">
               <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
                 {item.quantity} {item.unit?.name ?? ''}
               </div>
             </InspectorBox>
+          </div>
 
-            <InspectorBox icon={<Banknote className="h-3.5 w-3.5 text-primary shrink-0" />} label="ราคาต่อหน่วย">
+          {/* SECTION 3: มูลค่าและงบประมาณ (Tone Teal) */}
+          <DrawerSectionHeading tone="teal" icon={<Banknote className="h-3 w-3" />} label="มูลค่า & งบประมาณ" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+            <InspectorBox tone="teal" icon={<Banknote className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />} label="ราคาต่อหน่วย">
               <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
                 {item.unit_price !== null && item.unit_price !== undefined ? `฿${item.unit_price.toLocaleString()}` : '-'}
               </div>
             </InspectorBox>
+
+            {item.gfmis_number ? (
+              <InspectorBox tone="teal" icon={<Tag className="h-3.5 w-3.5 text-teal-500 shrink-0" />} label="เลขสินทรัพย์ (GFMIS)">
+                <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 font-mono text-xs font-semibold text-card-foreground truncate" title={item.gfmis_number}>
+                  {item.gfmis_number}
+                </div>
+              </InspectorBox>
+            ) : null}
+
+            {item.budget_source ? (
+              <InspectorBox tone="teal" icon={<Building2 className="h-3.5 w-3.5 text-teal-500 shrink-0" />} label="รับจาก (งปม.)">
+                <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={item.budget_source}>
+                  {item.budget_source}
+                </div>
+              </InspectorBox>
+            ) : null}
+
+            {item.acquired_date ? (
+              <InspectorBox tone="teal" icon={<Calendar className="h-3.5 w-3.5 text-teal-500 shrink-0" />} label="วันที่รับเข้า">
+                <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate">
+                  {formatDateThaiBE(item.acquired_date)}
+                </div>
+              </InspectorBox>
+            ) : null}
           </div>
 
-          {/* GFMIS & Budget Source & Acquired Date */}
-          {(item.gfmis_number || item.budget_source || item.acquired_date) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
-              {item.gfmis_number && (
-                <InspectorBox icon={<Tag className="h-3.5 w-3.5 text-primary shrink-0" />} label="เลขสินทรัพย์ (GFMIS)">
-                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 font-mono text-xs font-semibold text-card-foreground truncate" title={item.gfmis_number}>
-                    {item.gfmis_number}
-                  </div>
-                </InspectorBox>
-              )}
-              {item.budget_source && (
-                <InspectorBox icon={<Building2 className="h-3.5 w-3.5 text-primary shrink-0" />} label="รับจาก (งปม.)">
-                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={item.budget_source}>
-                    {item.budget_source}
-                  </div>
-                </InspectorBox>
-              )}
-              {item.acquired_date && (
-                <InspectorBox icon={<Calendar className="h-3.5 w-3.5 text-primary shrink-0" />} label="วันที่รับเข้า">
-                  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate">
-                    {formatDateThaiBE(item.acquired_date)}
-                  </div>
-                </InspectorBox>
-              )}
-            </div>
-          )}
-
-          {/* Location */}
-          <InspectorBox icon={<MapPin className="h-3.5 w-3.5 text-primary shrink-0" />} label="สถานที่จัดเก็บ">
-            <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={item.location?.name}>
-              {item.location?.name || 'ไม่ได้ระบุ'}
-            </div>
-          </InspectorBox>
-
-          {/* Responsible Person */}
-          <InspectorBox icon={<User className="h-3.5 w-3.5 text-primary shrink-0" />} label="ผู้รับผิดชอบ">
-            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground min-w-0">
-              <div className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
-                {(item.responsible_person || 'U').charAt(0).toUpperCase()}
-              </div>
-              <span className="font-bold text-card-foreground truncate flex-1 min-w-0" title={item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}>
-                {item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}
-              </span>
-            </div>
-          </InspectorBox>
-
-          {/* Brand / Model */}
-          {(item.brand || item.model) && (
-            <InspectorBox icon={<Package className="h-3.5 w-3.5 text-primary shrink-0" />} label="ยี่ห้อ / รุ่น">
-              <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={[item.brand, item.model].filter(Boolean).join(' - ')}>
-                {[item.brand, item.model].filter(Boolean).join(' - ') || '-'}
+          {/* SECTION 4: สถานที่และการครอบครอง (Tone Indigo) */}
+          <DrawerSectionHeading tone="indigo" icon={<MapPin className="h-3 w-3" />} label="สถานที่ & ผู้ครอบครอง" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+            <InspectorBox tone="indigo" icon={<MapPin className="h-3.5 w-3.5 text-indigo-500 shrink-0" />} label="สถานที่จัดเก็บ">
+              <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground truncate" title={item.location?.name}>
+                {item.location?.name || 'ไม่ได้ระบุ'}
               </div>
             </InspectorBox>
-          )}
 
-          {/* Note */}
-          <InspectorBox icon={<StickyNote className="h-3.5 w-3.5 text-primary shrink-0" />} label="หมายเหตุ">
+            <InspectorBox tone="indigo" icon={<User className="h-3.5 w-3.5 text-indigo-500 shrink-0" />} label="ผู้รับผิดชอบ">
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-medium text-card-foreground min-w-0">
+                <div className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-indigo-500/30 bg-indigo-500/10 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                  {(item.responsible_person || 'U').charAt(0).toUpperCase()}
+                </div>
+                <span className="font-bold text-card-foreground truncate flex-1 min-w-0" title={item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}>
+                  {item.responsible_person || 'ยังไม่มีผู้รับผิดชอบ'}
+                </span>
+              </div>
+            </InspectorBox>
+          </div>
+
+          {/* SECTION 5: หมายเหตุ (Tone Slate) */}
+          <DrawerSectionHeading tone="slate" icon={<StickyNote className="h-3 w-3" />} label="หมายเหตุ" />
+          <InspectorBox tone="slate" icon={<StickyNote className="h-3.5 w-3.5 text-slate-500 shrink-0" />} label="รายละเอียดเพิ่มเติม">
             <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs leading-relaxed text-muted-foreground break-words min-w-0">
               {item.note || '- ไม่มีหมายเหตุ -'}
             </p>
@@ -380,18 +392,57 @@ export function Inspector({
   )
 }
 
+function DrawerSectionHeading({
+  tone,
+  icon,
+  label,
+}: {
+  tone: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate'
+  icon: ReactNode
+  label: string
+}) {
+  const tonePills = {
+    blue: 'border-blue-200/80 bg-blue-50/80 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-300',
+    violet: 'border-violet-200/80 bg-violet-50/80 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/40 dark:text-violet-300',
+    teal: 'border-teal-200/80 bg-teal-50/80 text-teal-700 dark:border-teal-800/70 dark:bg-teal-950/40 dark:text-teal-300',
+    indigo: 'border-indigo-200/80 bg-indigo-50/80 text-indigo-700 dark:border-indigo-800/70 dark:bg-indigo-950/40 dark:text-indigo-300',
+    slate: 'border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-800/70 dark:bg-slate-900/40 dark:text-slate-300',
+  }
+
+  return (
+    <div className="flex items-center gap-2 pt-2 pb-0.5">
+      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border shadow-2xs ${tonePills[tone]}`}>
+        {icon}
+        <span>{label}</span>
+      </span>
+      <div className="h-px flex-1 bg-border/60" />
+    </div>
+  )
+}
+
 function InspectorBox({
   icon,
   label,
   children,
+  tone = 'default',
 }: {
   icon: ReactNode
   label: string
   children: ReactNode
+  tone?: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate' | 'default'
 }) {
+  const toneLabelClasses = {
+    blue: 'text-blue-600 dark:text-blue-400',
+    violet: 'text-violet-600 dark:text-violet-400',
+    teal: 'text-teal-600 dark:text-teal-400',
+    indigo: 'text-indigo-600 dark:text-indigo-400',
+    slate: 'text-slate-600 dark:text-slate-400',
+    default: 'text-primary',
+  }
+
   return (
-    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs min-w-0">
-      <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary min-w-0">
+    <div className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs min-w-0">
+      <p className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${toneLabelClasses[tone]} min-w-0`}>
         {icon}
         <span className="truncate">{label}</span>
       </p>

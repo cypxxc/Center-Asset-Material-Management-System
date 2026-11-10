@@ -325,6 +325,11 @@ export async function createItem(
     return { message: errRes.message! }
   }
 
+  const intent = (formData.get('intent') as string) || 'save_and_close'
+  if (intent === 'save_and_another') {
+    return successResponse('บันทึกรายการสำเร็จ สามารถกรอกรายการถัดไปได้ทันที', { itemId: result.itemId, intent })
+  }
+
   redirect('/items')
 }
 
@@ -731,7 +736,11 @@ export async function createItemInline(
 
   logger.info({ operation: 'createItemInline', feature: 'items', userId: result.userId, details: { id: result.itemId } })
   // Return successResponse — caller handles close + refresh
-  return successResponse('สร้างพัสดุสำเร็จ')
+  const intent = formData.get('intent') as string | null
+  return successResponse(
+    intent === 'save_and_another' ? 'บันทึกรายการสำเร็จ สามารถกรอกรายการถัดไปได้ทันที' : 'สร้างพัสดุสำเร็จ',
+    intent === 'save_and_another' ? { itemId: result.itemId, intent } : undefined
+  )
 }
 
 /**

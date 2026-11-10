@@ -10,9 +10,9 @@ test('STICKER_PRESETS includes only standard and custom_grid presets', () => {
   assert.ok(standard, 'standard preset should be defined')
   assert.equal(standard.isSheet, true, 'standard preset should be an A4 sheet')
   assert.equal(standard.sheetGrid?.cols, 2)
-  assert.equal(standard.sheetGrid?.rows, 5)
+  assert.equal(standard.sheetGrid?.rows, 7)
   assert.equal(standard.width, '96mm')
-  assert.equal(standard.height, '55mm')
+  assert.equal(standard.height, '38.5mm')
 
   const custom = STICKER_PRESETS['custom_grid']
   assert.ok(custom, 'custom_grid preset should be defined')

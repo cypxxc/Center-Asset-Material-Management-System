@@ -4,14 +4,11 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
-  LayoutGrid,
-  List,
+  ChevronLeft,
+  ChevronRight,
   Maximize2,
   Minimize2,
   Plus,
-  Rows3,
-  Rows4,
-  ScrollText,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -44,7 +41,6 @@ import { normalizeItemListSearchParams, ITEMS_PAGE_SIZE } from '@/features/items
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { ItemsList } from '@/features/items/components/items-list-view'
-import { ItemsGrid } from '@/features/items/components/items-grid-view'
 import { Inspector } from '@/features/items/components/item-inspector-drawer'
 import { ItemsBulkBar } from '@/features/items/components/items-bulk-bar'
 import { ItemsFilterBar } from '@/features/items/components/items-filter-bar'
@@ -148,10 +144,51 @@ function ItemsExplorerSession({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'ledger' | 'grid'>('list')
-  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [blockingError, setBlockingError] = useState<string | null>(null)
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+  const [isAtLeft, setIsAtLeft] = useState(true)
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const maxScroll = el.scrollWidth - el.clientWidth
+    const hasMoreRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 10
+    setCanScrollRight(hasMoreRight)
+    setIsAtLeft(maxScroll > 0 ? el.scrollLeft < maxScroll * 0.45 : true)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    window.addEventListener('resize', updateScrollState)
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        updateScrollState()
+      })
+      ro.observe(el)
+      if (el.firstElementChild) {
+        ro.observe(el.firstElementChild)
+      }
+    }
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      window.removeEventListener('resize', updateScrollState)
+      ro?.disconnect()
+    }
+  }, [updateScrollState, currentItems])
+
+  const scrollHorizontally = useCallback((delta: number) => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    el.scrollBy({ left: delta, behavior: 'smooth' })
+    setTimeout(updateScrollState, 300)
+  }, [updateScrollState])
 
   const filterKey = JSON.stringify([params.q, params.type, params.status, params.category_id, params.location_id, params.sort_by, params.sort_dir, currentPage])
   const currentFilterKey = useRef(filterKey)
@@ -578,8 +615,8 @@ function ItemsExplorerSession({
           {/* ZONE 1: Page Header (Title + Summary Badge + Primary Actions & View Controls) */}
           <div className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              {/* Left: Dynamic Main Title & Count Badge */}
-              <div className="flex items-center gap-3 min-w-0">
+              {/* Left: Dynamic Main Title, Count Badge & Official Badge */}
+              <div className="flex items-center gap-2.5 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
                   {params.type === 'material'
                     ? 'รายการทะเบียนพัสดุ'
@@ -592,78 +629,8 @@ function ItemsExplorerSession({
 
               {/* Right: View Controls & Primary Action Button */}
               <div className="flex items-center gap-2 shrink-0">
-                {/* View Mode & Focus Controls */}
+                {/* Focus Controls */}
                 <div className="flex shrink-0 items-center rounded-lg border border-border bg-muted/60 p-0.5 shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('ledger')}
-                    className={cn(
-                      'flex h-7 px-2 items-center gap-1.5 rounded-md text-xs transition-all cursor-pointer border',
-                      viewMode === 'ledger'
-                        ? 'bg-card text-primary font-semibold shadow-xs border-border/50'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-card/50'
-                    )}
-                    title="Ledger view"
-                    aria-label="แสดงรายการแบบทะเบียนคุมสินทรัพย์ราชการ"
-                    aria-pressed={viewMode === 'ledger'}
-                  >
-                    <ScrollText className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-[11px] font-medium">ทะเบียนคุม</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('list')}
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer',
-                      viewMode === 'list'
-                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-                    )}
-                    title="List view"
-                    aria-label="แสดงรายการแบบลิสต์"
-                    aria-pressed={viewMode === 'list'}
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('grid')}
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-md transition-all cursor-pointer',
-                      viewMode === 'grid'
-                        ? 'bg-card text-primary font-semibold shadow-xs border border-border/50'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-                    )}
-                    title="Grid view"
-                    aria-label="แสดงรายการแบบตาราง"
-                    aria-pressed={viewMode === 'grid'}
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  </button>
-                  {(viewMode === 'list' || viewMode === 'ledger') && (
-                    <>
-                      <div className="h-3.5 w-px bg-border/60 mx-0.5" />
-                      <button
-                        type="button"
-                        onClick={() => setDensity(density === 'comfortable' ? 'compact' : 'comfortable')}
-                        className={cn(
-                          'flex h-7 px-1.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border',
-                          density === 'compact'
-                            ? 'bg-card text-primary font-semibold shadow-xs border-border/50'
-                            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-card/50'
-                        )}
-                        title={density === 'comfortable' ? 'เปลี่ยนเป็นแบบกระชับ (Compact)' : 'เปลี่ยนเป็นแบบสบายตา (Comfortable)'}
-                        aria-label={density === 'comfortable' ? 'เปลี่ยนเป็นแบบกระชับ' : 'เปลี่ยนเป็นแบบสบายตา'}
-                        aria-pressed={density === 'compact'}
-                      >
-                        {density === 'comfortable' ? <Rows3 className="h-3.5 w-3.5" /> : <Rows4 className="h-3.5 w-3.5" />}
-                        <span className="hidden xl:inline text-[11px] font-medium">
-                          {density === 'comfortable' ? 'สบายตา' : 'กระชับ'}
-                        </span>
-                      </button>
-                    </>
-                  )}
-                  <div className="h-3.5 w-px bg-border/60 mx-0.5" />
                   <button
                     type="button"
                     onClick={() => setIsFocusMode(!isFocusMode)}
@@ -724,6 +691,7 @@ function ItemsExplorerSession({
               onResetFilters={() => {
                 setSearchVal('')
                 handleFilterChange({
+                  type: '',
                   category_id: '',
                   status: '',
                   location_id: '',
@@ -791,44 +759,40 @@ function ItemsExplorerSession({
                 )}
               </div>
             )}
-            <div data-testid="items-scroll" className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}>
-              {viewMode === 'grid' ? (
-                <ItemsGrid
-                  items={currentItems}
-                  selectedItemId={effectiveSelectedItemId}
-                  selectedItemIds={selectedItemIds}
-                  onSelect={handleSelectItem}
-                  onDoubleClick={handleDoubleClickItem}
-                  onToggleSelectItem={handleToggleSelectItem}
-                  userCanWrite={userCanWrite}
-                  onCopy={copyReference}
-                  onPrint={handlePrintItem}
-                  onEdit={handleEditItem}
-                />
-              ) : (
-                <ItemsList
-                  items={currentItems}
-                  density={density}
-                  startIndex={(currentPage - 1) * pageSize}
-                  selectedItemId={effectiveSelectedItemId}
-                  selectedItemIds={selectedItemIds}
-                  onSelect={handleSelectItem}
-                  onDoubleClick={handleDoubleClickItem}
-                  onToggleSelectItem={handleToggleSelectItem}
-                  onToggleSelectAll={handleToggleSelectAll}
-                  allLoadedSelected={currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.id))}
-                  params={params}
-                  onToggleSort={toggleSort}
-                  isInspectorOpen={isInspectorOpen}
-                  userCanWrite={userCanWrite}
-                  onCopy={copyReference}
-                  onPrint={handlePrintItem}
-                  onEdit={handleEditItem}
-                  mode={viewMode === 'ledger' ? 'ledger' : 'standard'}
-                  onUpdateStatus={handleUpdateItemStatus}
-                />
-              )}
+            <div
+              ref={scrollContainerRef}
+              data-testid="items-scroll"
+              className={cn("flex-1 min-h-0 min-w-0 overflow-auto transition-opacity duration-200", isPending && "opacity-50 pointer-events-none")}
+            >
+              <ItemsList
+                items={currentItems}
+                density="compact"
+                startIndex={(currentPage - 1) * pageSize}
+                selectedItemId={effectiveSelectedItemId}
+                selectedItemIds={selectedItemIds}
+                onSelect={handleSelectItem}
+                onDoubleClick={handleDoubleClickItem}
+                onToggleSelectItem={handleToggleSelectItem}
+                onToggleSelectAll={handleToggleSelectAll}
+                allLoadedSelected={currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.id))}
+                params={params}
+                onToggleSort={toggleSort}
+                isInspectorOpen={isInspectorOpen}
+                userCanWrite={userCanWrite}
+                onCopy={copyReference}
+                onPrint={handlePrintItem}
+                onEdit={handleEditItem}
+                mode="ledger"
+                onUpdateStatus={handleUpdateItemStatus}
+              />
             </div>
+            {/* Visual gradient indicator on right edge when more columns are available */}
+            {canScrollRight && (
+              <div
+                className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background/70 to-transparent flex items-center justify-end pr-1 z-20 transition-opacity duration-200"
+                aria-hidden="true"
+              />
+            )}
           </div>
 
           <footer className="flex min-h-12 flex-wrap gap-3 py-2.5 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
@@ -853,60 +817,99 @@ function ItemsExplorerSession({
               )}
             </div>
 
-            {/* Server-Side Pagination Controls */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1 || isPending}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className="h-8 px-2.5 text-xs font-semibold"
-                aria-label="หน้าก่อนหน้า"
-              >
-                ก่อนหน้า
-              </Button>
-
-              <div className="flex items-center gap-1">
-                {getPageNumbers(currentPage, totalPagesCalculated).map((item, idx) => {
-                  if (item === 'ellipsis') {
-                    return (
-                      <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">
-                        …
-                      </span>
-                    )
-                  }
-                  const isCurrent = item === currentPage
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => handlePageChange(item)}
-                      aria-current={isCurrent ? 'page' : undefined}
-                      aria-label={`หน้า ${item}`}
-                      className={cn(
-                        'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
-                        isCurrent
-                          ? 'bg-primary text-primary-foreground shadow-xs font-bold'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      )}
-                    >
-                      {item}
-                    </button>
-                  )
-                })}
+            {/* Right: Column Steppers + Server-Side Pagination Controls */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Horizontal Column Scroll Steppers */}
+              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => scrollHorizontally(-420)}
+                  className={cn(
+                    "flex h-8 px-2.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border font-semibold shadow-2xs",
+                    isAtLeft
+                      ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
+                      : "border-transparent text-muted-foreground hover:bg-card hover:text-foreground"
+                  )}
+                  title="คอลัมน์ฝั่งซ้าย (คลิกเพื่อเลื่อนกลับไปทางซ้าย)"
+                  aria-label="คอลัมน์ฝั่งซ้าย"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">คอลัมน์ซ้าย</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollHorizontally(420)}
+                  className={cn(
+                    "flex h-8 px-2.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border font-semibold shadow-2xs",
+                    !isAtLeft
+                      ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
+                      : "border-transparent text-muted-foreground hover:bg-card hover:text-foreground"
+                  )}
+                  title="คอลัมน์ฝั่งขวา (คลิกเพื่อเลื่อนไปดูคอลัมน์ทางขวา)"
+                  aria-label="คอลัมน์ฝั่งขวา"
+                >
+                  <span className="text-[11px]">ดูคอลัมน์ขวา</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPagesCalculated || isPending}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className="h-8 px-2.5 text-xs font-semibold"
-                aria-label="หน้าถัดไป"
-              >
-                ถัดไป
-              </Button>
+              <div className="h-5 w-px bg-border/80 hidden sm:block" />
+
+              {/* Server-Side Pagination Controls */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1 || isPending}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className="h-8 px-2.5 text-xs font-semibold"
+                  aria-label="หน้าก่อนหน้า"
+                >
+                  ก่อนหน้า
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(currentPage, totalPagesCalculated).map((item, idx) => {
+                    if (item === 'ellipsis') {
+                      return (
+                        <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">
+                          …
+                        </span>
+                      )
+                    }
+                    const isCurrent = item === currentPage
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handlePageChange(item)}
+                        aria-current={isCurrent ? 'page' : undefined}
+                        aria-label={`หน้า ${item}`}
+                        className={cn(
+                          'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
+                          isCurrent
+                            ? 'bg-primary text-primary-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        {item}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPagesCalculated || isPending}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className="h-8 px-2.5 text-xs font-semibold"
+                  aria-label="หน้าถัดไป"
+                >
+                  ถัดไป
+                </Button>
+              </div>
             </div>
           </footer>
         </main>
@@ -1061,10 +1064,18 @@ function ItemsExplorerSession({
           setIsSheetOpen(false)
           setEditingItem(null)
         }}
-        onSuccess={() => {
-          setIsSheetOpen(false)
-          setEditingItem(null)
-          triggerToast(editingItem ? 'บันทึกการแก้ไขเรียบร้อยแล้ว' : 'เพิ่มสิ่งของเรียบร้อยแล้ว')
+        onSuccess={(keepOpen?: boolean) => {
+          if (!keepOpen) {
+            setIsSheetOpen(false)
+            setEditingItem(null)
+          }
+          triggerToast(
+            keepOpen
+              ? 'บันทึกรายการสำเร็จ สามารถกรอกรายการถัดไปได้ทันที'
+              : editingItem
+                ? 'บันทึกการแก้ไขเรียบร้อยแล้ว'
+                : 'เพิ่มสิ่งของเรียบร้อยแล้ว'
+          )
           router.refresh()
         }}
         categories={categories}

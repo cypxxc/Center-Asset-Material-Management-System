@@ -24,7 +24,23 @@ async function insertSession(tx: PostgresTransaction, userId: string) {
   return { token, expires }
 }
 export async function setSessionCookie({ token, expires }: { token: string; expires: Date }) {
-  ;(await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', expires })
+  let isSecure = process.env.NODE_ENV === 'production'
+  try {
+    const { headers } = await import('next/headers')
+    const headerList = await headers()
+    const proto = headerList.get('x-forwarded-proto')
+    if (proto) {
+      isSecure = proto === 'https'
+    } else {
+      const host = headerList.get('host') || ''
+      if (/^(\d+\.\d+\.\d+\.\d+|localhost)(:\d+)?$/.test(host)) {
+        isSecure = false
+      }
+    }
+  } catch {
+    // fallback to environment
+  }
+  ;(await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', expires })
 }
 /** Profile is locked with a shared read lock (for share of p) to prevent deadlocks with concurrent profile updates/resets and serialize before credentials checks. */
 export async function authenticatePassword(identifier: string, password: string) {

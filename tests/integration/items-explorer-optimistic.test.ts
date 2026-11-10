@@ -152,9 +152,9 @@ test('Bulk Edit: optimistic update applies changes instantly and rolls back on s
   const item1Row = () => screen.getByText('โน้ตบุ๊ก Dell Latitude 5420').closest('tr')!
   const item2Row = () => screen.getByText('กระดาษ Double A A4 80gsm').closest('tr')!
 
-  // Initial statuses
-  assert.ok(within(item1Row()).getByText('ใช้งานอยู่'))
-  assert.ok(within(item2Row()).getByText('สำรอง'))
+  // Initial statuses (in ledger view, active/spare show 'ใช้งานได้' title)
+  assert.ok(within(item1Row()).getByTitle('ใช้งานได้'))
+  assert.ok(within(item2Row()).getByTitle('ใช้งานได้'))
 
   // Open Bulk Edit Dialog
   fireEvent.click(screen.getByText('แก้ไขหลายรายการ'))
@@ -180,10 +180,10 @@ test('Bulk Edit: optimistic update applies changes instantly and rolls back on s
   // Before server responds, table UI state must ALREADY reflect the optimistic patch:
   // Both items should now have status "ชำรุด"
   await waitFor(() => {
-    assert.ok(within(item1Row()).getByText('ชำรุด'))
-    assert.ok(within(item2Row()).getByText('ชำรุด'))
-    assert.equal(within(item1Row()).queryByText('ใช้งานอยู่'), null)
-    assert.equal(within(item2Row()).queryByText('สำรอง'), null)
+    assert.ok(within(item1Row()).getByTitle('ชำรุด'))
+    assert.ok(within(item2Row()).getByTitle('ชำรุด'))
+    assert.equal(within(item1Row()).getByTitle(/ใช้งานได้/).classList.contains('font-bold'), false)
+    assert.equal(within(item2Row()).getByTitle(/ใช้งานได้/).classList.contains('font-bold'), false)
   })
 
   // 2. SERVER FAILURE & ROLLBACK:
@@ -191,12 +191,12 @@ test('Bulk Edit: optimistic update applies changes instantly and rolls back on s
   resolveServerAction({ success: false, message: 'ฐานข้อมูลขัดข้อง กรุณาลองใหม่' })
 
   // Verify rollback:
-  // State returns to original ("ใช้งานอยู่" and "สำรอง")
+  // State returns to original ("ใช้งานได้")
   await waitFor(() => {
-    assert.ok(within(item1Row()).getByText('ใช้งานอยู่'))
-    assert.ok(within(item2Row()).getByText('สำรอง'))
-    assert.equal(within(item1Row()).queryByText('ชำรุด'), null)
-    assert.equal(within(item2Row()).queryByText('ชำรุด'), null)
+    assert.ok(within(item1Row()).getByTitle('ใช้งานได้'))
+    assert.ok(within(item2Row()).getByTitle('ใช้งานได้'))
+    assert.equal(within(item1Row()).getByTitle(/ชำรุด/).classList.contains('font-bold'), false)
+    assert.equal(within(item2Row()).getByTitle(/ชำรุด/).classList.contains('font-bold'), false)
   })
 
   // Dialog stays open displaying the error
@@ -279,11 +279,11 @@ test('Bulk Edit: rolls back when server action throws an exception', async () =>
   // updates in the same microtask chain. waitFor() causes OOM here (same retry-loop issue).
   await act(async () => {})
 
-  // Verify rollback on rejected promise
-  assert.ok(within(item1Row()).getByText('ใช้งานอยู่'))
-  assert.ok(within(item2Row()).getByText('สำรอง'))
-  assert.equal(within(item1Row()).queryByText('ชำรุด'), null)
-  assert.equal(within(item2Row()).queryByText('ชำรุด'), null)
+  // Verify rollback on rejected promise (in ledger view, active/spare show usable checkmark)
+  assert.ok(within(item1Row()).getByTitle('ใช้งานได้'))
+  assert.ok(within(item2Row()).getByTitle('ใช้งานได้'))
+  assert.equal(within(item1Row()).getByTitle(/ชำรุด/).classList.contains('font-bold'), false)
+  assert.equal(within(item2Row()).getByTitle(/ชำรุด/).classList.contains('font-bold'), false)
 
   // Dialog displays connection error
   assert.ok(within(dialog).getByText('เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่'))

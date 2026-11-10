@@ -56,7 +56,13 @@ export function parseDateThaiBEToISO(input?: string | number | null): string | n
   // 1. Standard ISO format: YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d] = str.split('-').map(Number)
-    const ceYear = y > 2400 ? y - 543 : y
+    let ceYear = y
+    if (y > 2400) {
+      ceYear = y - 543
+    } else if (y >= 1950 && y <= 1999) {
+      // 2-digit BE year imported as 19xx (e.g. 1966 for BE 2566 -> 2023 CE)
+      ceYear = (y - 1900 + 2500) - 543
+    }
     return `${ceYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   }
 
@@ -102,7 +108,11 @@ export function parseDateThaiBEToISO(input?: string | number | null): string | n
   const parsed = new Date(str)
   if (!isNaN(parsed.getTime())) {
     let year = parsed.getFullYear()
-    if (year > 2400) year -= 543
+    if (year > 2400) {
+      year -= 543
+    } else if (year >= 1950 && year <= 1999) {
+      year = (year - 1900 + 2500) - 543
+    }
     return `${year}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
   }
 

@@ -8,8 +8,10 @@ import {
   Package,
   CheckSquare,
   Square,
+  Tag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import type { DisbursementTransactionType, DisbursementSelectableItem } from '@/features/disbursements/types'
 
 interface DisbursementItemPickerModalProps {
@@ -83,6 +85,11 @@ function DisbursementItemPickerModalContent({
     })
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
   }, [availableItems])
+
+  const categoryOptions: FilterOption[] = useMemo(
+    () => categories.map((cat) => ({ value: cat.id, label: cat.name })),
+    [categories]
+  )
 
   // Filter items matching the transaction type first
   const typeEligibleItems = useMemo(() => {
@@ -231,6 +238,7 @@ function DisbursementItemPickerModalContent({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="ค้นหาชื่อพัสดุ, รหัสครุภัณฑ์, Serial Number หรือหมวดหมู่..."
+                aria-label="ค้นหาพัสดุหรือครุภัณฑ์"
                 className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               {searchTerm && (
@@ -239,6 +247,7 @@ function DisbursementItemPickerModalContent({
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => setSearchTerm('')}
+                  aria-label="ล้างคำค้นหา"
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -248,19 +257,17 @@ function DisbursementItemPickerModalContent({
 
             {/* Category Dropdown */}
             {categories.length > 0 && (
-              <div className="w-full sm:w-48 shrink-0">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                >
-                  <option value="all">ทุกหมวดหมู่ ({typeEligibleItems.length})</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="w-full sm:w-auto shrink-0">
+                <FilterDropdown
+                  label="หมวดหมู่"
+                  ariaLabel="กรองตามหมวดหมู่"
+                  name="category"
+                  value={selectedCategory === 'all' ? '' : selectedCategory}
+                  options={categoryOptions}
+                  onChange={(val) => setSelectedCategory(val || 'all')}
+                  icon={<Tag className="h-3.5 w-3.5" />}
+                  allLabel={`ทุกหมวดหมู่ (${typeEligibleItems.length})`}
+                />
               </div>
             )}
           </div>
@@ -354,6 +361,7 @@ function DisbursementItemPickerModalContent({
                           checked={isAlreadyAdded || isSelected}
                           disabled={isAlreadyAdded}
                           onChange={() => handleToggleItem(item.id)}
+                          aria-label={`เลือก ${item.item_name}`}
                           className="rounded border-input text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
                         />
                       </td>

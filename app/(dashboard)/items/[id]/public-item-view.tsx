@@ -146,15 +146,26 @@ function StatTile({
   label,
   value,
   subvalue,
+  tone = 'default',
 }: {
   icon: React.ReactNode
   label: string
   value?: string | number | null
   subvalue?: string | null
+  tone?: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate' | 'default'
 }) {
+  const toneIconStyles = {
+    blue: 'bg-blue-50 text-blue-700 border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60',
+    violet: 'bg-violet-50 text-violet-700 border-violet-200/80 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800/60',
+    teal: 'bg-teal-50 text-teal-700 border-teal-200/80 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/60',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60',
+    slate: 'bg-slate-100 text-slate-700 border-slate-200/80 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800/60',
+    default: 'bg-muted text-muted-foreground border-border/60',
+  }
+
   return (
-    <div className="p-3.5 rounded-xl border border-border bg-card shadow-2xs flex items-start gap-3">
-      <div className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0 mt-0.5">
+    <div className="p-3.5 rounded-xl border border-border/80 bg-card shadow-2xs flex items-start gap-3">
+      <div className={`p-2 rounded-lg border shrink-0 mt-0.5 ${toneIconStyles[tone]}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">

@@ -25,7 +25,10 @@ export async function getDisbursements(paramsInput: unknown = {}): Promise<Disbu
   let query = supabase.from('disbursements').select('*', { count: 'exact' })
 
   if (params.q) {
-    query = query.or(`document_no.ilike.%${params.q}%,recipient_name.ilike.%${params.q}%,department_name.ilike.%${params.q}%,purpose.ilike.%${params.q}%`)
+    const safeQ = params.q.replaceAll(',', ' ').replaceAll('(', '').replaceAll(')', '').trim()
+    if (safeQ) {
+      query = query.or(`document_no.ilike.%${safeQ}%,recipient_name.ilike.%${safeQ}%,department_name.ilike.%${safeQ}%,purpose.ilike.%${safeQ}%`)
+    }
   }
   if (params.status) {
     query = query.eq('status', params.status)
