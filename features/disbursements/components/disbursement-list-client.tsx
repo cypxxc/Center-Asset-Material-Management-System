@@ -114,7 +114,7 @@ export function DisbursementListClient({
 
       startTransition(() => {
         const qs = params.toString()
-        router.push(`/disbursements${qs ? `?${qs}` : ''}`)
+        router.replace(`/disbursements${qs ? `?${qs}` : ''}`, { scroll: false })
       })
     },
     [q, status, type, router]
@@ -227,6 +227,7 @@ export function DisbursementListClient({
                 <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs min-w-0">
                   <SearchInput
                     value={q}
+                    debounceMs={500}
                     onChange={handleSearchChange}
                     onClear={handleSearchClear}
                     placeholder="ค้นหาเลขที่เอกสาร, ผู้รับ/ยืม, กลุ่มงาน, วัตถุประสงค์..."

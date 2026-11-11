@@ -24,12 +24,20 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     disabled,
     ...props
   }, ref) => {
+    const inputRef = React.useRef<HTMLInputElement | null>(null)
     const [localValue, setLocalValue] = React.useState(value)
     const [isPending, startTransition] = React.useTransition()
     const timeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
+    React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
+
     React.useEffect(() => {
-      setLocalValue(value)
+      // Don't overwrite localValue while user is actively typing in the focused input,
+      // unless external value was reset to empty.
+      const isFocused = typeof document !== 'undefined' && document.activeElement === inputRef.current
+      if (!isFocused || value === '') {
+        setLocalValue(value)
+      }
     }, [value])
 
     React.useEffect(() => {
@@ -68,11 +76,13 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           if (onClear) onClear()
         })
       } else if (e.key === "Enter") {
+        e.preventDefault()
         if (timeoutRef.current) clearTimeout(timeoutRef.current)
         startTransition(() => {
           onChange(localValue)
         })
       }
+      props.onKeyDown?.(e)
     }
 
     const handleClear = () => {
@@ -92,7 +102,7 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           <Search className="h-3.5 w-3.5" />
         </div>
         <input
-          ref={ref}
+          ref={inputRef}
           type="text"
           value={localValue}
           onChange={handleInputChange}

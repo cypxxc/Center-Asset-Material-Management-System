@@ -48,7 +48,7 @@ export function useItemsFilter(
     })
 
     startTransition(() => {
-      router.push(nextUrl)
+      router.replace(nextUrl, { scroll: false })
     })
   }
 

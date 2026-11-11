@@ -167,6 +167,7 @@ export function ItemsFilterBar({
               <SearchInput
                 ref={searchInputRef}
                 value={searchVal}
+                debounceMs={500}
                 onChange={(val) => {
                   const trimmed = val.trim()
                   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
