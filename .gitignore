@@ -15,10 +15,16 @@
 /test-results/
 /playwright-report/
 /blob-report/
-tests/e2e/staging/.auth/
-tests/e2e/staging/downloads/
-tests/e2e/staging/screenshots/
-tests/e2e/staging/results.json
+tests/
+*.test.ts
+*.test.tsx
+**/*.test.ts
+**/*.test.tsx
+scripts/ai-uat/
+
+# database migrations
+db/migrations/
+db/postgres/migrations/
 
 # next.js
 /.next/
@@ -65,20 +71,11 @@ skills-lock.json
 /.turbo/
 desktop.ini
 
-# temporary scratch & draft files
+# temporary scratch & markdown documentation
 scratch/
+docs/
 *.md
-!README.md
-!readme.md
-!**/README.md
-!**/readme.md
-!docs/context/PRODUCT.md
-!docs/superpowers/plans/*.md
-!docs/superpowers/specs/*.md
-!docs/production/2026-10-14-production-readiness-capriola.md
-!/AGENTS.md
-!/AGENT_SETUP.md
-!/CLAUDE.md
+**/*.md
 
 
 # env files (can opt-in for committing if needed)
