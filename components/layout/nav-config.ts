@@ -10,7 +10,7 @@ export const PATH_LABELS: Record<string, string> = {
   reports: 'สรุปรายงาน',
   settings: 'ตั้งค่าระบบ',
   profile: 'โปรไฟล์',
-  dashboard: 'แผงควบคุม',
+  dashboard: 'Dashboard',
   admin: 'ผู้ดูแลระบบ',
   users: 'จัดการผู้ใช้งาน',
   'audit-logs': 'ประวัติการทำรายการ',

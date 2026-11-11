@@ -87,7 +87,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
               )}
             >
               <LayoutDashboard className="h-4 w-4 text-sky-500 shrink-0" />
-              <span>แผงควบคุม (Dashboard)</span>
+              <span>Dashboard</span>
             </Link>
 
             <Link

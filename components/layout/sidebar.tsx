@@ -262,7 +262,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4">
           {/* Main / Overview */}
           <div className="space-y-1">
-            <NavItemTooltip label="แผงควบคุม" enabled={isCollapsed}>
+            <NavItemTooltip label="Dashboard" enabled={isCollapsed}>
               <Link
                 href="/dashboard"
                 onPointerDown={() => handleOptimisticNavigate('/dashboard')}
@@ -271,7 +271,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 className={navItemClass(isOverviewActive)}
               >
                 <LayoutDashboard className={navIconClass('text-sky-500', isOverviewActive)} />
-                {!isCollapsed && <span className="truncate">แผงควบคุม</span>}
+                {!isCollapsed && <span className="truncate">Dashboard</span>}
               </Link>
             </NavItemTooltip>
           </div>

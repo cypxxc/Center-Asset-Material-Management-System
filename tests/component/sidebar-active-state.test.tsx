@@ -148,7 +148,7 @@ test('Sidebar renders collapsible mode, admin section and handles RBAC properly'
   const { container } = renderSidebar()
 
   // Verify dashboard link is active
-  const dashboardLink = screen.getByRole('link', { name: /แผงควบคุม/ })
+  const dashboardLink = screen.getByRole('link', { name: /Dashboard/i })
   assert.equal(dashboardLink.getAttribute('aria-current'), 'page')
 
   // Verify admin accordion header exists for admin profile
