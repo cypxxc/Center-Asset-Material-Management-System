@@ -98,7 +98,8 @@ function DisbursementItemPickerModalContent({
         return it.item_type === 'material'
       }
       if (transactionType === 'asset_borrow') {
-        return it.item_type === 'asset' && Boolean(it.asset_no?.trim())
+        const isCentral = Boolean(it.note && it.note.includes('ส่วนกลาง'))
+        return it.item_type === 'asset' && Boolean(it.asset_no?.trim()) && isCentral
       }
       return it.item_type === 'asset'
     })
@@ -205,12 +206,14 @@ function DisbursementItemPickerModalContent({
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">
                   {transactionType === 'material_issue' && 'พัสดุสิ้นเปลือง'}
                   {transactionType === 'asset_handover' && 'ครุภัณฑ์ (ส่งมอบ)'}
-                  {transactionType === 'asset_borrow' && 'ครุภัณฑ์ (ยืมใช้งาน)'}
+                  {transactionType === 'asset_borrow' && 'ครุภัณฑ์ส่วนกลาง (ยืมใช้งาน)'}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {transactionType === 'material_issue'
                   ? 'ค้นหาและเลือกพัสดุที่ต้องการนำเข้าเอกสารเบิกจ่าย'
+                  : transactionType === 'asset_borrow'
+                  ? 'แสดงเฉพาะครุภัณฑ์ส่วนกลางที่มีเลขทะเบียนและพร้อมให้ยืม'
                   : 'ค้นหาและเลือกครุภัณฑ์ที่ต้องการนำเข้าเอกสาร'}
               </p>
             </div>
@@ -374,7 +377,14 @@ function DisbursementItemPickerModalContent({
                       {/* Item Name */}
                       <td className="py-2 px-3">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-foreground">{item.item_name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-foreground">{item.item_name}</span>
+                            {item.note && item.note.includes('ส่วนกลาง') && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
+                                ส่วนกลาง
+                              </span>
+                            )}
+                          </div>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
                             {item.serial_no && item.asset_no && (
                               <span className="font-mono">
@@ -389,6 +399,11 @@ function DisbursementItemPickerModalContent({
                             {item.responsible_person && (
                               <span className="truncate max-w-[120px]" title={`ผู้รับผิดชอบ: ${item.responsible_person}`}>
                                 👤 {item.responsible_person}
+                              </span>
+                            )}
+                            {item.note && (
+                              <span className="truncate max-w-[160px] text-muted-foreground" title={`หมายเหตุ: ${item.note}`}>
+                                📝 {item.note}
                               </span>
                             )}
                           </div>

@@ -107,5 +107,6 @@ export interface DisbursementSelectableItem {
   unit?: { name: string } | null
   location_name?: string | null
   responsible_person?: string | null
+  note?: string | null
 }
 

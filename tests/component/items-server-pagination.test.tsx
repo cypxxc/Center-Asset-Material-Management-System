@@ -194,11 +194,14 @@ test('deleting the last remaining item on a page navigates to previous page', as
   // Mock next/navigation useRouter
   const nextNavigationPath = require.resolve('next/navigation')
   const nextNavigation = require.cache[nextNavigationPath]?.exports as {
-    useRouter: () => { push: (url: string) => void; refresh: () => void }
+    useRouter: () => { push: (url: string) => void; replace?: (url: string) => void; refresh: () => void }
   }
-  const originalPush = nextNavigation.useRouter().push
+  const originalRouter = nextNavigation.useRouter()
+  const originalPush = originalRouter.push
+  const originalReplace = originalRouter.replace
   nextNavigation.useRouter = () => ({
     push: (url: string) => { navigatedUrl = url },
+    replace: (url: string) => { navigatedUrl = url },
     refresh: () => {},
   })
 
@@ -235,7 +238,7 @@ test('deleting the last remaining item on a page navigates to previous page', as
     // Because the last item on page 2 was deleted, it navigated back to page 1
     assert.equal(navigatedUrl, '/items?type=asset')
   } finally {
-    nextNavigation.useRouter = () => ({ push: originalPush, refresh: () => {} })
+    nextNavigation.useRouter = () => ({ push: originalPush, replace: originalReplace, refresh: () => {} })
   }
 })
 

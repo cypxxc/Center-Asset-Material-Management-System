@@ -41,6 +41,20 @@ const sampleItems = [
     unit: { name: 'เครื่อง' },
     location_name: 'ห้องประชุมใหญ่',
     responsible_person: null,
+    note: 'อุปกรณ์ส่วนกลางประจำห้องประชุม',
+  },
+  {
+    id: 'asset-non-central',
+    item_name: 'คอมพิวเตอร์ประจำตัวเจ้าหน้าที่',
+    item_type: 'asset' as const,
+    asset_no: '7110-002-0006/66',
+    serial_no: 'DELL-111',
+    quantity: 1,
+    category: { id: 'cat-2', name: 'โสตทัศนูปกรณ์' },
+    unit: { name: 'เครื่อง' },
+    location_name: 'ห้องทำงาน',
+    responsible_person: 'นายทดสอบ ประจำการ',
+    note: 'ประจำตัวบุคคล',
   },
 ];
 
@@ -98,6 +112,9 @@ test('DisbursementItemPickerModal filters by search query and category', () => {
   );
 
   assert.ok(container.textContent?.includes('โปรเจคเตอร์ Epson'));
+  // Non-central item should NOT appear in asset_borrow
+  assert.equal(container.textContent?.includes('คอมพิวเตอร์ประจำตัวเจ้าหน้าที่'), false);
+  assert.ok(container.textContent?.includes('ส่วนกลาง'));
 
   // Search input
   const searchInput = screen.getByLabelText('ค้นหาพัสดุหรือครุภัณฑ์');

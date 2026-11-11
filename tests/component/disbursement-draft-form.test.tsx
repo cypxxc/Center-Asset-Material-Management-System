@@ -66,6 +66,7 @@ const sampleAvailableItems = [
     unit: { name: 'เครื่อง' },
     location_name: 'ห้อง IT',
     responsible_person: null,
+    note: 'ของส่วนกลาง',
   },
 ];
 

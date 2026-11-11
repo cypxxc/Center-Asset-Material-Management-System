@@ -45,7 +45,7 @@ export async function createDisbursementDraft(rawInput: unknown): Promise<Action
     for (const item of data.items) {
       const { data: itemData, error } = await supabase
         .from('items')
-        .select('id, item_type, asset_no')
+        .select('id, item_type, asset_no, note')
         .eq('id', item.item_id)
         .is('deleted_at', null)
         .single()
@@ -64,6 +64,9 @@ export async function createDisbursementDraft(rawInput: unknown): Promise<Action
         }
         if (item.requested_qty !== 1) {
           return errorResponse('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+        }
+        if (!itemData.note || !itemData.note.includes('ส่วนกลาง')) {
+          return errorResponse('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่มีหมายเหตุ "ส่วนกลาง" เท่านั้น')
         }
       }
     }
@@ -129,7 +132,7 @@ export async function updateDisbursementDraft(rawInput: unknown): Promise<Action
     for (const item of data.items) {
       const { data: itemData, error } = await supabase
         .from('items')
-        .select('id, item_type, asset_no')
+        .select('id, item_type, asset_no, note')
         .eq('id', item.item_id)
         .is('deleted_at', null)
         .single()
@@ -147,6 +150,9 @@ export async function updateDisbursementDraft(rawInput: unknown): Promise<Action
         }
         if (item.requested_qty !== 1) {
           return errorResponse('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+        }
+        if (!itemData.note || !itemData.note.includes('ส่วนกลาง')) {
+          return errorResponse('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่มีหมายเหตุ "ส่วนกลาง" เท่านั้น')
         }
       }
     }

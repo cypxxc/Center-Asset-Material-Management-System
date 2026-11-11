@@ -82,8 +82,8 @@ test(
           values (${matId}::uuid, ${'Material-' + fixture}, 'material', ${catId}::uuid, ${unitId}::uuid, 10, 'active')`)
         await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status)
           values (${assetHandoverId}::uuid, ${'Asset-HO-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-HO-' + fixture}, 'Original Keeper', 'active')`)
-        await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status)
-          values (${assetBorrowId}::uuid, ${'Asset-BR-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-BR-' + fixture}, 'Office Lead', 'active')`)
+        await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status, note)
+          values (${assetBorrowId}::uuid, ${'Asset-BR-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-BR-' + fixture}, 'Office Lead', 'active', 'ของส่วนกลาง')`)
 
         // -------------------------------------------------------------
         // SCENARIO 1: Material Issue Lifecycle & Guard Verification
