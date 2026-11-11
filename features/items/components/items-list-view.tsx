@@ -548,37 +548,51 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           {/* Rich Primary Compound Column: Title, Asset Code Badge, Brand/Model */}
           <DataTableCell className="w-[300px] min-w-[300px] max-w-[320px] px-3 overflow-hidden">
             {isCompact ? (
-              <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                <span
-                  className="truncate text-xs font-bold text-foreground hover:text-primary transition-colors block max-w-[150px]"
-                  title={item.item_name}
-                >
-                  {item.item_name}
-                </span>
-                {item.item_type === 'material' && (
+              <div className="flex flex-col justify-center min-w-0 pr-2">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <span
-                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
-                    title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
+                    className="truncate text-xs font-bold text-foreground hover:text-primary transition-colors block"
+                    title={item.item_name}
                   >
-                    ต่ำกว่าเกณฑ์
+                    {item.item_name}
                   </span>
-                )}
-                {assetCode && (
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    title={`คัดลอก ${assetCode}`}
-                    aria-label={`คัดลอก ${assetCode}`}
-                    className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
-                  >
-                    <span className="truncate max-w-[90px]">{assetCode}</span>
-                    {copied ? (
-                      <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
-                    )}
-                  </button>
-                )}
+                  {item.item_type === 'material' && (
+                    <span
+                      className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
+                      title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
+                    >
+                      ต่ำกว่าเกณฑ์
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
+                  {assetCode ? (
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      title={`คัดลอก ${assetCode}`}
+                      aria-label={`คัดลอก ${assetCode}`}
+                      className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
+                    >
+                      <span className="truncate max-w-[120px]">{assetCode}</span>
+                      {copied ? (
+                        <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
+                      )}
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/50 italic shrink-0">
+                      ไม่มีเลขครุภัณฑ์
+                    </span>
+                  )}
+
+                  {brandModel && (
+                    <span className="truncate text-muted-foreground text-[10.5px] leading-none" title={brandModel}>
+                      • {brandModel}
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex flex-col justify-center min-w-0 pr-2">

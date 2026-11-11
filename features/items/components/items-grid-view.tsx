@@ -133,6 +133,11 @@ const ItemGridCard = React.memo(function ItemGridCard({
           </div>
         )}
       </div>
+      {[item.brand, item.model].filter(Boolean).join(' ') && (
+        <p className="truncate text-[11px] text-muted-foreground mt-0.5" title={[item.brand, item.model].filter(Boolean).join(' ')}>
+          • {[item.brand, item.model].filter(Boolean).join(' ')}
+        </p>
+      )}
       <div className="mt-auto flex items-center justify-between pt-3">
         <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
           {ITEM_TYPE_LABELS[item.item_type]}
