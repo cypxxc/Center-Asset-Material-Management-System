@@ -4,7 +4,6 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { PageContainer } from '@/components/ui/page-container'
-import { canWrite } from '@/lib/permissions'
 import dynamic from 'next/dynamic'
 import {
   MetricsGridSkeleton,
@@ -12,7 +11,6 @@ import {
   ActionQueueSkeleton,
 } from '@/components/dashboard/dashboard-skeletons'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
-import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 
 export const metadata = { title: 'ภาพรวมระบบ' }
 
@@ -33,8 +31,6 @@ export default async function DashboardPage() {
   if (!profile) {
     redirect('/login')
   }
-
-  const userCanWrite = canWrite(profile?.role)
 
   return (
     <PageContainer
@@ -63,12 +59,6 @@ export default async function DashboardPage() {
             >
               <span>ดูทะเบียนสิ่งของ</span>
             </Link>
-            {userCanWrite && (
-              <NewItemDialogTrigger className="inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background hover:bg-foreground/90 px-3.5 py-2 text-xs font-semibold shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all duration-150 cursor-pointer">
-                <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-                <span>ขึ้นทะเบียนใหม่</span>
-              </NewItemDialogTrigger>
-            )}
           </div>
         }
       />

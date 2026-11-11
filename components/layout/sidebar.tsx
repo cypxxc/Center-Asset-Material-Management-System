@@ -13,7 +13,6 @@ import {
   LogOut,
   MapPin,
   Package,
-  Plus,
   Settings,
   User,
   UserCog,
@@ -28,7 +27,6 @@ const IdleSessionTimeout = dynamic(
   () => import('@/components/auth/idle-session-timeout').then((m) => m.IdleSessionTimeout),
   { ssr: false }
 )
-import { NewItemDialogTrigger } from '@/features/items/components/new-item-dialog-provider'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from './nav-config'
@@ -257,23 +255,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
-          </div>
-        )}
-
-        {/* Action Button: ขึ้นทะเบียนใหม่ */}
-        {canWrite && (
-          <div className={cn('border-b border-sidebar-border', isCollapsed ? 'p-2 flex justify-center' : 'px-3 py-2.5')}>
-            <NavItemTooltip label="ขึ้นทะเบียนใหม่" enabled={isCollapsed}>
-              <NewItemDialogTrigger
-                className={cn(
-                  'flex items-center justify-center font-medium text-primary-foreground bg-primary hover:bg-primary/90 transition-colors rounded-lg shadow-xs cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                  isCollapsed ? 'h-9 w-9 p-0' : 'w-full py-2 px-3 text-xs gap-1.5'
-                )}
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                {!isCollapsed && <span className="font-semibold truncate">ขึ้นทะเบียนใหม่</span>}
-              </NewItemDialogTrigger>
-            </NavItemTooltip>
           </div>
         )}
 
