@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
@@ -51,16 +50,6 @@ export default async function DashboardPage() {
         }
         subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} • ศูนย์ควบคุมทะเบียนครุภัณฑ์ พัสดุ และรายการที่ต้องดำเนินการ`}
         className="gap-3.5"
-        actions={
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/items"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted text-foreground px-3.5 py-2 text-xs font-semibold shadow-2xs hover:border-border transition-all duration-150"
-            >
-              <span>ดูทะเบียนสิ่งของ</span>
-            </Link>
-          </div>
-        }
       />
 
       {/* Metrics Bento Grid */}
