@@ -48,7 +48,7 @@ export default async function DashboardPage() {
             </span>
           </div>
         }
-        subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'} • ศูนย์ควบคุมทะเบียนครุภัณฑ์ พัสดุ และรายการที่ต้องดำเนินการ`}
+        subtitle={`สวัสดีคุณ ${profile.full_name || 'ผู้ใช้งาน'}`}
         className="gap-3.5"
       />
 

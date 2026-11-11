@@ -55,18 +55,15 @@ export async function createDisbursementDraft(rawInput: unknown): Promise<Action
       if (data.transaction_type === 'material_issue' && itemData.item_type !== 'material') {
         return errorResponse('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && itemData.item_type !== 'asset') {
-        return errorResponse('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
+      if (data.transaction_type === 'asset_handover' && itemData.item_type !== 'asset') {
+        return errorResponse('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
       if (data.transaction_type === 'asset_borrow') {
-        if (!itemData.asset_no || !itemData.asset_no.trim()) {
-          return errorResponse('การยืมครุภัณฑ์ต้องระบุครุภัณฑ์ที่มีเลขทะเบียนครุภัณฑ์ (Asset No.)')
-        }
         if (item.requested_qty !== 1) {
-          return errorResponse('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+          return errorResponse('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
         if (!itemData.is_central && (!itemData.note || !itemData.note.includes('ส่วนกลาง'))) {
-          return errorResponse('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
+          return errorResponse('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }
@@ -141,18 +138,15 @@ export async function updateDisbursementDraft(rawInput: unknown): Promise<Action
       if (data.transaction_type === 'material_issue' && itemData.item_type !== 'material') {
         return errorResponse('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && itemData.item_type !== 'asset') {
-        return errorResponse('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
+      if (data.transaction_type === 'asset_handover' && itemData.item_type !== 'asset') {
+        return errorResponse('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
       if (data.transaction_type === 'asset_borrow') {
-        if (!itemData.asset_no || !itemData.asset_no.trim()) {
-          return errorResponse('การยืมครุภัณฑ์ต้องระบุครุภัณฑ์ที่มีเลขทะเบียนครุภัณฑ์ (Asset No.)')
-        }
         if (item.requested_qty !== 1) {
-          return errorResponse('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+          return errorResponse('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
         if (!itemData.is_central && (!itemData.note || !itemData.note.includes('ส่วนกลาง'))) {
-          return errorResponse('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
+          return errorResponse('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }

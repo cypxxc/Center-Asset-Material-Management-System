@@ -47,7 +47,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     <PageContainer>
       <PageHeader
         title="ตั้งค่าระบบและมิติตัวเลือกพัสดุ"
-        subtitle="จัดการข้อมูลพื้นฐานที่ใช้ในการขึ้นทะเบียน ทรัพย์สินที่ใช้งานจริงอยู่จะได้รับการคุ้มครองสิทธิ์ไม่ให้ถูกลบโดยไม่ตั้งใจ"
       />
 
       {params.message && (

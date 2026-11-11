@@ -44,8 +44,8 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
         throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && found.item_type !== 'asset') {
-        throw new Error('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
+      if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
+        throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
       if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
         const activeBorrowRes = await tx.execute<{ count: number }>(
@@ -57,18 +57,15 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
                 AND di.status NOT IN ('returned', 'reversed')`
         )
         if (activeBorrowRes.rows[0].count > 0) {
-          throw new Error(`ครุภัณฑ์ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
+          throw new Error(`รายการ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
         }
       }
       if (data.transaction_type === 'asset_borrow') {
-        if (!found.asset_no || !found.asset_no.trim()) {
-          throw new Error('การยืมครุภัณฑ์ต้องระบุครุภัณฑ์ที่มีเลขทะเบียนครุภัณฑ์ (Asset No.)')
-        }
         if (item.requested_qty !== 1) {
-          throw new Error('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+          throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
         if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
-          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
+          throw new Error('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }
@@ -125,8 +122,8 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
         throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type) && found.item_type !== 'asset') {
-        throw new Error('เอกสารส่งมอบ/ยืมครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
+      if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
+        throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
       if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
         const activeBorrowRes = await tx.execute<{ count: number }>(
@@ -138,18 +135,15 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
                 AND di.status NOT IN ('returned', 'reversed')`
         )
         if (activeBorrowRes.rows[0].count > 0) {
-          throw new Error(`ครุภัณฑ์ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
+          throw new Error(`รายการ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
         }
       }
       if (data.transaction_type === 'asset_borrow') {
-        if (!found.asset_no || !found.asset_no.trim()) {
-          throw new Error('การยืมครุภัณฑ์ต้องระบุครุภัณฑ์ที่มีเลขทะเบียนครุภัณฑ์ (Asset No.)')
-        }
         if (item.requested_qty !== 1) {
-          throw new Error('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
+          throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
         if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
-          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
+          throw new Error('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }

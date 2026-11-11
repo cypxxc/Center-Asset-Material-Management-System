@@ -54,9 +54,6 @@ export function NewItemPageClient({
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 ขึ้นทะเบียนครุภัณฑ์และพัสดุใหม่
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                กรอกข้อมูลตามเอกสารใบสั่งซื้อ ใบส่งของ หรือใบตรวจรับพัสดุ (รองรับทั้งครุภัณฑ์ตามเกณฑ์และต่ำกว่าเกณฑ์)
-              </p>
             </div>
           </div>
         </div>

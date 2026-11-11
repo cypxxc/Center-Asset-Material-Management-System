@@ -325,7 +325,6 @@ export function ReportsList({
                 </div>
               </div>
             }
-            subtitle="สรุปมูลค่าทรัพย์สิน วิเคราะห์อัตราความพร้อมใช้งาน และส่งออกรายงานมาตรฐานสากล"
             className="print:hidden"
             actions={
               <div className="flex items-center gap-2 flex-wrap sm:justify-end">

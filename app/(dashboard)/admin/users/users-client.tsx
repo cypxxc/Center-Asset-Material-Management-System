@@ -273,7 +273,6 @@ export default function UsersClient({
             <span>จัดการผู้ใช้งานและกำหนดสิทธิ์</span>
           </div>
         }
-        subtitle="ศูนย์ควบคุมบัญชีผู้ใช้งาน สิทธิ์การเข้าถึงระบบ (Role-Based Access Control) และความปลอดภัย"
         actions={
           <Button
             type="button"

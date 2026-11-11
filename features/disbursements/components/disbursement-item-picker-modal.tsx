@@ -98,8 +98,7 @@ function DisbursementItemPickerModalContent({
         return it.item_type === 'material'
       }
       if (transactionType === 'asset_borrow') {
-        const isCentral = Boolean(it.is_central || (it.note && it.note.includes('ส่วนกลาง')))
-        return it.item_type === 'asset' && Boolean(it.asset_no?.trim()) && isCentral
+        return Boolean(it.is_central || (it.note && it.note.includes('ส่วนกลาง')))
       }
       return it.item_type === 'asset'
     })
@@ -206,14 +205,14 @@ function DisbursementItemPickerModalContent({
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">
                   {transactionType === 'material_issue' && 'พัสดุสิ้นเปลือง'}
                   {transactionType === 'asset_handover' && 'ครุภัณฑ์ (ส่งมอบ)'}
-                  {transactionType === 'asset_borrow' && 'ครุภัณฑ์ส่วนกลาง (ยืมใช้งาน)'}
+                  {transactionType === 'asset_borrow' && 'ของส่วนกลาง (ยืมใช้งาน)'}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {transactionType === 'material_issue'
                   ? 'ค้นหาและเลือกพัสดุที่ต้องการนำเข้าเอกสารเบิกจ่าย'
                   : transactionType === 'asset_borrow'
-                  ? 'แสดงเฉพาะครุภัณฑ์ส่วนกลางที่มีเลขทะเบียนและพร้อมให้ยืม'
+                  ? 'แสดงเฉพาะรายการของส่วนกลางที่พร้อมให้ยืม'
                   : 'ค้นหาและเลือกครุภัณฑ์ที่ต้องการนำเข้าเอกสาร'}
               </p>
             </div>

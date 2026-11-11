@@ -16,7 +16,6 @@ export default async function ProfilePage() {
     <PageContainer>
       <PageHeader
         title="ตั้งค่าบัญชีส่วนบุคคล"
-        subtitle="จัดการข้อมูลชื่อ-นามสกุล บัญชีผู้ใช้งาน และเปลี่ยนรหัสผ่านเพื่อความปลอดภัยในการใช้งานระบบ"
       />
       <ProfileForm profile={profile} />
     </PageContainer>

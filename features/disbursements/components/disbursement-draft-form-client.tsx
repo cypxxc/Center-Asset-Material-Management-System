@@ -63,8 +63,11 @@ export function DisbursementDraftFormClient({
     if (initialType) return initialType
     if (initialItemIds.length > 0) {
       const firstItem = itemsMap.get(initialItemIds[0])
+      if (firstItem?.is_central || (firstItem?.note && firstItem.note.includes('ส่วนกลาง'))) {
+        return 'asset_borrow'
+      }
       if (firstItem?.item_type === 'asset') {
-        return firstItem.asset_no ? 'asset_borrow' : 'asset_handover'
+        return 'asset_handover'
       }
       return 'material_issue'
     }
@@ -149,7 +152,7 @@ export function DisbursementDraftFormClient({
         const item = itemsMap.get(selected.item_id)
         if (item && !item.is_central && (!item.note || !item.note.includes('ส่วนกลาง'))) {
           setErrorMsg(
-            `ไม่สามารถทำรายการได้: ครุภัณฑ์ "${item.item_name}" ไม่ใช่ครุภัณฑ์ส่วนกลาง (อนุญาตให้ยืมเฉพาะครุภัณฑ์ส่วนกลางเท่านั้น)`
+            `ไม่สามารถทำรายการได้: "${item.item_name}" ไม่ใช่ของส่วนกลาง (อนุญาตให้ยืมเฉพาะของส่วนกลางเท่านั้น)`
           )
           return
         }
@@ -217,7 +220,7 @@ export function DisbursementDraftFormClient({
         subtitle={
           isEditing
             ? `แก้ไขข้อมูลเอกสาร ${initialDoc?.document_no || 'ฉบับร่าง'}`
-            : 'กรอกรายละเอียดการเบิกจ่ายและเลือกพัสดุจากคลังตามระเบียบพัสดุ'
+            : undefined
         }
       />
 
@@ -256,7 +259,7 @@ export function DisbursementDraftFormClient({
               >
                 <option value="material_issue">เบิกจ่ายพัสดุ (ตัดยอดสต็อกถาวร)</option>
                 <option value="asset_handover">ส่งมอบครุภัณฑ์ (โอนผู้ถือครองถาวร)</option>
-                <option value="asset_borrow">ยืมครุภัณฑ์ (มีกำหนดส่งคืน)</option>
+                <option value="asset_borrow">ยืมของส่วนกลาง (มีกำหนดส่งคืน)</option>
               </select>
             </div>
 
@@ -344,7 +347,7 @@ export function DisbursementDraftFormClient({
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {transactionType === 'material_issue' && 'เฉพาะพัสดุสิ้นเปลือง (สามารถเบิกตามยอดคงเหลือ)'}
                 {transactionType === 'asset_handover' && 'เฉพาะครุภัณฑ์ (โอนเปลี่ยนผู้ถือครองถาวร)'}
-                {transactionType === 'asset_borrow' && 'เฉพาะครุภัณฑ์ส่วนกลางที่มีเลขทะเบียนครุภัณฑ์ (ยืมครั้งละ 1 หน่วย)'}
+                {transactionType === 'asset_borrow' && 'เฉพาะรายการของส่วนกลาง (ยืมครั้งละ 1 หน่วย)'}
               </p>
             </div>
 

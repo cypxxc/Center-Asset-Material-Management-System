@@ -83,7 +83,6 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
     <PageContainer maxWidth="full">
       <PageHeader
         title="สถานที่จัดเก็บ"
-        subtitle="ตรวจสอบ ตรวจนับ และค้นหาสิ่งของระหว่างแผนกสำนักงานต่างๆ"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

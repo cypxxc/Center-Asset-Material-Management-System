@@ -197,7 +197,6 @@ export default function AuditLogsClient({
     <PageContainer>
       <PageHeader
         title="ประวัติการทำรายการ (Audit Log Explorer)"
-        subtitle="ตรวจสอบบันทึกความปลอดภัย การแก้ไขข้อมูล และกิจกรรมในระบบแบบละเอียดตามมาตรฐานการตรวจสอบ"
         actions={
           <Button
             variant="outline"

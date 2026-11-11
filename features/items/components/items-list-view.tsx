@@ -392,10 +392,10 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                     ต่ำกว่าเกณฑ์
                   </span>
                 )}
-                {item.is_central && item.item_type === 'asset' && (
+                {item.is_central && (
                   <span
                     className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"
-                    title={item.is_borrowed ? "ครุภัณฑ์ส่วนกลาง (กำลังถูกยืม)" : "ครุภัณฑ์ส่วนกลาง (ว่างพร้อมให้ยืม)"}
+                    title={item.is_borrowed ? "ทรัพย์สินส่วนกลาง (กำลังถูกยืม)" : "ทรัพย์สินส่วนกลาง (ว่างพร้อมให้ยืม)"}
                   >
                     <span className={cn("size-1.5 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
                     {item.is_borrowed ? "ส่วนกลาง • ถูกยืม" : "ส่วนกลาง"}
@@ -620,10 +620,10 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                       ต่ำกว่าเกณฑ์
                     </span>
                   )}
-                  {item.is_central && item.item_type === 'asset' && (
+                  {item.is_central && (
                     <span
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"
-                      title={item.is_borrowed ? "ครุภัณฑ์ส่วนกลาง (กำลังถูกยืม)" : "ครุภัณฑ์ส่วนกลาง (ว่างพร้อมให้ยืม)"}
+                      title={item.is_borrowed ? "ทรัพย์สินส่วนกลาง (กำลังถูกยืม)" : "ทรัพย์สินส่วนกลาง (ว่างพร้อมให้ยืม)"}
                     >
                       <span className={cn("size-1.5 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
                       {item.is_borrowed ? "ส่วนกลาง • ถูกยืม" : "ส่วนกลาง"}
@@ -732,7 +732,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           <DataTableCell className="w-24 sm:w-28 px-2 sm:px-3">
             <div className="flex flex-col gap-1 items-start">
               <StatusBadge status={item.status} size="sm" showDot className="shrink-0" />
-              {item.is_central && item.item_type === 'asset' && (
+              {item.is_central && (
                 <span className={cn(
                   "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap",
                   item.is_borrowed

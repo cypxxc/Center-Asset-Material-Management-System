@@ -191,7 +191,7 @@ export function ItemForm({
       <input type="hidden" name="item_type" value={itemType} />
 
       {/* SECTION 1: ข้อมูลหลัก */}
-      <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />} description="ระบุชื่อสิ่งของ หมวดหมู่ จำนวน และหน่วยนับ">
+      <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />}>
         <FormGrid className="sm:grid-cols-2">
           <FormField className="sm:col-span-2">
             <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
@@ -260,7 +260,7 @@ export function ItemForm({
       </FormSection>
 
       {/* SECTION 2: รายละเอียดสิ่งของ */}
-      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />} description="เลขทะเบียน วันที่รับ แหล่งเงิน ยี่ห้อ/รุ่น และ Serial Number">
+      <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />}>
         <FormGrid className="sm:grid-cols-2">
           <TextInput
             name="asset_no"
@@ -309,7 +309,7 @@ export function ItemForm({
       </FormSection>
 
       {/* SECTION 3: สถานที่และผู้รับผิดชอบ */}
-      <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />} description="จัดเก็บที่ไหน ใครดูแล และสภาพพัสดุ">
+      <FormSection title="สถานที่และผู้รับผิดชอบ" tone="emerald" icon={<MapPin className="h-4 w-4" />}>
         <FormGrid className="sm:grid-cols-2">
           <FormField>
             <FormLabel htmlFor="location_id">สถานที่</FormLabel>
@@ -347,38 +347,36 @@ export function ItemForm({
             </FormSelect>
           </FormField>
 
-          {/* Checkbox: ครุภัณฑ์ส่วนกลาง (เปิดให้ยืมใช้งานได้) */}
-          {activeTab === 'asset' && (
-            <div className="sm:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  name="is_central"
-                  value="true"
-                  defaultChecked={Boolean(item?.is_central || (item?.note && item.note.includes('ส่วนกลาง')))}
-                  className="mt-0.5 h-4 w-4 rounded border-input text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                />
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-foreground">
-                      ครุภัณฑ์ส่วนกลาง (เปิดให้ยืมใช้งานได้)
-                    </span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
-                      กองกลาง
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    ครุภัณฑ์ชิ้นนี้ถือเป็นทรัพย์สินส่วนกลาง อนุญาตให้บุคลากรทุกกลุ่มงานยืมใช้งานได้ตามระเบียบพัสดุ
-                  </p>
+          {/* Checkbox: ทรัพย์สินส่วนกลาง (เปิดให้ยืมใช้งานได้) */}
+          <div className="sm:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 space-y-2">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                name="is_central"
+                value="true"
+                defaultChecked={Boolean(item?.is_central || (item?.note && item.note.includes('ส่วนกลาง')))}
+                className="mt-0.5 h-4 w-4 rounded border-input text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">
+                    {activeTab === 'asset' ? 'ครุภัณฑ์ส่วนกลาง' : 'พัสดุส่วนกลาง'} (เปิดให้ยืมใช้งานได้)
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
+                    กองกลาง
+                  </span>
                 </div>
-              </label>
-            </div>
-          )}
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  รายการนี้ถือเป็นทรัพย์สินส่วนกลาง อนุญาตให้บุคลากรทุกกลุ่มงานยืมใช้งานได้ตามระเบียบพัสดุ
+                </p>
+              </div>
+            </label>
+          </div>
         </FormGrid>
       </FormSection>
 
       {/* SECTION 4: รูปภาพและหมายเหตุ */}
-      <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />} description="ราคาต่อหน่วย มูลค่ารวม ภาพประกอบ และหมายเหตุ">
+      <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />}>
         <FormGrid className="sm:grid-cols-2">
           <FormField>
             <FormLabel htmlFor="unit_price">ราคาต่อหน่วย (บาท)</FormLabel>
@@ -494,7 +492,7 @@ const sectionTones = {
 
 function FormSection({ title, description, tone, icon, children }: {
   title: string
-  description: string
+  description?: string
   tone: keyof typeof sectionTones
   icon: ReactNode
   children: ReactNode
@@ -505,7 +503,7 @@ function FormSection({ title, description, tone, icon, children }: {
         <span aria-hidden="true">{icon}</span>
         <div>
           <h3 className="text-sm font-bold">{title}</h3>
-          <p className="mt-0.5 text-xs opacity-80">{description}</p>
+          {description && <p className="mt-0.5 text-xs opacity-80">{description}</p>}
         </div>
       </div>
       <div className="space-y-4 p-4 sm:p-5">{children}</div>

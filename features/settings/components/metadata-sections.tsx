@@ -109,17 +109,17 @@ function SectionShell({
   children,
 }: {
   title: string
-  description: string
+  description?: string
   icon: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden text-card-foreground">
-      <div className="flex items-start gap-3 border-b border-border p-6 bg-muted/30">
+      <div className="flex items-center gap-3 border-b border-border p-5 bg-muted/30">
         <div className="rounded-lg border border-primary/10 bg-primary/10 p-2 text-primary">{icon}</div>
         <div>
           <h3 className="text-base font-bold text-card-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
         </div>
       </div>
       <div className="space-y-4 p-6">{children}</div>
@@ -147,7 +147,6 @@ export function CategorySection({ categories, canDelete = true }: { categories: 
   return (
     <SectionShell
       title="หมวดหมู่ครุภัณฑ์ (Categories)"
-      description="จัดการกลุ่มหรือประเภทหลักที่ใช้ในการขึ้นทะเบียนครุภัณฑ์และพัสดุอุปกรณ์สำนักงาน"
       icon={<Tag className="h-5 w-5" />}
     >
       <form action={createCategory} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_1.2fr_auto_auto_auto_auto] md:items-end bg-card/50">
@@ -242,7 +241,6 @@ export function LocationSection({ locations, canDelete = true }: { locations: Lo
   return (
     <SectionShell
       title="สถานที่จัดตั้งและอาคาร (Locations)"
-      description="สถานที่ ห้อง แผนก หรืออาคารจัดตั้งที่ระบุในรายการพัสดุครุภัณฑ์สำนักงาน"
       icon={<Building2 className="h-5 w-5" />}
     >
       <form action={createLocation} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-3 lg:grid-cols-[1fr_1fr_0.7fr_0.7fr_1fr_auto_auto] md:items-end bg-card/50">
@@ -327,7 +325,6 @@ export function UnitSection({ units, canDelete = true }: { units: UnitRow[]; can
   return (
     <SectionShell
       title="หน่วยนับสิ่งของ (Units)"
-      description="หน่วยนับในการตรวจนับปริมาณสิ่งของเพื่อการจัดระเบียบคลัง เช่น ชิ้น, เครื่อง, ตัว, กล่อง"
       icon={<Box className="h-5 w-5" />}
     >
       <form action={createUnit} className="grid gap-3 rounded-lg border border-dashed border-border p-3 md:grid-cols-[1fr_auto_auto] md:items-end bg-card/50">
@@ -543,7 +540,6 @@ export function ImportSection() {
   return (
     <SectionShell
       title="นำเข้าพัสดุและครุภัณฑ์ด้วยไฟล์ Excel หรือ CSV (Import Items)"
-      description="อัปโหลดข้อมูลพัสดุครุภัณฑ์จำนวนมากพร้อมกันโดยอัตโนมัติ โดยระบุชื่อพัสดุ ประเภท แบรนด์ และสถานที่ติดตั้ง"
       icon={<Upload className="h-5 w-5" />}
     >
       <div className="space-y-6">

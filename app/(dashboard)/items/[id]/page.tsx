@@ -270,7 +270,6 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 tone="blue"
                 icon={<Tag className="h-3.5 w-3.5" />}
                 title="1. ข้อมูลระบุตัวตนและหมวดหมู่"
-                description="เลขทะเบียนและรหัสอ้างอิง"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailTile
@@ -303,7 +302,6 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 tone="violet"
                 icon={<Boxes className="h-3.5 w-3.5" />}
                 title="2. ข้อมูลจำเพาะและคุณลักษณะ"
-                description="ยี่ห้อ รุ่น และจำนวนคงเหลือ"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailTile label="ยี่ห้อ" value={item.brand} />
@@ -322,7 +320,6 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 tone="teal"
                 icon={<DollarSign className="h-3.5 w-3.5" />}
                 title="3. ข้อมูลมูลค่าและงบประมาณ"
-                description="ราคาต่อหน่วย แหล่งเงิน และประวัติค่าเสื่อม"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailTile
@@ -396,7 +393,6 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 tone="indigo"
                 icon={<MapPin className="h-3.5 w-3.5" />}
                 title="4. สถานที่และการกำกับดูแล"
-                description="สถานที่จัดเก็บและผู้รับผิดชอบ"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailTile
