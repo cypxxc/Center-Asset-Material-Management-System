@@ -434,15 +434,13 @@ export function ItemForm({
           <DepreciationFields item={item} />
         </div>
       ) : (
-        <div className="flex items-center gap-2.5 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-muted-foreground">
-          <span className="font-semibold text-amber-700 dark:text-amber-400 shrink-0">💡 ระเบียบพัสดุ:</span>
-          <span>ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.) จัดเป็นพัสดุคงทน ไม่ต้องคำนวณค่าเสื่อมราคาตามระเบียบกระทรวงการคลัง</span>
+        <>
           <input type="hidden" name="depreciation_enabled" value="false" />
           <input type="hidden" name="depreciation_cost" value="" />
           <input type="hidden" name="depreciation_useful_life_years" value="" />
           <input type="hidden" name="depreciation_start_basis" value="" />
           <input type="hidden" name="depreciation_start_date" value="" />
-        </div>
+        </>
       )}
 
       {showActions && (
