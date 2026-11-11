@@ -30,6 +30,7 @@ const HEADER_ALIASES: Record<string, string> = {
 
   // item_type
   'item_type': 'item_type',
+  'qualification_status': 'qualification_status',
   'ประเภท': 'item_type',
   'ประเภทสิ่งของ': 'item_type',
 
@@ -331,6 +332,16 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
         return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
       }
 
+      const rawQualification = getVal('qualification_status').trim().toLowerCase()
+      const qualificationStatus: 'qualified' | 'below_threshold' | null = ['qualified', 'ตามเกณฑ์', 'ครุภัณฑ์ตามเกณฑ์'].includes(rawQualification)
+        ? 'qualified'
+        : ['below_threshold', 'ต่ำกว่าเกณฑ์', 'ต่ำกว่าเกณฑ์ (ต.)', 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)'].includes(rawQualification)
+          ? 'below_threshold'
+          : null
+      if (rawQualification && qualificationStatus === null) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: qualification_status ต้องเป็น qualified หรือ below_threshold`)
+      }
+
       const rawQuantity = getVal('quantity')
       let quantity = 1
       if (rawQuantity && rawQuantity !== '-' && rawQuantity !== 'ไม่มี') {
@@ -390,6 +401,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       itemsToInsert.push({
         item_name: itemName,
         item_type: itemType,
+        qualification_status: qualificationStatus,
         category_name: getVal('category_name'),
         location_name: getVal('location_name'),
         unit_name: getVal('unit_name'),

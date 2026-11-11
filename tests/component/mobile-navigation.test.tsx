@@ -12,14 +12,16 @@ Object.assign(globalThis, {
   getComputedStyle: window.getComputedStyle.bind(window),
 })
 
-test('Mobile navigation includes reports and locations and restores focus after Escape', async () => {
+test('Mobile navigation has one inventory entry and restores focus after Escape', async () => {
   render(<MobileNavigation profile={{ full_name: 'ผู้ทดสอบ', role: 'staff' }} />)
   const trigger = screen.getByRole('button', { name: 'เปิดเมนูนำทาง' })
   trigger.focus()
   fireEvent.click(trigger)
   const dialog = await screen.findByRole('dialog', { name: 'เมนูนำทาง' })
-  assert.equal(within(dialog).getByRole('link', { name: 'สถานที่จัดเก็บ' }).getAttribute('href'), '/locations')
-  assert.equal(within(dialog).getByRole('link', { name: 'รายงานพัสดุ' }).getAttribute('href'), '/reports')
+  const inventoryLinks = within(dialog).getAllByRole('link', { name: 'คลัง' })
+  assert.equal(inventoryLinks.length, 1)
+  assert.equal(inventoryLinks[0].getAttribute('href'), '/items')
+  assert.equal(within(dialog).queryByRole('link', { name: /สถานที่|รายงาน/ }), null)
   assert.ok(within(dialog).getByRole('button', { name: 'ปิดเมนูนำทาง' }))
   assert.ok(dialog.contains(document.activeElement))
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
@@ -32,6 +34,6 @@ test('Viewer navigation excludes write-only settings and closes after choosing a
   fireEvent.click(screen.getByRole('button', { name: 'เปิดเมนูนำทาง' }))
   const dialog = await screen.findByRole('dialog')
   assert.equal(within(dialog).queryByRole('link', { name: /ตั้งค่าระบบ/ }), null)
-  fireEvent.click(within(dialog).getByRole('link', { name: 'รายงานพัสดุ' }))
+  fireEvent.click(within(dialog).getByRole('link', { name: 'คลัง' }))
   await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
 })

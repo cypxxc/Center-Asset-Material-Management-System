@@ -15,7 +15,9 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   ITEM_STATUS_LABELS,
+  ITEM_QUALIFICATION_LABELS,
   ITEM_TYPE_LABELS,
+  ItemClassificationCounts,
   ItemListRow,
   ItemType,
   ItemListSearchParams,
@@ -37,7 +39,7 @@ import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
 import type { BulkItemUpdates } from '@/features/items/bulk-edit'
 import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
-import { normalizeItemListSearchParams, ITEMS_PAGE_SIZE } from '@/features/items/list-params'
+import { ITEMS_PAGE_SIZE } from '@/features/items/list-params'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import { ItemsList } from '@/features/items/components/items-list-view'
@@ -61,6 +63,7 @@ export function getPageNumbers(current: number, total: number): (number | 'ellip
 interface ItemsExplorerClientProps {
   items: ItemListRow[]
   total: number
+  classificationCounts?: ItemClassificationCounts
   page?: number
   pageSize?: number
   totalPages?: number
@@ -89,16 +92,13 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  const identity = useMemo(
-    () => JSON.stringify([props.userId, normalizeItemListSearchParams(props.params), props.page ?? props.params.page ?? '1']),
-    [props.userId, props.params, props.page]
-  )
-  return <ItemsExplorerSession key={identity} {...props} identity={identity} />
+  return <ItemsExplorerSession key={props.userId} {...props} />
 }
 
 function ItemsExplorerSession({
   items,
   total,
+  classificationCounts = { all: 0, assets: 0, materials: 0, qualified: 0, belowThreshold: 0, unclassified: 0 },
   page,
   pageSize = ITEMS_PAGE_SIZE,
   totalPages,
@@ -111,7 +111,7 @@ function ItemsExplorerSession({
   bulkUpdateAction = bulkUpdateItems,
   bulkDeleteAction,
   bulkHardDeleteAction,
-}: ItemsExplorerClientProps & { identity: string }) {
+}: ItemsExplorerClientProps) {
   const deleteBulkAction = bulkDeleteAction ?? bulkHardDeleteAction ?? bulkDeleteItems
   useRealtimeRefresh(['items', 'categories', 'locations', 'units'], {
     pauseOnHidden: true,
@@ -320,6 +320,7 @@ function ItemsExplorerSession({
       worksheet.columns = [
         { header: 'ชื่อสิ่งของ', key: 'item_name', width: 25 },
         { header: 'ประเภท', key: 'item_type', width: 15 },
+        { header: 'สถานะตามเกณฑ์', key: 'qualification_status', width: 24 },
         { header: 'หมวดหมู่', key: 'category_name', width: 15 },
         { header: 'จำนวน', key: 'quantity', width: 10 },
         { header: 'ราคาต่อหน่วย', key: 'unit_price', width: 14 },
@@ -338,6 +339,7 @@ function ItemsExplorerSession({
         worksheet.addRow({
           item_name: item.item_name,
           item_type: ITEM_TYPE_LABELS[item.item_type] || item.item_type,
+          qualification_status: item.qualification_status ? ITEM_QUALIFICATION_LABELS[item.qualification_status] : 'ยังไม่ระบุ',
           category_name: item.category?.name || '-',
           quantity: item.quantity,
           unit_price: item.unit_price ?? 0,
@@ -613,14 +615,16 @@ function ItemsExplorerSession({
           )}
         >
           {/* ZONE 1: Page Header (Title + Summary Badge + Primary Actions & View Controls) */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 h-14 flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
               {/* Left: Dynamic Main Title, Count Badge & Official Badge */}
               <div className="flex items-center gap-2.5 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
                   {params.type === 'material'
                     ? 'รายการทะเบียนพัสดุ'
-                    : 'รายการทะเบียนครุภัณฑ์'}
+                    : params.type === 'asset'
+                      ? 'รายการทะเบียนครุภัณฑ์'
+                      : 'รายการคลัง'}
                 </h1>
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
                   {total.toLocaleString()} รายการ
@@ -681,6 +685,7 @@ function ItemsExplorerSession({
             <ItemsFilterBar
               searchInputRef={searchInputRef}
               searchVal={searchVal}
+              isLoading={isPending}
               onSearchChange={setSearchVal}
               onSearchClear={() => handleFilterChange({ q: '' })}
               onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
@@ -692,6 +697,7 @@ function ItemsExplorerSession({
                 setSearchVal('')
                 handleFilterChange({
                   type: '',
+                    qualification: '',
                   category_id: '',
                   status: '',
                   location_id: '',
@@ -699,6 +705,7 @@ function ItemsExplorerSession({
                 })
               }}
               localItemsCount={currentItems.length}
+              classificationCounts={classificationCounts}
               isExporting={isExporting}
               userCanWrite={userCanWrite}
               onExport={exportToExcel}

@@ -143,10 +143,7 @@ export function ItemForm({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-xs text-foreground">ครุภัณฑ์ตามเกณฑ์</span>
-              <span className="inline-flex items-center rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/25">
-                มูลค่า ≥ 10,000฿
-              </span>
+              <span className="font-bold text-xs text-foreground">ครุภัณฑ์ (Asset)</span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
               มีเลขครุภัณฑ์หลัก ทะเบียนสินทรัพย์ GFMIS และคำนวณค่าเสื่อมราคา
@@ -176,13 +173,13 @@ export function ItemForm({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-xs text-foreground">พัสดุ / ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)</span>
+              <span className="font-bold text-xs text-foreground">พัสดุ (Material)</span>
               <span className="inline-flex items-center rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
                 พัสดุคงทน
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              มีเลขทะเบียนคุมพัสดุ (ต.) บันทึกประวัติและสถานที่ ไม่คิดค่าเสื่อมราคา
+              ใช้ลงทะเบียนพัสดุและติดตามประวัติ/สถานที่ โดยไม่คิดค่าเสื่อมราคา
             </p>
           </div>
         </button>
@@ -193,6 +190,14 @@ export function ItemForm({
       {/* SECTION 1: ข้อมูลหลัก */}
       <FormSection title="ข้อมูลหลัก" tone="blue" icon={<Package className="h-4 w-4" />}>
         <FormGrid className="sm:grid-cols-2">
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="qualification_status">สถานะตามเกณฑ์ครุภัณฑ์</FormLabel>
+            <FormSelect id="qualification_status" name="qualification_status" defaultValue={item?.qualification_status ?? ''}>
+              <option value="">ยังไม่ระบุ</option>
+              <option value="qualified">ครุภัณฑ์ตามเกณฑ์</option>
+              <option value="below_threshold">ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)</option>
+            </FormSelect>
+          </FormField>
           <FormField className="sm:col-span-2">
             <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
             <FormInput
@@ -264,7 +269,7 @@ export function ItemForm({
         <FormGrid className="sm:grid-cols-2">
           <TextInput
             name="asset_no"
-            label={activeTab === 'asset' ? 'เลขครุภัณฑ์' : 'เลขทะเบียนพัสดุ / ครุภัณฑ์ (ต.)'}
+            label={activeTab === 'asset' ? 'เลขครุภัณฑ์' : 'เลขทะเบียนพัสดุ'}
             defaultValue={item?.asset_no}
             errors={state?.fieldErrors?.asset_no}
             placeholder={activeTab === 'asset' ? 'เช่น 7110-001-0001/67' : 'เช่น ต.7110-001-0001/67'}

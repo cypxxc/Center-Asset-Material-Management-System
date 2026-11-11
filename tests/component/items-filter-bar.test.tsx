@@ -28,6 +28,7 @@ function renderFilterBar(overrides: Partial<ItemsFilterBarProps> = {}) {
     onResetFilters: () => {},
     folderValuation: 245000,
     localItemsCount: 15,
+    classificationCounts: { all: 30, assets: 18, materials: 12, qualified: 18, belowThreshold: 10, unclassified: 2 },
     isExporting: false,
     onExport: () => {},
     userCanWrite: true,
@@ -36,6 +37,31 @@ function renderFilterBar(overrides: Partial<ItemsFilterBarProps> = {}) {
 
   return render(<ItemsFilterBar {...defaultProps} />)
 }
+
+test('ItemsFilterBar: asset and material selects show live counts and change the type filter', () => {
+  const changes: ItemsFilterUpdates[] = []
+  renderFilterBar({ onFilterChange: (updates) => changes.push(updates) })
+  const typeSelect = screen.getByLabelText('ประเภทพัสดุ') as HTMLSelectElement
+  assert.ok(typeSelect)
+  const options = Array.from(typeSelect.options)
+  assert.equal(options.length, 3)
+  assert.match(options[0].textContent ?? '', /30/)
+  assert.match(options[1].textContent ?? '', /18/)
+  assert.match(options[2].textContent ?? '', /12/)
+  fireEvent.change(typeSelect, { target: { value: 'material' } })
+  assert.deepEqual(changes.at(-1), { type: 'material' })
+})
+
+test('ItemsFilterBar: qualification select is separate from asset/material type', () => {
+  const changes: ItemsFilterUpdates[] = []
+  renderFilterBar({ onFilterChange: (updates) => changes.push(updates) })
+  const qualSelect = screen.getByLabelText('สถานะตามเกณฑ์') as HTMLSelectElement
+  assert.ok(qualSelect)
+  const options = Array.from(qualSelect.options)
+  assert.equal(options.length, 4)
+  fireEvent.change(qualSelect, { target: { value: 'below_threshold' } })
+  assert.deepEqual(changes.at(-1), { qualification: 'below_threshold' })
+})
 
 test('ItemsFilterBar: renders search input, dropdown filters, and export button without redundant valuation metric', () => {
   renderFilterBar({ folderValuation: 1500000 })
@@ -46,14 +72,14 @@ test('ItemsFilterBar: renders search input, dropdown filters, and export button 
   // Select dropdowns
   assert.ok(screen.getByLabelText('กรองตามหมวดหมู่'))
   assert.ok(screen.getByLabelText('กรองตามสถานะ'))
-  assert.ok(screen.getByLabelText('กรองตามสถานที่'))
+  assert.equal(screen.queryByLabelText('กรองตามสถานที่'), null)
 
   // Valuation metric should NOT be rendered in the filter bar (moved to bottom summary footer)
   assert.equal(screen.queryByText('มูลค่ารายการที่โหลดอยู่:'), null)
   assert.equal(screen.queryByText('฿1,500,000'), null)
 
-  // Download Excel button
-  assert.ok(screen.getByRole('button', { name: /ดาวน์โหลด Excel/i }))
+  // Download Excel button is removed
+  assert.equal(screen.queryByRole('button', { name: /ดาวน์โหลด Excel/i }), null)
 
   // Without filters, active chips bar is hidden
   assert.equal(screen.queryByTestId('active-filter-chips'), null)
@@ -159,30 +185,9 @@ test('ItemsFilterBar: renders batch print by location button when location_id is
   assert.equal(batchPrintCalled, true)
 })
 
-test('ItemsFilterBar: export button disables when isExporting is true', () => {
-  const { rerender } = renderFilterBar({ isExporting: false })
-  const exportBtn = screen.getByRole('button', { name: /ดาวน์โหลด Excel/i })
-  assert.equal(exportBtn.hasAttribute('disabled'), false)
-
-  rerender(
-    <ItemsFilterBar
-      searchVal=""
-      onSearchChange={() => {}}
-      onSearchClear={() => {}}
-      params={{}}
-      categories={mockCategories}
-      locations={mockLocations}
-      onFilterChange={() => {}}
-      onResetFilters={() => {}}
-      folderValuation={1000}
-      localItemsCount={1}
-      isExporting={true}
-      onExport={() => {}}
-      userCanWrite={true}
-    />
-  )
-
-  assert.equal(screen.getByRole('button', { name: /ดาวน์โหลด Excel/i }).hasAttribute('disabled'), true)
+test('ItemsFilterBar: export button is removed from filter bar', () => {
+  renderFilterBar({ isExporting: false })
+  assert.equal(screen.queryByRole('button', { name: /ดาวน์โหลด Excel/i }), null)
 })
 
 test('ItemsFilterBar: renders quick clear filters button in dropdown row when filters are active', () => {
@@ -196,7 +201,7 @@ test('ItemsFilterBar: renders quick clear filters button in dropdown row when fi
   })
 
   // Quick reset button in the filters row
-  const quickClearBtn = screen.getByRole('button', { name: 'ล้างตัวกรอง' })
+  const quickClearBtn = screen.getByRole('button', { name: /ล้างตัวกรองทั้งหมด/ })
   assert.ok(quickClearBtn)
   fireEvent.click(quickClearBtn)
   assert.equal(resetCalled, true, 'clicking quick clear filters button should call onResetFilters')

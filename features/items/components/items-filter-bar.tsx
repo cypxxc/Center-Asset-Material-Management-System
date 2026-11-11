@@ -1,12 +1,12 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Activity, Download, Layers, MapPin, Tag, X, RotateCcw } from 'lucide-react'
+import { Activity, Tag, X, RotateCcw, Layers, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import { parseScannedAssetCode } from '@/lib/qr-scan-parser'
-import { ITEM_STATUS_LABELS, type ItemStatus, type ItemListSearchParams } from '@/features/items/types'
+import { ITEM_QUALIFICATION_LABELS, ITEM_STATUS_LABELS, ITEM_TYPE_LABELS, type ItemClassificationCounts, type ItemStatus, type ItemListSearchParams, type ItemQualificationStatus } from '@/features/items/types'
 import type { ItemsFilterUpdates } from '@/features/items/hooks/use-items-filter'
 import { cn } from '@/lib/utils'
 
@@ -22,8 +22,10 @@ export interface ItemsFilterBarProps {
   onResetFilters: () => void
   folderValuation?: number
   localItemsCount: number
-  isExporting: boolean
-  onExport: () => void
+  classificationCounts?: ItemClassificationCounts
+  isExporting?: boolean
+  isLoading?: boolean
+  onExport?: () => void
   userCanWrite?: boolean
   onBatchPrintLocation?: () => void
   className?: string
@@ -51,9 +53,8 @@ export function ItemsFilterBar({
   onFilterChange,
   onResetFilters,
   localItemsCount,
-  isExporting,
-  onExport,
-  userCanWrite = false,
+  classificationCounts = { all: 0, assets: 0, materials: 0, qualified: 0, belowThreshold: 0, unclassified: 0 },
+  isLoading = false,
   onBatchPrintLocation,
   className,
   searchInputRef,
@@ -66,9 +67,18 @@ export function ItemsFilterBar({
     if (params.type) {
       chips.push({
         id: 'type',
-        label: 'เกณฑ์',
-        value: params.type === 'material' ? 'ต่ำกว่าเกณฑ์ (ต.)' : 'ครุภัณฑ์ตามเกณฑ์',
+        label: 'ประเภท',
+        value: ITEM_TYPE_LABELS[params.type as keyof typeof ITEM_TYPE_LABELS] ?? params.type,
         onRemove: () => onFilterChange({ type: '' }),
+      })
+    }
+
+    if (params.qualification) {
+      chips.push({
+        id: 'qualification',
+        label: 'สถานะเกณฑ์',
+        value: ITEM_QUALIFICATION_LABELS[params.qualification as ItemQualificationStatus] ?? params.qualification,
+        onRemove: () => onFilterChange({ qualification: '' }),
       })
     }
 
@@ -123,14 +133,23 @@ export function ItemsFilterBar({
     }
 
     return chips
-  }, [params.type, params.category_id, params.status, params.location_id, params.q, categories, locations, onFilterChange, onSearchClear])
+  }, [params.type, params.qualification, params.category_id, params.status, params.location_id, params.is_central, params.q, categories, locations, onFilterChange, onSearchClear])
 
   const typeOptions: FilterOption[] = useMemo(
     () => [
-      { value: 'asset', label: 'ครุภัณฑ์ตามเกณฑ์' },
-      { value: 'material', label: 'ต่ำกว่าเกณฑ์ (ต.)' },
+      { value: 'asset', label: `${ITEM_TYPE_LABELS.asset} (${classificationCounts.assets.toLocaleString('th-TH')})` },
+      { value: 'material', label: `${ITEM_TYPE_LABELS.material} (${classificationCounts.materials.toLocaleString('th-TH')})` },
     ],
-    []
+    [classificationCounts.assets, classificationCounts.materials]
+  )
+
+  const qualificationOptions: FilterOption[] = useMemo(
+    () => [
+      { value: 'qualified', label: `ตามเกณฑ์ (${classificationCounts.qualified.toLocaleString('th-TH')})` },
+      { value: 'below_threshold', label: `ต่ำกว่าเกณฑ์ (ต.) (${classificationCounts.belowThreshold.toLocaleString('th-TH')})` },
+      { value: 'unclassified', label: `ยังไม่ระบุ (${classificationCounts.unclassified.toLocaleString('th-TH')})` },
+    ],
+    [classificationCounts.qualified, classificationCounts.belowThreshold, classificationCounts.unclassified]
   )
 
   const categoryOptions: FilterOption[] = useMemo(
@@ -148,16 +167,11 @@ export function ItemsFilterBar({
     []
   )
 
-  const locationOptions: FilterOption[] = useMemo(
-    () => locations.map((loc) => ({ value: loc.id, label: loc.name })),
-    [locations]
-  )
-
   return (
-    <div className={cn('flex flex-col gap-3 min-w-0', className)} data-testid="items-filter-bar">
+    <div className={cn('flex flex-col gap-2 min-w-0', className)} data-testid="items-filter-bar">
       {/* Top Controls Row */}
-      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between min-w-0">
-        {/* Left Side: Search + Dropdown Filters */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center min-w-0">
+        {/* Left Side: Search + Classification Filters + Dropdown Filters */}
         <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
           <form
             onSubmit={(e) => {
@@ -172,11 +186,12 @@ export function ItemsFilterBar({
             className="flex flex-wrap items-center gap-2 w-full min-w-0"
           >
             {/* Search Input */}
-            <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs min-w-0">
+            <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[160px] sm:max-w-xs min-w-0">
               <SearchInput
                 ref={searchInputRef}
                 value={searchVal}
-                debounceMs={500}
+                debounceMs={300}
+                isLoading={isLoading}
                 onChange={(val) => {
                   const trimmed = val.trim()
                   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
@@ -187,7 +202,7 @@ export function ItemsFilterBar({
                     }
                   }
                   onSearchChange(val)
-                  onFilterChange({ q: val.trim() })
+                  onFilterChange({ q: trimmed })
                 }}
                 onClear={() => {
                   onSearchClear()
@@ -198,19 +213,33 @@ export function ItemsFilterBar({
               />
             </div>
 
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
-              {/* Threshold / Type Filter */}
+            {/* Classification Filters */}
+            <div className="flex flex-wrap items-center gap-2" data-testid="classification-filters">
               <FilterDropdown
-                label="เกณฑ์ครุภัณฑ์"
-                ariaLabel="กรองตามเกณฑ์ครุภัณฑ์"
+                label="ประเภทพัสดุ"
+                ariaLabel="ประเภทพัสดุ"
                 name="type"
                 value={params.type ?? ''}
                 options={typeOptions}
                 onChange={(val) => onFilterChange({ type: val })}
                 icon={<Layers className="h-3.5 w-3.5" />}
+                allLabel={`ประเภทพัสดุ (${classificationCounts.all.toLocaleString('th-TH')})`}
               />
 
+              <FilterDropdown
+                label="สถานะตามเกณฑ์"
+                ariaLabel="สถานะตามเกณฑ์"
+                name="qualification"
+                value={params.qualification ?? ''}
+                options={qualificationOptions}
+                onChange={(val) => onFilterChange({ qualification: val })}
+                icon={<SlidersHorizontal className="h-3.5 w-3.5" />}
+                allLabel={`สถานะตามเกณฑ์ (${classificationCounts.all.toLocaleString('th-TH')})`}
+              />
+            </div>
+
+            {/* Dropdown Filters */}
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               {/* Category Filter */}
               <FilterDropdown
                 label="หมวดหมู่"
@@ -233,17 +262,6 @@ export function ItemsFilterBar({
                 icon={<Activity className="h-3.5 w-3.5" />}
               />
 
-              {/* Location Filter */}
-              <FilterDropdown
-                label="สถานที่"
-                ariaLabel="กรองตามสถานที่"
-                name="location_id"
-                value={params.location_id ?? ''}
-                options={locationOptions}
-                onChange={(val) => onFilterChange({ location_id: val })}
-                icon={<MapPin className="h-3.5 w-3.5" />}
-              />
-
               {/* Quick Filter: ของส่วนกลาง */}
               <button
                 type="button"
@@ -259,22 +277,6 @@ export function ItemsFilterBar({
                 <span className={cn("size-1.5 rounded-full shrink-0", params.is_central === 'true' ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50")} />
                 <span className="whitespace-nowrap">ของส่วนกลาง</span>
               </button>
-
-              {/* Quick Reset Filters Button */}
-              {activeChips.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onResetFilters}
-                  className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
-                  title="ล้างตัวกรองทั้งหมด"
-                  aria-label="ล้างตัวกรอง"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">ล้างตัวกรอง</span>
-                </Button>
-              )}
 
               {/* Batch Print by Location Button */}
               {params.location_id && localItemsCount > 0 && onBatchPrintLocation && (
@@ -294,22 +296,11 @@ export function ItemsFilterBar({
           </form>
         </div>
 
-        {/* Right Side: Export Button & Optional Right Controls */}
-        {(userCanWrite || rightContent) && (
-        <div className="flex shrink-0 items-center gap-2 justify-end self-end sm:self-auto min-w-0">
-          {userCanWrite && (
-            <Button
-              type="button"
-              onClick={onExport}
-              disabled={isExporting}
-              className="h-9 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
-            >
-              <Download className="h-4 w-4" />
-              <span className="truncate">ดาวน์โหลด Excel</span>
-            </Button>
-          )}
-          {rightContent}
-        </div>
+        {/* Right Side: Optional Right Controls */}
+        {rightContent && (
+          <div className="flex shrink-0 items-center gap-2 justify-end self-end sm:self-auto min-w-0 lg:ml-auto">
+            {rightContent}
+          </div>
         )}
       </div>
 
@@ -317,7 +308,7 @@ export function ItemsFilterBar({
       {activeChips.length > 0 && (
         <div
           data-testid="active-filter-chips"
-          className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 min-w-0"
+          className="flex flex-wrap items-center gap-1.5 min-w-0"
         >
           <span className="text-xs font-semibold text-muted-foreground select-none">
             ตัวกรองที่ใช้งาน ({activeChips.length}):
@@ -327,7 +318,7 @@ export function ItemsFilterBar({
             <span
               key={chip.id}
               data-testid={`active-chip-${chip.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs transition-all hover:border-border/80 max-w-full"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground max-w-full"
             >
               <span className="text-muted-foreground text-[11px] font-semibold shrink-0">{chip.label}:</span>
               <span className="font-bold truncate max-w-[200px]">{chip.value}</span>

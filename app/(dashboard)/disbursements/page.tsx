@@ -2,12 +2,12 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite } from '@/lib/permissions'
-import { getDisbursements } from '@/features/disbursements/queries'
+import { getDisbursements, getCentralAvailableItems } from '@/features/disbursements/queries'
 import { DisbursementListClient } from '@/features/disbursements/components/disbursement-list-client'
 import DisbursementsLoading from './loading'
 
 export const instant = false
-export const metadata = { title: 'ทะเบียนเบิก-จ่าย' }
+export const metadata = { title: 'ทะเบียนเบิก-จ่ายและยืมพัสดุส่วนกลาง' }
 
 interface DisbursementsPageProps {
   searchParams: Promise<{
@@ -16,12 +16,13 @@ interface DisbursementsPageProps {
     type?: string
     page?: string
     pageSize?: string
+    tab?: 'catalog' | 'documents'
   }>
 }
 
 async function DisbursementListSection({
   searchParamsPromise,
-  role,
+  profile,
 }: {
   searchParamsPromise: Promise<{
     q?: string
@@ -29,17 +30,26 @@ async function DisbursementListSection({
     type?: string
     page?: string
     pageSize?: string
+    tab?: 'catalog' | 'documents'
   }>
-  role: string
+  profile: {
+    id: string
+    full_name?: string | null
+    role: string
+    department?: string | null
+  }
 }) {
   const params = await searchParamsPromise
-  const result = await getDisbursements({
-    q: params.q,
-    status: params.status,
-    type: params.type,
-    page: params.page,
-    pageSize: params.pageSize,
-  })
+  const [result, centralItems] = await Promise.all([
+    getDisbursements({
+      q: params.q,
+      status: params.status,
+      type: params.type,
+      page: params.page,
+      pageSize: params.pageSize,
+    }),
+    getCentralAvailableItems(),
+  ])
 
   return (
     <DisbursementListClient
@@ -51,8 +61,12 @@ async function DisbursementListSection({
       currentQ={params.q || ''}
       currentStatus={params.status || ''}
       currentType={params.type || ''}
-      canCreate={canWrite(role)}
+      canCreate={canWrite(profile.role)}
       stats={result.stats}
+      centralItems={centralItems}
+      userRole={profile.role}
+      currentUser={profile}
+      initialTab={params.tab}
     />
   )
 }
@@ -65,8 +79,9 @@ export default async function DisbursementsPage({ searchParams }: DisbursementsP
 
   return (
     <Suspense fallback={<DisbursementsLoading />}>
-      <DisbursementListSection searchParamsPromise={searchParams} role={profile.role} />
+      <DisbursementListSection searchParamsPromise={searchParams} profile={profile} />
     </Suspense>
   )
 }
+
 

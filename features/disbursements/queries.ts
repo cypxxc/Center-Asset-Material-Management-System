@@ -5,6 +5,8 @@ import {
   getPostgresDisbursements,
   getPostgresDisbursementById,
   getPostgresDisbursementSelectableItems,
+  getPostgresCentralAvailableItems,
+  type CentralAvailableItem,
 } from './postgres-queries'
 import type {
   DisbursementRow,
@@ -125,6 +127,55 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
       responsible_person: row.responsible_person ?? null,
       note: row.note ?? null,
       is_central: Boolean(row.is_central),
+    }
+  })
+}
+
+export type { CentralAvailableItem }
+
+export async function getCentralAvailableItems(): Promise<CentralAvailableItem[]> {
+  if (isPostgresBackend()) {
+    return getPostgresCentralAvailableItems()
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('items')
+    .select('id, item_name, item_type, asset_no, serial_no, brand, model, quantity, image_url, category:categories(id, name), unit:units(name), location:locations(name)')
+    .is('deleted_at', null)
+    .eq('is_central', true)
+    .in('status', ['active', 'spare'])
+    .order('item_name', { ascending: true })
+
+  if (error) return []
+  return ((data as unknown[]) || []).map((raw) => {
+    const row = raw as {
+      id: string
+      item_name: string
+      item_type: 'material' | 'asset'
+      asset_no: string | null
+      serial_no: string | null
+      brand: string | null
+      model: string | null
+      quantity: number
+      image_url: string | null
+      category: { id: string; name: string } | { id: string; name: string }[] | null
+      unit: { name: string } | { name: string }[] | null
+      location: { name: string } | { name: string }[] | null
+    }
+    return {
+      id: row.id,
+      item_name: row.item_name,
+      item_type: row.item_type,
+      asset_no: row.asset_no ?? null,
+      serial_no: row.serial_no ?? null,
+      brand: row.brand ?? null,
+      model: row.model ?? null,
+      quantity: Number(row.quantity) || 1,
+      image_url: row.image_url ?? null,
+      category: Array.isArray(row.category) ? row.category[0] : row.category ?? null,
+      unit_name: Array.isArray(row.unit) ? row.unit[0]?.name ?? null : row.unit?.name ?? null,
+      location_name: Array.isArray(row.location) ? row.location[0]?.name ?? null : row.location?.name ?? null,
     }
   })
 }

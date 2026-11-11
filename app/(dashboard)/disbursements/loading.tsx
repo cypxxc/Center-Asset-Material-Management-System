@@ -4,7 +4,7 @@ export default function DisbursementsLoading() {
       <div className="flex min-h-0 flex-1 min-w-0 overflow-hidden">
         <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* Header Skeleton */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
+          <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 h-14 flex items-center">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="h-6 w-56 rounded-md bg-muted/60" />

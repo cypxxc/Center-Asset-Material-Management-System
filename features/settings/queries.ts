@@ -136,12 +136,12 @@ export const getLocationsOverview = cache(async function getLocationsOverview():
 })
 
 export async function getSettingsPageData(tabParam?: string): Promise<SettingsPageData> {
-  const activeTab = ['categories', 'locations', 'units', 'import'].includes(tabParam ?? '')
+  const activeTab = ['categories', 'units', 'import'].includes(tabParam ?? '')
     ? tabParam!
     : 'categories'
 
   const metadataSection =
-    activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units'
+    activeTab === 'categories' || activeTab === 'units'
       ? activeTab
       : 'all'
 

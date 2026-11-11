@@ -15,6 +15,7 @@ import {
   Building,
   AlertTriangle,
   FileText,
+  Clock,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ import {
   cancelDisbursementDraft,
   returnDisbursementItem,
   reverseDisbursement,
+  rejectDisbursement,
 } from '@/features/disbursements/actions'
 import { generateDisbursementVoucherHtml } from '@/features/disbursements/print-generator'
 
@@ -60,7 +62,12 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
   const [reverseModalOpen, setReverseModalOpen] = useState(false)
   const [reversalReason, setReversalReason] = useState('')
 
+  // Reject modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+
   const isDraft = doc.status === 'draft'
+  const isPendingApproval = doc.status === 'pending_approval'
   const isBorrow = doc.transaction_type === 'asset_borrow'
   const isConfirmedOrActive = ['confirmed', 'active_borrow'].includes(doc.status)
   const canReturn = canMutate && isBorrow && ['active_borrow', 'partially_returned'].includes(doc.status)
@@ -117,6 +124,25 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
       router.refresh()
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยกเลิกเอกสาร')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleRejectSubmit() {
+    setIsLoading(true)
+    setErrorMsg('')
+    try {
+      const res = await rejectDisbursement(doc.id, rejectReason)
+      if (!res.ok) {
+        setErrorMsg(res.error || 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ')
+        return
+      }
+      setRejectModalOpen(false)
+      setSuccessMsg('ปฏิเสธคำขอยืมเรียบร้อยแล้ว')
+      router.refresh()
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ')
     } finally {
       setIsLoading(false)
     }
@@ -238,6 +264,29 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
               </>
             )}
 
+            {canMutate && isPendingApproval && (
+              <>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setRejectModalOpen(true)}
+                  className="gap-1.5 shadow-xs"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>ไม่อนุมัติ / ปฏิเสธ</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmModalOpen(true)}
+                  className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>อนุมัติคำขอยืม</span>
+                </Button>
+              </>
+            )}
+
             {canMutate && canReverse && (
               <Button
                 variant="outline"
@@ -264,6 +313,29 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
         <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-900 dark:text-emerald-300 text-xs flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {isPendingApproval && (
+        <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold text-sm">คำขอยืมพัสดุกองกลาง (รอการอนุมัติ)</p>
+            <p className="opacity-90">
+              ผู้ขอยืม: <strong className="font-semibold">{doc.recipient_name}</strong> ({doc.department_name}) • วันที่ต้องการส่งคืน: <strong className="font-semibold">{doc.due_date ? formatDate(doc.due_date) : '-'}</strong>
+            </p>
+            <p className="opacity-80">วัตถุประสงค์: {doc.purpose}</p>
+          </div>
+        </div>
+      )}
+
+      {doc.status === 'rejected' && (
+        <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 flex items-start gap-3">
+          <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold text-sm">คำขอนี้ไม่ได้รับการอนุมัติ</p>
+            <p className="opacity-90">เหตุผล: {doc.reversal_reason || 'ไม่อนุมัติคำขอ'}</p>
+          </div>
         </div>
       )}
 
@@ -601,6 +673,58 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                 disabled={isLoading}
               >
                 {isLoading ? 'กำลังประมวลผล...' : 'ยืนยันคืนสภาพ'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Reject Borrow Request Modal */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleRejectSubmit()
+            }}
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg space-y-4"
+          >
+            <div className="flex items-center gap-2 text-destructive border-b border-border pb-3">
+              <XCircle className="h-5 w-5" />
+              <h3 className="font-bold text-sm text-foreground">ปฏิเสธคำขอยืมพัสดุ</h3>
+            </div>
+
+            <div>
+              <label htmlFor="reject-reason-textarea" className="block text-xs font-medium mb-1.5 text-foreground">
+                ระบุเหตุผลในการไม่อนุมัติ <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                id="reject-reason-textarea"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="เช่น พัสดุติดภารกิจจัดนิทรรศการในวันดังกล่าว หรือต้องส่งซ่อมบำรุง"
+                rows={3}
+                required
+                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRejectModalOpen(false)}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                size="sm"
+                disabled={isLoading}
+              >
+                {isLoading ? 'กำลังประมวลผล...' : 'ยืนยันปฏิเสธ'}
               </Button>
             </div>
           </form>

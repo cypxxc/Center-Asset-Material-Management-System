@@ -14,7 +14,11 @@ interface ItemsPageProps {
 export async function generateMetadata({ searchParams }: ItemsPageProps) {
   const params = await searchParams
   return {
-    title: params.type === 'material' ? 'ทะเบียนพัสดุ' : 'ทะเบียนครุภัณฑ์',
+    title: params.type === 'material'
+      ? 'ทะเบียนพัสดุ'
+      : params.type === 'asset'
+        ? 'ทะเบียนครุภัณฑ์'
+        : 'ทะเบียนรายการ',
   }
 }
 
@@ -30,7 +34,7 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
     redirect('/login')
   }
 
-  const { items, total, page, pageSize, totalPages, references } = pageData
+  const { items, total, page, pageSize, totalPages, references, classificationCounts } = pageData
 
   // Normalize invalid or out-of-range page parameter
   if (params.page !== undefined) {
@@ -50,6 +54,7 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
     <ItemsExplorerClient
       items={items}
       total={total}
+      classificationCounts={classificationCounts}
       page={page}
       pageSize={pageSize}
       totalPages={totalPages}

@@ -7,6 +7,8 @@ import {
   disbursementListParamsSchema,
   returnItemSchema,
   reverseDisbursementSchema,
+  submitBorrowRequestSchema,
+  rejectDisbursementSchema,
 } from './schema'
 import { computeThaiFiscalYear } from './fiscal-year'
 import { canWrite } from '@/lib/permissions'
@@ -172,3 +174,46 @@ test('disbursement RBAC permissions enforce writer vs viewer access', () => {
   assert.equal(canWrite(undefined), false, 'Anonymous must NOT have write permissions')
   assert.equal(canWrite(null), false, 'Null role must NOT have write permissions')
 })
+
+test('submitBorrowRequestSchema validates multi-item central borrow requests', () => {
+  const valid = {
+    item_ids: [
+      'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+    ],
+    due_date: '2026-11-20',
+    purpose: 'ใช้งานโครงการอบรมบุคลากรเขต 7',
+  }
+  const parsed = submitBorrowRequestSchema.parse(valid)
+  assert.equal(parsed.item_ids.length, 2)
+  assert.equal(parsed.due_date, '2026-11-20')
+
+  // Empty items rejected
+  assert.throws(() => {
+    submitBorrowRequestSchema.parse({ ...valid, item_ids: [] })
+  }, /ต้องเลือกรายการอย่างน้อย 1 รายการ/)
+
+  // Empty purpose rejected
+  assert.throws(() => {
+    submitBorrowRequestSchema.parse({ ...valid, purpose: '   ' })
+  }, /กรุณาระบุวัตถุประสงค์ในการยืม/)
+})
+
+test('disbursementListParamsSchema accepts pending_approval and rejected statuses', () => {
+  const pending = disbursementListParamsSchema.parse({ status: 'pending_approval' })
+  assert.equal(pending.status, 'pending_approval')
+
+  const rejected = disbursementListParamsSchema.parse({ status: 'rejected' })
+  assert.equal(rejected.status, 'rejected')
+})
+
+test('rejectDisbursementSchema validates id and optional reason', () => {
+  const valid = {
+    disbursement_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    reason: 'พัสดุรายการดังกล่าวติดภารกิจด่วนของผู้บริหาร',
+  }
+  const parsed = rejectDisbursementSchema.parse(valid)
+  assert.equal(parsed.disbursement_id, valid.disbursement_id)
+  assert.equal(parsed.reason, valid.reason)
+})
+

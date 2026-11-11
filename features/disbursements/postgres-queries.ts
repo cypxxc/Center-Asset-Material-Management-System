@@ -49,12 +49,14 @@ export async function getPostgresDisbursements(
         active_borrow: number
         draft: number
         confirmed: number
+        pending_approval: number
       }>(
         sql`SELECT 
           count(*)::int as total,
           count(*) filter (where d.status = 'active_borrow')::int as active_borrow,
           count(*) filter (where d.status = 'draft')::int as draft,
-          count(*) filter (where d.status = 'confirmed')::int as confirmed
+          count(*) filter (where d.status = 'confirmed')::int as confirmed,
+          count(*) filter (where d.status = 'pending_approval')::int as pending_approval
         FROM public.disbursements d`
       )
       const statsRow = statsRes.rows[0]
@@ -63,6 +65,7 @@ export async function getPostgresDisbursements(
         active_borrow: statsRow.active_borrow ?? 0,
         draft: statsRow.draft ?? 0,
         confirmed: statsRow.confirmed ?? 0,
+        pending_approval: statsRow.pending_approval ?? 0,
       } : undefined
 
       const itemsRes = await tx.execute<DisbursementRow>(
@@ -180,6 +183,94 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
         responsible_person: row.responsible_person ?? null,
         note: row.note ?? null,
         is_central: Boolean(row.is_central),
+      }))
+    } catch (error: unknown) {
+      const pgCode = (error as { code?: string })?.code || (error as { cause?: { code?: string } })?.cause?.code
+      if (pgCode === '42P01') {
+        return []
+      }
+      throw error
+    }
+  })
+}
+
+export interface CentralAvailableItem {
+  id: string
+  item_name: string
+  item_type: 'material' | 'asset'
+  asset_no: string | null
+  serial_no: string | null
+  brand: string | null
+  model: string | null
+  quantity: number
+  image_url: string | null
+  category: { id: string; name: string } | null
+  unit_name: string | null
+  location_name: string | null
+}
+
+export async function getPostgresCentralAvailableItems(): Promise<CentralAvailableItem[]> {
+  return withUserDatabase(async (tx) => {
+    try {
+      const res = await tx.execute<{
+        id: string
+        item_name: string
+        item_type: 'material' | 'asset'
+        asset_no: string | null
+        serial_no: string | null
+        brand: string | null
+        model: string | null
+        quantity: number
+        image_url: string | null
+        category_id: string | null
+        category_name: string | null
+        unit_name: string | null
+        location_name: string | null
+      }>(
+        sql`SELECT 
+          i.id,
+          i.item_name,
+          i.item_type,
+          i.asset_no,
+          i.serial_no,
+          i.brand,
+          i.model,
+          i.quantity,
+          i.image_url,
+          c.id as category_id,
+          c.name as category_name,
+          u.name as unit_name,
+          l.name as location_name
+        FROM public.items i
+        LEFT JOIN public.categories c ON c.id = i.category_id
+        LEFT JOIN public.units u ON u.id = i.unit_id
+        LEFT JOIN public.locations l ON l.id = i.location_id
+        WHERE i.deleted_at IS NULL 
+          AND (i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')
+          AND (i.status IN ('active', 'spare') OR i.status IS NULL)
+          AND NOT EXISTS (
+            SELECT 1 FROM public.disbursement_items di
+            JOIN public.disbursements d ON d.id = di.disbursement_id
+            WHERE di.item_id = i.id
+              AND d.status IN ('active_borrow', 'partially_returned')
+              AND di.status NOT IN ('returned', 'reversed')
+          )
+        ORDER BY i.item_name ASC`
+      )
+
+      return res.rows.map((row) => ({
+        id: row.id,
+        item_name: row.item_name,
+        item_type: row.item_type,
+        asset_no: row.asset_no ?? null,
+        serial_no: row.serial_no ?? null,
+        brand: row.brand ?? null,
+        model: row.model ?? null,
+        quantity: Number(row.quantity) || 1,
+        image_url: row.image_url ?? null,
+        category: row.category_id ? { id: row.category_id, name: row.category_name ?? '' } : null,
+        unit_name: row.unit_name ?? null,
+        location_name: row.location_name ?? null,
       }))
     } catch (error: unknown) {
       const pgCode = (error as { code?: string })?.code || (error as { cause?: { code?: string } })?.cause?.code

@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, LayoutDashboard, Package, Boxes, Settings, UserCog, History, LogOut, MapPin, BarChart3 } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Package, Boxes, Settings, History, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -13,19 +13,14 @@ import { ROLE_LABELS } from './nav-config'
 
 export function MobileNavigation({ profile }: { profile?: { full_name: string; display_name?: string | null; role: string } | null }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [mobileOpen, setMobileOpen] = useState(false)
   const effectiveDisplayName = profile?.display_name?.trim() || profile?.full_name
   const initials = effectiveDisplayName?.trim()?.charAt(0)?.toUpperCase() || 'U'
 
   const isDashboardActive = pathname === '/dashboard'
-  const isAssetsActive = pathname === '/items' && (searchParams.get('type') === 'asset' || !searchParams.get('type'))
-  const isSuppliesActive = pathname === '/items' && searchParams.get('type') === 'material'
-  const isLocationsActive = pathname === '/locations'
-  const isReportsActive = pathname === '/reports'
+  const isInventoryActive = pathname === '/items'
   const isDisbursementsActive = pathname.startsWith('/disbursements')
   const isSettingsActive = pathname === '/settings'
-  const isUsersActive = pathname.startsWith('/admin/users')
   const isAuditLogsActive = pathname.startsWith('/admin/audit-logs')
   const isProfileActive = pathname === '/profile'
 
@@ -91,55 +86,16 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
             </Link>
 
             <Link
-              href="/items?type=asset"
+              href="/items"
               onClick={() => setMobileOpen(false)}
-              aria-current={isAssetsActive ? 'page' : undefined}
+              aria-current={isInventoryActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                isAssetsActive ? activeLinkClass : inactiveLinkClass
+                isInventoryActive ? activeLinkClass : inactiveLinkClass
               )}
             >
               <Package className="h-4 w-4 text-blue-500 shrink-0" />
-              <span>ทะเบียนครุภัณฑ์ (Assets)</span>
-            </Link>
-
-            <Link
-              href="/items?type=material"
-              onClick={() => setMobileOpen(false)}
-              aria-current={isSuppliesActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                isSuppliesActive ? activeLinkClass : inactiveLinkClass
-              )}
-            >
-              <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>พัสดุ</span>
-            </Link>
-
-            <Link
-              href="/locations"
-              onClick={() => setMobileOpen(false)}
-              aria-current={isLocationsActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                isLocationsActive ? activeLinkClass : inactiveLinkClass
-              )}
-            >
-              <MapPin className="h-4 w-4 text-rose-500 shrink-0" />
-              <span>สถานที่จัดเก็บ</span>
-            </Link>
-
-            <Link
-              href="/reports"
-              onClick={() => setMobileOpen(false)}
-              aria-current={isReportsActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                isReportsActive ? activeLinkClass : inactiveLinkClass
-              )}
-            >
-              <BarChart3 className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>รายงานพัสดุ</span>
+              <span>คลัง</span>
             </Link>
 
             <Link
@@ -172,19 +128,6 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
 
             {profile?.role === 'admin' && (
               <>
-                <Link
-                  href="/admin/users"
-                  onClick={() => setMobileOpen(false)}
-                  aria-current={isUsersActive ? 'page' : undefined}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    isUsersActive ? activeLinkClass : inactiveLinkClass
-                  )}
-                >
-                  <UserCog className="h-4 w-4 text-purple-500 shrink-0" />
-                  <span>จัดการผู้ใช้งาน (Users)</span>
-                </Link>
-
                 <Link
                   href="/admin/audit-logs"
                   onClick={() => setMobileOpen(false)}

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { ItemStatus, ItemType } from './types'
 import { itemStatuses, itemTypes, type NormalizedItemListSearchParams } from './list-params'
 export { BATCH_SIZE, normalizeItemListSearchParams, type NormalizedItemListSearchParams } from './list-params'
-export type ItemCursorKey = string | number
+export type ItemCursorKey = string | number | null
 
 interface EncodedItemCursor {
   v: 1
@@ -39,6 +39,8 @@ function decode(value: string): unknown {
 }
 
 function assertKey(params: NormalizedItemListSearchParams, key: unknown): asserts key is ItemCursorKey {
+  const nullableSortColumns = ['acquired_date', 'budget_source', 'unit_price', 'asset_no', 'gfmis_number', 'responsible_person']
+  if (key === null && nullableSortColumns.includes(params.sort_by)) return
   if (params.sort_by === 'quantity' && (!Number.isFinite(key) || typeof key !== 'number')) {
     throw new CursorError()
   }
@@ -57,6 +59,9 @@ function assertKey(params: NormalizedItemListSearchParams, key: unknown): assert
   if (params.sort_by === 'item_name' && (typeof key !== 'string' || key.length > 512)) {
     throw new CursorError()
   }
+  if (params.sort_by === 'acquired_date' && (typeof key !== 'string' || key.length > 32 || !/^\d{4}-\d{2}-\d{2}$/.test(key))) throw new CursorError()
+  if (params.sort_by === 'unit_price' && (typeof key !== 'number' || !Number.isFinite(key))) throw new CursorError()
+  if (['budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by) && (typeof key !== 'string' || key.length > 512)) throw new CursorError()
 }
 
 export function encodeItemCursor(params: NormalizedItemListSearchParams, key: ItemCursorKey, id: string) {

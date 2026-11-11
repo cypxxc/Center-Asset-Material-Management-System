@@ -235,7 +235,9 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
-    if (doc.status !== 'draft') throw new Error(`ไม่สามารถยืนยันเอกสารในสถานะ ${doc.status} ได้`)
+    if (!['draft', 'pending_approval'].includes(doc.status)) {
+      throw new Error(`ไม่สามารถยืนยันหรืออนุมัติเอกสารในสถานะ ${doc.status} ได้`)
+    }
 
     // 2. Lock and fetch lines with current item metadata (deterministic order by item_id to prevent lock cycle)
     const linesRes = await tx.execute<DisbursementItemRow & {
@@ -306,6 +308,21 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
           )`
         )
       } else if (['asset_handover', 'asset_borrow'].includes(doc.transaction_type)) {
+        if (doc.transaction_type === 'asset_borrow') {
+          const activeBorrowRes = await tx.execute<{ count: number }>(
+            sql`SELECT count(*)::int as count 
+                FROM public.disbursement_items di
+                JOIN public.disbursements d ON d.id = di.disbursement_id
+                WHERE di.item_id = ${line.item_id}
+                  AND di.disbursement_id != ${disbursementId}
+                  AND d.status IN ('active_borrow', 'partially_returned')
+                  AND di.status NOT IN ('returned', 'reversed')`
+          )
+          if (activeBorrowRes.rows[0].count > 0) {
+            throw new Error(`ไม่สามารถอนุมัติได้: รายการ "${line.item_name}" กำลังอยู่ระหว่างการยืมในเอกสารอื่นแล้ว`)
+          }
+        }
+
         // Record custody log
         await tx.execute(
           sql`INSERT INTO public.asset_custody_logs (
@@ -585,6 +602,139 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
             ${user.id}, 'REVERSE_DISBURSEMENT', 'disbursements', ${doc.id},
             ${JSON.stringify({ status: doc.status })}::jsonb,
             ${JSON.stringify({ status: 'reversed', reason: data.reason })}::jsonb
+          )`
+    )
+
+    return { ok: true }
+  })
+}
+
+export async function submitPostgresBorrowRequest(input: {
+  item_ids: string[]
+  due_date: string
+  purpose: string
+}) {
+  const profile = await getCurrentProfile()
+  if (!profile?.is_active) {
+    throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+  }
+
+  if (!input.item_ids || !Array.isArray(input.item_ids) || input.item_ids.length === 0) {
+    throw new Error('กรุณาเลือกรายการพัสดุที่ต้องการยืมอย่างน้อย 1 รายการ')
+  }
+  if (input.item_ids.length > 20) {
+    throw new Error('สามารถยืมได้สูงสุดครั้งละไม่เกิน 20 รายการ')
+  }
+  if (!input.due_date || !input.due_date.trim()) {
+    throw new Error('กรุณาระบุกำหนดวันส่งคืนพัสดุ')
+  }
+  if (!input.purpose || !input.purpose.trim()) {
+    throw new Error('กรุณาระบุวัตถุประสงค์การใช้งาน')
+  }
+
+  return withUserDatabase(async (tx) => {
+    // 1. Verify items are central pool items and active
+    for (const itemId of input.item_ids) {
+      const itemRes = await tx.execute<{ id: string; item_name: string; is_central: boolean; note: string | null; status: string }>(
+        sql`SELECT id, item_name, is_central, note, status FROM public.items WHERE id = ${itemId} AND deleted_at IS NULL`
+      )
+      const it = itemRes.rows[0]
+      if (!it) throw new Error('ไม่พบข้อมูลพัสดุบางรายการ')
+      if (!it.is_central && (!it.note || !it.note.includes('ส่วนกลาง'))) {
+        throw new Error(`รายการ "${it.item_name}" ไม่ใช่ของส่วนกลาง`)
+      }
+      if (it.status !== 'active' && it.status !== 'spare') {
+        throw new Error(`รายการ "${it.item_name}" ไม่อยู่ในสถานะพร้อมใช้งาน`)
+      }
+
+      // Check if item is already in active_borrow
+      const activeBorrowRes = await tx.execute<{ count: number }>(
+        sql`SELECT count(*)::int as count 
+            FROM public.disbursement_items di
+            JOIN public.disbursements d ON d.id = di.disbursement_id
+            WHERE di.item_id = ${itemId}
+              AND d.status IN ('active_borrow', 'partially_returned')
+              AND di.status NOT IN ('returned', 'reversed')`
+      )
+      if (activeBorrowRes.rows[0].count > 0) {
+        throw new Error(`รายการ "${it.item_name}" กำลังอยู่ระหว่างการยืม ไม่สามารถยื่นขอซ้ำได้`)
+      }
+    }
+
+    const recipientName = profile.full_name || 'ผู้ใช้งาน'
+    const departmentName = profile.department || 'สำนักงานเขตสุขภาพที่ 7'
+
+    // 2. Insert disbursement header
+    const docRes = await tx.execute<{ id: string }>(
+      sql`INSERT INTO public.disbursements (
+        transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
+      ) VALUES (
+        'asset_borrow',
+        ${recipientName},
+        ${departmentName},
+        ${input.purpose.trim()},
+        'pending_approval',
+        ${input.due_date},
+        ${profile.id}
+      ) RETURNING id`
+    )
+    const docId = docRes.rows[0].id
+
+    // 3. Insert line items
+    for (const itemId of input.item_ids) {
+      await tx.execute(
+        sql`INSERT INTO public.disbursement_items (
+          disbursement_id, item_id, requested_qty, status
+        ) VALUES (
+          ${docId}, ${itemId}, 1, 'pending'
+        )`
+      )
+    }
+
+    // 4. Audit log
+    await tx.execute(
+      sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+          VALUES (
+            ${profile.id}, 'REQUEST_BORROW', 'disbursements', ${docId},
+            null,
+            ${JSON.stringify({
+              items_count: input.item_ids.length,
+              due_date: input.due_date,
+              purpose: input.purpose.trim(),
+            })}::jsonb
+          )`
+    )
+
+    return { id: docId }
+  })
+}
+
+export async function rejectPostgresDisbursement(disbursementId: string, reason?: string) {
+  const user = await requireDisbursementWriter()
+  return withUserDatabase(async (tx) => {
+    const docRes = await tx.execute<DisbursementRow>(
+      sql`SELECT * FROM public.disbursements WHERE id = ${disbursementId} FOR UPDATE`
+    )
+    const doc = docRes.rows[0]
+    if (!doc) throw new Error('ไม่พบเอกสาร')
+    if (doc.status !== 'pending_approval') {
+      throw new Error(`สามารถปฏิเสธได้เฉพาะคำขอในสถานะรออนุมัติเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
+    }
+
+    await tx.execute(
+      sql`UPDATE public.disbursements
+          SET status = 'rejected',
+              reversal_reason = ${reason || 'ไม่อนุมัติคำขอ'},
+              updated_at = now()
+          WHERE id = ${disbursementId}`
+    )
+
+    await tx.execute(
+      sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+          VALUES (
+            ${user.id}, 'REJECT_BORROW_REQUEST', 'disbursements', ${disbursementId},
+            ${JSON.stringify({ status: doc.status })}::jsonb,
+            ${JSON.stringify({ status: 'rejected', reason: reason || 'ไม่อนุมัติคำขอ' })}::jsonb
           )`
     )
 

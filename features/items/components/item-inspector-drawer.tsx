@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
-import { type ItemListRow } from '@/features/items/types'
+import { ITEM_QUALIFICATION_LABELS, ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
 import { CategoryBadge } from '@/features/items/components/category-badge'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { useMediaQuery } from '@/hooks/use-media-query'
@@ -143,22 +143,17 @@ export function Inspector({
                 icon={item.category?.icon}
                 className="max-w-[200px]"
               />
-              {item.item_type === 'material' ? (
-                <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">
-                  ต่ำกว่าเกณฑ์ (ต.)
-                </span>
-              ) : (
-                <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
-                  ครุภัณฑ์ตามเกณฑ์
-                </span>
-              )}
+              <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
+                {ITEM_TYPE_LABELS[item.item_type]}
+              </span>
+              {item.qualification_status && <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300 shrink-0">{ITEM_QUALIFICATION_LABELS[item.qualification_status]}</span>}
             </div>
           </div>
 
           {/* SECTION 1: ข้อมูลระบุตัวตน (Tone Blue) */}
           <DrawerSectionHeading tone="blue" icon={<Tag className="h-3 w-3" />} label="ข้อมูลระบุตัวตน" />
           {item.asset_no && (
-            <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />} label={item.item_type === 'material' ? 'เลขทะเบียน (ต.)' : 'เลขครุภัณฑ์'}>
+            <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />} label={item.item_type === 'material' ? 'เลขทะเบียนพัสดุ' : 'เลขครุภัณฑ์'}>
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground min-w-0 flex-1" title={item.asset_no}>
                   {item.asset_no}

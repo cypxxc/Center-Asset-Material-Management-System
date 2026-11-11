@@ -94,3 +94,11 @@ scratch/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# documents & spreadsheets
+*.xlsx
+*.xls
+*.csv
+/docs/*.xlsx
+/docs/*.xls
+/docs/*.csv

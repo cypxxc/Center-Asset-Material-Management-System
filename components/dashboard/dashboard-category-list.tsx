@@ -83,10 +83,10 @@ export async function DashboardCategoryList() {
         <div className="flex items-center justify-between pb-3 border-b border-border/50">
           <div>
             <h2 className="font-semibold text-foreground text-xs sm:text-sm tracking-tight">
-              สถิติตามหมวดหมู่พัสดุ
+              สถิติตามหมวดหมู่ครุภัณฑ์
             </h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              จำแนกปริมาณพัสดุแยกตามหมวดหมู่หลัก
+              จำแนกปริมาณพัสดุแยกตามหมวดหมู่ครุภัณฑ์หลัก
             </p>
           </div>
           <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/50 shrink-0">

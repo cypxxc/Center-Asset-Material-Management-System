@@ -6,7 +6,7 @@ import { resolveLocalItemImageUrl } from '@/lib/postgres/storage'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { AuthorizationError } from '@/lib/errors'
 import { normalizeForSearch } from '@/lib/unicode'
-import type { ItemAuditLog, ItemBatchResult, ItemDetail, ItemListResult, ItemListRow, ItemListSearchParams, ReferenceOption, UrgentDamagedItem } from './types'
+import { ITEM_STATUS_LABELS, type ItemAuditLog, type ItemBatchResult, type ItemDetail, type ItemListResult, type ItemListRow, type ItemListSearchParams, type ReferenceOption, type UrgentDamagedItem } from './types'
 import type { LowStockDashboardItem } from './queries'
 import { BATCH_SIZE, encodeItemCursor, type ItemCursorKey, type NormalizedItemListSearchParams } from './cursor'
 
@@ -15,7 +15,7 @@ export const itemRelations = sql`left join public.categories c on c.id = i.categ
   left join public.units u on u.id = i.unit_id
   left join public.locations l on l.id = i.location_id`
 
-export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
+export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.qualification_status, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at,
   i.brand, i.model, i.note, i.is_central,
   EXISTS (
@@ -30,7 +30,7 @@ export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
-const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
+const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.qualification_status, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
   i.brand, i.model, i.note, i.is_central,
   EXISTS (
@@ -51,13 +51,71 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
   const q = validateEnums ? normalized.replaceAll(',', ' ') : normalized
   if (q) {
     const pattern = `%${q}%`
-    clauses.push(sql`(i.item_name ilike ${pattern} or i.asset_no ilike ${pattern}
-      or i.serial_no ilike ${pattern} or i.brand ilike ${pattern}
-      or i.model ilike ${pattern} or i.responsible_person ilike ${pattern}
-      or i.gfmis_number ilike ${pattern} or i.budget_source ilike ${pattern})`)
+    const searchConditions: SQL[] = [
+      sql`i.item_name ilike ${pattern}`,
+      sql`i.asset_no ilike ${pattern}`,
+      sql`i.serial_no ilike ${pattern}`,
+      sql`i.brand ilike ${pattern}`,
+      sql`i.model ilike ${pattern}`,
+      sql`i.responsible_person ilike ${pattern}`,
+      sql`i.gfmis_number ilike ${pattern}`,
+      sql`i.budget_source ilike ${pattern}`,
+      sql`i.note ilike ${pattern}`,
+      sql`i.acquired_date::text ilike ${pattern}`,
+      sql`i.unit_price::text ilike ${pattern}`,
+      sql`i.status ilike ${pattern}`,
+      sql`exists (select 1 from public.categories c where c.id = i.category_id and c.name ilike ${pattern})`,
+      sql`exists (select 1 from public.units u where u.id = i.unit_id and u.name ilike ${pattern})`,
+      sql`exists (select 1 from public.locations l where l.id = i.location_id and (l.name ilike ${pattern} or l.building ilike ${pattern} or l.floor ilike ${pattern} or l.room ilike ${pattern} or l.department ilike ${pattern}))`,
+    ]
+
+    // Thai status label and synonym mapping
+    const matchingStatuses: string[] = []
+    const lowerQ = q.toLowerCase()
+    const STATUS_SYNONYMS: Record<string, string[]> = {
+      active: ['ใช้งานอยู่', 'พร้อมใช้งาน', 'ปกติ', 'ใช้งาน'],
+      spare: ['สำรอง'],
+      damaged: ['ชำรุด'],
+      waiting_repair: ['รอซ่อม', 'ส่งซ่อม'],
+      inactive: ['ไม่ใช้งาน', 'เลิกใช้งาน'],
+      disposed: ['จำหน่ายแล้ว', 'แทงจำหน่าย', 'จำหน่าย'],
+    }
+    for (const [statusKey, synonyms] of Object.entries(STATUS_SYNONYMS)) {
+      if (synonyms.some((s) => s.toLowerCase().includes(lowerQ) || lowerQ.includes(s.toLowerCase()))) {
+        matchingStatuses.push(statusKey)
+      }
+    }
+    for (const [statusKey, label] of Object.entries(ITEM_STATUS_LABELS)) {
+      if (label.toLowerCase().includes(lowerQ) || lowerQ.includes(label.toLowerCase())) {
+        if (!matchingStatuses.includes(statusKey)) {
+          matchingStatuses.push(statusKey)
+        }
+      }
+    }
+    if (matchingStatuses.length > 0) {
+      searchConditions.push(sql`i.status in (${sql.join(matchingStatuses.map((s) => sql`${s}`), sql`, `)})`)
+    }
+
+    // Number matching without commas (e.g., "1,500" -> 1500)
+    const cleanNum = q.replaceAll(',', '').replaceAll(' ', '').trim()
+    if (cleanNum && /^\d+(\.\d+)?$/.test(cleanNum) && cleanNum !== q) {
+      searchConditions.push(sql`i.unit_price::text ilike ${'%' + cleanNum + '%'}`)
+    }
+
+    // Thai Buddhist Era year (พ.ศ.) e.g. 2568 -> 2025
+    const yearNum = Number(cleanNum)
+    if (Number.isInteger(yearNum) && yearNum >= 2400 && yearNum <= 2700) {
+      const adYear = String(yearNum - 543)
+      searchConditions.push(sql`i.acquired_date::text ilike ${'%' + adYear + '%'}`)
+    }
+
+    clauses.push(sql`(${sql.join(searchConditions, sql` or `)})`)
   }
   if (params.type && (!validateEnums || ['material', 'asset'].includes(params.type))) {
     clauses.push(sql`i.item_type = ${params.type}`)
+  }
+  if (params.qualification && (!validateEnums || ['qualified', 'below_threshold', 'unclassified'].includes(params.qualification))) {
+    clauses.push(params.qualification === 'unclassified' ? sql`i.qualification_status is null` : sql`i.qualification_status = ${params.qualification}`)
   }
   if (params.status && (!validateEnums || ['active', 'spare', 'damaged', 'waiting_repair', 'inactive', 'disposed'].includes(params.status))) {
     clauses.push(sql`i.status = ${params.status}`)
@@ -87,18 +145,47 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
     item_type: sql`i.item_type`,
     quantity: sql`i.quantity`,
     status: sql`i.status`,
+    acquired_date: sql`i.acquired_date`,
+    budget_source: sql`i.budget_source`,
+    unit_price: sql`i.unit_price`,
+    asset_no: sql`i.asset_no`,
+    gfmis_number: sql`i.gfmis_number`,
+    responsible_person: sql`i.responsible_person`,
   }
   const sortBy = params.sort_by ?? ''
   const order = Object.hasOwn(columns, sortBy) ? columns[sortBy] : sql`i.updated_at`
-  const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type'].includes(params.sort_by ?? ''))
+  const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by ?? ''))
   return withUserDatabase(async (tx) => {
     const where = itemFilters(params, true)
-    const totals = await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
+    const classificationWhere = itemFilters({ ...params, type: undefined }, true)
+    const selectedType = params.type === 'asset' || params.type === 'material' ? params.type : null
+    const selectedQualification = params.qualification === 'qualified' || params.qualification === 'below_threshold' ? params.qualification : null
+    const selectedUnclassified = params.qualification === 'unclassified'
+    const totals = await tx.execute<{ total: number; assets: number; materials: number; qualified: number; below_threshold: number; unclassified: number }>(sql`select
+      count(*) filter (where ${selectedType ? sql`item_type = ${selectedType}` : sql`true`} and ${selectedQualification ? sql`qualification_status = ${selectedQualification}` : selectedUnclassified ? sql`qualification_status is null` : sql`true`})::int as total,
+      count(*) filter (where item_type = 'asset')::int as assets,
+      count(*) filter (where item_type = 'material')::int as materials,
+      count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status = 'qualified')::int as qualified,
+      count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status = 'below_threshold')::int as below_threshold,
+      count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status is null)::int as unclassified
+      from public.items i where ${classificationWhere}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url
       from public.items i ${itemRelations} where ${where}
       order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
     const total = totals.rows[0]?.total ?? 0
-    return { items: rows.rows.map(item => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) })), total, page, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) }
+    const assets = totals.rows[0]?.assets ?? 0
+    const materials = totals.rows[0]?.materials ?? 0
+    const qualified = totals.rows[0]?.qualified ?? 0
+    const belowThreshold = totals.rows[0]?.below_threshold ?? 0
+    const unclassified = totals.rows[0]?.unclassified ?? 0
+    return {
+      items: rows.rows.map(item => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) })),
+      total,
+      classificationCounts: { all: assets + materials, assets, materials, qualified, belowThreshold, unclassified },
+      page,
+      pageSize: safePageSize,
+      totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    }
   })
 }
 
@@ -113,6 +200,12 @@ export async function getPostgresItemBatch(
     item_type: sql`i.item_type`,
     quantity: sql`i.quantity`,
     status: sql`i.status`,
+    acquired_date: sql`i.acquired_date`,
+    budget_source: sql`i.budget_source`,
+    unit_price: sql`i.unit_price`,
+    asset_no: sql`i.asset_no`,
+    gfmis_number: sql`i.gfmis_number`,
+    responsible_person: sql`i.responsible_person`,
   }
   const order = columns[params.sort_by]
   const ascending = params.sort_dir === 'asc'
@@ -121,24 +214,26 @@ export async function getPostgresItemBatch(
     // Batch params are already normalized; trimming again would change comma-search semantics.
     const where = itemFilters(params, false, params.q)
     const cursorWhere = cursor
-      ? sql` and (${order} ${comparison} ${cursor.key} or (${order} = ${cursor.key} and i.id ${comparison} ${cursor.id}::uuid))`
+      ? cursor.key === null
+        ? sql` and (${order} is null and i.id ${comparison} ${cursor.id}::uuid)`
+        : sql` and (${order} ${comparison} ${cursor.key} or ${order} is null or (${order} = ${cursor.key} and i.id ${comparison} ${cursor.id}::uuid))`
       : sql``
     const totals = cursor ? null : await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemBatchColumns}, i.note, i.image_url
       from public.items i ${itemRelations} where ${where}${cursorWhere}
-      order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id ${ascending ? sql`asc` : sql`desc`} limit ${BATCH_SIZE + 1}`)
+      order by ${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`} limit ${BATCH_SIZE + 1}`)
     const hasMore = rows.rows.length > BATCH_SIZE
     const items = rows.rows.slice(0, BATCH_SIZE).map((item) => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) }))
     const last = items.at(-1)
-    const cursorKey = last
+    const cursorKey: ItemCursorKey | undefined = last
       ? params.sort_by === 'category'
         ? (last.category?.name ?? '')
-        : (last[params.sort_by] as ItemCursorKey)
+        : (last[params.sort_by] as ItemCursorKey | undefined)
       : null
     return {
       items,
       total: totals?.rows[0]?.total ?? null,
-      nextCursor: hasMore && last && cursorKey !== null ? encodeItemCursor(params, cursorKey, last.id) : null,
+      nextCursor: hasMore && last && cursorKey !== undefined ? encodeItemCursor(params, cursorKey, last.id) : null,
     }
   })
 }

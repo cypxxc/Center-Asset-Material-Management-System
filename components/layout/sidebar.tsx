@@ -5,17 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  BarChart3,
   Boxes,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
   LogOut,
-  MapPin,
   Package,
   Settings,
   User,
-  UserCog,
   History,
   PanelLeftClose,
   PanelLeftOpen,
@@ -76,10 +73,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const currentType = searchParams.get('type')
-  const currentCategory = searchParams.get('category_id')
-  const currentLocation = searchParams.get('location_id')
-
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -124,12 +117,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
   }
 
   const currentPath = optimisticTarget ? optimisticTarget.split('?')[0] : pathname
-  const currentQueryStr = optimisticTarget?.includes('?') ? optimisticTarget.split('?')[1] : null
-  const effType = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('type') : currentType
-  const effCategory = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('category_id') : currentCategory
-  const effLocation = currentQueryStr !== null ? new URLSearchParams(currentQueryStr).get('location_id') : currentLocation
 
-  const locations = sidebarData?.locations ?? []
   const counts = sidebarData?.counts ?? {
     total_assets: 0,
     total_supplies: 0,
@@ -146,27 +134,13 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const isOverviewActive = currentPath === '/dashboard'
 
-  const isAssetsActive =
-    currentPath === '/items' &&
-    (effType === 'asset' || !effType) &&
-    !effLocation &&
-    !effCategory
+  const isInventoryActive = currentPath === '/items'
 
-  const isSuppliesActive =
-    currentPath === '/items' &&
-    effType === 'material'
-
-  const isLocationsActive =
-    currentPath === '/locations' &&
-    !effLocation
-
-  const isReportsActive = currentPath === '/reports'
   const isDisbursementsActive = currentPath.startsWith('/disbursements')
 
   const isSettingsActive = currentPath === '/settings'
-  const isUsersActive = currentPath.startsWith('/admin/users')
   const isAuditLogsActive = currentPath.startsWith('/admin/audit-logs')
-  const isAdminActive = isSettingsActive || isUsersActive || isAuditLogsActive
+  const isAdminActive = isSettingsActive || isAuditLogsActive
 
   const adminFolderExpanded = adminFolderManual ?? isAdminActive
 
@@ -198,7 +172,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
         {/* Brand Header */}
         <div
           className={cn(
-            'flex h-12 shrink-0 items-center border-b border-sidebar-border',
+            'flex h-14 shrink-0 items-center border-b border-sidebar-border',
             isCollapsed ? 'justify-center px-2' : 'justify-between px-3.5'
           )}
         >
@@ -287,54 +261,29 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             )}
 
             {/* ครุภัณฑ์ */}
-            <NavItemTooltip label={`ครุภัณฑ์ (${totalAssetsCount})`} enabled={isCollapsed}>
+            <NavItemTooltip label={`คลัง (${totalAssetsCount + totalSuppliesCount})`} enabled={isCollapsed}>
               <Link
-                href="/items?type=asset"
-                onPointerDown={() => handleOptimisticNavigate('/items?type=asset')}
-                onClick={() => handleOptimisticNavigate('/items?type=asset')}
-                aria-current={isAssetsActive ? 'page' : undefined}
+                href="/items"
+                onPointerDown={() => handleOptimisticNavigate('/items')}
+                onClick={() => handleOptimisticNavigate('/items')}
+                aria-current={isInventoryActive ? 'page' : undefined}
                 className={cn(
-                  navItemClass(isAssetsActive),
+                  navItemClass(isInventoryActive),
                   !isCollapsed && 'justify-between'
                 )}
               >
                 <div className="flex items-center min-w-0 flex-1">
-                  <Package className={navIconClass('text-blue-500', isAssetsActive)} />
-                  {!isCollapsed && <span className="truncate">ครุภัณฑ์</span>}
+                  <Package className={navIconClass('text-blue-500', isInventoryActive)} />
+                  {!isCollapsed && <span className="truncate">คลัง</span>}
                 </div>
                 {!isCollapsed && (
                   <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
-                    {totalAssetsCount}
+                    {totalAssetsCount + totalSuppliesCount}
                   </span>
                 )}
               </Link>
             </NavItemTooltip>
 
-            {/* พัสดุ */}
-            <NavItemTooltip label={`พัสดุ (${totalSuppliesCount})`} enabled={isCollapsed}>
-              <Link
-                href="/items?type=material"
-                onPointerDown={() => handleOptimisticNavigate('/items?type=material')}
-                onClick={() => handleOptimisticNavigate('/items?type=material')}
-                aria-current={isSuppliesActive ? 'page' : undefined}
-                className={cn(
-                  navItemClass(isSuppliesActive),
-                  !isCollapsed && 'justify-between'
-                )}
-              >
-                <div className="flex items-center min-w-0 flex-1">
-                  <Boxes className={navIconClass('text-amber-500', isSuppliesActive)} />
-                  {!isCollapsed && <span className="truncate">พัสดุ</span>}
-                </div>
-                {!isCollapsed && (
-                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
-                    {totalSuppliesCount}
-                  </span>
-                )}
-              </Link>
-            </NavItemTooltip>
-
-            {/* เบิก-จ่ายพัสดุ */}
             <NavItemTooltip label="เบิก-จ่ายพัสดุ" enabled={isCollapsed}>
               <Link
                 href="/disbursements"
@@ -348,53 +297,6 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
               </Link>
             </NavItemTooltip>
 
-            {/* สถานที่ */}
-            <NavItemTooltip label={`สถานที่ (${locations.length})`} enabled={isCollapsed}>
-              <Link
-                href="/locations"
-                onPointerDown={() => handleOptimisticNavigate('/locations')}
-                onClick={() => handleOptimisticNavigate('/locations')}
-                aria-current={isLocationsActive ? 'page' : undefined}
-                className={cn(
-                  navItemClass(isLocationsActive),
-                  !isCollapsed && 'justify-between'
-                )}
-              >
-                <div className="flex items-center min-w-0 flex-1">
-                  <MapPin className={navIconClass('text-rose-500', isLocationsActive)} />
-                  {!isCollapsed && <span className="truncate">สถานที่</span>}
-                </div>
-                {!isCollapsed && (
-                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
-                    {locations.length}
-                  </span>
-                )}
-              </Link>
-            </NavItemTooltip>
-          </div>
-
-          {/* Group 2: สรุปและรายงาน */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-                สรุปและรายงาน
-              </p>
-            ) : (
-              <div className="my-1 border-t border-sidebar-border" />
-            )}
-
-            <NavItemTooltip label="รายงานและสถิติ" enabled={isCollapsed}>
-              <Link
-                href="/reports"
-                onPointerDown={() => handleOptimisticNavigate('/reports')}
-                onClick={() => handleOptimisticNavigate('/reports')}
-                aria-current={isReportsActive ? 'page' : undefined}
-                className={navItemClass(isReportsActive)}
-              >
-                <BarChart3 className={navIconClass('text-emerald-500', isReportsActive)} />
-                {!isCollapsed && <span className="truncate">รายงานและสถิติ</span>}
-              </Link>
-            </NavItemTooltip>
           </div>
 
           {/* Group 3: จัดการระบบ (Collapsible Accordion for Enterprise UI) */}
@@ -426,22 +328,8 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                         className={navItemClass(isSettingsActive)}
                       >
                         <Settings className={navIconClass('text-violet-500', isSettingsActive)} />
-                        <span className="truncate">ตั้งค่าระบบหลัก</span>
+                        <span className="truncate">ตั้งค่าระบบ</span>
                       </Link>
-
-                      {/* User Management - Admin Only */}
-                      {isAdmin && (
-                        <Link
-                          href="/admin/users"
-                          onPointerDown={() => handleOptimisticNavigate('/admin/users')}
-                          onClick={() => handleOptimisticNavigate('/admin/users')}
-                          aria-current={isUsersActive ? 'page' : undefined}
-                          className={navItemClass(isUsersActive)}
-                        >
-                          <UserCog className={navIconClass('text-purple-500', isUsersActive)} />
-                          <span className="truncate">จัดการผู้ใช้งาน</span>
-                        </Link>
-                      )}
 
                       {/* Audit Logs Explorer - Admin Only */}
                       {isAdmin && (
@@ -453,7 +341,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                           className={navItemClass(isAuditLogsActive)}
                         >
                           <History className={navIconClass('text-orange-500', isAuditLogsActive)} />
-                          <span className="truncate">ประวัติการทำรายการ</span>
+                          <span className="truncate">Logs</span>
                         </Link>
                       )}
                     </div>
@@ -463,7 +351,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 /* In collapsed mode, render direct icon buttons with tooltips */
                 <div className="space-y-1">
                   <div className="my-1 border-t border-sidebar-border" />
-                  <NavItemTooltip label="ตั้งค่าระบบหลัก" enabled={isCollapsed}>
+                  <NavItemTooltip label="ตั้งค่าระบบ" enabled={isCollapsed}>
                     <Link
                       href="/settings"
                       onPointerDown={() => handleOptimisticNavigate('/settings')}
@@ -476,21 +364,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   </NavItemTooltip>
 
                   {isAdmin && (
-                    <NavItemTooltip label="จัดการผู้ใช้งาน" enabled={isCollapsed}>
-                      <Link
-                        href="/admin/users"
-                        onPointerDown={() => handleOptimisticNavigate('/admin/users')}
-                        onClick={() => handleOptimisticNavigate('/admin/users')}
-                        aria-current={isUsersActive ? 'page' : undefined}
-                        className={navItemClass(isUsersActive)}
-                      >
-                        <UserCog className={navIconClass('text-purple-500', isUsersActive)} />
-                      </Link>
-                    </NavItemTooltip>
-                  )}
-
-                  {isAdmin && (
-                    <NavItemTooltip label="ประวัติการทำรายการ" enabled={isCollapsed}>
+                    <NavItemTooltip label="Logs" enabled={isCollapsed}>
                       <Link
                         href="/admin/audit-logs"
                         onPointerDown={() => handleOptimisticNavigate('/admin/audit-logs')}

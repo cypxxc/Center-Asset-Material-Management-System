@@ -261,14 +261,8 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
 
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`
 
-      const parsedPrice = parseFloat(unitPrice.replace(/,/g, ''))
-      const sheetOrCat = `${getSingle('category_name')} ${sheetCategory}`.toLowerCase()
-      const isMaterial = sheetOrCat.includes('ต่ำกว่าเกณฑ์') || 
-                         sheetOrCat.includes('วัสดุ') || 
-                         sheetOrCat.includes('พัสดุ') || 
-                         itemName.toLowerCase().includes('ต่ำกว่าเกณฑ์') ||
-                         (!isNaN(parsedPrice) && parsedPrice > 0 && parsedPrice < 10000)
-      const itemType = isMaterial ? 'material' : 'asset'
+      const declaredItemType = getSingle('item_type').trim().toLowerCase()
+      const itemType = declaredItemType === 'material' ? 'material' : 'asset'
 
       const rowData = [
         esc(itemName),

@@ -1,6 +1,5 @@
 import {
   CategorySection,
-  LocationSection,
   UnitSection,
   ImportSection,
 } from '@/features/settings/components/metadata-sections'
@@ -8,7 +7,7 @@ import { getSettingsPageData } from '@/features/settings/queries'
 import { canManageSettings } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { Tag, Building2, Box, Upload, AlertCircle } from 'lucide-react'
+import { Tag, Box, Upload, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 import { PageContainer } from '@/components/ui/page-container'
@@ -37,8 +36,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const { activeTab, data } = await getSettingsPageData(params.tab)
 
   const tabs = [
-    { id: 'categories', label: 'หมวดหมู่พัสดุ', icon: <Tag className="h-4 w-4" /> },
-    { id: 'locations', label: 'สถานที่จัดตั้ง', icon: <Building2 className="h-4 w-4" /> },
+    { id: 'categories', label: 'หมวดหมู่ครุภัณฑ์', icon: <Tag className="h-4 w-4" /> },
     { id: 'units', label: 'หน่วยนับ', icon: <Box className="h-4 w-4" /> },
     { id: 'import', label: 'นำเข้าพัสดุ CSV/Excel', icon: <Upload className="h-4 w-4" /> },
   ]
@@ -95,9 +93,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       <div className="mt-4 animate-in fade-in duration-200">
         {activeTab === 'categories' && (
           <CategorySection categories={data.categories} />
-        )}
-        {activeTab === 'locations' && (
-          <LocationSection locations={data.locations} />
         )}
         {activeTab === 'units' && (
           <UnitSection units={data.units} />

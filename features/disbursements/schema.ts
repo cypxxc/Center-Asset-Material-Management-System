@@ -36,11 +36,32 @@ export const disbursementDraftSchema = z.object({
 export const disbursementListParamsSchema = z.object({
   q: z.string().optional().default(''),
   status: z
-    .enum(['draft', 'confirmed', 'active_borrow', 'partially_returned', 'returned', 'reversed', 'cancelled'])
+    .enum([
+      'draft',
+      'pending_approval',
+      'confirmed',
+      'active_borrow',
+      'partially_returned',
+      'returned',
+      'reversed',
+      'cancelled',
+      'rejected',
+    ])
     .optional(),
   type: z.enum(['material_issue', 'asset_handover', 'asset_borrow']).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+})
+
+export const submitBorrowRequestSchema = z.object({
+  item_ids: z.array(z.string().uuid('รหัสสิ่งของไม่ถูกต้อง')).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ'),
+  due_date: z.string().min(1, 'กรุณาระบุกำหนดส่งคืน'),
+  purpose: stringTrimmed(500, 'กรุณาระบุวัตถุประสงค์ในการยืม'),
+})
+
+export const rejectDisbursementSchema = z.object({
+  disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
+  reason: z.string().transform(normalizeForStorage).pipe(z.string().max(500)).optional(),
 })
 
 export const updateDisbursementDraftSchema = disbursementDraftSchema.extend({

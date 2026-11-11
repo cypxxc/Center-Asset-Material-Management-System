@@ -19,6 +19,7 @@ import { metrics } from '@/lib/metrics'
 import { retryStorage } from '@/lib/retry'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { applyQualificationMapping as applyQualificationMappingCore, previewQualificationMapping as previewQualificationMappingCore } from './qualification-mapping'
 import { isPostgresBackend } from '@/lib/backend'
 import { insertPostgresItem, getPostgresItemForUpdate, updatePostgresItem, mutatePostgresItems } from './postgres-actions'
 import { uploadLocalItemImage } from '@/lib/postgres/storage'
@@ -38,6 +39,18 @@ export async function getItemsForExport(params: ItemListSearchParams) {
   return getItemsForExportCore(params)
 }
 
+export async function previewQualificationMapping() {
+  return previewQualificationMappingCore()
+}
+
+export async function applyQualificationMapping(expected: { eligible: number; qualified: number; belowThreshold: number }) {
+  const result = await applyQualificationMappingCore(expected)
+  revalidatePath('/items')
+  revalidatePath('/', 'layout')
+  revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
+  return result
+}
+
 // Bust sidebar data cache (layout scope) whenever items change
 function revalidateSidebarCache() {
   revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
@@ -48,6 +61,7 @@ function parseFormData(formData: FormData) {
   return itemFormSchema.safeParse({
     item_name: formData.get('item_name'),
     item_type: formData.get('item_type'),
+    qualification_status: formData.get('qualification_status'),
     category_id: formData.get('category_id'),
     quantity: formData.get('quantity'),
     unit_price: formData.get('unit_price'),
@@ -537,7 +551,7 @@ export async function getMatchingItemIds(params: ItemListSearchParams): Promise<
       for (let offset = 0; ; offset += 500) {
         let query = supabase.from('items').select('id', { count: 'exact' }).is('deleted_at', null)
         const q = normalizeForSearch(params.q || '').replaceAll(',', ' ')
-        if (q) query = query.or(`item_name.ilike.%${q}%,asset_no.ilike.%${q}%,serial_no.ilike.%${q}%,brand.ilike.%${q}%,model.ilike.%${q}%,responsible_person.ilike.%${q}%`)
+        if (q) query = query.or(`item_name.ilike.%${q}%,asset_no.ilike.%${q}%,serial_no.ilike.%${q}%,brand.ilike.%${q}%,model.ilike.%${q}%,responsible_person.ilike.%${q}%,gfmis_number.ilike.%${q}%,budget_source.ilike.%${q}%,note.ilike.%${q}%,status.ilike.%${q}%`)
         if (params.type === 'asset' || params.type === 'material') query = query.eq('item_type', params.type)
         if (params.status && ['active','spare','damaged','waiting_repair','inactive','disposed'].includes(params.status)) query = query.eq('status', params.status)
         if (params.category_id) query = query.eq('category_id', params.category_id)

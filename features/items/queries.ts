@@ -20,6 +20,7 @@ import {
   ItemBatchResult,
   ItemListRow,
   ItemListSearchParams,
+  ItemQualificationStatus,
   ItemStatus,
   ItemType,
   ReferenceOption,
@@ -265,6 +266,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
         id,
         item_name,
         item_type,
+        qualification_status,
         quantity,
         unit_price,
         asset_no,
@@ -288,12 +290,17 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
   if (q) {
     const safe = q.replaceAll(',', ' ')
     query = query.or(
-      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%`
+      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%,gfmis_number.ilike.%${safe}%,budget_source.ilike.%${safe}%,note.ilike.%${safe}%,status.ilike.%${safe}%`
     )
   }
 
   if (isItemType(params.type)) {
     query = query.eq('item_type', params.type)
+  }
+  if (params.qualification === 'qualified' || params.qualification === 'below_threshold') {
+    query = query.eq('qualification_status', params.qualification)
+  } else if (params.qualification === 'unclassified') {
+    query = query.is('qualification_status', null)
   }
 
   if (isItemStatus(params.status)) {
@@ -306,6 +313,48 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
 
   if (params.location_id) {
     query = query.eq('location_id', params.location_id)
+  }
+  if (params.is_central === 'true' || params.is_central === '1') {
+    query = query.eq('is_central', true)
+  }
+
+  const getClassificationCount = (itemType: ItemType) => {
+    let countQuery = supabase
+      .from('items')
+      .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null)
+      .eq('item_type', itemType)
+
+    if (params.qualification === 'qualified' || params.qualification === 'below_threshold') countQuery = countQuery.eq('qualification_status', params.qualification)
+    else if (params.qualification === 'unclassified') countQuery = countQuery.is('qualification_status', null)
+
+    if (q) {
+      const safe = q.replaceAll(',', ' ')
+      countQuery = countQuery.or(
+        `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%,gfmis_number.ilike.%${safe}%,budget_source.ilike.%${safe}%,note.ilike.%${safe}%,status.ilike.%${safe}%`
+      )
+    }
+    if (isItemStatus(params.status)) countQuery = countQuery.eq('status', params.status)
+    if (params.category_id) countQuery = countQuery.eq('category_id', params.category_id)
+    if (params.location_id) countQuery = countQuery.eq('location_id', params.location_id)
+    if (params.is_central === 'true' || params.is_central === '1') countQuery = countQuery.eq('is_central', true)
+    return measureQuery('items.getClassificationCount', () => countQuery)
+  }
+
+  const getQualificationCount = (qualification: 'qualified' | 'below_threshold' | null) => {
+    let countQuery = supabase.from('items').select('id', { count: 'exact', head: true }).is('deleted_at', null)
+    if (qualification) countQuery = countQuery.eq('qualification_status', qualification)
+    else countQuery = countQuery.is('qualification_status', null)
+    if (isItemType(params.type)) countQuery = countQuery.eq('item_type', params.type)
+    if (q) {
+      const safe = q.replaceAll(',', ' ')
+      countQuery = countQuery.or(`item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%,gfmis_number.ilike.%${safe}%,budget_source.ilike.%${safe}%,note.ilike.%${safe}%,status.ilike.%${safe}%`)
+    }
+    if (isItemStatus(params.status)) countQuery = countQuery.eq('status', params.status)
+    if (params.category_id) countQuery = countQuery.eq('category_id', params.category_id)
+    if (params.location_id) countQuery = countQuery.eq('location_id', params.location_id)
+    if (params.is_central === 'true' || params.is_central === '1') countQuery = countQuery.eq('is_central', true)
+    return measureQuery('items.getQualificationCount', () => countQuery)
   }
 
   let orderColumn = 'updated_at'
@@ -322,6 +371,8 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
       orderColumn = 'quantity'
     } else if (params.sort_by === 'status') {
       orderColumn = 'status'
+    } else if (params.sort_by === 'acquired_date' || params.sort_by === 'budget_source' || params.sort_by === 'unit_price' || params.sort_by === 'asset_no' || params.sort_by === 'gfmis_number' || params.sort_by === 'responsible_person') {
+      orderColumn = params.sort_by
     }
   }
 
@@ -330,14 +381,14 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
   } else if (params.sort_dir === 'desc') {
     ascending = false
   } else {
-    if (params.sort_by === 'item_name' || params.sort_by === 'category' || params.sort_by === 'item_type') {
+    if (['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by ?? '')) {
       ascending = true
     } else {
       ascending = false
     }
   }
 
-  const [references, { result: { data, count, error } }] = await Promise.all([
+  const [references, { result: { data, count, error } }, assetCountResult, materialCountResult, qualifiedCountResult, belowCountResult, unclassifiedCountResult] = await Promise.all([
     getItemReferences(),
     measureQuery('items.getItems', () =>
       query
@@ -345,6 +396,11 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
         .order('id', { ascending })
         .range(from, to)
     ),
+    getClassificationCount('asset'),
+    getClassificationCount('material'),
+    getQualificationCount('qualified'),
+    getQualificationCount('below_threshold'),
+    getQualificationCount(null),
   ])
 
   if (error) {
@@ -362,6 +418,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
     id: string
     item_name: string
     item_type: ItemType
+    qualification_status: ItemQualificationStatus | null
     quantity: number
     unit_price: number | null
     asset_no: string | null
@@ -383,6 +440,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
     id: row.id,
     item_name: row.item_name,
     item_type: row.item_type,
+    qualification_status: row.qualification_status,
     quantity: row.quantity,
     unit_price: row.unit_price,
     asset_no: row.asset_no,
@@ -401,11 +459,20 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
   }))
 
   const total = count ?? 0
+  if ([assetCountResult, materialCountResult, qualifiedCountResult, belowCountResult, unclassifiedCountResult].some(result => result.result.error)) {
+    throw new Error('Unable to load inventory classification counts')
+  }
+  const assets = assetCountResult.result.count ?? 0
+  const materials = materialCountResult.result.count ?? 0
+  const qualified = qualifiedCountResult.result.count ?? 0
+  const belowThreshold = belowCountResult.result.count ?? 0
+  const unclassified = unclassifiedCountResult.result.count ?? 0
   const items = await signItemImagesBatch(supabase, hydratedRows)
 
   return {
     items,
     total,
+    classificationCounts: { all: assets + materials, assets, materials, qualified, belowThreshold, unclassified },
     page,
     pageSize: safePageSize,
     totalPages: Math.max(1, Math.ceil(total / safePageSize)),
@@ -422,8 +489,8 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     .from('items')
     .select(
       `
-        id, item_name, item_type, quantity, unit_price, asset_no, serial_no,
-        responsible_person, status, updated_at, brand, model, note, image_url,
+        id, item_name, item_type, qualification_status, quantity, unit_price, asset_no, serial_no,
+        responsible_person, status, updated_at, brand, model, note, image_url, acquired_date, budget_source, gfmis_number,
         category_id, unit_id, location_id
       `,
       cursorValue ? undefined : { count: 'exact' },
@@ -434,10 +501,12 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     const safeQ = normalized.q.replaceAll(',', ' ')
     const pattern = escapePostgrestLiteral(`%${safeQ}%`)
     query = query.or([
-      'item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person',
+      'item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person', 'gfmis_number', 'budget_source', 'note', 'status',
     ].map((column) => `${column}.ilike.${pattern}`).join(','))
   }
   if (normalized.type) query = query.eq('item_type', normalized.type)
+  if (normalized.qualification === 'qualified' || normalized.qualification === 'below_threshold') query = query.eq('qualification_status', normalized.qualification)
+  else if (normalized.qualification === 'unclassified') query = query.is('qualification_status', null)
   if (normalized.status) query = query.eq('status', normalized.status)
   if (normalized.category_id) query = query.eq('category_id', normalized.category_id)
   if (normalized.location_id) query = query.eq('location_id', normalized.location_id)
@@ -445,16 +514,20 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   if (cursorValue) {
     const column = normalized.sort_by === 'category' ? 'category_id' : normalized.sort_by
     const comparator = normalized.sort_dir === 'asc' ? 'gt' : 'lt'
-    const key = typeof cursorValue.key === 'number' ? String(cursorValue.key) : escapePostgrestLiteral(cursorValue.key)
     const id = escapePostgrestLiteral(cursorValue.id)
-    query = query.or(`${column}.${comparator}.${key},and(${column}.eq.${key},id.${comparator}.${id})`)
+    if (cursorValue.key === null) {
+      query = query.or(`and(${column}.is.null,id.${comparator}.${id})`)
+    } else {
+      const key = typeof cursorValue.key === 'number' ? String(cursorValue.key) : escapePostgrestLiteral(cursorValue.key)
+      query = query.or(`${column}.${comparator}.${key},${column}.is.null,and(${column}.eq.${key},id.${comparator}.${id})`)
+    }
   }
 
   const sortColumn = normalized.sort_by === 'category' ? 'category_id' : normalized.sort_by
   const [references, { data, count, error }] = await Promise.all([
     getItemReferences(),
     query
-      .order(sortColumn, { ascending: normalized.sort_dir === 'asc' })
+      .order(sortColumn, { ascending: normalized.sort_dir === 'asc', nullsFirst: false })
       .order('id', { ascending: normalized.sort_dir === 'asc' })
       .limit(BATCH_SIZE + 1),
   ])
@@ -472,11 +545,15 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     id: string
     item_name: string
     item_type: ItemType
+    qualification_status: ItemQualificationStatus | null
     quantity: number
     unit_price: number | null
     asset_no: string | null
     serial_no: string | null
     responsible_person: string | null
+    acquired_date: string | null
+    budget_source: string | null
+    gfmis_number: string | null
     status: ItemStatus
     updated_at: string
     brand: string | null
@@ -493,11 +570,15 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     id: row.id,
     item_name: row.item_name,
     item_type: row.item_type,
+    qualification_status: row.qualification_status,
     quantity: row.quantity,
     unit_price: row.unit_price,
     asset_no: row.asset_no,
     serial_no: row.serial_no,
     responsible_person: row.responsible_person,
+    acquired_date: row.acquired_date,
+    budget_source: row.budget_source,
+    gfmis_number: row.gfmis_number,
     status: row.status,
     updated_at: row.updated_at,
     brand: row.brand,
@@ -515,7 +596,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   const items = await signItemImagesBatch(supabase, page)
   const last = items.at(-1)
   const lastRaw = ((data ?? []) as unknown as ItemFkRow[]).at(-1)
-  const cursorKey = last
+  const cursorKey: ItemCursorKey | undefined = last
     ? normalized.sort_by === 'category'
       ? (lastRaw?.category_id ?? '')
       : (last[normalized.sort_by] as ItemCursorKey)
@@ -523,7 +604,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
   return {
     items,
     total: cursorValue ? null : (count ?? 0),
-    nextCursor: hasMore && last && cursorKey !== null ? encodeItemCursor(normalized, cursorKey, last.id) : null,
+    nextCursor: hasMore && last && cursorKey !== undefined ? encodeItemCursor(normalized, cursorKey, last.id) : null,
   }
 }
 
@@ -539,6 +620,7 @@ export async function getItemById(id: string): Promise<ItemDetail | null> {
       id,
       item_name,
       item_type,
+      qualification_status,
       quantity,
       unit_price,
       asset_no,
@@ -613,6 +695,7 @@ async function getPublicPassportItem(id: string): Promise<ItemDetail | null> {
       id,
       item_name,
       item_type,
+      qualification_status,
       quantity,
       unit_price,
       asset_no,
@@ -776,6 +859,7 @@ export async function getItemsExplorerPageData(
   return {
     items: result.items,
     total: result.total,
+    classificationCounts: result.classificationCounts,
     page: result.page,
     pageSize: result.pageSize,
     totalPages: result.totalPages,

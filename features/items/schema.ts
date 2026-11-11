@@ -60,6 +60,10 @@ const optionalDate = z.preprocess(
 )
 
 const itemTypeSchema = z.enum(['material', 'asset'])
+const itemQualificationSchema = z.preprocess(
+  (value) => value === '' || value == null ? null : value,
+  z.enum(['qualified', 'below_threshold']).nullable()
+)
 
 const itemStatusSchema = z.enum([
   'active',
@@ -79,6 +83,7 @@ export const itemFormSchema = z.object({
       .refine((val) => getGraphemeLength(val) <= 255, 'ชื่อสิ่งของต้องยาวไม่เกิน 255 ตัวอักษร')
   ),
   item_type: itemTypeSchema,
+  qualification_status: itemQualificationSchema,
   category_id: optionalUuid,
   quantity: z.preprocess(
     (val) => typeof val === 'string' ? stripCommas(val) : val,

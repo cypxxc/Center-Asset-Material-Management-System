@@ -27,6 +27,15 @@ test('itemFormSchema accepts a valid asset item payload', () => {
   }
 })
 
+test('qualification status is independent of Asset or Material type', () => {
+  const assetBelow = itemFormSchema.safeParse({ item_name: 'Equipment', item_type: 'asset', qualification_status: 'below_threshold', quantity: '1', status: 'active' })
+  const materialQualified = itemFormSchema.safeParse({ item_name: 'Supply', item_type: 'material', qualification_status: 'qualified', quantity: '1', status: 'active' })
+  assert.equal(assetBelow.success, true)
+  assert.equal(materialQualified.success, true)
+  if (assetBelow.success) assert.equal(assetBelow.data.qualification_status, 'below_threshold')
+  if (materialQualified.success) assert.equal(materialQualified.data.qualification_status, 'qualified')
+})
+
 test('itemFormSchema rejects missing item name and invalid quantity', () => {
   const result = itemFormSchema.safeParse({
     item_name: '',

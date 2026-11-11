@@ -113,9 +113,6 @@ export function CategoryIconPicker({
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
             {renderCategoryIconElement(selectedIcon, categoryName, { className: 'h-3.5 w-3.5' })}
           </span>
-          <span className="text-[11px] font-semibold text-foreground truncate">
-            {CATEGORY_ICONS.find((i) => i.name === selectedIcon)?.label || selectedIcon}
-          </span>
         </div>
         <ChevronDown
           className={cn(
@@ -156,7 +153,7 @@ export function CategoryIconPicker({
                     <button
                       key={item.name}
                       type="button"
-                      title={`${item.label} (${item.name})`}
+                      aria-label={`${item.label} (${item.name})`}
                       onClick={() => handleSelectIcon(item.name)}
                       className={cn(
                         'flex flex-col items-center justify-center p-2 rounded-lg border transition-all text-xs group relative',
@@ -165,10 +162,7 @@ export function CategoryIconPicker({
                           : 'border-border/60 hover:border-border hover:bg-muted/50 text-foreground'
                       )}
                     >
-                      <IconComp className="h-4 w-4 mb-1 shrink-0" />
-                      <span className="text-[10px] w-full truncate text-center text-muted-foreground group-hover:text-foreground">
-                        {item.name}
-                      </span>
+                      <IconComp className="h-4 w-4 shrink-0" />
                       {isSelected && (
                         <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
                           <Check className="h-2 w-2" />

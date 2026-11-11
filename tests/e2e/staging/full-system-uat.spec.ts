@@ -258,7 +258,7 @@ test.describe('CAMMS Full-System AI UAT on Staging (Port 3001)', () => {
       await page.waitForLoadState('domcontentloaded')
 
       await expect(page.locator('text=ตั้งค่าระบบและมิติตัวเลือกพัสดุ')).toBeVisible()
-      await expect(page.locator('text=หมวดหมู่พัสดุ').first()).toBeVisible()
+      await expect(page.locator('text=หมวดหมู่ครุภัณฑ์').first()).toBeVisible()
       await expect(page.locator('text=สถานที่จัดตั้ง').first()).toBeVisible()
       await expect(page.locator('text=หน่วยนับ').first()).toBeVisible()
       await page.screenshot({ path: 'tests/e2e/staging/screenshots/14-settings.png' })

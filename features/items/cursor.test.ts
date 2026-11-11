@@ -36,6 +36,16 @@ test('item cursors retain typed tied sort keys and reject invalid values', () =>
   assert.throws(() => encodeItemCursor(text, 3, '33333333-3333-4333-8333-333333333333'), CursorError)
 })
 
+test('item cursors accept supported nullable ledger sort keys', () => {
+  const id = '33333333-3333-4333-8333-333333333333'
+  for (const sort_by of ['acquired_date', 'budget_source', 'unit_price', 'asset_no', 'gfmis_number', 'responsible_person']) {
+    const params = normalizeItemListSearchParams({ sort_by })
+    assert.equal(params.sort_by, sort_by)
+    assert.equal(params.sort_dir, sort_by === 'unit_price' ? 'desc' : 'asc')
+    assert.deepEqual(decodeItemCursor(encodeItemCursor(params, null, id), params), { key: null, id })
+  }
+})
+
 test('emitted cursors round trip long searches and Thai names without exceeding URL bounds', () => {
   const params = normalizeItemListSearchParams({ q: 'ค้นหา'.repeat(1000), sort_by: 'item_name' })
   const key = 'ก'.repeat(512)

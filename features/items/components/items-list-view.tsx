@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/data-table'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ITEM_TYPE_LABELS, type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
+import { ITEM_QUALIFICATION_LABELS, ITEM_TYPE_LABELS, type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
 import { cn } from '@/lib/utils'
 import { ItemThumbnail } from './item-thumbnail'
 import { CategoryBadge } from './category-badge'
@@ -40,6 +40,33 @@ export interface ItemsListProps {
   onEdit?: (item: ItemListRow) => void
   mode?: 'standard' | 'ledger'
   onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
+}
+
+function ClassificationBadge({ itemType, compact = false }: { itemType: ItemListRow['item_type']; compact?: boolean }) {
+  const isAsset = itemType === 'asset'
+  const label = ITEM_TYPE_LABELS[itemType]
+  const fullLabel = `ประเภท${label}`
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded border font-semibold shrink-0 select-none',
+        compact ? 'px-1 py-0.5 text-[9px]' : 'px-1.5 py-0.5 text-[10px]',
+        isAsset
+          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+          : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25'
+      )}
+      title={fullLabel}
+      aria-label={fullLabel}
+    >
+      {label}
+    </span>
+  )
+}
+
+function QualificationBadge({ status }: { status: ItemListRow['qualification_status'] }) {
+  if (!status) return null
+  return <span className="inline-flex items-center rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 shrink-0" title="สถานะตามเกณฑ์">{ITEM_QUALIFICATION_LABELS[status]}</span>
 }
 
 export function ItemsList({
@@ -116,7 +143,7 @@ export function ItemsList({
             <h3 className="font-bold text-sm text-foreground">
               ทะเบียนคุมสินทรัพย์
             </h3>
-            <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
+            <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ</p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
             <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
@@ -384,14 +411,8 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                 <span className="truncate text-xs font-semibold text-foreground hover:text-primary transition-colors block" title={item.item_name}>
                   {item.item_name}
                 </span>
-                {item.item_type === 'material' && (
-                  <span
-                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
-                    title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
-                  >
-                    ต่ำกว่าเกณฑ์
-                  </span>
-                )}
+                <ClassificationBadge itemType={item.item_type} />
+                <QualificationBadge status={item.qualification_status} />
                 {item.is_central && (
                   <span
                     className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"
@@ -565,14 +586,8 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                   >
                     {item.item_name}
                   </span>
-                  {item.item_type === 'material' && (
-                    <span
-                      className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
-                      title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
-                    >
-                      ต่ำกว่าเกณฑ์
-                    </span>
-                  )}
+                  <ClassificationBadge itemType={item.item_type} compact />
+                  {item.qualification_status && <QualificationBadge status={item.qualification_status} />}
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
                   {assetCode ? (
@@ -612,14 +627,8 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                   >
                     {item.item_name}
                   </span>
-                  {item.item_type === 'material' && (
-                    <span
-                      className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 select-none"
-                      title="ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์ (ต.)"
-                    >
-                      ต่ำกว่าเกณฑ์
-                    </span>
-                  )}
+                  <ClassificationBadge itemType={item.item_type} />
+                  <QualificationBadge status={item.qualification_status} />
                   {item.is_central && (
                     <span
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"

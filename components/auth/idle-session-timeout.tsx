@@ -17,7 +17,7 @@ export function IdleSessionTimeout({
 
   const isWarningOpenRef = useRef(false)
   const hasLoggedOutRef = useRef(false)
-  const lastActivityRef = useRef<number>(Date.now())
+  const lastActivityRef = useRef<number>(0)
 
   const handleLogout = useCallback(() => {
     setIsWarningOpen(false)

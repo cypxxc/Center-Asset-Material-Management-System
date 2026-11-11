@@ -9,12 +9,14 @@ export const DISBURSEMENT_TYPE_LABELS: Record<string, string> = {
 
 export const DISBURSEMENT_STATUS_LABELS: Record<string, string> = {
   draft: 'ฉบับร่าง',
+  pending_approval: 'รออนุมัติ',
   confirmed: 'ยืนยันแล้ว',
   active_borrow: 'กำลังยืม',
   partially_returned: 'คืนบางส่วน',
   returned: 'คืนครบแล้ว',
   reversed: 'คืนสภาพแล้ว',
   cancelled: 'ยกเลิกแล้ว',
+  rejected: 'ไม่อนุมัติ',
 }
 
 function escapeHtml(str: string | null | undefined): string {

@@ -57,11 +57,18 @@ test('ItemTableRow: renders compound item name, asset badge, and thumbnail', () 
 
   assert.ok(screen.getByText('คอมพิวเตอร์ตั้งโต๊ะ All-in-One Dell Inspiron'))
   assert.ok(screen.getByText('EQ-2026-050'))
+  assert.ok(screen.getByTitle(/ประเภท/))
   assert.ok(screen.getByText('• Dell Inspiron 24'))
   assert.ok(screen.getByTestId('item-thumbnail'))
   assert.ok(screen.getByText('5'))
   assert.ok(screen.getByText('ชุด'))
   assert.ok(screen.getByText('ห้องปฏิบัติการ 2'))
+})
+
+test('ItemTableRow: material records display their item type', () => {
+  renderRow({ item: { ...mockItem, item_type: 'material', asset_no: null } })
+
+  assert.ok(screen.getByTitle(/ประเภท/))
 })
 
 test('ItemTableRow: clicking checkbox calls onToggleSelectItem and stops propagation to onSelect', () => {

@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   Tag,
   X,
+  ShoppingCart,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -29,7 +32,7 @@ import {
   DataTableRow,
   DataTableCell,
 } from '@/components/ui/data-table'
-import type { DisbursementRow } from '@/features/disbursements/types'
+import type { DisbursementRow, CentralAvailableItem } from '@/features/disbursements/types'
 import {
   DisbursementStatusBadge,
   DisbursementTypeBadge,
@@ -38,6 +41,7 @@ import {
   DISBURSEMENT_TYPE_LABELS,
   DISBURSEMENT_STATUS_LABELS,
 } from '@/features/disbursements/print-generator'
+import { BorrowCatalogView } from '@/features/disbursements/components/borrow-catalog-view'
 
 export function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
   if (total <= 7) {
@@ -53,6 +57,7 @@ export function getPageNumbers(current: number, total: number): (number | 'ellip
 }
 
 const DISBURSEMENT_STATUS_OPTIONS: FilterOption[] = [
+  { value: 'pending_approval', label: 'รออนุมัติ', colorDot: 'bg-amber-500' },
   { value: 'draft', label: 'ฉบับร่าง', colorDot: 'bg-slate-400' },
   { value: 'confirmed', label: 'ยืนยันแล้ว', colorDot: 'bg-emerald-500' },
   { value: 'active_borrow', label: 'กำลังยืม', colorDot: 'bg-amber-500' },
@@ -60,6 +65,7 @@ const DISBURSEMENT_STATUS_OPTIONS: FilterOption[] = [
   { value: 'returned', label: 'คืนครบแล้ว', colorDot: 'bg-teal-500' },
   { value: 'reversed', label: 'คืนสภาพแล้ว', colorDot: 'bg-purple-500' },
   { value: 'cancelled', label: 'ยกเลิกแล้ว', colorDot: 'bg-rose-500' },
+  { value: 'rejected', label: 'ไม่อนุมัติ', colorDot: 'bg-red-500' },
 ]
 
 const DISBURSEMENT_TYPE_OPTIONS: FilterOption[] = [
@@ -83,7 +89,17 @@ interface DisbursementListClientProps {
     active_borrow: number
     draft: number
     confirmed: number
+    pending_approval?: number
   }
+  centralItems?: CentralAvailableItem[]
+  userRole?: string
+  currentUser?: {
+    id: string
+    full_name?: string | null
+    role?: string | null
+    department?: string | null
+  } | null
+  initialTab?: 'catalog' | 'documents'
 }
 
 export function DisbursementListClient({
@@ -97,9 +113,16 @@ export function DisbursementListClient({
   currentType,
   canCreate,
   stats,
+  centralItems = [],
+  userRole = 'viewer',
+  currentUser,
+  initialTab,
 }: DisbursementListClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [activeTab, setActiveTab] = useState<'catalog' | 'documents'>(
+    initialTab || (userRole === 'viewer' ? 'catalog' : 'documents')
+  )
   const [q, setQ] = useState(currentQ)
   const [status, setStatus] = useState(currentStatus)
   const [type, setType] = useState(currentType)
@@ -189,15 +212,17 @@ export function DisbursementListClient({
         {/* Main Content Area */}
         <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
           {/* ZONE 1: Page Header (Title + Summary Badge + Primary Action Button) */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 h-14 flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
               {/* Left: Main Title & Count Badge */}
               <div className="flex items-center gap-3 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
-                  รายการทะเบียนเบิก-จ่ายพัสดุและครุภัณฑ์
+                  ระบบเบิก-จ่ายและยืมพัสดุส่วนกลาง
                 </h1>
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
-                  {total.toLocaleString()} รายการ
+                  {activeTab === 'catalog'
+                    ? `${centralItems.length} รายการพร้อมยืม`
+                    : `${total.toLocaleString()} รายการเอกสาร`}
                 </span>
               </div>
 
@@ -218,8 +243,92 @@ export function DisbursementListClient({
             </div>
           </div>
 
-          {/* ZONE 2: Filter Toolbar (Search + Dropdown Filters + Clear Button) */}
-          <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
+          {/* Top Tab Switcher */}
+          <div className="flex items-center gap-1 border-b border-border bg-card px-4 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('catalog')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer',
+                activeTab === 'catalog'
+                  ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40'
+                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+              )}
+            >
+              <ShoppingCart className="h-4 w-4 text-emerald-600" />
+              <span>ยืมพัสดุส่วนกลาง</span>
+              <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[11px] font-bold">
+                {centralItems.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('documents')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer',
+                activeTab === 'documents'
+                  ? 'border-primary text-primary bg-primary/5'
+                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+              )}
+            >
+              <FileText className="h-4 w-4" />
+              <span>ทะเบียนเอกสารเบิก-จ่าย</span>
+              {Number(stats?.pending_approval) > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                  รออนุมัติ {stats?.pending_approval}
+                </span>
+              ) : (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {total}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {activeTab === 'catalog' ? (
+            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-50/40">
+              <BorrowCatalogView
+                items={centralItems}
+                currentUser={currentUser}
+                onSwitchToDocs={() => {
+                  setActiveTab('documents')
+                  setStatus('pending_approval')
+                  applyFilters(q, 'pending_approval', type, 1)
+                }}
+                onSuccess={(docId) => {
+                  router.push(`/disbursements/${docId}`)
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {/* Pending Approvals Notice Banner for Admin/Staff */}
+              {Number(stats?.pending_approval) > 0 && userRole !== 'viewer' && (
+                <div className="shrink-0 border-b border-amber-200 bg-amber-50/80 px-4 py-2 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-amber-900">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                    <span className="font-semibold">
+                      มีคำขอยืมพัสดุส่วนกลางรอการตรวจสอบและอนุมัติ {stats?.pending_approval} รายการ
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setStatus('pending_approval')
+                      applyFilters(q, 'pending_approval', type, 1)
+                    }}
+                    className="h-7 text-xs border-amber-300 bg-white text-amber-900 hover:bg-amber-100 self-start sm:self-auto"
+                  >
+                    กรองดูรายการรออนุมัติ
+                  </Button>
+                </div>
+              )}
+
+              {/* ZONE 2: Filter Toolbar (Search + Dropdown Filters + Clear Button) */}
+              <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
             <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between min-w-0">
               {/* Left Side: Search + Dropdown Filters */}
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
@@ -505,6 +614,8 @@ export function DisbursementListClient({
               </Button>
             </div>
           </footer>
+        </>
+      )}
         </main>
       </div>
     </div>

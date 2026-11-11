@@ -13,7 +13,7 @@ interface SheetConfig {
   sheetName: string
   categoryCode: string
   categoryName: string
-  isBelowThreshold: boolean
+  isBelowThreshold: boolean | null
   isDonated: boolean
   defaultUnit?: string
 }
@@ -21,7 +21,7 @@ interface SheetConfig {
 const SHEET_CONFIGS: SheetConfig[] = [
   { sheetIndex: 0, sheetName: '1. ครุภัณฑ์สำนักงาน', categoryCode: '7110', categoryName: 'ครุภัณฑ์สำนักงาน', isBelowThreshold: false, isDonated: false },
   { sheetIndex: 1, sheetName: '2. ครุภัณฑ์สำนักงาน (ต.)', categoryCode: '7110', categoryName: 'ครุภัณฑ์สำนักงาน', isBelowThreshold: true, isDonated: false },
-  { sheetIndex: 2, sheetName: '3. ครุภัณฑ์สำนักงาน (บริจาค)', categoryCode: '7110', categoryName: 'ครุภัณฑ์สำนักงาน', isBelowThreshold: false, isDonated: true },
+  { sheetIndex: 2, sheetName: '3. ครุภัณฑ์สำนักงาน (บริจาค)', categoryCode: '7110', categoryName: 'ครุภัณฑ์สำนักงาน', isBelowThreshold: true, isDonated: true },
   { sheetIndex: 3, sheetName: '4. ครุภัณฑ์คอมพิวเตอร์', categoryCode: '7440', categoryName: 'ครุภัณฑ์คอมพิวเตอร์', isBelowThreshold: false, isDonated: false },
   { sheetIndex: 4, sheetName: '5. ครุภัณฑ์คอมพิวเตอร์ (ต.)', categoryCode: '7440', categoryName: 'ครุภัณฑ์คอมพิวเตอร์', isBelowThreshold: true, isDonated: false },
   { sheetIndex: 5, sheetName: '6. ครุภัณฑ์คอมพิวเตอร์ (บริจาค)', categoryCode: '7440', categoryName: 'ครุภัณฑ์คอมพิวเตอร์', isBelowThreshold: false, isDonated: true, defaultUnit: 'เครื่อง' },
@@ -32,7 +32,7 @@ const SHEET_CONFIGS: SheetConfig[] = [
   { sheetIndex: 10, sheetName: '12. ครุภัณฑ์ยานพาหนะและขนส่ง ', categoryCode: '2310', categoryName: 'ยานพาหนะและขนส่ง', isBelowThreshold: false, isDonated: false, defaultUnit: 'คัน' },
   { sheetIndex: 11, sheetName: '13. ครุภัณฑ์การแพทย์ ', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: false, isDonated: false, defaultUnit: 'เครื่อง' },
   { sheetIndex: 12, sheetName: '11. ครุภัณฑ์งานบ้านงานครัว ', categoryCode: '7810', categoryName: 'ครุภัณฑ์งานบ้านงานครัว', isBelowThreshold: false, isDonated: false, defaultUnit: 'เครื่อง' },
-  { sheetIndex: 13, sheetName: '14. ครุภัณฑ์การแพทย์ (ต)', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: true, isDonated: false, defaultUnit: 'เครื่อง' },
+  { sheetIndex: 13, sheetName: '14. ครุภัณฑ์การแพทย์ (ต)', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: null, isDonated: false, defaultUnit: 'เครื่อง' },
 ]
 
 function cleanCellText(val: any): string {
@@ -289,24 +289,28 @@ async function runImport() {
           note = (note ? note + noteSuffix : noteSuffix).trim()
         }
 
-        const itemType = cfg.isBelowThreshold ? 'material' : 'asset'
+        // The source workbook is an asset register in both threshold groups.
+        // Qualification is not the same dimension as the CAMMS asset/material type.
+        const itemType = 'asset'
+        const qualificationStatus = cfg.isBelowThreshold === null ? null : cfg.isBelowThreshold ? 'below_threshold' : 'qualified'
         const categoryId = categoryMap.get(cfg.categoryName)
 
-        // Insert Item
+        // Insert Item with ON CONFLICT DO NOTHING for duplicate asset_no
         await client.query(`
           INSERT INTO public.items (
-            item_name, item_type, category_id, location_id, unit_id,
+            item_name, item_type, qualification_status, category_id, location_id, unit_id,
             quantity, unit_price, asset_no, serial_no, brand, model,
             responsible_person, status, note, budget_source, gfmis_number,
             acquired_date, created_by, depreciation_enabled
           ) VALUES (
-            $1, $2, $3, $4, $5,
-            $6, $7, $8, $9, $10, $11,
-            $12, $13, $14, $15, $16,
-            $17, $18, false
-          );
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16, $17,
+            $18, $19, false
+          )
+          ON CONFLICT (asset_no) WHERE deleted_at IS NULL AND asset_no IS NOT NULL DO NOTHING;
         `, [
-          normalizeForStorage(rawName), itemType, categoryId, locationId, unitId,
+          normalizeForStorage(rawName), itemType, qualificationStatus, categoryId, locationId, unitId,
           1, unitPrice, assetNo ? normalizeForStorage(assetNo) : null,
           serialNo ? normalizeForStorage(serialNo) : null,
           brand ? normalizeForStorage(brand) : null,

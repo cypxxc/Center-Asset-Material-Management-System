@@ -13,7 +13,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 type ItemInput = z.infer<typeof itemFormSchema>
-const columns = ['item_name','item_type','category_id','quantity','unit_price','unit_id','asset_no','serial_no','brand','model','location_id','responsible_person','status','note','is_central','image_url','depreciation_enabled','depreciation_cost','depreciation_useful_life_years','depreciation_start_basis','depreciation_start_date','budget_source','gfmis_number','acquired_date'] as const
+const columns = ['item_name','item_type','qualification_status','category_id','quantity','unit_price','unit_id','asset_no','serial_no','brand','model','location_id','responsible_person','status','note','is_central','image_url','depreciation_enabled','depreciation_cost','depreciation_useful_life_years','depreciation_start_basis','depreciation_start_date','budget_source','gfmis_number','acquired_date'] as const
 const uuid = z.string().uuid()
 
 async function editor() {
@@ -120,7 +120,7 @@ export async function mutatePostgresItems(ids: string[], operation: 'update' | '
 }
 
 type ImportRow = {
-  item_name: string; item_type: string; category_name: string; location_name: string; unit_name: string;
+  item_name: string; item_type: string; qualification_status?: 'qualified' | 'below_threshold' | null; category_name: string; location_name: string; unit_name: string;
   quantity: number; unit_price: number | null; status: string; asset_no: string | null; serial_no: string | null;
   brand: string | null; model: string | null; responsible_person: string | null; note: string | null;
   gfmis_number?: string | null; budget_source?: string | null; acquired_date?: string | null;

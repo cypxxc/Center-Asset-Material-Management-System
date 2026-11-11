@@ -274,7 +274,7 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailTile
                   icon={<Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
-                  label={item.item_type === 'material' ? 'เลขทะเบียนพัสดุ (ต.)' : 'เลขครุภัณฑ์'}
+                  label={item.item_type === 'material' ? 'เลขทะเบียนพัสดุ' : 'เลขครุภัณฑ์'}
                   value={item.asset_no}
                   highlight
                 />

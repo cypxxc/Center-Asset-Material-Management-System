@@ -85,6 +85,21 @@ test('Postgres item batches use a precise timestamp projection and omit count af
   assert.ok(!/count\(\*\)/.test(statements[0].sql))
 })
 
+test('ledger sort columns are applied to item batches and nullable cursor pages keep null rows', async () => {
+  const { getItemBatch } = await import('./queries')
+  const { encodeItemCursor, normalizeItemListSearchParams } = await import('./cursor')
+  responses = [[{ total: 2 }], [{ id: '00000000-0000-4000-8000-000000000001', unit_price: null }]]
+  await getItemBatch({ sort_by: 'unit_price', sort_dir: 'asc' })
+  assert.match(statements[1].sql, /order by i\.unit_price asc nulls last/)
+
+  const params = normalizeItemListSearchParams({ sort_by: 'unit_price', sort_dir: 'asc' })
+  const cursor = encodeItemCursor(params, null, '00000000-0000-4000-8000-000000000001')
+  responses = [[{ id: '00000000-0000-4000-8000-000000000002', unit_price: null }]]
+  await getItemBatch({ sort_by: 'unit_price', sort_dir: 'asc' }, cursor)
+  assert.match(statements[2].sql, /i\.unit_price is null and i\.id >/)
+  assert.match(statements[2].sql, /order by i\.unit_price asc nulls last/)
+})
+
 test('Postgres batch display preserves all-match selection comma normalization', async () => {
   const { getItemBatch } = await import('./queries')
   responses = [[{ total: 0 }], []]
@@ -176,4 +191,25 @@ test('item pagination clamps pageSize between 1 and 100', async () => {
   const resultUnder = await getItems({ page: '1' }, -10)
   assert.equal(resultUnder.pageSize, 1)
   assert.equal(statements[3].params.slice(-2)[0], 1)
+})
+
+test('item list returns accurate asset and material counts across the selected type', async () => {
+  const { getItems } = await import('./queries')
+  responses = [
+    [{ total: 4, assets: 12, materials: 8, qualified: 7, below_threshold: 5, unclassified: 8 }],
+    [{ id: 'asset-1', item_type: 'asset', image_url: null }],
+  ]
+
+  const result = await getItems({ type: 'asset', qualification: 'below_threshold', q: 'เครื่อง', category_id: 'category-id', page: '1' })
+
+  assert.equal(result.total, 4)
+  assert.deepEqual(result.classificationCounts, { all: 20, assets: 12, materials: 8, qualified: 7, belowThreshold: 5, unclassified: 8 })
+  assert.equal(statements.length, 2)
+  assert.match(statements[0].sql, /count\(\*\) filter \(where .*item_type.*asset.*\)/)
+  assert.match(statements[0].sql, /count\(\*\) filter \(where item_type = 'asset'\)/)
+  assert.match(statements[0].sql, /count\(\*\) filter \(where item_type = 'material'\)/)
+  assert.ok(statements[0].params.includes('%เครื่อง%'))
+  assert.ok(statements[0].params.includes('category-id'))
+  assert.match(statements[1].sql, /i\.item_type = \$\d+/)
+  assert.match(statements[1].sql, /i\.qualification_status = \$\d+/)
 })

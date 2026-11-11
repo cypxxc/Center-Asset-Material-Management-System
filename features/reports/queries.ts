@@ -7,7 +7,7 @@ import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
-import type { ItemListSearchParams } from '@/features/items/types'
+import type { ItemListSearchParams, ItemQualificationStatus } from '@/features/items/types'
 import { getItemReferences } from '@/features/items/queries'
 import type { ReportCountBucket, ReportStats, ReportItemRow, ReportListResult } from './types'
 import { normalizeForSearch } from '@/lib/unicode'
@@ -92,6 +92,7 @@ function toReportItemRow(row: unknown): ReportItemRow {
     id: string
     item_name: string
     item_type: string
+    qualification_status?: ItemQualificationStatus | null
     quantity: number
     unit_price: number | null
     asset_no: string | null
@@ -179,6 +180,7 @@ export async function getReportItemsList(
         id,
         item_name,
         item_type,
+        qualification_status,
         quantity,
         unit_price,
         asset_no,
@@ -198,7 +200,7 @@ export async function getReportItemsList(
   if (q) {
     const safe = q.replaceAll(',', ' ')
     query = query.or(
-      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%`
+      `item_name.ilike.%${safe}%,asset_no.ilike.%${safe}%,serial_no.ilike.%${safe}%,brand.ilike.%${safe}%,model.ilike.%${safe}%,responsible_person.ilike.%${safe}%,gfmis_number.ilike.%${safe}%,budget_source.ilike.%${safe}%,note.ilike.%${safe}%,status.ilike.%${safe}%`
     )
   }
 
@@ -261,6 +263,7 @@ export async function getReportItemsList(
     id: string
     item_name: string
     item_type: string
+    qualification_status: ItemQualificationStatus | null
     quantity: number
     unit_price: number | null
     asset_no: string | null
@@ -279,6 +282,7 @@ export async function getReportItemsList(
     id: r.id,
     item_name: r.item_name,
     item_type: r.item_type as ReportItemRow['item_type'],
+    qualification_status: r.qualification_status,
     quantity: r.quantity,
     unit_price: r.unit_price ?? null,
     asset_no: r.asset_no,

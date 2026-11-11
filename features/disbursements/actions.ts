@@ -12,6 +12,8 @@ import {
   confirmPostgresDisbursement,
   returnPostgresDisbursementItem,
   reversePostgresDisbursement,
+  submitPostgresBorrowRequest,
+  rejectPostgresDisbursement,
 } from './postgres-actions'
 import {
   disbursementDraftSchema,
@@ -19,6 +21,8 @@ import {
   cancelDisbursementDraftSchema,
   returnItemSchema,
   reverseDisbursementSchema,
+  submitBorrowRequestSchema,
+  rejectDisbursementSchema,
 } from './schema'
 
 function refreshDisbursementCaches() {
@@ -293,5 +297,95 @@ export async function reverseDisbursement(rawInput: unknown): Promise<ActionResp
     return successResponse('คืนสภาพเอกสารสำเร็จ', { ok: true })
   } catch (err: unknown) {
     return errorResponse(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการคืนสภาพเอกสาร')
+  }
+}
+
+export async function submitBorrowRequest(rawInput: {
+  item_ids: string[]
+  due_date: string
+  purpose: string
+}): Promise<ActionResponse<{ id: string }>> {
+  try {
+    const input = submitBorrowRequestSchema.parse(rawInput)
+    if (isPostgresBackend()) {
+      const res = await submitPostgresBorrowRequest(input)
+      refreshDisbursementCaches()
+      return successResponse('ยื่นคำขอยืมพัสดุส่วนกลางสำเร็จ กรุณารอผู้ดูแลระบบอนุมัติ', res)
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return errorResponse('กรุณาเข้าสู่ระบบก่อนทำรายการ')
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, department')
+      .eq('id', user.id)
+      .single()
+
+    const { data: doc, error: docErr } = await supabase
+      .from('disbursements')
+      .insert({
+        transaction_type: 'asset_borrow',
+        recipient_name: profile?.full_name || 'ผู้ใช้งาน',
+        department_name: profile?.department || 'สำนักงานเขตสุขภาพที่ 7',
+        purpose: input.purpose.trim(),
+        status: 'pending_approval',
+        due_date: input.due_date,
+        created_by: user.id,
+      })
+      .select('id')
+      .single()
+
+    if (docErr || !doc) return errorResponse(docErr?.message || 'ไม่สามารถยื่นคำขอยืมได้')
+
+    const lineRows = input.item_ids.map((itemId) => ({
+      disbursement_id: doc.id,
+      item_id: itemId,
+      requested_qty: 1,
+      status: 'pending',
+    }))
+
+    const { error: linesErr } = await supabase.from('disbursement_items').insert(lineRows)
+    if (linesErr) return errorResponse(linesErr.message)
+
+    refreshDisbursementCaches()
+    return successResponse('ยื่นคำขอยืมพัสดุส่วนกลางสำเร็จ กรุณารอผู้ดูแลระบบอนุมัติ', { id: doc.id })
+  } catch (err: unknown) {
+    return errorResponse(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยื่นคำขอยืม')
+  }
+}
+
+export async function rejectDisbursement(
+  disbursementId: string,
+  reason?: string
+): Promise<ActionResponse<{ ok: boolean }>> {
+  try {
+    const validated = rejectDisbursementSchema.parse({
+      disbursement_id: disbursementId,
+      reason,
+    })
+    if (isPostgresBackend()) {
+      const res = await rejectPostgresDisbursement(validated.disbursement_id, validated.reason)
+      refreshDisbursementCaches()
+      return successResponse('ปฏิเสธคำขอยืมเรียบร้อยแล้ว', res)
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from('disbursements')
+      .update({
+        status: 'rejected',
+        reversal_reason: validated.reason || 'ไม่อนุมัติคำขอ',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', validated.disbursement_id)
+
+    if (error) return errorResponse(error.message)
+
+    refreshDisbursementCaches()
+    return successResponse('ปฏิเสธคำขอยืมเรียบร้อยแล้ว', { ok: true })
+  } catch (err: unknown) {
+    return errorResponse(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ')
   }
 }

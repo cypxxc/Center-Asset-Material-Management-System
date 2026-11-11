@@ -57,88 +57,19 @@ test.afterEach(() => {
   cleanup()
 })
 
-test('Sidebar active-state for exact /items highlights ครุภัณฑ์ as default', () => {
+test('Sidebar exposes one active inventory entry for every inventory classification', () => {
   mockPathname = '/items'
   mockSearchParams = new URLSearchParams()
 
   renderSidebar()
 
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
-  const locationsLink = screen.getByRole('link', { name: /^สถานที่/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), 'page')
-  assert.equal(suppliesLink.getAttribute('aria-current'), null)
-  assert.equal(locationsLink.getAttribute('aria-current'), null)
-})
-
-test('Sidebar active-state for /items?q=monitor keeps ครุภัณฑ์ active without conflicting highlights', () => {
-  mockPathname = '/items'
-  mockSearchParams = new URLSearchParams('q=monitor')
-
-  renderSidebar()
-
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
-  const locationsLink = screen.getByRole('link', { name: /^สถานที่/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), 'page')
-  assert.equal(suppliesLink.getAttribute('aria-current'), null)
-  assert.equal(locationsLink.getAttribute('aria-current'), null)
-})
-
-test('Sidebar active-state for /items?status=in_use keeps ครุภัณฑ์ active without conflicting highlights', () => {
-  mockPathname = '/items'
-  mockSearchParams = new URLSearchParams('status=in_use')
-
-  renderSidebar()
-
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
-  const locationsLink = screen.getByRole('link', { name: /^สถานที่/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), 'page')
-  assert.equal(suppliesLink.getAttribute('aria-current'), null)
-  assert.equal(locationsLink.getAttribute('aria-current'), null)
-})
-
-test('Sidebar active-state for /items?type=asset highlights ครุภัณฑ์ only', () => {
-  mockPathname = '/items'
-  mockSearchParams = new URLSearchParams('type=asset')
-
-  renderSidebar()
-
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), 'page')
-  assert.equal(suppliesLink.getAttribute('aria-current'), null)
-})
-
-test('Sidebar active-state for /items?type=material highlights พัสดุ only', () => {
-  mockPathname = '/items'
-  mockSearchParams = new URLSearchParams('type=material')
-
-  renderSidebar()
-
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const suppliesLink = screen.getByRole('link', { name: /^พัสดุ/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), null)
-  assert.equal(suppliesLink.getAttribute('aria-current'), 'page')
-})
-
-test('Sidebar active-state for /items?location_id=loc-1 does not highlight top-level assets or locations link', () => {
-  mockPathname = '/items'
-  mockSearchParams = new URLSearchParams('location_id=loc-1')
-
-  renderSidebar()
-
-  const assetsLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
-  const locationsLink = screen.getByRole('link', { name: /^สถานที่/ })
-
-  assert.equal(assetsLink.getAttribute('aria-current'), null)
-  assert.equal(locationsLink.getAttribute('aria-current'), null)
+  const inventoryLink = screen.getByRole('link', { name: /^คลัง/ })
+  assert.equal(inventoryLink.getAttribute('href'), '/items')
+  assert.equal(inventoryLink.getAttribute('aria-current'), 'page')
+  assert.equal(screen.queryByRole('link', { name: /^ครุภัณฑ์/ }), null)
+  assert.equal(screen.queryByRole('link', { name: /^พัสดุ/ }), null)
+  assert.equal(screen.queryByRole('link', { name: /^สถานที่/ }), null)
+  assert.equal(screen.queryByRole('link', { name: /จัดการผู้ใช้งาน/ }), null)
 })
 
 test('Sidebar renders collapsible mode, admin section and handles RBAC properly', () => {

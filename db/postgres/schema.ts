@@ -23,7 +23,7 @@ export const units = pgTable('units', {
   id: uuid().primaryKey().defaultRandom(), name: text().notNull().unique(), is_active: boolean().notNull().default(true), ...stamps(),
 })
 export const items = pgTable('items', {
-  id: uuid().primaryKey().defaultRandom(), item_name: text().notNull(), item_type: text().notNull(),
+  id: uuid().primaryKey().defaultRandom(), item_name: text().notNull(), item_type: text().notNull(), qualification_status: text(),
   category_id: uuid().references(() => categories.id), location_id: uuid().references(() => locations.id), unit_id: uuid().references(() => units.id),
   quantity: integer().notNull().default(1), unit_price: numeric({ precision: 12, scale: 2, mode: 'number' }),
   asset_no: text(), serial_no: text(), brand: text(), model: text(), responsible_person: text(), status: text().notNull().default('active'), note: text(), image_url: text(),
@@ -34,6 +34,7 @@ export const items = pgTable('items', {
   depreciation_enabled: boolean().notNull().default(false), depreciation_method: text(), depreciation_cost: numeric({ precision: 12, scale: 2, mode: 'number' }), depreciation_useful_life_years: integer(), depreciation_start_basis: text(), depreciation_start_date: date({ mode: 'string' }), depreciation_residual_value: numeric({ precision: 12, scale: 2, mode: 'number' }).notNull().default(1), ...stamps(),
 }, (t) => [
   check('items_type_check', sql`${t.item_type} in ('asset','material')`),
+  check('items_qualification_status_check', sql`${t.qualification_status} is null or ${t.qualification_status} in ('qualified','below_threshold')`),
   check('items_status_check', sql`${t.status} in ('active','spare','damaged','waiting_repair','inactive','disposed')`),
   check('items_quantity_check', sql`${t.quantity} >= 0`), check('items_price_check', sql`${t.unit_price} is null or ${t.unit_price} >= 0`),
   check('items_depreciation_check', sql`not ${t.depreciation_enabled} or coalesce((${t.item_type}='asset' and ${t.depreciation_method}='straight_line' and ${t.depreciation_cost}>1 and ${t.depreciation_useful_life_years}>0 and ${t.depreciation_start_basis} in ('acquired','available','manual') and ${t.depreciation_start_date} is not null and ${t.depreciation_residual_value}=1),false)`),
@@ -70,7 +71,7 @@ export const disbursements = pgTable('disbursements', {
   ...stamps(),
 }, (t) => [
   check('disbursements_type_check', sql`${t.transaction_type} in ('material_issue','asset_handover','asset_borrow')`),
-  check('disbursements_status_check', sql`${t.status} in ('draft','confirmed','active_borrow','partially_returned','returned','reversed','cancelled')`),
+  check('disbursements_status_check', sql`${t.status} in ('draft','pending_approval','confirmed','active_borrow','partially_returned','returned','reversed','cancelled','rejected')`),
   index('disbursements_status_index').on(t.status),
   index('disbursements_created_index').on(t.created_at),
 ])

@@ -2,12 +2,14 @@ export type DisbursementTransactionType = 'material_issue' | 'asset_handover' | 
 
 export type DisbursementStatus =
   | 'draft'
+  | 'pending_approval'
   | 'confirmed'
   | 'active_borrow'
   | 'partially_returned'
   | 'returned'
   | 'reversed'
   | 'cancelled'
+  | 'rejected'
 
 export type DisbursementLineStatus =
   | 'pending'
@@ -93,6 +95,7 @@ export interface DisbursementListResult {
     active_borrow: number
     draft: number
     confirmed: number
+    pending_approval?: number
   }
 }
 
@@ -109,5 +112,20 @@ export interface DisbursementSelectableItem {
   responsible_person?: string | null
   note?: string | null
   is_central?: boolean
+}
+
+export interface CentralAvailableItem {
+  id: string
+  item_name: string
+  item_type: 'material' | 'asset'
+  asset_no: string | null
+  serial_no: string | null
+  brand: string | null
+  model: string | null
+  quantity: number
+  image_url: string | null
+  category: { id: string; name: string } | null
+  unit_name: string | null
+  location_name: string | null
 }
 

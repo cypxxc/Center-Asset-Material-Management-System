@@ -234,7 +234,8 @@ test('Responsive Layout: ItemsFilterBar wraps search, selects, and export button
   assert.ok(filterBar.classList.contains('min-w-0'))
 
   // Controls row has responsive flex wrap without forcing sm:flex-row overlap
-  const controlsRow = filterBar.firstElementChild
+  assert.ok(filterBar.querySelector('[data-testid="classification-filters"]'))
+  const controlsRow = filterBar.children[0]
   assert.ok(controlsRow?.classList.contains('min-w-0'))
   assert.ok(controlsRow?.classList.contains('flex-col'))
   assert.ok(controlsRow?.classList.contains('lg:flex-row'))
@@ -244,16 +245,15 @@ test('Responsive Layout: ItemsFilterBar wraps search, selects, and export button
   const searchWrapper = searchInput.closest('div')?.parentElement
   assert.ok(searchWrapper?.classList.contains('min-w-0'))
   assert.ok(searchWrapper?.classList.contains('w-full'))
-  assert.ok(searchWrapper?.classList.contains('sm:min-w-[200px]'))
+  assert.ok(searchWrapper?.classList.contains('sm:min-w-[160px]'))
 
   // Select dropdowns have max-w truncate to avoid ballooning
   const categorySelect = screen.getByLabelText('กรองตามหมวดหมู่')
   assert.ok(categorySelect.classList.contains('max-w-[160px]'))
   assert.ok(categorySelect.classList.contains('truncate'))
 
-  // Export button has shrink-0 to prevent being squeezed
-  const exportBtn = screen.getByRole('button', { name: /ดาวน์โหลด Excel/ })
-  assert.ok(exportBtn.classList.contains('shrink-0'))
+  // Export button is removed from filter bar
+  assert.equal(screen.queryByRole('button', { name: /ดาวน์โหลด Excel/ }), null)
 })
 
 test('Responsive Layout: ItemsExplorerClient main area allows flex shrinking without w-full conflict', () => {

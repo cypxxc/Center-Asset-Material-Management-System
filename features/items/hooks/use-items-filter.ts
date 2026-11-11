@@ -26,6 +26,7 @@ export function useItemsFilter(
     const isFilterOrSearchOrSortChange =
       updates.q !== undefined ||
       updates.type !== undefined ||
+      updates.qualification !== undefined ||
       updates.status !== undefined ||
       updates.category_id !== undefined ||
       updates.location_id !== undefined ||
@@ -40,6 +41,7 @@ export function useItemsFilter(
     const nextUrl = buildItemsUrl(pathname, {
       q: updates.q !== undefined ? updates.q : searchVal,
       type: updates.type !== undefined ? updates.type : (params.type ?? ''),
+      qualification: updates.qualification !== undefined ? updates.qualification : (params.qualification ?? ''),
       status: updates.status !== undefined ? updates.status : (params.status ?? ''),
       category_id: updates.category_id !== undefined ? updates.category_id : (params.category_id ?? ''),
       location_id: updates.location_id !== undefined ? updates.location_id : (params.location_id ?? ''),
@@ -66,7 +68,7 @@ export function useItemsFilter(
     if (currentField === field) {
       nextDir = currentDir === 'asc' ? 'desc' : 'asc'
     } else {
-      nextDir = field === 'item_name' || field === 'item_type' ? 'asc' : 'desc'
+      nextDir = ['item_name', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(field) ? 'asc' : 'desc'
     }
 
     handleFilterChange({ sort_by: field, sort_dir: nextDir, page: '1' })
@@ -76,6 +78,7 @@ export function useItemsFilter(
     const isFilterOrSearchOrSortOverride =
       overrides.q !== undefined ||
       overrides.type !== undefined ||
+      overrides.qualification !== undefined ||
       overrides.status !== undefined ||
       overrides.category_id !== undefined ||
       overrides.location_id !== undefined ||

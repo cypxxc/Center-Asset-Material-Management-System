@@ -1,4 +1,6 @@
 export type ItemType = 'material' | 'asset'
+export type ItemQualificationStatus = 'qualified' | 'below_threshold'
+export type ItemQualificationFilter = ItemQualificationStatus | 'unclassified'
 
 export type ItemStatus =
   | 'active'
@@ -19,6 +21,7 @@ export interface ItemListRow {
   id: string
   item_name: string
   item_type: ItemType
+  qualification_status?: ItemQualificationStatus | null
   quantity: number
   unit_price: number | null
   asset_no: string | null
@@ -59,6 +62,7 @@ export interface ItemDetail extends ItemListRow {
 export interface ItemListSearchParams {
   q?: string
   type?: string
+  qualification?: ItemQualificationFilter | string
   status?: string
   is_central?: string
   page?: string
@@ -71,9 +75,19 @@ export interface ItemListSearchParams {
 export interface ItemListResult {
   items: ItemListRow[]
   total: number
+  classificationCounts: ItemClassificationCounts
   page: number
   pageSize: number
   totalPages: number
+}
+
+export interface ItemClassificationCounts {
+  all: number
+  assets: number
+  materials: number
+  qualified: number
+  belowThreshold: number
+  unclassified: number
 }
 
 export interface ItemAuditLog {
@@ -94,6 +108,11 @@ export interface ItemBatchResult {
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   material: 'พัสดุ',
   asset: 'ครุภัณฑ์',
+}
+
+export const ITEM_QUALIFICATION_LABELS: Record<ItemQualificationStatus, string> = {
+  qualified: 'ครุภัณฑ์ตามเกณฑ์',
+  below_threshold: 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)',
 }
 
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
@@ -122,6 +141,7 @@ export interface ItemEditPageData {
 export interface ItemsExplorerPageData {
   items: ItemListRow[]
   total: number
+  classificationCounts: ItemClassificationCounts
   page: number
   pageSize: number
   totalPages: number
