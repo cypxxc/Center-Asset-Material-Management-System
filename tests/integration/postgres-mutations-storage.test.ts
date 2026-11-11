@@ -11,7 +11,7 @@ import { AuthorizationError } from '../../lib/errors'
 
 const actor = '11111111-1111-4111-8111-111111111111'
 const itemId = '22222222-2222-4222-8222-222222222222'
-let profile: { id: string; role: string; is_active: boolean } | null = { id: actor, role: 'staff', is_active: true }
+let profile: { id: string; role: string; is_active: boolean } | null = { id: actor, role: 'admin', is_active: true }
 let rows: Record<string, unknown>[] = []
 let responseRows: Record<string, unknown>[][] = []
 const queries: { sql: string; params: unknown[] }[] = []
@@ -113,7 +113,7 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
   assert.equal(publicItem?.item_name, 'กล้องจุลทรรศน์', 'unauthenticated user can query public active item via getPostgresItemById fallback')
   rows = []
   assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
-  profile = { id: actor, role: 'staff', is_active: true }
+  profile = { id: actor, role: 'admin', is_active: true }
   assert.equal((await deleteLocalItemImage(url)).success, true)
   rows = [{ id: itemId }]
   assert.equal(await readLocalItemImage(url), null)
@@ -121,6 +121,8 @@ test('image content, size, authenticated attachment, and cleanup are enforced', 
 
 test('metadata rejects deactivation while a live item refers to the locked row', async () => {
   const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  queries.length = 0
   const form = new FormData()
   form.set('name', 'Category')
   rows = [{ id: itemId }]
@@ -160,8 +162,9 @@ test('metadata deletion reports failure when no row was deleted', async () => {
   assert.match(queries[2].sql, /delete from.*returning id/)
 })
 
-test('staff metadata deletion reports success only after a row was deleted', async () => {
+test('admin metadata deletion reports success only after a row was deleted', async () => {
   const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
   responseRows = [[{ id: itemId }], [], [{ id: itemId }]]
   await assert.rejects(mutatePostgresMetadata('units', 'delete', undefined, itemId), error => {
     assert.ok((error as { digest: string }).digest.includes('message='))

@@ -122,67 +122,32 @@ async function defaultQuarantineOrphans(
 
   const QUARANTINE_CAT_NAME = '[รอตรวจสอบ - Auto Quarantined]'
 
-  if (process.env.DATA_BACKEND === 'postgres') {
-    const { getDatabase } = await import('@/lib/postgres/db')
-    const { categories, items } = await import('@/db/postgres/schema')
-    const { eq, inArray, sql } = await import('drizzle-orm')
-    const db = getDatabase()
+  const { getDatabase } = await import('@/lib/postgres/db')
+  const { categories, items } = await import('@/db/postgres/schema')
+  const { eq, inArray, sql } = await import('drizzle-orm')
+  const db = getDatabase()
 
-    let [cat] = await db.select().from(categories).where(eq(categories.name, QUARANTINE_CAT_NAME)).limit(1)
-    if (!cat) {
-      ;[cat] = await db
-        .insert(categories)
-        .values({
-          name: QUARANTINE_CAT_NAME,
-          description: 'หมวดหมู่พักรายการครุภัณฑ์ที่พบความผิดปกติของความสัมพันธ์เพื่อรอเจ้าหน้าที่ตรวจสอบ',
-        })
-        .returning()
-    }
-
-    if (!cat) return 0
-
-    const ids = orphanItems.map((i) => i.id)
-    await db
-      .update(items)
-      .set({
-        category_id: cat.id,
-        note: sql`concat(coalesce(${items.note}, ''), ' [Quarantined by Self-Healing on ', now()::text, ']')`,
+  let [cat] = await db.select().from(categories).where(eq(categories.name, QUARANTINE_CAT_NAME)).limit(1)
+  if (!cat) {
+    ;[cat] = await db
+      .insert(categories)
+      .values({
+        name: QUARANTINE_CAT_NAME,
+        description: 'หมวดหมู่พักรายการครุภัณฑ์ที่พบความผิดปกติของความสัมพันธ์เพื่อรอเจ้าหน้าที่ตรวจสอบ',
       })
-      .where(inArray(items.id, ids))
-
-    return ids.length
-  } else {
-    const { createClient } = await import('@supabase/supabase-js')
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-    if (!url || !key) return 0
-
-    const client = createClient(url, key)
-    let { data: cat } = await client.from('categories').select('id').eq('name', QUARANTINE_CAT_NAME).single()
-    if (!cat) {
-      const { data: created } = await client
-        .from('categories')
-        .insert({
-          name: QUARANTINE_CAT_NAME,
-          description: 'หมวดหมู่พักรายการครุภัณฑ์ที่พบความผิดปกติของความสัมพันธ์เพื่อรอเจ้าหน้าที่ตรวจสอบ',
-        })
-        .select('id')
-        .single()
-      cat = created
-    }
-
-    if (!cat) return 0
-
-    const ids = orphanItems.map((i) => i.id)
-    for (const id of ids) {
-      await client
-        .from('items')
-        .update({
-          category_id: cat.id,
-        })
-        .eq('id', id)
-    }
-
-    return ids.length
+      .returning()
   }
+
+  if (!cat) return 0
+
+  const ids = orphanItems.map((i) => i.id)
+  await db
+    .update(items)
+    .set({
+      category_id: cat.id,
+      note: sql`concat(coalesce(${items.note}, ''), ' [Quarantined by Self-Healing on ', now()::text, ']')`,
+    })
+    .where(inArray(items.id, ids))
+
+  return ids.length
 }

@@ -1,3 +1,4 @@
+import '../tests/setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MemoryRateLimiter, PostgresRateLimiter, RATE_LIMIT_TIERS, getRateLimiter, resetRateLimiter, checkRateLimit } from './rate-limit'
@@ -49,11 +50,11 @@ test('checkRateLimit handles tier names and numeric limits gracefully outside re
   assert.equal(resDefault.success, true)
 })
 
-test('getRateLimiter returns MemoryRateLimiter singleton', () => {
+test('getRateLimiter returns rate limiter singleton', () => {
   const limiter1 = getRateLimiter()
   const limiter2 = getRateLimiter()
   assert.equal(limiter1, limiter2)
-  assert.ok(limiter1 instanceof MemoryRateLimiter)
+  assert.ok(limiter1 instanceof PostgresRateLimiter)
 })
 
 test('MemoryRateLimiter isolates different keys', async () => {

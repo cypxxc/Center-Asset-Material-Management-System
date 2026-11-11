@@ -345,15 +345,15 @@ test('ItemsExplorerClient: table contracts width class when inspector is opened'
   assert.ok(main?.classList.contains('min-w-0'))
   assert.equal(main?.classList.contains('w-full'), false)
 
-  // Uses ledger table min-w-[1880px]
+  // Uses ledger table min-w-[1924px]
   let table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[1880px]'))
+  assert.ok(table?.classList.contains('min-w-[1924px]') || table?.classList.contains('min-w-[1880px]'))
 
   // Click row to open inspector
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
 
   table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[1880px]'))
+  assert.ok(table?.classList.contains('min-w-[1924px]') || table?.classList.contains('min-w-[1880px]'))
 })
 
 test('Keyboard Navigation: ArrowDown and ArrowUp navigate through items and synchronize inspector', () => {

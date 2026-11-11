@@ -78,6 +78,48 @@
       "when": 1794500000000,
       "tag": "0010_restrict_item_delete_and_harden_ledgers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794500010000,
+      "tag": "0011_public_item_passport",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794500020000,
+      "tag": "0012_add_is_central_to_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794500030000,
+      "tag": "0013_add_disbursement_approval_statuses",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794500040000,
+      "tag": "0014_add_item_qualification_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794500050000,
+      "tag": "0015_remove_staff_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794500060000,
+      "tag": "0016_viewer_disbursement_requests",
+      "breakpoints": true
     }
   ]
 }

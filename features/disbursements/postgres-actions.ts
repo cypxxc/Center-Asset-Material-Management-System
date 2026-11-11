@@ -19,8 +19,16 @@ import { computeThaiFiscalYear } from './fiscal-year'
 
 async function requireDisbursementWriter() {
   const profile = await getCurrentProfile()
-  if (!profile?.is_active || !['admin', 'staff'].includes(profile.role)) {
+  if (!profile?.is_active || !['admin', 'viewer'].includes(profile.role)) {
     throw new Error('คุณไม่มีสิทธิ์ทำรายการเบิก-จ่ายพัสดุ')
+  }
+  return profile
+}
+
+async function requireDisbursementAdmin() {
+  const profile = await getCurrentProfile()
+  if (!profile?.is_active || profile.role !== 'admin') {
+    throw new Error('เฉพาะผู้ดูแลระบบเท่านั้นที่มีสิทธิ์จ่าย รับคืน หรือย้อนรายการ')
   }
   return profile
 }
@@ -31,6 +39,7 @@ async function requireDisbursementWriter() {
 export async function createPostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = disbursementDraftSchema.parse(rawInput)
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('Viewer สร้างได้เฉพาะเอกสารเบิกพัสดุ')
 
   return withUserDatabase(async (tx) => {
     // 1. Verify item types and unique borrowing constraints
@@ -75,7 +84,7 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       sql`INSERT INTO public.disbursements (
         transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
       ) VALUES (
-        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, 'draft', ${data.due_date || null}, ${user.id}
+        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, ${user.role === 'viewer' ? 'pending_approval' : 'draft'}, ${data.due_date || null}, ${user.id}
       ) RETURNING id`
     )
     const docId = docRes.rows[0].id
@@ -101,6 +110,7 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
 export async function updatePostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = updateDisbursementDraftSchema.parse(rawInput)
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('Viewer แก้ไขได้เฉพาะเอกสารเบิกพัสดุ')
 
   return withUserDatabase(async (tx) => {
     // 1. Lock document header and assert draft status
@@ -201,6 +211,8 @@ export async function cancelPostgresDisbursementDraft(rawInput: unknown): Promis
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
+    if (user.role !== 'admin' && doc.transaction_type !== 'material_issue') throw new Error('Viewer ยกเลิกได้เฉพาะเอกสารเบิกพัสดุ')
+    if (user.role !== 'admin' && doc.status !== 'draft') throw new Error('Viewer ยกเลิกได้เฉพาะร่างที่ยังไม่ส่งคำขอ')
     if (doc.status !== 'draft') throw new Error(`สามารถยกเลิกได้เฉพาะเอกสารฉบับร่างเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
 
     await tx.execute(
@@ -225,7 +237,7 @@ export async function cancelPostgresDisbursementDraft(rawInput: unknown): Promis
  * Confirm disbursement draft: locks inventory, allocates Thai fiscal year sequence, snapshots items, updates custody/stock, writes audit log
  */
 export async function confirmPostgresDisbursement(disbursementId: string): Promise<{ document_no: string }> {
-  const user = await requireDisbursementWriter()
+  const user = await requireDisbursementAdmin()
   z.string().uuid().parse(disbursementId)
 
   return withUserDatabase(async (tx) => {
@@ -390,7 +402,7 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
  * Record return of borrowed asset
  */
 export async function returnPostgresDisbursementItem(rawInput: unknown): Promise<{ ok: boolean }> {
-  const user = await requireDisbursementWriter()
+  const user = await requireDisbursementAdmin()
   const data = returnItemSchema.parse(rawInput)
 
   return withUserDatabase(async (tx) => {
@@ -505,7 +517,7 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
  * Reverse a confirmed disbursement
  */
 export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ ok: boolean }> {
-  const user = await requireDisbursementWriter()
+  const user = await requireDisbursementAdmin()
   const data = reverseDisbursementSchema.parse(rawInput)
 
   return withUserDatabase(async (tx) => {
@@ -710,7 +722,7 @@ export async function submitPostgresBorrowRequest(input: {
 }
 
 export async function rejectPostgresDisbursement(disbursementId: string, reason?: string) {
-  const user = await requireDisbursementWriter()
+  const user = await requireDisbursementAdmin()
   return withUserDatabase(async (tx) => {
     const docRes = await tx.execute<DisbursementRow>(
       sql`SELECT * FROM public.disbursements WHERE id = ${disbursementId} FOR UPDATE`

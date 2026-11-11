@@ -18,7 +18,7 @@ const uuid = z.string().uuid()
 
 async function editor() {
   const profile = await getCurrentProfile()
-  if (!profile?.is_active || !['admin', 'staff'].includes(profile.role)) throw new Error('คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ')
+  if (!profile?.is_active || profile.role !== 'admin') throw new Error('คุณไม่มีสิทธิ์แก้ไขข้อมูลสิ่งของ')
   return profile
 }
 

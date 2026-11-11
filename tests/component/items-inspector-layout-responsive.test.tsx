@@ -130,24 +130,20 @@ test('Responsive Layout: ItemsList collapses secondary columns and adjusts min-w
   assert.ok(openTable.classList.contains('2xl:min-w-[840px]'))
 
   // Check column visibility when inspector is open:
-  // Location and Type must be hidden below xl (e.g. at 1024px laptop)
   const openHeads = openContainer.querySelectorAll('th')
-  // Head 3: Type -> hidden xl:table-cell
+  assert.equal(openHeads.length, 8, 'table should have exactly 8 column headers')
+
+  // Head 3: Category -> hidden 2xl:table-cell
   assert.ok(openHeads[3].classList.contains('hidden'))
-  assert.ok(openHeads[3].classList.contains('xl:table-cell'))
-  assert.equal(openHeads[3].classList.contains('sm:table-cell'), false)
+  assert.ok(openHeads[3].classList.contains('2xl:table-cell'))
 
-  // Head 4: Category -> hidden 2xl:table-cell
-  assert.ok(openHeads[4].classList.contains('hidden'))
-  assert.ok(openHeads[4].classList.contains('2xl:table-cell'))
+  // Head 5: Location -> hidden xl:table-cell
+  assert.ok(openHeads[5].classList.contains('hidden'))
+  assert.ok(openHeads[5].classList.contains('xl:table-cell'))
 
-  // Head 6: Location -> hidden xl:table-cell
+  // Head 6: Responsible Person -> hidden 2xl:table-cell
   assert.ok(openHeads[6].classList.contains('hidden'))
-  assert.ok(openHeads[6].classList.contains('xl:table-cell'))
-
-  // Head 7: Responsible Person -> hidden 2xl:table-cell
-  assert.ok(openHeads[7].classList.contains('hidden'))
-  assert.ok(openHeads[7].classList.contains('2xl:table-cell'))
+  assert.ok(openHeads[6].classList.contains('2xl:table-cell'))
 
   // Test with Inspector CLOSED
   const { container: closedContainer } = render(
@@ -172,13 +168,16 @@ test('Responsive Layout: ItemsList collapses secondary columns and adjusts min-w
   assert.ok(closedTable.classList.contains('min-w-[480px]'))
 
   const closedHeads = closedContainer.querySelectorAll('th')
-  // Head 3: Type -> hidden sm:table-cell
-  assert.ok(closedHeads[3].classList.contains('sm:table-cell'))
-  // Head 6: Location -> hidden sm:table-cell
-  assert.ok(closedHeads[6].classList.contains('sm:table-cell'))
+  assert.equal(closedHeads.length, 8)
+  // Head 3: Category -> hidden md:table-cell
+  assert.ok(closedHeads[3].classList.contains('md:table-cell'))
+  // Head 5: Location -> hidden sm:table-cell
+  assert.ok(closedHeads[5].classList.contains('sm:table-cell'))
+  // Head 6: Responsible Person -> hidden xl:table-cell
+  assert.ok(closedHeads[6].classList.contains('xl:table-cell'))
 })
 
-test('ItemsList: category header has sorting toggle and type header is static', () => {
+test('ItemsList: category header has sorting toggle and type/qualification headers are not present in table', () => {
   let toggledSort = ''
   const { container } = render(
     <ItemsList
@@ -198,16 +197,75 @@ test('ItemsList: category header has sorting toggle and type header is static', 
   )
 
   const heads = container.querySelectorAll('th')
-  // Head 3: Type -> no button, static text
-  assert.equal(heads[3].textContent?.trim(), 'ประเภท')
-  assert.equal(heads[3].querySelector('button'), null)
+  const headTexts = Array.from(heads).map(h => h.textContent?.trim())
+  assert.equal(headTexts.includes('ประเภท'), false, 'ประเภท header should not exist')
+  assert.equal(headTexts.includes('สถานะเกณฑ์'), false, 'สถานะเกณฑ์ header should not exist')
 
-  // Head 4: Category -> has sort button and aria-sort="ascending"
-  assert.equal(heads[4].getAttribute('aria-sort'), 'ascending')
-  const catBtn = heads[4].querySelector('button')
+  // Head 3: Category -> has sort button and aria-sort="ascending"
+  assert.equal(heads[3].getAttribute('aria-sort'), 'ascending')
+  const catBtn = heads[3].querySelector('button')
   assert.ok(catBtn)
   catBtn?.click()
   assert.equal(toggledSort, 'category')
+})
+
+test('Inspector: renders item type and qualification status in dedicated information section and overview', () => {
+  // Test 1: qualified asset
+  const { rerender } = render(
+    <Inspector
+      isOpen={true}
+      mode="docked"
+      item={{ ...mockItem, item_type: 'asset', qualification_status: 'qualified' }}
+      onClose={() => {}}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  assert.ok(screen.getAllByText('ครุภัณฑ์ (Asset)').length >= 1)
+  assert.ok(screen.getAllByText('ตามเกณฑ์').length >= 1)
+  assert.ok(screen.getByText('ประเภท & สถานะเกณฑ์'))
+
+  // Test 2: below_threshold material
+  rerender(
+    <Inspector
+      isOpen={true}
+      mode="docked"
+      item={{ ...mockItem, item_type: 'material', qualification_status: 'below_threshold' }}
+      onClose={() => {}}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  assert.ok(screen.getAllByText('พัสดุ (Material)').length >= 1)
+  assert.ok(screen.getAllByText('ต่ำกว่าเกณฑ์ (ต.)').length >= 1)
+
+  // Test 3: null / unspecified qualification status
+  rerender(
+    <Inspector
+      isOpen={true}
+      mode="docked"
+      item={{ ...mockItem, qualification_status: null }}
+      onClose={() => {}}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  assert.ok(screen.getAllByText('ยังไม่ระบุ').length >= 1)
 })
 
 test('Responsive Layout: ItemsFilterBar wraps search, selects, and export button cleanly', () => {

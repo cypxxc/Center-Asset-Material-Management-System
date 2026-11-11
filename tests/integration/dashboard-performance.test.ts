@@ -8,21 +8,6 @@ import { MetricsGridSkeleton, DashboardMetricsGrid } from '../../components/dash
 import { CategoryListSkeleton, DashboardCategoryList } from '../../components/dashboard/dashboard-category-list'
 import { ActionQueueSkeleton, DashboardActionQueue } from '../../components/dashboard/dashboard-action-queue'
 
-test('migration 00033 contains hot-path performance composite indexes', () => {
-  const sql = readFileSync('db/migrations/00033_hot_path_performance_indexes.sql', 'utf8')
-
-  assert.match(sql, /CREATE INDEX IF NOT EXISTS idx_items_low_stock_material/i)
-  assert.match(sql, /ON public\.items\s*\(quantity ASC\)/i)
-  assert.match(sql, /WHERE item_type = 'material' AND deleted_at IS NULL AND quantity <= 5/i)
-
-  assert.match(sql, /CREATE INDEX IF NOT EXISTS idx_items_explorer_search/i)
-  assert.match(sql, /ON public\.items\s*\(deleted_at, item_type, category_id, location_id, created_at DESC\)/i)
-
-  assert.match(sql, /CREATE INDEX IF NOT EXISTS idx_items_status_active/i)
-  assert.match(sql, /ON public\.items\s*\(status, item_type\)/i)
-  assert.match(sql, /WHERE deleted_at IS NULL/i)
-})
-
 test('dashboard skeleton components render fallback loading markup', () => {
   const { container: metricsContainer } = render(React.createElement(MetricsGridSkeleton))
   assert.ok(metricsContainer.querySelector('[data-testid="metrics-grid-skeleton"]'))
@@ -62,7 +47,7 @@ test('dashboard defers the realtime subscription behind a client-only boundary',
   assert.match(boundarySource, /dynamic\(\s*\(\) => import\('@\/components\/realtime-refresh-bridge'\)/)
   assert.match(boundarySource, /ssr:\s*false/)
   assert.match(realtimeRefreshSource, /router\.refresh\(\)/)
-  assert.match(realtimeRefreshSource, /const supabase = createClient\(\)/)
+  assert.match(realtimeRefreshSource, /new EventSource/)
 })
 
 test('getLowStockItems is exported as a function in features/items/queries', async () => {

@@ -108,10 +108,10 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
               )}
             >
               <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>เบิก-จ่ายพัสดุ</span>
+              <span>เบิก-จ่าย</span>
             </Link>
 
-            {(profile?.role === 'admin' || profile?.role === 'staff') && (
+            {profile?.role === 'admin' && (
               <Link
                 href="/settings"
                 onClick={() => setMobileOpen(false)}

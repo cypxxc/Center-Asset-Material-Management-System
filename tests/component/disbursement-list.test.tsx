@@ -35,10 +35,12 @@ test('DisbursementListClient renders EmptyState when items array is empty', () =
       currentStatus: '',
       currentType: '',
       canCreate: true,
+      userRole: 'admin',
+      initialTab: 'documents',
     })
   );
 
-  assert.ok(container.textContent?.includes('ทะเบียนเบิก-จ่ายพัสดุและครุภัณฑ์'));
+  assert.ok(container.textContent?.includes('ระบบเบิก-จ่ายและยืมพัสดุส่วนกลาง'));
   assert.ok(container.textContent?.includes('ยังไม่มีประวัติการเบิก-จ่าย'));
   assert.ok(container.textContent?.includes('สร้างเอกสารเบิกจ่าย'));
 });
@@ -78,6 +80,8 @@ test('DisbursementListClient renders DataTable and rows when items exist', () =>
       currentStatus: '',
       currentType: '',
       canCreate: false,
+      userRole: 'admin',
+      initialTab: 'documents',
     })
   );
 

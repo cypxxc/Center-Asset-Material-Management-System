@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { after } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase/server'
+import { withUserDatabase } from '@/lib/postgres/request'
+import { sql } from 'drizzle-orm'
 import { logger } from '@/lib/logging'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 
@@ -22,7 +23,7 @@ export interface AuditLogPayload {
 
 /**
  * Centrally records an audit event by outputting a structured log
- * and persisting it to the Supabase database.
+ * and persisting it to PostgreSQL.
  */
 export async function writeAuditLog(payload: AuditLogPayload) {
   const ctx = await getRequestContext(payload.userId ?? undefined)
@@ -73,27 +74,8 @@ export async function writeAuditLog(payload: AuditLogPayload) {
     return
   }
 
-  if (process.env.DATA_BACKEND === 'postgres') {
-    const { withUserDatabase } = await import('@/lib/postgres/request')
-    const { sql } = await import('drizzle-orm')
-    await withUserDatabase((tx) => tx.execute(sql`insert into public.audit_logs(user_id,action,target_table,target_id,old_data,new_data)
-      values(private.current_user_id(),${payload.operation},${payload.targetType},${payload.targetId ?? null},${JSON.stringify(payload.oldValues ?? null)}::jsonb,${JSON.stringify(payload.newValues ?? { timestamp,requestId })}::jsonb)`))
-    return
-  }
-
   const persist = async () => {
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'http://127.0.0.1:54321' : undefined)
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-      // Skip database persistence gracefully if Supabase env vars are not set (e.g. in unit tests)
-      if (!supabaseUrl || !supabaseServiceKey) {
-        return
-      }
-
-      const supabase = createServiceRoleClient()
-      
-      // Inject metadata into jsonb columns without schema migrations
       const old_data = payload.oldValues 
         ? { values: payload.oldValues, ip, requestId, correlationId, traceId, timestamp }
         : null
@@ -102,15 +84,8 @@ export async function writeAuditLog(payload: AuditLogPayload) {
         ? { values: payload.newValues, ip, requestId, correlationId, traceId, timestamp }
         : { ip, requestId, correlationId, traceId, timestamp }
 
-      const { error } = await supabase.from('audit_logs').insert({
-        user_id: payload.userId,
-        action: payload.operation,
-        target_table: payload.targetType,
-        target_id: payload.targetId || null,
-        old_data,
-        new_data,
-      })
-      if (error) throw error
+      await withUserDatabase((tx) => tx.execute(sql`insert into public.audit_logs(user_id,action,target_table,target_id,old_data,new_data)
+        values(${payload.userId}::uuid,${payload.operation},${payload.targetType},${payload.targetId ?? null},${JSON.stringify(old_data)}::jsonb,${JSON.stringify(new_data)}::jsonb)`))
     } catch (error) {
       logger.error(
         {

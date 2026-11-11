@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { canWrite } from '@/lib/permissions'
+import { canCreateDisbursement } from '@/lib/permissions'
 import { getDisbursements, getCentralAvailableItems } from '@/features/disbursements/queries'
 import { DisbursementListClient } from '@/features/disbursements/components/disbursement-list-client'
 import DisbursementsLoading from './loading'
@@ -61,7 +61,7 @@ async function DisbursementListSection({
       currentQ={params.q || ''}
       currentStatus={params.status || ''}
       currentType={params.type || ''}
-      canCreate={canWrite(profile.role)}
+      canCreate={canCreateDisbursement(profile.role)}
       stats={result.stats}
       centralItems={centralItems}
       userRole={profile.role}

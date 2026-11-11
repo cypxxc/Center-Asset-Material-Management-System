@@ -11,7 +11,7 @@ import { Pool } from 'pg'
 import { chromium } from '@playwright/test'
 import { backupPostgres, storageInventory } from './backup-postgres'
 import { hashPassword, verifyPassword } from '../lib/postgres/password'
-import { withoutSupabase } from './postgres-local-config'
+import { isolatedEnvironment } from './postgres-local-config'
 
 // Never restores over the source: both databases and all files are freshly allocated.
 async function main() {
@@ -28,7 +28,7 @@ async function main() {
   const created: string[] = []
   let server: ChildProcess | undefined
   const connection = (url: string, name: string) => { const parsed = new URL(url); parsed.pathname = `/${name}`; return parsed.toString() }
-  const env: NodeJS.ProcessEnv = { ...withoutSupabase(process.env), NODE_ENV:'production' }
+  const env: NodeJS.ProcessEnv = { ...isolatedEnvironment(process.env), NODE_ENV:'production' }
   const container = spawnSync('docker', ['compose','--env-file','.env.postgres.local','-f','compose.postgres.yaml','ps','-q','postgres'], { env, encoding:'utf8',timeout:15000 })
   const id = container.stdout?.trim()
   assert.equal(container.status, 0)

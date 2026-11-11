@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { X, ZoomIn, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getTransformedImageUrl } from '@/lib/supabase/image'
 
 interface ZoomableImageProps {
   src: string
@@ -16,18 +15,18 @@ export function ZoomableImage({ src, alt, className, imgClassName }: ZoomableIma
   const [isZoomed, setIsZoomed] = useState(false)
 
   const [prevSrc, setPrevSrc] = useState(src)
-  const [imgSrc, setImgSrc] = useState(() => getTransformedImageUrl(src))
+  const [imgSrc, setImgSrc] = useState(src)
   const [hasImgError, setHasImgError] = useState(false)
 
-  const [zoomImgSrc, setZoomImgSrc] = useState(() => getTransformedImageUrl(src, { width: 1200 }))
+  const [zoomImgSrc, setZoomImgSrc] = useState(src)
   const [hasZoomImgError, setHasZoomImgError] = useState(false)
 
   // Reset state during render when prop `src` changes
   if (prevSrc !== src) {
     setPrevSrc(src)
-    setImgSrc(getTransformedImageUrl(src))
+    setImgSrc(src)
     setHasImgError(false)
-    setZoomImgSrc(getTransformedImageUrl(src, { width: 1200 }))
+    setZoomImgSrc(src)
     setHasZoomImgError(false)
   }
 

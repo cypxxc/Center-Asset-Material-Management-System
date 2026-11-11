@@ -11,7 +11,7 @@ import {
   rejectDisbursementSchema,
 } from './schema'
 import { computeThaiFiscalYear } from './fiscal-year'
-import { canWrite } from '@/lib/permissions'
+import { canWrite, canCreateDisbursement } from '@/lib/permissions'
 
 test('disbursementDraftSchema validates material issue and requires items', () => {
   const valid = {
@@ -167,12 +167,13 @@ test('cancelDisbursementDraftSchema validates target id', () => {
   assert.equal(parsed.id, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')
 })
 
-test('disbursement RBAC permissions enforce writer vs viewer access', () => {
+test('disbursement RBAC permissions enforce admin vs viewer access', () => {
   assert.equal(canWrite('admin'), true, 'Admin must have write permissions')
-  assert.equal(canWrite('staff'), true, 'Staff must have write permissions')
   assert.equal(canWrite('viewer'), false, 'Viewer must NOT have write permissions')
   assert.equal(canWrite(undefined), false, 'Anonymous must NOT have write permissions')
   assert.equal(canWrite(null), false, 'Null role must NOT have write permissions')
+  assert.equal(canCreateDisbursement('admin'), true, 'Admin can create disbursement')
+  assert.equal(canCreateDisbursement('viewer'), true, 'Viewer can create disbursement request')
 })
 
 test('submitBorrowRequestSchema validates multi-item central borrow requests', () => {

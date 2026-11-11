@@ -153,6 +153,7 @@ export function CategoryIconPicker({
                     <button
                       key={item.name}
                       type="button"
+                      title={`${item.label} (${item.name})`}
                       aria-label={`${item.label} (${item.name})`}
                       onClick={() => handleSelectIcon(item.name)}
                       className={cn(

@@ -30,6 +30,7 @@ interface DraftFormClientProps {
   availableItems: DisbursementSelectableItem[]
   initialItemIds?: string[]
   initialType?: DisbursementTransactionType
+  userRole: string
 }
 
 export function DisbursementDraftFormClient({
@@ -37,6 +38,7 @@ export function DisbursementDraftFormClient({
   availableItems,
   initialItemIds = [],
   initialType,
+  userRole,
 }: DraftFormClientProps) {
   const router = useRouter()
   const isEditing = Boolean(initialDoc?.id)
@@ -214,7 +216,7 @@ export function DisbursementDraftFormClient({
               </Link>
             </Button>
             <FileText className="h-5 w-5 text-amber-500 shrink-0" aria-hidden="true" />
-            <span>{isEditing ? 'แก้ไขเอกสารฉบับร่าง' : 'สร้างเอกสารเบิก-จ่ายใหม่'}</span>
+            <span>{isEditing ? 'แก้ไขเอกสารฉบับร่าง' : userRole === 'viewer' ? 'ส่งคำขอเบิกวัสดุ' : 'สร้างเอกสารเบิก-จ่ายใหม่'}</span>
           </span>
         }
         subtitle={
@@ -257,9 +259,9 @@ export function DisbursementDraftFormClient({
                 disabled={isEditing}
                 className="w-full h-8 px-2.5 rounded-lg border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
-                <option value="material_issue">เบิกจ่ายพัสดุ (ตัดยอดสต็อกถาวร)</option>
-                <option value="asset_handover">ส่งมอบครุภัณฑ์ (โอนผู้ถือครองถาวร)</option>
-                <option value="asset_borrow">ยืมของส่วนกลาง (มีกำหนดส่งคืน)</option>
+                <option value="material_issue">เบิกวัสดุ (รอ Admin อนุมัติและจ่าย)</option>
+                {userRole === 'admin' && <option value="asset_handover">ส่งมอบครุภัณฑ์ (โอนผู้ถือครองถาวร)</option>}
+                {userRole === 'admin' && <option value="asset_borrow">ยืมของส่วนกลาง (มีกำหนดส่งคืน)</option>}
               </select>
             </div>
 
@@ -607,7 +609,7 @@ export function DisbursementDraftFormClient({
             className="gap-1.5 font-semibold"
           >
             <Save className="h-4 w-4" />
-            <span>{isSubmitting ? 'กำลังบันทึก...' : 'บันทึกฉบับร่าง'}</span>
+            <span>{isSubmitting ? 'กำลังบันทึก...' : userRole === 'viewer' ? 'ส่งคำขอเบิก' : 'บันทึกฉบับร่าง'}</span>
           </Button>
         </div>
       </form>

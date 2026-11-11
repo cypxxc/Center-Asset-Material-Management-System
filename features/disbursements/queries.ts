@@ -1,182 +1,21 @@
 import 'server-only'
-import { isPostgresBackend } from '@/lib/backend'
-import { createClient } from '@/lib/supabase/server'
-import {
-  getPostgresDisbursements,
-  getPostgresDisbursementById,
-  getPostgresDisbursementSelectableItems,
-  getPostgresCentralAvailableItems,
-  type CentralAvailableItem,
-} from './postgres-queries'
-import type {
-  DisbursementRow,
-  DisbursementItemRow,
-  DisbursementListResult,
-  DisbursementSelectableItem,
-} from './types'
-import { disbursementListParamsSchema } from './schema'
-
-export async function getDisbursements(paramsInput: unknown = {}): Promise<DisbursementListResult> {
-  if (isPostgresBackend()) {
-    return getPostgresDisbursements(paramsInput)
-  }
-
-  const params = disbursementListParamsSchema.parse(paramsInput)
-  const supabase = await createClient()
-
-  let query = supabase.from('disbursements').select('*', { count: 'exact' })
-
-  if (params.q) {
-    const safeQ = params.q.replaceAll(',', ' ').replaceAll('(', '').replaceAll(')', '').trim()
-    if (safeQ) {
-      query = query.or(`document_no.ilike.%${safeQ}%,recipient_name.ilike.%${safeQ}%,department_name.ilike.%${safeQ}%,purpose.ilike.%${safeQ}%`)
-    }
-  }
-  if (params.status) {
-    query = query.eq('status', params.status)
-  }
-  if (params.type) {
-    query = query.eq('transaction_type', params.type)
-  }
-
-  const offset = (params.page - 1) * params.pageSize
-  const { data, count, error } = await query
-    .order('created_at', { ascending: false })
-    .range(offset, offset + params.pageSize - 1)
-
-  if (error) throw new Error(error.message)
-  const total = count ?? 0
-
-  return {
-    items: data ?? [],
-    total,
-    page: params.page,
-    pageSize: params.pageSize,
-    totalPages: Math.ceil(total / params.pageSize) || 1,
-  }
-}
-
-export async function getDisbursementById(id: string): Promise<(DisbursementRow & { items: DisbursementItemRow[] }) | null> {
-  if (isPostgresBackend()) {
-    return getPostgresDisbursementById(id)
-  }
-
-  const supabase = await createClient()
-  const { data: doc, error: docErr } = await supabase
-    .from('disbursements')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (docErr || !doc) return null
-
-  const { data: items, error: itemsErr } = await supabase
-    .from('disbursement_items')
-    .select('*')
-    .eq('disbursement_id', id)
-    .order('id', { ascending: true })
-
-  if (itemsErr) throw new Error(itemsErr.message)
-
-  return {
-    ...doc,
-    items: items ?? [],
-  }
-}
-
-export async function getDisbursementSelectableItems(): Promise<DisbursementSelectableItem[]> {
-  if (isPostgresBackend()) {
-    return getPostgresDisbursementSelectableItems()
-  }
-
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('items')
-    .select('id, item_name, item_type, asset_no, serial_no, quantity, responsible_person, note, is_central, category:categories(id, name), unit:units(name), location:locations(name)')
-    .is('deleted_at', null)
-    .in('status', ['active', 'spare'])
-    .order('item_type', { ascending: true })
-    .order('item_name', { ascending: true })
-
-  if (error) throw new Error(error.message)
-  return ((data as unknown[]) || []).map((raw) => {
-    const row = raw as {
-      id: string
-      item_name: string
-      item_type: 'material' | 'asset'
-      asset_no: string | null
-      serial_no: string | null
-      quantity: number
-      responsible_person: string | null
-      note?: string | null
-      is_central?: boolean
-      category: { id: string; name: string } | { id: string; name: string }[] | null
-      unit: { name: string } | { name: string }[] | null
-      location: { name: string } | { name: string }[] | null
-    }
-    return {
-      id: row.id,
-      item_name: row.item_name,
-      item_type: row.item_type,
-      asset_no: row.asset_no ?? null,
-      serial_no: row.serial_no ?? null,
-      quantity: Number(row.quantity) || 0,
-      category: Array.isArray(row.category) ? row.category[0] : row.category ?? null,
-      unit: Array.isArray(row.unit) ? row.unit[0] : row.unit ?? null,
-      location_name: Array.isArray(row.location) ? row.location[0]?.name ?? null : row.location?.name ?? null,
-      responsible_person: row.responsible_person ?? null,
-      note: row.note ?? null,
-      is_central: Boolean(row.is_central),
-    }
-  })
-}
+import { getPostgresDisbursements, getPostgresDisbursementById, getPostgresDisbursementSelectableItems, getPostgresCentralAvailableItems, type CentralAvailableItem } from './postgres-queries'
+import type { DisbursementRow, DisbursementItemRow, DisbursementListResult, DisbursementSelectableItem } from './types'
 
 export type { CentralAvailableItem }
 
-export async function getCentralAvailableItems(): Promise<CentralAvailableItem[]> {
-  if (isPostgresBackend()) {
-    return getPostgresCentralAvailableItems()
-  }
-
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('items')
-    .select('id, item_name, item_type, asset_no, serial_no, brand, model, quantity, image_url, category:categories(id, name), unit:units(name), location:locations(name)')
-    .is('deleted_at', null)
-    .eq('is_central', true)
-    .in('status', ['active', 'spare'])
-    .order('item_name', { ascending: true })
-
-  if (error) return []
-  return ((data as unknown[]) || []).map((raw) => {
-    const row = raw as {
-      id: string
-      item_name: string
-      item_type: 'material' | 'asset'
-      asset_no: string | null
-      serial_no: string | null
-      brand: string | null
-      model: string | null
-      quantity: number
-      image_url: string | null
-      category: { id: string; name: string } | { id: string; name: string }[] | null
-      unit: { name: string } | { name: string }[] | null
-      location: { name: string } | { name: string }[] | null
-    }
-    return {
-      id: row.id,
-      item_name: row.item_name,
-      item_type: row.item_type,
-      asset_no: row.asset_no ?? null,
-      serial_no: row.serial_no ?? null,
-      brand: row.brand ?? null,
-      model: row.model ?? null,
-      quantity: Number(row.quantity) || 1,
-      image_url: row.image_url ?? null,
-      category: Array.isArray(row.category) ? row.category[0] : row.category ?? null,
-      unit_name: Array.isArray(row.unit) ? row.unit[0]?.name ?? null : row.unit?.name ?? null,
-      location_name: Array.isArray(row.location) ? row.location[0]?.name ?? null : row.location?.name ?? null,
-    }
-  })
+export async function getDisbursements(paramsInput: unknown = {}): Promise<DisbursementListResult> {
+  return getPostgresDisbursements(paramsInput)
 }
 
+export async function getDisbursementById(id: string): Promise<(DisbursementRow & { items: DisbursementItemRow[] }) | null> {
+  return getPostgresDisbursementById(id)
+}
+
+export async function getDisbursementSelectableItems(): Promise<DisbursementSelectableItem[]> {
+  return getPostgresDisbursementSelectableItems()
+}
+
+export async function getCentralAvailableItems(): Promise<CentralAvailableItem[]> {
+  return getPostgresCentralAvailableItems()
+}

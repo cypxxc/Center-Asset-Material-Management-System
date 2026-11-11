@@ -67,6 +67,20 @@ global.window.matchMedia = global.window.matchMedia || function() {
   };
 };
 
+// Mock EventSource
+if (typeof global.EventSource === 'undefined') {
+  class MockEventSource {
+    url: string
+    onmessage: ((ev: MessageEvent) => void) | null = null
+    onerror: ((ev: Event) => void) | null = null
+    constructor(url: string) {
+      this.url = url
+    }
+    close() {}
+  }
+  global.EventSource = MockEventSource as unknown as typeof EventSource
+}
+
 // Mock requestAnimationFrame / cancelAnimationFrame
 global.requestAnimationFrame = (callback) => setTimeout(callback, 0);
 global.cancelAnimationFrame = (id) => clearTimeout(id);

@@ -7,10 +7,10 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { eq, sql } from 'drizzle-orm'
 import { pgSchema, text, uuid } from 'drizzle-orm/pg-core'
 import { Pool } from 'pg'
-import { localPostgresConfig, withoutSupabase } from './postgres-local-config'
+import { localPostgresConfig, isolatedEnvironment } from './postgres-local-config'
 
 const envFile = '.env.postgres.local'
-const isolatedEnv: NodeJS.ProcessEnv = { ...withoutSupabase(process.env), NODE_ENV: process.env.NODE_ENV ?? 'development' }
+const isolatedEnv: NodeJS.ProcessEnv = { ...isolatedEnvironment(process.env), NODE_ENV: process.env.NODE_ENV ?? 'development' }
 
 function compose(...args: string[]) {
   const result = spawnSync('docker', ['compose', '--env-file', envFile, '-f', 'compose.postgres.yaml', ...args], {

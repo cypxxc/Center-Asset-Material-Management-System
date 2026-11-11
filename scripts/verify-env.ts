@@ -2,156 +2,52 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const requiredEnv = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-] as const
-
-const ciFallbackValues: Record<(typeof requiredEnv)[number], string> = {
-  NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'example-anon-key',
-  SUPABASE_SERVICE_ROLE_KEY: 'example-service-role-key',
-}
+const requiredEnv = ['DATABASE_URL', 'DATABASE_AUTH_URL', 'LOCAL_STORAGE_PATH'] as const
 
 function loadEnvFromFile(filePath: string, env: Record<string, string | undefined>) {
-  if (!fs.existsSync(filePath)) {
-    return
+  if (!fs.existsSync(filePath)) return
+  for (const line of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const match = line.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!match || match[0].startsWith('#')) continue
+    const [, key, raw] = match
+    if (!env[key]?.trim()) env[key] = raw.trim().replace(/^['"]|['"]$/g, '')
   }
+}
 
-  const content = fs.readFileSync(filePath, 'utf8')
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue
-    }
-
-    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
-    if (!match) {
-      continue
-    }
-
-    const [, key, rawValue] = match
-    const value = rawValue.trim()
-    const unquoted = value.replace(/^['"]|['"]$/g, '')
-
-    if (!env[key] || !env[key]?.trim()) {
-      env[key] = unquoted
-    }
+function mergedEnvironment(env: Record<string, string | undefined>) {
+  const merged = { ...env }
+  for (const file of ['.env.local', '.env']) loadEnvFromFile(path.resolve(process.cwd(), file), merged)
+  if (merged.CI === 'true') {
+    merged.DATABASE_URL ||= 'postgres://camms:build-only@127.0.0.1:5432/camms'
+    merged.DATABASE_AUTH_URL ||= 'postgres://camms:build-only@127.0.0.1:5432/camms'
+    merged.LOCAL_STORAGE_PATH ||= './.local-storage'
   }
+  return merged
 }
 
 export function getMissingEnvVars(env: Record<string, string | undefined> = process.env as Record<string, string | undefined>) {
-  const mergedEnv = { ...env }
-
-  const envFiles = [
-    path.resolve(process.cwd(), '.env.local'),
-    path.resolve(process.cwd(), '.env'),
-  ]
-
-  for (const envFile of envFiles) {
-    loadEnvFromFile(envFile, mergedEnv)
-  }
-
-  if (mergedEnv.DATA_BACKEND === 'postgres') return ['DATABASE_URL','DATABASE_AUTH_URL','LOCAL_STORAGE_PATH'].filter((key) => !mergedEnv[key]?.trim())
-
-  if (mergedEnv.CI === 'true') {
-    for (const key of requiredEnv) {
-      if (!mergedEnv[key] || !mergedEnv[key]?.trim()) {
-        mergedEnv[key] = ciFallbackValues[key]
-      }
-    }
-  }
-
-  return requiredEnv.filter((key) => !mergedEnv[key] || !mergedEnv[key]?.trim())
+  const merged = mergedEnvironment(env)
+  return requiredEnv.filter(key => !merged[key]?.trim())
 }
 
 export function verifyEnv(env: Record<string, string | undefined> = process.env as Record<string, string | undefined>) {
-  const missing = getMissingEnvVars(env)
-
-  if (missing.length > 0) {
-    console.error('Missing required environment variables: ' + missing.join(', '))
-    console.error('Please set these variables before running the app or CI.')
+  const merged = mergedEnvironment(env)
+  const missing = requiredEnv.filter(key => !merged[key]?.trim())
+  if (missing.length) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`)
+    console.error('Set these PostgreSQL and local storage settings before starting CAMMS.')
     process.exit(1)
   }
-
-  // Load config variables again
-  const mergedEnv = { ...env }
-  const envFiles = [
-    path.resolve(process.cwd(), '.env.local'),
-    path.resolve(process.cwd(), '.env'),
-  ]
-  for (const envFile of envFiles) {
-    loadEnvFromFile(envFile, mergedEnv)
-  }
-
-  if (mergedEnv.CI === 'true') {
-    for (const key of requiredEnv) {
-      if (!mergedEnv[key] || !mergedEnv[key]?.trim()) {
-        mergedEnv[key] = ciFallbackValues[key]
-      }
-    }
-  }
-
-  const isProd = mergedEnv.NODE_ENV === 'production'
-  const isCI = mergedEnv.CI === 'true'
-
-  if (mergedEnv.DATA_BACKEND === 'postgres') {
-    for (const key of ['DATABASE_URL','DATABASE_AUTH_URL']) {
-      try {
-        const url = new URL(mergedEnv[key] ?? '')
-        if (!['postgres:','postgresql:'].includes(url.protocol) || !url.hostname || !url.username || !url.password || url.pathname === '/') throw new Error('Invalid PostgreSQL URL')
-      } catch { console.error(`Invalid PostgreSQL connection setting: ${key}`); process.exit(1) }
-    }
-    console.log('PostgreSQL environment check passed.')
-    return
-  }
-
-  const supabaseUrl = mergedEnv.NEXT_PUBLIC_SUPABASE_URL || ''
-  const anonKey = mergedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  const serviceKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || ''
-
-  // 1. URL formatting checks
-  try {
-    const url = new URL(supabaseUrl)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      console.error(`Invalid URL scheme for NEXT_PUBLIC_SUPABASE_URL: ${url.protocol}`)
-      process.exit(1)
-    }
-  } catch {
-    console.error(`Invalid URL format for NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}"`)
-    process.exit(1)
-  }
-
-  // 2. Minimum length checking for keys
-  if (anonKey.length < 15) {
-    console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is too short to be a valid token')
-    process.exit(1)
-  }
-  if (serviceKey.length < 15) {
-    console.error('SUPABASE_SERVICE_ROLE_KEY is too short to be a valid token')
-    process.exit(1)
-  }
-
-  // 3. Prohibit placeholders exclusively in actual production deploys (Node production && not CI builds)
-  if (isProd && !isCI) {
-    if (supabaseUrl.includes('example.supabase.co')) {
-      console.error(`Forbidden placeholder URL in production: "${supabaseUrl}"`)
-      process.exit(1)
-    }
-    if (anonKey.includes('example-anon-key')) {
-      console.error('Forbidden placeholder Anon Key in production')
-      process.exit(1)
-    }
-    if (serviceKey.includes('example-service-role-key')) {
-      console.error('Forbidden placeholder Service Key in production')
+  for (const key of ['DATABASE_URL', 'DATABASE_AUTH_URL'] as const) {
+    try {
+      const url = new URL(merged[key]!)
+      if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.username || !url.password || url.pathname === '/') throw new Error()
+    } catch {
+      console.error(`Invalid PostgreSQL connection setting: ${key}`)
       process.exit(1)
     }
   }
-
-  console.log('Environment check passed. All required environment variables are set and validated.')
+  console.log('PostgreSQL environment check passed.')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  verifyEnv()
-}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) verifyEnv()

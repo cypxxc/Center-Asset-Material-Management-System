@@ -5,6 +5,7 @@ import {
   Edit,
   Tag,
   Building2,
+  CheckCircle2,
   MapPin,
   User,
   DollarSign,
@@ -20,10 +21,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
 import { getItemDetailPageData } from '@/features/items/queries'
-import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS } from '@/features/items/types'
+import { ITEM_STATUS_LABELS } from '@/features/items/types'
 import type { ItemStatus } from '@/features/items/types'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { canWrite, canDelete } from '@/lib/permissions'
+import { cn } from '@/lib/utils'
 
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { ItemAuditTimeline } from './item-audit-timeline'
@@ -200,7 +202,23 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200">
                   <Layers className="h-3 w-3" />
-                  {ITEM_TYPE_LABELS[item.item_type]}
+                  {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider border",
+                    item.qualification_status === 'qualified'
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : item.qualification_status === 'below_threshold'
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-slate-100 text-slate-700 border-slate-200"
+                  )}
+                >
+                  {item.qualification_status === 'qualified'
+                    ? 'ตามเกณฑ์'
+                    : item.qualification_status === 'below_threshold'
+                    ? 'ต่ำกว่าเกณฑ์ (ต.)'
+                    : 'ยังไม่ระบุ'}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${statusInfo.bgClass}`}
@@ -290,8 +308,19 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
                 />
                 <DetailTile
                   icon={<Layers className="h-3.5 w-3.5 text-blue-500" />}
-                  label="ประเภทพัสดุ"
-                  value={ITEM_TYPE_LABELS[item.item_type]}
+                  label="ประเภทสิ่งของ"
+                  value={item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
+                />
+                <DetailTile
+                  icon={<CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />}
+                  label="สถานะเกณฑ์"
+                  value={
+                    item.qualification_status === 'qualified'
+                      ? 'ตามเกณฑ์'
+                      : item.qualification_status === 'below_threshold'
+                      ? 'ต่ำกว่าเกณฑ์ (ต.)'
+                      : 'ยังไม่ระบุ'
+                  }
                 />
               </div>
             </div>

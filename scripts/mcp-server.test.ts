@@ -15,11 +15,10 @@ async function runMcp(requests: unknown[], allowWrite: boolean): Promise<JsonRpc
     cwd: process.cwd(),
     env: {
       ...process.env,
-      DATA_BACKEND: 'supabase',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+      DATA_BACKEND: 'postgres',
+      DATABASE_URL: 'postgres://app:test@127.0.0.1:5432/test',
+      MCP_POSTGRES_PROFILE_ID: '8e0b33b4-e603-4d7b-8f21-10e733cead63',
       CAMMS_MCP_ALLOW_WRITE: allowWrite ? 'true' : 'false',
-      SUPABASE_SERVICE_ROLE_KEY: allowWrite ? 'test-service-role-key' : '',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })

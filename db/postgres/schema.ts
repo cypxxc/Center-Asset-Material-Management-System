@@ -6,7 +6,7 @@ export const profiles = pgTable('profiles', {
   id: uuid().primaryKey().defaultRandom(), full_name: text().notNull(), email: text().notNull(),
   role: text().notNull().default('viewer'), is_active: boolean().notNull().default(true),
   sidebar_order: jsonb().$type<string[]>().default([]), ...stamps(),
-}, (t) => [uniqueIndex('profiles_email_unique').on(sql`lower(${t.email})`), check('profiles_role_check', sql`${t.role} in ('admin','staff','viewer')`)])
+}, (t) => [uniqueIndex('profiles_email_unique').on(sql`lower(${t.email})`), check('profiles_role_check', sql`${t.role} in ('admin','viewer')`)])
 export const categories = pgTable('categories', {
   id: uuid().primaryKey().defaultRandom(),
   name: text().notNull().unique(),

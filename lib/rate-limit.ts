@@ -140,9 +140,7 @@ export class PostgresRateLimiter implements RateLimiter {
 
 export function getRateLimiter(): RateLimiter {
   if (!globalRateLimiter) {
-    globalRateLimiter = process.env.DATA_BACKEND === 'postgres'
-      ? new PostgresRateLimiter()
-      : new MemoryRateLimiter()
+    globalRateLimiter = new PostgresRateLimiter()
   }
   return globalRateLimiter
 }

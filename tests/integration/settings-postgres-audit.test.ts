@@ -173,7 +173,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
       assert.ok(auditDbQuery, 'Expected postgres insert query into public.audit_logs for location update')
     })
 
-    test('staff member can update category and emits audit log with staff userId', async () => {
+    test('staff role (non-admin) cannot update category and emits no audit log', async () => {
       profile = { id: 'staff-user-456', role: 'staff', is_active: true }
       responseRows = [[{ id: targetId }]]
 
@@ -183,18 +183,8 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
       form.set('is_active', 'on')
 
       const redirectDigest = await callMutatePostgresMetadata('categories', 'update', form, targetId)
-      assert.ok(redirectDigest.includes('tab=categories'))
-      assert.ok(redirectDigest.includes('message='))
-
-      assert.equal(auditLogs.length, 1)
-      const log = auditLogs[0]
-      assert.equal(log.operation, 'update')
-      assert.equal(log.feature, 'settings')
-      assert.equal(log.userId, 'staff-user-456')
-
-      const details = log.details as Record<string, unknown>
-      assert.equal(details.targetType, 'categories')
-      assert.equal(details.targetId, targetId)
+      assert.ok(redirectDigest.includes('error='))
+      assert.equal(auditLogs.length, 0)
     })
 
     test('delete unit records audit log with targetId', async () => {

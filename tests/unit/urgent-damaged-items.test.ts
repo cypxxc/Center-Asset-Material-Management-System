@@ -1,5 +1,4 @@
 import '../setup/dom'
-import { mockSupabaseRegistry } from '../mocks/supabase'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -33,45 +32,33 @@ test('getUrgentDamagedItems and getPostgresUrgentDamagedItems are exported', asy
   assert.equal(typeof postgresQueries.getPostgresUrgentDamagedItems, 'function')
 })
 
-test('getUrgentDamagedItems queries damaged/waiting_repair items and maps location correctly', async () => {
-  mockSupabaseRegistry.clear()
-  mockSupabaseRegistry.setTableResponse('items', [
-    {
-      id: 'item-1',
-      item_name: 'Printer HP',
-      asset_no: 'ASSET-001',
-      status: 'damaged',
-      updated_at: '2026-10-19T10:00:00Z',
-      image_url: null,
-      location: { name: 'IT Office' },
-    },
-    {
-      id: 'item-2',
-      item_name: 'Projector Epson',
-      asset_no: null,
-      status: 'waiting_repair',
-      updated_at: '2026-10-18T10:00:00Z',
-      image_url: null,
-      location: null,
-    },
-  ])
+test('getUrgentDamagedItems delegates to PostgreSQL and maps location correctly', async () => {
+  mockTxExecute = async () => ({
+    rows: [
+      {
+        id: 'item-1',
+        item_name: 'Printer HP',
+        asset_no: 'ASSET-001',
+        status: 'damaged',
+        updated_at: new Date('2026-10-19T10:00:00Z'),
+        image_url: null,
+        locationName: 'IT Office',
+      },
+      {
+        id: 'item-2',
+        item_name: 'Projector Epson',
+        asset_no: null,
+        status: 'waiting_repair',
+        updated_at: new Date('2026-10-18T10:00:00Z'),
+        image_url: null,
+        locationName: 'ไม่มีระบุสถานที่',
+      },
+    ],
+  })
 
   const { getUrgentDamagedItems } = await import('../../features/items/queries')
   const results = await getUrgentDamagedItems(5)
 
-  // Verify query log
-  const queries = mockSupabaseRegistry.getQueryLog().filter((q) => q.table === 'items')
-  assert.ok(queries.length >= 1, 'Should query items table')
-
-  const lastQuery = queries[queries.length - 1]
-  const operations = lastQuery.operations
-  assert.ok(operations.some((op) => op[0] === 'select'))
-  assert.ok(operations.some((op) => op[0] === 'in' && op[1] === 'status' && Array.isArray(op[2]) && op[2].includes('damaged') && op[2].includes('waiting_repair')))
-  assert.ok(operations.some((op) => op[0] === 'is' && op[1] === 'deleted_at' && op[2] === null))
-  assert.ok(operations.some((op) => op[0] === 'order' && op[1] === 'updated_at'))
-  assert.ok(operations.some((op) => op[0] === 'limit' && op[1] === 5))
-
-  // Verify mapped results
   assert.equal(results.length, 2)
   assert.equal(results[0].id, 'item-1')
   assert.equal(results[0].item_name, 'Printer HP')
@@ -83,6 +70,8 @@ test('getUrgentDamagedItems queries damaged/waiting_repair items and maps locati
   assert.equal(results[1].id, 'item-2')
   assert.equal(results[1].locationName, 'ไม่มีระบุสถานที่')
   assert.equal(results[1].status, 'waiting_repair')
+
+  mockTxExecute = null
 })
 
 test('getPostgresUrgentDamagedItems executes correct SQL query and formats fields', async () => {

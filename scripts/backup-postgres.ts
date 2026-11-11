@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
-import { withoutSupabase } from './postgres-local-config'
+import { isolatedEnvironment } from './postgres-local-config'
 
 export async function storageInventory(root: string, prefix = ''): Promise<Array<{name:string;bytes:number;sha256:string}>> {
   const result: Array<{name:string;bytes:number;sha256:string}> = []
@@ -32,7 +32,7 @@ export async function backupPostgres(destinationRoot: string | undefined, overri
   const backupDir=path.join(destinationRoot,`camms-postgres-${new Date().toISOString().replace(/[:.]/g,'-')}-${randomUUID()}`)
   const relativeDestination=path.relative(storagePath,backupDir)
   if (!relativeDestination || (!relativeDestination.startsWith('..'+path.sep) && relativeDestination!=='..' && !path.isAbsolute(relativeDestination))) throw new Error('Backup destination must be outside private storage')
-  const env: NodeJS.ProcessEnv={...withoutSupabase(process.env), NODE_ENV:process.env.NODE_ENV ?? 'development'}
+  const env: NodeJS.ProcessEnv={...isolatedEnvironment(process.env), NODE_ENV:process.env.NODE_ENV ?? 'development'}
   const container=spawnSync('docker',['compose','--env-file','.env.postgres.local','-f','compose.postgres.yaml','ps','-q','postgres'],{env,encoding:'utf8',timeout:15000})
   const id=container.stdout?.trim()
   if (container.status!==0 || !/^[a-f0-9]{12,64}$/.test(id ?? '')) throw new Error('Docker PostgreSQL service must be running')

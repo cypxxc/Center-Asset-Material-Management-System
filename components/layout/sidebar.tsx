@@ -69,7 +69,7 @@ function NavItemTooltip({ label, enabled, children }: NavItemTooltipProps) {
   )
 }
 
-export function Sidebar({ profile, sidebarData }: SidebarProps) {
+export function Sidebar({ profile }: SidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -118,19 +118,8 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
 
   const currentPath = optimisticTarget ? optimisticTarget.split('?')[0] : pathname
 
-  const counts = sidebarData?.counts ?? {
-    total_assets: 0,
-    total_supplies: 0,
-    archive_count: 0,
-    trash_count: 0,
-  }
-
-  const totalAssetsCount = counts.total_assets
-  const totalSuppliesCount = counts.total_supplies
-
   const isAdmin = profile?.role === 'admin'
-  const isStaff = profile?.role === 'staff'
-  const canWrite = isAdmin || isStaff
+  const canWrite = isAdmin
 
   const isOverviewActive = currentPath === '/dashboard'
 
@@ -261,7 +250,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
             )}
 
             {/* ครุภัณฑ์ */}
-            <NavItemTooltip label={`คลัง (${totalAssetsCount + totalSuppliesCount})`} enabled={isCollapsed}>
+            <NavItemTooltip label="คลัง" enabled={isCollapsed}>
               <Link
                 href="/items"
                 onPointerDown={() => handleOptimisticNavigate('/items')}
@@ -276,15 +265,10 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                   <Package className={navIconClass('text-blue-500', isInventoryActive)} />
                   {!isCollapsed && <span className="truncate">คลัง</span>}
                 </div>
-                {!isCollapsed && (
-                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
-                    {totalAssetsCount + totalSuppliesCount}
-                  </span>
-                )}
               </Link>
             </NavItemTooltip>
 
-            <NavItemTooltip label="เบิก-จ่ายพัสดุ" enabled={isCollapsed}>
+            <NavItemTooltip label="เบิก-จ่าย" enabled={isCollapsed}>
               <Link
                 href="/disbursements"
                 onPointerDown={() => handleOptimisticNavigate('/disbursements')}
@@ -293,7 +277,7 @@ export function Sidebar({ profile, sidebarData }: SidebarProps) {
                 className={navItemClass(isDisbursementsActive)}
               >
                 <Boxes className={navIconClass('text-orange-500', isDisbursementsActive)} />
-                {!isCollapsed && <span className="truncate">เบิก-จ่ายพัสดุ</span>}
+                {!isCollapsed && <span className="truncate">เบิก-จ่าย</span>}
               </Link>
             </NavItemTooltip>
 

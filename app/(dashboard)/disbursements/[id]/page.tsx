@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { canWrite } from '@/lib/permissions'
+import { isAdmin } from '@/lib/permissions'
 import { getDisbursementById } from '@/features/disbursements/queries'
 import { DisbursementDetailClient } from '@/features/disbursements/components/disbursement-detail-client'
 import { PageContainer } from '@/components/ui/page-container'
@@ -23,7 +23,7 @@ export default async function DisbursementDetailPage({ params }: DetailPageProps
 
   return (
     <PageContainer maxWidth="7xl" contentClassName="max-w-5xl mx-auto">
-      <DisbursementDetailClient doc={doc} canMutate={canWrite(profile.role)} />
+      <DisbursementDetailClient doc={doc} canMutate={isAdmin(profile.role)} canRequest={profile.role === 'viewer'} />
     </PageContainer>
   )
 }

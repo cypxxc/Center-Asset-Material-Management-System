@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export type RealtimeTable = 'items' | 'categories' | 'locations' | 'units' | 'audit_logs'
 
@@ -94,7 +93,7 @@ export function useRealtimeRefresh(
       document.addEventListener('visibilitychange', handleVisibilityChange)
     }
 
-    if (process.env.NEXT_PUBLIC_DATA_BACKEND === 'postgres') {
+    if (typeof EventSource !== 'undefined') {
       const events = new EventSource(`/api/events?tables=${encodeURIComponent(tableKey)}`)
       let isInitialConnect = true
       events.onmessage = (message) => {
@@ -115,37 +114,5 @@ export function useRealtimeRefresh(
       }
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      return () => {
-        if (pauseOnHidden && typeof document !== 'undefined') {
-          document.removeEventListener('visibilitychange', handleVisibilityChange)
-        }
-        cleanupTimers()
-      }
-    }
-
-    const supabase = createClient()
-    const tableList = tableKey.split(',') as RealtimeTable[]
-    const channel = supabase
-      .channel(`camms-realtime-${tableKey}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: tableList[0] }, () => {
-        scheduleRefresh()
-      })
-
-    for (const table of tableList.slice(1)) {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        scheduleRefresh()
-      })
-    }
-
-    void channel.subscribe()
-
-    return () => {
-      if (pauseOnHidden && typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', handleVisibilityChange)
-      }
-      cleanupTimers()
-      void supabase.removeChannel(channel)
-    }
   }, [enabled, tableKey, debounceDelay, maxWait, pauseOnHidden, router])
 }

@@ -19,7 +19,6 @@ import {
 import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
-import { getTransformedImageUrl } from '@/lib/supabase/image'
 import { DepreciationFields } from '@/features/depreciation/components/depreciation-fields'
 
 interface ItemFormProps {
@@ -548,7 +547,7 @@ function TextInput({
 function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
   const [preview, setPreview] = useState<string | null>(defaultValue || null)
   const [prevPreview, setPrevPreview] = useState<string | null>(preview)
-  const [previewSrc, setPreviewSrc] = useState<string | null>(() => preview ? getTransformedImageUrl(preview) : null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(() => preview)
   const [previewFailed, setPreviewFailed] = useState<boolean>(false)
   const [removed, setRemoved] = useState<boolean>(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -559,7 +558,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
 
   if (prevPreview !== preview) {
     setPrevPreview(preview)
-    setPreviewSrc(preview ? getTransformedImageUrl(preview) : null)
+    setPreviewSrc(preview)
     setPreviewFailed(false)
   }
 

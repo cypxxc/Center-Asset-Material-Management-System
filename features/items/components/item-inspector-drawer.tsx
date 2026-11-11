@@ -3,14 +3,18 @@
 import { useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
+  AlertCircle,
   Banknote,
   Boxes,
   Building2,
   Calendar,
+  CheckCircle2,
   Copy,
   Edit,
   ExternalLink,
   FileText,
+  HelpCircle,
+  Layers,
   MapPin,
   Package,
   StickyNote,
@@ -22,11 +26,12 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { DeleteItemButton } from '@/features/items/components/delete-item-button'
-import { ITEM_QUALIFICATION_LABELS, ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
+import { type ItemListRow } from '@/features/items/types'
 import { CategoryBadge } from '@/features/items/components/category-badge'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { formatDateThaiBE } from '@/lib/date'
+import { cn } from '@/lib/utils'
 
 export interface InspectorProps {
   onOpenDetails: () => void
@@ -144,13 +149,68 @@ export function Inspector({
                 className="max-w-[200px]"
               />
               <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
-                {ITEM_TYPE_LABELS[item.item_type]}
+                {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
               </span>
-              {item.qualification_status && <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300 shrink-0">{ITEM_QUALIFICATION_LABELS[item.qualification_status]}</span>}
+              <span
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-xs font-bold shrink-0",
+                  item.qualification_status === 'qualified'
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : item.qualification_status === 'below_threshold'
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "border-border bg-muted/60 text-muted-foreground"
+                )}
+              >
+                {item.qualification_status === 'qualified'
+                  ? 'ตามเกณฑ์'
+                  : item.qualification_status === 'below_threshold'
+                  ? 'ต่ำกว่าเกณฑ์ (ต.)'
+                  : 'ยังไม่ระบุ'}
+              </span>
+              {item.is_central && (
+                <span
+                  className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 shrink-0"
+                  title={item.is_borrowed ? "ทรัพย์สินส่วนกลาง (กำลังถูกยืม)" : "ทรัพย์สินส่วนกลาง (ว่างพร้อมให้ยืม)"}
+                >
+                  {item.is_borrowed ? "ส่วนกลาง • ถูกยืม" : "ส่วนกลาง"}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* SECTION 1: ข้อมูลระบุตัวตน (Tone Blue) */}
+          {/* SECTION 1: ประเภทและสถานะเกณฑ์ (Tone Emerald) */}
+          <DrawerSectionHeading tone="emerald" icon={<Layers className="h-3 w-3" />} label="ประเภท & สถานะเกณฑ์" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+            <InspectorBox tone="emerald" icon={<Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />} label="ประเภทสิ่งของ">
+              <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
+                {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
+              </div>
+            </InspectorBox>
+
+            <InspectorBox
+              tone="emerald"
+              icon={
+                item.qualification_status === 'qualified' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : item.qualification_status === 'below_threshold' ? (
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                ) : (
+                  <HelpCircle className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                )
+              }
+              label="สถานะเกณฑ์"
+            >
+              <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
+                {item.qualification_status === 'qualified'
+                  ? 'ตามเกณฑ์'
+                  : item.qualification_status === 'below_threshold'
+                  ? 'ต่ำกว่าเกณฑ์ (ต.)'
+                  : 'ยังไม่ระบุ'}
+              </div>
+            </InspectorBox>
+          </div>
+
+          {/* SECTION 2: ข้อมูลระบุตัวตน (Tone Blue) */}
           <DrawerSectionHeading tone="blue" icon={<Tag className="h-3 w-3" />} label="ข้อมูลระบุตัวตน" />
           {item.asset_no && (
             <InspectorBox tone="blue" icon={<Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />} label={item.item_type === 'material' ? 'เลขทะเบียนพัสดุ' : 'เลขครุภัณฑ์'}>
@@ -392,12 +452,13 @@ function DrawerSectionHeading({
   icon,
   label,
 }: {
-  tone: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate'
+  tone: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate' | 'emerald'
   icon: ReactNode
   label: string
 }) {
   const tonePills = {
     blue: 'border-blue-200/80 bg-blue-50/80 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-300',
+    emerald: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-300',
     violet: 'border-violet-200/80 bg-violet-50/80 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/40 dark:text-violet-300',
     teal: 'border-teal-200/80 bg-teal-50/80 text-teal-700 dark:border-teal-800/70 dark:bg-teal-950/40 dark:text-teal-300',
     indigo: 'border-indigo-200/80 bg-indigo-50/80 text-indigo-700 dark:border-indigo-800/70 dark:bg-indigo-950/40 dark:text-indigo-300',
@@ -424,10 +485,11 @@ function InspectorBox({
   icon: ReactNode
   label: string
   children: ReactNode
-  tone?: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate' | 'default'
+  tone?: 'blue' | 'violet' | 'teal' | 'indigo' | 'slate' | 'emerald' | 'default'
 }) {
   const toneLabelClasses = {
     blue: 'text-blue-600 dark:text-blue-400',
+    emerald: 'text-emerald-600 dark:text-emerald-400',
     violet: 'text-violet-600 dark:text-violet-400',
     teal: 'text-teal-600 dark:text-teal-400',
     indigo: 'text-indigo-600 dark:text-indigo-400',

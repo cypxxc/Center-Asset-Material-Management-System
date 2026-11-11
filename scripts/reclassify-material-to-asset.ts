@@ -7,10 +7,13 @@ dotenv.config({ path: '.env.postgres.app' })
 
 export const MIGRATION_BATCH_ID = 'batch_reclassify_material_to_asset_20261111'
 
-function cleanCellText(val: any): string {
+function cleanCellText(val: unknown): string {
   if (val === null || val === undefined) return ''
-  if (typeof val === 'object' && val.text) return String(val.text).trim()
-  if (typeof val === 'object' && val.result) return String(val.result).trim()
+  if (typeof val === 'object' && val !== null) {
+    const obj = val as Record<string, unknown>
+    if (obj.text) return String(obj.text).trim()
+    if (obj.result) return String(obj.result).trim()
+  }
   return String(val).trim()
 }
 
@@ -67,7 +70,7 @@ export async function runPreviewAndVerification() {
     let verifiedCount = 0
     let exactMatches = 0
     let derivativeMatches = 0
-    const unverified: any[] = []
+    const unverified: Record<string, unknown>[] = []
 
     for (const item of matRes.rows) {
       const norm = normalize(item.asset_no)

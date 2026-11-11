@@ -55,7 +55,7 @@ test('create -> select icon -> edit -> save -> reload simulated flow', () => {
 
   // Confirm re-rendered CategorySection displays 'Laptop' in trigger
   const reloadedTrigger = screen.getAllByRole('button', { name: /เลือกไอคอนหมวดหมู่/i })[1]
-  assert.ok(reloadedTrigger.textContent?.includes('คอมพิวเตอร์พกพา/โน้ตบุ๊ก') || reloadedTrigger.textContent?.includes('Laptop'))
+  assert.ok(reloadedTrigger.querySelector('svg.lucide-laptop') || reloadedTrigger.textContent?.includes('Laptop'))
 })
 
 test('CategoryBadge renders category icon in list, grid, and drawer contexts', () => {

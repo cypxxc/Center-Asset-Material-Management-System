@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ItemListSearchParams } from '@/features/items/types'
-import { buildItemsUrl, type ItemsFilterUpdates } from '@/features/items/list-params'
+import { buildItemsUrl, ascSortColumns, type ItemsFilterUpdates, type ItemSortColumn } from '@/features/items/list-params'
 
 export { buildItemsUrl, type ItemsFilterUpdates }
 
@@ -61,17 +61,21 @@ export function useItemsFilter(
   }
 
   const toggleSort = (field: string) => {
-    const currentField = params.sort_by || 'updated_at'
-    const currentDir = params.sort_dir || 'desc'
+    const currentField = params.sort_by || ''
+    const currentDir = params.sort_dir || ''
 
-    let nextDir: 'asc' | 'desc' = 'asc'
-    if (currentField === field) {
-      nextDir = currentDir === 'asc' ? 'desc' : 'asc'
+    const isAscDefault = ascSortColumns.includes(field as ItemSortColumn)
+    const initialDir: 'asc' | 'desc' = isAscDefault ? 'asc' : 'desc'
+    const oppositeDir: 'asc' | 'desc' = initialDir === 'asc' ? 'desc' : 'asc'
+
+    // Tri-state sort: Initial Direction -> Opposite Direction -> Clear/Unsorted (Default)
+    if (currentField !== field) {
+      handleFilterChange({ sort_by: field, sort_dir: initialDir, page: '1' })
+    } else if (currentDir === initialDir) {
+      handleFilterChange({ sort_by: field, sort_dir: oppositeDir, page: '1' })
     } else {
-      nextDir = ['item_name', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(field) ? 'asc' : 'desc'
+      handleFilterChange({ sort_by: '', sort_dir: '', page: '1' })
     }
-
-    handleFilterChange({ sort_by: field, sort_dir: nextDir, page: '1' })
   }
 
   const buildHref = (overrides: Partial<ItemsFilterUpdates>) => {

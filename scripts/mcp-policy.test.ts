@@ -9,14 +9,14 @@ import {
 
 const itemId = '8e0b33b4-e603-4d7b-8f21-10e733cead63'
 
-test('MCP writes require both explicit opt-in and service role', () => {
+test('MCP writes require both explicit opt-in and database configuration', () => {
   assert.equal(isMcpWriteEnabled({ NODE_ENV: 'test' }), false)
   assert.equal(isMcpWriteEnabled({ NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true' }), false)
   assert.equal(isMcpWriteEnabled({
-    NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', SUPABASE_SERVICE_ROLE_KEY: 'service-key',
+    NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', DATABASE_URL: 'postgres://localhost/db', MCP_POSTGRES_PROFILE_ID: itemId,
   }), true)
   assert.equal(isMcpWriteEnabled({
-    NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', SUPABASE_SERVICE_ROLE_KEY: '   \t',
+    NODE_ENV: 'test', CAMMS_MCP_ALLOW_WRITE: 'true', DATABASE_URL: 'postgres://localhost/db', MCP_POSTGRES_PROFILE_ID: '   \t',
   }), false)
 })
 

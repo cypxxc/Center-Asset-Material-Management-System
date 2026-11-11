@@ -41,7 +41,7 @@ test('live restricted roles support account, session, audit and business adminis
     mockModule('../../lib/postgres/request', { withUserDatabase: (callback: Parameters<typeof scoped>[1]) => scoped('camms_app', callback) })
     mockModule('../../lib/postgres/db', { getAuthDatabase: () => ({ transaction: (callback: Parameters<typeof scoped>[1]) => scoped('camms_auth', callback) }) })
     const admin = await import('../../features/admin/postgres-admin')
-    const created = await admin.pgCreateAuthUser({ email: `${randomUUID()}@example.com`, full_name: 'Account fixture', password: 'first-password', role: 'staff', is_active: true })
+    const created = await admin.pgCreateAuthUser({ email: `${randomUUID()}@example.com`, full_name: 'Account fixture', password: 'first-password', role: 'viewer', is_active: true })
     assert.equal(created.success, true, JSON.stringify(created))
     const userId = created.userId!
     const session = async () => client!.query("insert into private_auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 day')", [randomUUID(), userId])

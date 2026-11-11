@@ -1,15 +1,12 @@
 import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
 import { applySecurityHeaders } from '@/lib/security-headers'
 import { ensureTraceHeaders } from '@/lib/tracing'
-import { isPostgresBackend } from '@/lib/backend'
+import { updatePostgresSession } from '@/lib/postgres/middleware'
 
 export async function proxy(request: NextRequest) {
   ensureTraceHeaders(request.headers)
 
-  const response = isPostgresBackend()
-    ? await (await import('@/lib/postgres/middleware')).updatePostgresSession(request)
-    : await updateSession(request)
+  const response = await updatePostgresSession(request)
 
   return applySecurityHeaders(request, response)
 }
@@ -23,7 +20,7 @@ export const config = {
      * - favicon.ico (favicon file)
      *
      * Explicit public asset directories are intentionally matched here and
-     * allowed by updateSession's narrow static-asset allowlist.
+     * allowed by PostgreSQL session middleware's narrow static-asset allowlist.
      */
     '/((?!_next/static(?:/|$)|_next/image(?:/|$)|favicon\\.ico$).*)',
   ],

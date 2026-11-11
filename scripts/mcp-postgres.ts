@@ -36,7 +36,7 @@ export function createPostgresMcp(env: NodeJS.ProcessEnv) {
           await tx.execute(sql`select set_config('app.user_id', ${profileId.data}, true)`)
           const actor = await tx.execute(sql`select role from public.profiles where id = ${profileId.data}::uuid and is_active for share`)
           if (!actor.rows.length) throw new McpInputError('The configured MCP profile is missing or inactive.')
-          if (writing && !['admin', 'staff'].includes(String(actor.rows[0].role))) throw new McpInputError('The configured MCP profile cannot modify items.')
+          if (writing && String(actor.rows[0].role) !== 'admin') throw new McpInputError('The configured MCP profile cannot modify items.')
           if (name === 'list_categories' || name === 'list_locations') {
             z.strictObject({}).parse(args)
             const table = name === 'list_categories' ? sql`public.categories` : sql`public.locations`

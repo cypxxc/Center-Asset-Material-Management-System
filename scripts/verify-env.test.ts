@@ -6,13 +6,13 @@ import path from 'node:path'
 
 import { getMissingEnvVars, verifyEnv } from './verify-env'
 
-test('uses safe fallback values for CI when Supabase secrets are missing', () => {
-  const missing = getMissingEnvVars({ CI: 'true', DATA_BACKEND: 'supabase' } as unknown as NodeJS.ProcessEnv)
+test('uses safe fallback values for CI when PostgreSQL secrets are missing', () => {
+  const missing = getMissingEnvVars({ CI: 'true' } as unknown as NodeJS.ProcessEnv)
 
   assert.deepEqual(missing, [])
 })
 
-test('still reports missing env vars for local runs', () => {
+test('reports missing env vars for local runs', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-env-'))
   const originalCwd = process.cwd()
   process.chdir(tempDir)
@@ -21,9 +21,9 @@ test('still reports missing env vars for local runs', () => {
     const missing = getMissingEnvVars({ CI: 'false' } as unknown as NodeJS.ProcessEnv)
 
     assert.deepEqual(missing, [
-      'NEXT_PUBLIC_SUPABASE_URL',
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-      'SUPABASE_SERVICE_ROLE_KEY',
+      'DATABASE_URL',
+      'DATABASE_AUTH_URL',
+      'LOCAL_STORAGE_PATH',
     ])
   } finally {
     process.chdir(originalCwd)
@@ -31,7 +31,7 @@ test('still reports missing env vars for local runs', () => {
   }
 })
 
-test('verifyEnv rejects invalid URL formats', () => {
+test('verifyEnv rejects invalid PostgreSQL URL formats', () => {
   let exitCode: number | null = null
   const originalExit = process.exit
   // @ts-expect-error - mock exit
@@ -39,11 +39,10 @@ test('verifyEnv rejects invalid URL formats', () => {
 
   try {
     verifyEnv({
-      DATA_BACKEND: 'supabase',
-      NEXT_PUBLIC_SUPABASE_URL: 'invalid-url',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'valid-long-anon-key-string-value-here',
-      SUPABASE_SERVICE_ROLE_KEY: 'valid-long-service-key-string-value-here',
-      CI: 'true',
+      DATABASE_URL: 'invalid-url',
+      DATABASE_AUTH_URL: 'postgres://camms:password@127.0.0.1:5432/camms',
+      LOCAL_STORAGE_PATH: './files',
+      CI: 'false',
     })
     assert.strictEqual(exitCode, 1)
   } finally {
@@ -51,7 +50,7 @@ test('verifyEnv rejects invalid URL formats', () => {
   }
 })
 
-test('verifyEnv rejects short tokens', () => {
+test('verifyEnv rejects PostgreSQL URL without credentials or pathname', () => {
   let exitCode: number | null = null
   const originalExit = process.exit
   // @ts-expect-error - mock exit
@@ -59,11 +58,10 @@ test('verifyEnv rejects short tokens', () => {
 
   try {
     verifyEnv({
-      DATA_BACKEND: 'supabase',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'short',
-      SUPABASE_SERVICE_ROLE_KEY: 'valid-long-service-key-string-value-here',
-      CI: 'true',
+      DATABASE_URL: 'postgres://localhost/',
+      DATABASE_AUTH_URL: 'postgres://camms:password@127.0.0.1:5432/camms',
+      LOCAL_STORAGE_PATH: './files',
+      CI: 'false',
     })
     assert.strictEqual(exitCode, 1)
   } finally {
@@ -71,6 +69,6 @@ test('verifyEnv rejects short tokens', () => {
   }
 })
 
-test('PostgreSQL validation requires its own settings without Supabase', () => {
-  assert.deepEqual(getMissingEnvVars({ DATA_BACKEND: 'postgres', DATABASE_URL: 'postgres://app:password@localhost/db', DATABASE_AUTH_URL: 'postgres://auth:password@localhost/db', LOCAL_STORAGE_PATH: './files' }), [])
+test('PostgreSQL validation passes when all settings are valid', () => {
+  assert.deepEqual(getMissingEnvVars({ DATABASE_URL: 'postgres://app:password@localhost/db', DATABASE_AUTH_URL: 'postgres://auth:password@localhost/db', LOCAL_STORAGE_PATH: './files' }), [])
 })

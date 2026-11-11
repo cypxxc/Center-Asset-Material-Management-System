@@ -52,12 +52,12 @@ function renderRow(props: Partial<ItemTableRowProps> = {}) {
   return { ...result, getSelected: () => selected, getChecked: () => checked }
 }
 
-test('ItemTableRow: renders compound item name, asset badge, and thumbnail', () => {
+test('ItemTableRow: renders clean item name, asset badge, and thumbnail without item type badge in table', () => {
   renderRow()
 
   assert.ok(screen.getByText('คอมพิวเตอร์ตั้งโต๊ะ All-in-One Dell Inspiron'))
   assert.ok(screen.getByText('EQ-2026-050'))
-  assert.ok(screen.getByTitle(/ประเภท/))
+  assert.equal(screen.queryByTitle(/ประเภท/), null, 'item type badge should NOT be in table')
   assert.ok(screen.getByText('• Dell Inspiron 24'))
   assert.ok(screen.getByTestId('item-thumbnail'))
   assert.ok(screen.getByText('5'))
@@ -65,10 +65,11 @@ test('ItemTableRow: renders compound item name, asset badge, and thumbnail', () 
   assert.ok(screen.getByText('ห้องปฏิบัติการ 2'))
 })
 
-test('ItemTableRow: material records display their item type', () => {
+test('ItemTableRow: material records do not render type or qualification badges in table', () => {
   renderRow({ item: { ...mockItem, item_type: 'material', asset_no: null } })
 
-  assert.ok(screen.getByTitle(/ประเภท/))
+  assert.equal(screen.queryByTitle(/ประเภท/), null)
+  assert.equal(screen.queryByTitle('สถานะตามเกณฑ์'), null)
 })
 
 test('ItemTableRow: clicking checkbox calls onToggleSelectItem and stops propagation to onSelect', () => {
@@ -134,17 +135,15 @@ test('ItemTableRow: responsive column classes when isInspectorOpen is false', ()
   )
 
   const cells = container.querySelectorAll('td')
-  // Cell 3: Item Type
-  assert.ok(cells[3].classList.contains('sm:table-cell'), 'type cell visible from sm when inspector closed')
-  assert.equal(cells[3].classList.contains('xl:table-cell'), false)
+  assert.equal(cells.length, 8, 'table row should have exactly 8 cells (type and qualification columns removed)')
 
-  // Cell 4: Category
-  assert.ok(cells[4].classList.contains('md:table-cell'), 'category cell visible from md when inspector closed')
-  assert.equal(cells[4].classList.contains('2xl:table-cell'), false)
+  // Cell 3: Category
+  assert.ok(cells[3].classList.contains('md:table-cell'), 'category cell visible from md when inspector closed')
+  assert.equal(cells[3].classList.contains('2xl:table-cell'), false)
 
-  // Cell 7: Responsible Person
-  assert.ok(cells[7].classList.contains('xl:table-cell'), 'responsible person cell visible from xl when inspector closed')
-  assert.equal(cells[7].classList.contains('2xl:table-cell'), false)
+  // Cell 6: Responsible Person
+  assert.ok(cells[6].classList.contains('xl:table-cell'), 'responsible person cell visible from xl when inspector closed')
+  assert.equal(cells[6].classList.contains('2xl:table-cell'), false)
 })
 
 test('ItemTableRow: responsive column classes collapse when isInspectorOpen is true', () => {
@@ -164,17 +163,15 @@ test('ItemTableRow: responsive column classes collapse when isInspectorOpen is t
   )
 
   const cells = container.querySelectorAll('td')
-  // Cell 3: Item Type
-  assert.ok(cells[3].classList.contains('xl:table-cell'), 'type cell collapses to xl when inspector open')
-  assert.equal(cells[3].classList.contains('sm:table-cell'), false)
+  assert.equal(cells.length, 8, 'table row should have exactly 8 cells (type and qualification columns removed)')
 
-  // Cell 4: Category
-  assert.ok(cells[4].classList.contains('2xl:table-cell'), 'category cell collapses to 2xl when inspector open')
-  assert.equal(cells[4].classList.contains('md:table-cell'), false)
+  // Cell 3: Category
+  assert.ok(cells[3].classList.contains('2xl:table-cell'), 'category cell collapses to 2xl when inspector open')
+  assert.equal(cells[3].classList.contains('md:table-cell'), false)
 
-  // Cell 7: Responsible Person
-  assert.ok(cells[7].classList.contains('2xl:table-cell'), 'responsible person cell collapses to 2xl when inspector open')
-  assert.equal(cells[7].classList.contains('xl:table-cell'), false)
+  // Cell 6: Responsible Person
+  assert.ok(cells[6].classList.contains('2xl:table-cell'), 'responsible person cell collapses to 2xl when inspector open')
+  assert.equal(cells[6].classList.contains('xl:table-cell'), false)
 })
 
 test('ItemTableRow: clicking copy asset badge calls onCopy and stops propagation', () => {

@@ -1,6 +1,7 @@
+import '../setup/dom'
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { MemoryRateLimiter, getRateLimiter, checkRateLimit } from '@/lib/rate-limit'
+import { MemoryRateLimiter, PostgresRateLimiter, getRateLimiter, checkRateLimit } from '@/lib/rate-limit'
 
 test('MemoryRateLimiter enforces sliding window limits', async () => {
   const limiter = new MemoryRateLimiter()
@@ -22,11 +23,11 @@ test('MemoryRateLimiter enforces sliding window limits', async () => {
   assert.ok(r3.reset > Date.now())
 })
 
-test('getRateLimiter returns MemoryRateLimiter singleton', () => {
+test('getRateLimiter returns PostgresRateLimiter singleton', () => {
   const limiter1 = getRateLimiter()
   const limiter2 = getRateLimiter()
   assert.strictEqual(limiter1, limiter2)
-  assert.ok(limiter1 instanceof MemoryRateLimiter)
+  assert.ok(limiter1 instanceof PostgresRateLimiter)
 })
 
 test('checkRateLimit returns success: true outside request context (graceful fallback)', async () => {

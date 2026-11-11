@@ -17,9 +17,9 @@ export function localPostgresConfig(env: Record<string, string | undefined>) {
   }
 }
 
-export function withoutSupabase(env: Record<string, string | undefined>): Record<string, string | undefined> {
+export function isolatedEnvironment(env: Record<string, string | undefined>): Record<string, string | undefined> {
   return Object.fromEntries(Object.entries(env).filter(([key]) => {
     const name = key.toUpperCase()
-    return !name.includes('SUPABASE') && !name.startsWith('PG') && !name.startsWith('POSTGRES_') && !name.includes('DATABASE_URL') && !name.startsWith('COMPOSE_')
+    return !name.startsWith('PG') && !name.startsWith('POSTGRES_') && !name.includes('DATABASE_URL') && !name.startsWith('COMPOSE_')
   }))
 }

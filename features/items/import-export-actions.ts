@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
 import { stripBom, normalizeForStorage, normalizeForSearch } from '@/lib/unicode'
@@ -9,12 +8,10 @@ import { logger } from '@/lib/logging'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { startTimer } from '@/lib/performance'
-import { writeAuditLog } from '@/lib/audit'
 import { handleActionError } from '@/lib/error-handler'
 import { metrics } from '@/lib/metrics'
 import { getRequestContext, withTraceContext } from '@/lib/tracing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
-import { isPostgresBackend } from '@/lib/backend'
 import { importPostgresItems } from './postgres-actions'
 import { requireEditor } from './auth-guard'
 import { parseDateThaiBEToISO } from '@/lib/date'
@@ -424,11 +421,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       return errorResponse('ไม่พบแถวข้อมูลที่สามารถนำเข้าได้')
     }
 
-    const supabase = isPostgresBackend() ? null : await createClient()
-    const { data, error } = isPostgresBackend() ? await importPostgresItems(itemsToInsert) : await supabase!.rpc('import_items_bulk_tx', {
-      items_json: itemsToInsert,
-      creator_id: auth.profile.id,
-    })
+    const { data, error } = await importPostgresItems(itemsToInsert)
 
     if (error) {
       logger.error({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id }, error)
@@ -443,15 +436,6 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       logger.warn({ operation: 'importItemsBulk', feature: 'items', userId: auth.profile.id, details: res.error })
       return errorResponse('เกิดข้อผิดพลาดขณะนำเข้าข้อมูล: ' + (res.error || 'ข้อผิดพลาดภายใน'))
     }
-
-    // PostgreSQL records each row through database audit triggers.
-    if (!isPostgresBackend()) await writeAuditLog({
-      operation: 'import',
-      feature: 'items',
-      userId: auth.profile.id,
-      targetType: 'items',
-      newValues: { count: res.count },
-    })
 
     const durationMs = timer.stop()
     const ctx = await getRequestContext(auth.profile.id)

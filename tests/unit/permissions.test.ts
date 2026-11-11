@@ -12,7 +12,7 @@ test('permissions helper identify correct roles', () => {
 
 test('permissions helper determine correct write rights', () => {
   assert.equal(canWrite('admin'), true);
-  assert.equal(canWrite('staff'), true);
+  assert.equal(canWrite('staff'), false);
   assert.equal(canWrite('viewer'), false);
   assert.equal(canWrite(null), false);
 });
@@ -25,6 +25,6 @@ test('permissions helper determine correct delete rights', () => {
 
 test('permissions helper determine correct settings management rights', () => {
   assert.equal(canManageSettings('admin'), true);
-  assert.equal(canManageSettings('staff'), true);
+  assert.equal(canManageSettings('staff'), false);
   assert.equal(canManageSettings('viewer'), false);
 });

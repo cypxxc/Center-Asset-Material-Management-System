@@ -58,7 +58,7 @@ test('importPostgresItems detects intra-file duplicate asset numbers and reports
   assert.match(res.error.message, /ตรงกับแถวที่ 1: \(โต๊ะทำงาน A\)/)
 })
 
-test('importPostgresItems detects collisions against existing database records and lists details', async (t) => {
+test('importPostgresItems detects collisions against existing database records and lists details', { skip: process.env.POSTGRES_LIVE_TEST !== '1' }, async (t) => {
   if (!process.env.DATABASE_URL) {
     t.skip('Skipping live database test when DATABASE_URL is not set')
     return

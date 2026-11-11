@@ -66,11 +66,6 @@ const ROLE_CONFIG: Record<
     badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
     icon: <ShieldCheck className="w-3.5 h-3.5 mr-1 text-blue-600" />,
   },
-  staff: {
-    label: 'เจ้าหน้าที่ (Staff)',
-    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
-    icon: <Shield className="w-3.5 h-3.5 mr-1 text-emerald-600" />,
-  },
   viewer: {
     label: 'ผู้เข้าชม (Viewer)',
     badgeClass: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700',
@@ -80,7 +75,6 @@ const ROLE_CONFIG: Record<
 
 const ROLE_FILTER_OPTIONS: FilterOption[] = [
   { value: 'admin', label: 'ผู้ดูแลระบบ (Admin)', icon: <ShieldCheck className="h-3.5 w-3.5 text-blue-500" /> },
-  { value: 'staff', label: 'เจ้าหน้าที่ (Staff)', icon: <Shield className="h-3.5 w-3.5 text-emerald-500" /> },
   { value: 'viewer', label: 'ผู้เข้าชม (Viewer)', icon: <Eye className="h-3.5 w-3.5 text-slate-500" /> },
 ]
 
@@ -119,14 +113,14 @@ export default function UsersClient({
     full_name: '',
     email: '',
     password: '',
-    role: 'staff' as 'admin' | 'staff' | 'viewer',
+    role: 'viewer' as 'admin' | 'viewer',
     is_active: true,
   })
 
   // Role/Status Edit Confirmation
   const [pendingRoleStatusUpdate, setPendingRoleStatusUpdate] = useState<{
     profile: ProfileListItem
-    newRole?: 'admin' | 'staff' | 'viewer'
+    newRole?: 'admin' | 'viewer'
     newStatus?: boolean
   } | null>(null)
 
@@ -145,7 +139,6 @@ export default function UsersClient({
   const totalCount = initialTotalCount
   const activeCount = initialProfiles.filter((p) => p.is_active).length
   const adminCount = initialProfiles.filter((p) => p.role === 'admin').length
-  const staffCount = initialProfiles.filter((p) => p.role === 'staff').length
   const viewerCount = initialProfiles.filter((p) => p.role === 'viewer').length
 
   // Quick Action Handlers
@@ -196,7 +189,7 @@ export default function UsersClient({
           full_name: '',
           email: '',
           password: '',
-          role: 'staff',
+          role: 'viewer',
           is_active: true,
         })
         router.refresh()
@@ -317,7 +310,7 @@ export default function UsersClient({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ผู้ใช้งานทั้งหมด</p>
           <p className="mt-1 text-xl font-extrabold text-slate-900 dark:text-slate-100">{totalCount}</p>
@@ -329,10 +322,6 @@ export default function UsersClient({
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
           <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">ผู้ดูแล (Admin)</p>
           <p className="mt-1 text-xl font-extrabold text-blue-700 dark:text-blue-400">{adminCount}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">เจ้าหน้าที่ (Staff)</p>
-          <p className="mt-1 text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{staffCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ผู้เข้าชม (Viewer)</p>
@@ -478,7 +467,7 @@ export default function UsersClient({
                       value={user.role}
                       disabled={isPending}
                       onChange={(e) => {
-                        const newRole = e.target.value as 'admin' | 'staff' | 'viewer'
+                      const newRole = e.target.value as 'admin' | 'viewer'
                         if (newRole !== user.role) {
                           setPendingRoleStatusUpdate({
                             profile: user,
@@ -490,7 +479,6 @@ export default function UsersClient({
                       className="h-8 rounded-lg border border-input bg-card px-2 text-xs font-semibold text-foreground focus:border-ring focus:outline-none cursor-pointer"
                     >
                       <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-                      <option value="staff">เจ้าหน้าที่ (Staff)</option>
                       <option value="viewer">ผู้เข้าชม (Viewer)</option>
                     </select>
                   )}
@@ -510,7 +498,6 @@ export default function UsersClient({
                       onClick={() => {
                         setPendingRoleStatusUpdate({
                           profile: user,
-                          newRole: user.role,
                           newStatus: !user.is_active,
                         })
                       }}
@@ -676,10 +663,9 @@ export default function UsersClient({
                 </label>
                 <select
                   value={createForm.role}
-                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'admin' | 'staff' | 'viewer' })}
+                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'admin' | 'viewer' })}
                   className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
                 >
-                  <option value="staff">เจ้าหน้าที่ (Staff) — บันทึก แก้ไข ขึ้นทะเบียนพัสดุ</option>
                   <option value="viewer">ผู้เข้าชม (Viewer) — ดูข้อมูลและรายงานเท่านั้น</option>
                   <option value="admin">ผู้ดูแลระบบ (Admin) — สิทธิ์เต็มทุกส่วน</option>
                 </select>

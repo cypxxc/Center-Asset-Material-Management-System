@@ -2,7 +2,7 @@ export interface ProfileListItem {
   id: string
   full_name: string | null
   email: string | null
-  role: 'admin' | 'staff' | 'viewer'
+  role: 'admin' | 'viewer' | 'staff'
   is_active: boolean
   created_at: string
   updated_at: string | null

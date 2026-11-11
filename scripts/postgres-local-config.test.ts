@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { localPostgresConfig, withoutSupabase } from './postgres-local-config'
+import { localPostgresConfig, isolatedEnvironment } from './postgres-local-config'
 
 const valid = { POSTGRES_USER: 'camms_local', POSTGRES_PASSWORD: 'a-long-test-password', POSTGRES_DB: 'camms_local', POSTGRES_PORT: '55432' }
 
@@ -24,7 +24,7 @@ test('local test refuses URL overrides and nonlocal hosts', () => {
   assert.throws(() => localPostgresConfig({ ...valid, PGHOST: 'remote' }))
 })
 
-test('isolated test strips Supabase and inherited PostgreSQL configuration', () => {
-  const env = withoutSupabase({ PATH: 'keep', NEXT_PUBLIC_SUPABASE_URL: 'secret', SUPABASE_SERVICE_ROLE_KEY: 'secret', DATABASE_URL: 'remote', PGHOST: 'remote' })
+test('isolated test strips inherited PostgreSQL configuration', () => {
+  const env = isolatedEnvironment({ PATH: 'keep', DATABASE_URL: 'remote', PGHOST: 'remote', POSTGRES_USER: 'root' })
   assert.deepEqual(env, { PATH: 'keep' })
 })

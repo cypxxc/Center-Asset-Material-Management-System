@@ -26,13 +26,13 @@ export const searchColumns: Record<AdminTable, readonly string[]> = {
 export const profileUpdateSchema = z.object({
   full_name: z.string().trim().min(1).max(255).optional(),
   display_name: z.string().trim().max(255).nullable().optional(),
-  role: z.enum(['admin', 'staff', 'viewer']).optional(),
+  role: z.string().refine((role) => role === 'admin' || role === 'viewer').optional(),
   is_active: z.boolean().optional(),
 }).strict()
 export const newUserSchema = z.object({
   full_name: z.string().trim().min(1).max(255),
   display_name: z.string().trim().max(255).nullable().optional(),
-  role: z.enum(['admin', 'staff', 'viewer']),
+  role: z.string().refine((role) => role === 'admin' || role === 'viewer'),
   is_active: z.boolean(),
   email: z.string().trim().email().max(320).optional().or(z.literal('')),
   password: z.string().min(6).max(1024),

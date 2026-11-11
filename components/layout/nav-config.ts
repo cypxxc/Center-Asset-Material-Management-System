@@ -1,6 +1,5 @@
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'ผู้ดูแลระบบ',
-  staff: 'เจ้าหน้าที่',
   viewer: 'ผู้เข้าชม',
 }
 

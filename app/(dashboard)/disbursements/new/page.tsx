@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { canWrite } from '@/lib/permissions'
+import { canCreateDisbursement } from '@/lib/permissions'
 import { getDisbursementSelectableItems } from '@/features/disbursements/queries'
 import { DisbursementDraftFormClient } from '@/features/disbursements/components/disbursement-draft-form-client'
 import { PageContainer } from '@/components/ui/page-container'
@@ -17,7 +17,7 @@ export default async function NewDisbursementPage({ searchParams }: NewDisbursem
   if (!profile?.is_active) {
     redirect('/login')
   }
-  if (!canWrite(profile.role)) {
+  if (!canCreateDisbursement(profile.role)) {
     redirect('/disbursements')
   }
 
@@ -39,6 +39,7 @@ export default async function NewDisbursementPage({ searchParams }: NewDisbursem
         availableItems={availableItems}
         initialItemIds={preselectedItemIds}
         initialType={initialType}
+        userRole={profile.role}
       />
     </PageContainer>
   )

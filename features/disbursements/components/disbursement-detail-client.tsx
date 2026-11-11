@@ -38,9 +38,10 @@ import { generateDisbursementVoucherHtml } from '@/features/disbursements/print-
 interface DetailClientProps {
   doc: DisbursementRow & { items: DisbursementItemRow[] }
   canMutate: boolean
+  canRequest: boolean
 }
 
-export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) {
+export function DisbursementDetailClient({ doc, canMutate, canRequest }: DetailClientProps) {
   const router = useRouter()
 
   const [isLoading, setIsLoading] = useState(false)
@@ -69,6 +70,8 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
   const isDraft = doc.status === 'draft'
   const isPendingApproval = doc.status === 'pending_approval'
   const isBorrow = doc.transaction_type === 'asset_borrow'
+  const isMaterialIssue = doc.transaction_type === 'material_issue'
+  const canConfirm = canMutate || (canRequest && isDraft && isMaterialIssue)
   const isConfirmedOrActive = ['confirmed', 'active_borrow'].includes(doc.status)
   const canReturn = canMutate && isBorrow && ['active_borrow', 'partially_returned'].includes(doc.status)
 
@@ -235,7 +238,7 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
               </Button>
             )}
 
-            {canMutate && isDraft && (
+            {(canMutate || canRequest) && isDraft && (
               <>
                 <Button variant="outline" size="sm" asChild className="shadow-xs">
                   <Link href={`/disbursements/${doc.id}/edit`}>
@@ -253,14 +256,14 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                   <span>ยกเลิกร่าง</span>
                 </Button>
 
-                <Button
+                {canConfirm && <Button
                   size="sm"
                   onClick={() => setConfirmModalOpen(true)}
                   className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>ยืนยันการเบิก-จ่าย</span>
-                </Button>
+                  <span>{canRequest && !canMutate ? 'ส่งคำขอเบิก' : 'จ่ายและยืนยัน'}</span>
+                </Button>}
               </>
             )}
 
@@ -282,7 +285,7 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
                   className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>อนุมัติคำขอยืม</span>
+                  <span>อนุมัติและจ่าย</span>
                 </Button>
               </>
             )}
@@ -512,7 +515,7 @@ export function DisbursementDetailClient({ doc, canMutate }: DetailClientProps) 
         onConfirm={handleConfirm}
         isPending={isLoading}
         title="ยืนยันการเบิก-จ่ายพัสดุ"
-        description="เมื่อยืนยันแล้ว ระบบจะทำการตัดสต็อก หรือเปลี่ยนผู้รับผิดชอบครุภัณฑ์ทันที และจะออกเลขที่เอกสารทางการซึ่งไม่สามารถลบได้ คุณต้องการดำเนินการต่อหรือไม่?"
+        description="เมื่อยืนยันแล้ว ระบบจะตัดสต็อกหรือบันทึกการส่งมอบทันที และออกเลขที่เอกสารทางการ คุณต้องการดำเนินการต่อหรือไม่?"
         confirmText="ยืนยันทำรายการ"
         cancelText="ยกเลิก"
       />

@@ -9,6 +9,16 @@ export const itemQualificationStatuses: readonly ItemQualificationFilter[] = ['q
 const sortColumns = ['updated_at', 'item_name', 'category', 'item_type', 'quantity', 'status', 'acquired_date', 'budget_source', 'unit_price', 'asset_no', 'gfmis_number', 'responsible_person'] as const
 export type ItemSortColumn = typeof sortColumns[number]
 export type ItemSortDirection = 'asc' | 'desc'
+export const ascSortColumns: readonly ItemSortColumn[] = [
+  'item_name',
+  'category',
+  'item_type',
+  'acquired_date',
+  'budget_source',
+  'asset_no',
+  'gfmis_number',
+  'responsible_person',
+]
 export interface NormalizedItemListSearchParams {
   q: string
   type: ItemType | null
@@ -25,7 +35,7 @@ export function normalizeItemListSearchParams(params: ItemListSearchParams): Nor
   const sort_by = sortColumns.includes(params.sort_by as ItemSortColumn) ? params.sort_by as ItemSortColumn : 'updated_at'
   const sort_dir: ItemSortDirection = params.sort_dir === 'asc' || params.sort_dir === 'desc'
     ? params.sort_dir
-    : (['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(sort_by) ? 'asc' : 'desc')
+    : (ascSortColumns.includes(sort_by) ? 'asc' : 'desc')
   return {
     // Keep displayed rows aligned with the existing all-matching bulk actions.
     q: normalizeForSearch(params.q ?? '').replaceAll(',', ' '),

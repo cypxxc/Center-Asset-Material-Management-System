@@ -140,17 +140,25 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
   const parsedPage = Number(params.page ?? '1')
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1
   const columns: Record<string, SQL> = {
-    item_name: sql`i.item_name`,
+    item_name: sql`i.item_name collate "th-TH-x-icu"`,
     category: sql`c.name collate "th-TH-x-icu"`,
     item_type: sql`i.item_type`,
     quantity: sql`i.quantity`,
-    status: sql`i.status`,
+    status: sql`case i.status
+      when 'active' then 'ใช้งานอยู่'
+      when 'spare' then 'สำรอง'
+      when 'waiting_repair' then 'รอซ่อม'
+      when 'damaged' then 'ชำรุด'
+      when 'inactive' then 'ไม่ใช้งาน'
+      when 'disposed' then 'จำหน่ายแล้ว'
+      else i.status
+    end collate "th-TH-x-icu"`,
     acquired_date: sql`i.acquired_date`,
-    budget_source: sql`i.budget_source`,
+    budget_source: sql`i.budget_source collate "th-TH-x-icu"`,
     unit_price: sql`i.unit_price`,
     asset_no: sql`i.asset_no`,
     gfmis_number: sql`i.gfmis_number`,
-    responsible_person: sql`i.responsible_person`,
+    responsible_person: sql`i.responsible_person collate "th-TH-x-icu"`,
   }
   const sortBy = params.sort_by ?? ''
   const order = Object.hasOwn(columns, sortBy) ? columns[sortBy] : sql`i.updated_at`
@@ -171,7 +179,7 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
       from public.items i where ${classificationWhere}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url
       from public.items i ${itemRelations} where ${where}
-      order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.id limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
+      order by ${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`} limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
     const total = totals.rows[0]?.total ?? 0
     const assets = totals.rows[0]?.assets ?? 0
     const materials = totals.rows[0]?.materials ?? 0

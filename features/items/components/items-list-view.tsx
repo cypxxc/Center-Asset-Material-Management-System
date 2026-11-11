@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/data-table'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ITEM_QUALIFICATION_LABELS, ITEM_TYPE_LABELS, type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
+import { type ItemListRow, type ItemListSearchParams } from '@/features/items/types'
+import { ascSortColumns, type ItemSortColumn } from '@/features/items/list-params'
 import { cn } from '@/lib/utils'
 import { ItemThumbnail } from './item-thumbnail'
 import { CategoryBadge } from './category-badge'
@@ -42,32 +43,7 @@ export interface ItemsListProps {
   onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
 }
 
-function ClassificationBadge({ itemType, compact = false }: { itemType: ItemListRow['item_type']; compact?: boolean }) {
-  const isAsset = itemType === 'asset'
-  const label = ITEM_TYPE_LABELS[itemType]
-  const fullLabel = `ประเภท${label}`
 
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded border font-semibold shrink-0 select-none',
-        compact ? 'px-1 py-0.5 text-[9px]' : 'px-1.5 py-0.5 text-[10px]',
-        isAsset
-          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
-          : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25'
-      )}
-      title={fullLabel}
-      aria-label={fullLabel}
-    >
-      {label}
-    </span>
-  )
-}
-
-function QualificationBadge({ status }: { status: ItemListRow['qualification_status'] }) {
-  if (!status) return null
-  return <span className="inline-flex items-center rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 shrink-0" title="สถานะตามเกณฑ์">{ITEM_QUALIFICATION_LABELS[status]}</span>
-}
 
 export function ItemsList({
   items,
@@ -97,40 +73,59 @@ export function ItemsList({
   }, [selectedItemIds.length, allLoadedSelected])
 
   const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
-    const currentField = params.sort_by || 'updated_at'
-    const currentDir = params.sort_dir || 'desc'
-    const isSorted = currentField === field
+    const isSorted = Boolean(params.sort_by && params.sort_by === field)
+    const currentDir = isSorted ? (params.sort_dir || 'asc') : null
 
-    const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : ''
+    const isAscDefault = ascSortColumns.includes(field as ItemSortColumn)
+    const initialDir: 'asc' | 'desc' = isAscDefault ? 'asc' : 'desc'
+    const oppositeDir: 'asc' | 'desc' = initialDir === 'asc' ? 'desc' : 'asc'
+
+    let nextActionText = ''
+    if (!isSorted) {
+      nextActionText = initialDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
+    } else if (currentDir === initialDir) {
+      nextActionText = oppositeDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
+    } else {
+      nextActionText = 'ยกเลิกการจัดเรียง (กลับสู่ค่าเริ่มต้น)'
+    }
+
+    const currentSortText = isSorted
+      ? (currentDir === 'asc' ? 'กำลังเรียงจากน้อยไปมาก' : 'กำลังเรียงจากมากไปน้อย')
+      : 'ยังไม่ได้จัดเรียง'
+
+    const ariaLabel = `จัดเรียงตาม ${label} (${currentSortText}, กดเพื่อ${nextActionText})`
+    const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : 'justify-start w-full'
 
     return (
       <button
         type="button"
         onClick={() => onToggleSort(field)}
+        aria-label={ariaLabel}
+        title={ariaLabel}
         className={cn(
           "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
+          isSorted && "text-foreground",
           alignClass
         )}
       >
         <span>{label}</span>
         {isSorted ? (
           currentDir === 'asc' ? (
-            <ArrowUp className="w-3 h-3 text-primary shrink-0" />
+            <ArrowUp className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
           ) : (
-            <ArrowDown className="w-3 h-3 text-primary shrink-0" />
+            <ArrowDown className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
           )
         ) : (
-          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" aria-hidden="true" />
         )}
       </button>
     )
   }
 
   const getSortAria = (field: string): 'ascending' | 'descending' | 'none' => {
-    const currentField = params.sort_by || 'updated_at'
-    const currentDir = params.sort_dir || 'desc'
-    if (currentField !== field) return 'none'
-    return currentDir === 'asc' ? 'ascending' : 'descending'
+    if (!params.sort_by || params.sort_by !== field) return 'none'
+    return params.sort_dir === 'asc' ? 'ascending' : 'descending'
   }
 
   const isLedger = mode === 'ledger'
@@ -143,7 +138,7 @@ export function ItemsList({
             <h3 className="font-bold text-sm text-foreground">
               ทะเบียนคุมสินทรัพย์
             </h3>
-            <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ</p>
+            <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
             <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
@@ -160,7 +155,7 @@ export function ItemsList({
         className={cn(
           "text-card-foreground table-fixed min-w-0",
           isLedger
-            ? "w-max min-w-[1880px]"
+            ? "w-max min-w-[1924px]"
             : isInspectorOpen
               ? "w-full min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
               : "w-full min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
@@ -171,7 +166,7 @@ export function ItemsList({
           <colgroup>
             <col style={{ width: '40px' }} />
             <col style={{ width: '48px' }} />
-            <col style={{ width: '256px' }} />
+            <col style={{ width: '300px' }} />
             <col style={{ width: '112px' }} />
             <col style={{ width: '128px' }} />
             <col style={{ width: '224px' }} />
@@ -202,7 +197,7 @@ export function ItemsList({
                   />
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-12 px-2 text-center align-middle font-bold text-muted-foreground">ลำดับ</DataTableHead>
-                <DataTableHead rowSpan={2} className="w-64 min-w-[200px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
+                <DataTableHead rowSpan={2} className="w-[300px] min-w-[280px] max-w-[320px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
                   {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-28 px-2 text-center align-middle font-bold text-muted-foreground" aria-sort={getSortAria('acquired_date')}>
@@ -226,15 +221,15 @@ export function ItemsList({
                   {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
-                <DataTableHead colSpan={3} className="w-[184px] text-center font-bold text-muted-foreground border-l border-r border-border/60 py-1 bg-muted/40 text-xs">
+                <DataTableHead colSpan={3} scope="colgroup" className="w-[184px] text-center font-bold text-muted-foreground border-l border-r border-border/60 py-1 bg-muted/40 text-xs">
                   สภาพพัสดุ
                 </DataTableHead>
                 <DataTableHead rowSpan={2} className="w-[120px] px-2.5 align-middle font-bold text-muted-foreground">หมายเหตุ</DataTableHead>
               </tr>
               <tr className="border-b border-border/80 text-[11px]">
-                <DataTableHead className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-l border-border/40 py-1">ใช้งานได้</DataTableHead>
-                <DataTableHead className="w-14 px-1 text-center font-semibold text-muted-foreground text-[11px] py-1">ชำรุด</DataTableHead>
-                <DataTableHead className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-r border-border/40 py-1">เสื่อมสภาพ</DataTableHead>
+                <DataTableHead scope="col" className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-l border-border/40 py-1">ใช้งานได้</DataTableHead>
+                <DataTableHead scope="col" className="w-14 px-1 text-center font-semibold text-muted-foreground text-[11px] py-1">ชำรุด</DataTableHead>
+                <DataTableHead scope="col" className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-r border-border/40 py-1">เสื่อมสภาพ</DataTableHead>
               </tr>
             </>
           ) : (
@@ -250,12 +245,11 @@ export function ItemsList({
                 />
               </DataTableHead>
               <DataTableHead className="w-11 px-1" />
-              <DataTableHead className="w-[300px] min-w-[300px] max-w-[320px] px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อพัสดุและรหัส')}</DataTableHead>
-              <DataTableHead className={cn("hidden w-20 px-2.5", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")}>ประเภท</DataTableHead>
-              <DataTableHead className={cn("hidden w-44 px-3", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} aria-sort={getSortAria('category')}>{renderSortHeader('category', 'หมวดหมู่')}</DataTableHead>
-              <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
-              <DataTableHead className={cn("w-28 xl:w-36 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
-              <DataTableHead className={cn("hidden w-28 xl:w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
+              <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อสิ่งของ')}</DataTableHead>
+              <DataTableHead className={cn("hidden w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} aria-sort={getSortAria('category')}>{renderSortHeader('category', 'หมวดหมู่')}</DataTableHead>
+              <DataTableHead className="w-20 sm:w-24 px-2 sm:px-2.5 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
+              <DataTableHead className={cn("w-28 xl:w-32 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
+              <DataTableHead className={cn("hidden w-28 xl:w-32 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
               <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
             </tr>
           )}
@@ -282,7 +276,7 @@ export function ItemsList({
               />
             )
           })}
-          {!items.length && <EmptyRows colSpan={isLedger ? 16 : 9} />}
+          {!items.length && <EmptyRows colSpan={isLedger ? 16 : 8} />}
         </DataTableBody>
       </DataTable>
     </div>
@@ -397,30 +391,37 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           </DataTableCell>
 
           {/* รายการครุภัณฑ์ (Asset Name) */}
-          <DataTableCell className="w-64 min-w-[200px] px-3">
-            <div className="flex items-center gap-2 min-w-0">
+          <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
+            <div className="flex items-center gap-2.5 min-w-0 w-full">
               <ItemThumbnail
                 imageUrl={item.image_url}
                 itemName={item.item_name}
                 itemType={item.item_type}
                 size="sm"
-                className={isCompact ? "h-6 w-6 rounded shrink-0" : "h-8 w-8 rounded shrink-0"}
+                className={isCompact ? "h-7 w-7 rounded shrink-0" : "h-8 w-8 rounded shrink-0"}
                 showZoom={!isCompact}
               />
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <span className="truncate text-xs font-semibold text-foreground hover:text-primary transition-colors block" title={item.item_name}>
-                  {item.item_name}
-                </span>
-                <ClassificationBadge itemType={item.item_type} />
-                <QualificationBadge status={item.qualification_status} />
-                {item.is_central && (
+              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden">
+                {/* 1. Item name MUST occupy its own full-width row */}
+                <div className="w-full min-w-0">
                   <span
-                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"
-                    title={item.is_borrowed ? "ทรัพย์สินส่วนกลาง (กำลังถูกยืม)" : "ทรัพย์สินส่วนกลาง (ว่างพร้อมให้ยืม)"}
+                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
+                    title={item.item_name}
                   >
-                    <span className={cn("size-1.5 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
-                    {item.is_borrowed ? "ส่วนกลาง • ถูกยืม" : "ส่วนกลาง"}
+                    {item.item_name}
                   </span>
+                </div>
+
+                {/* Keep Serial Number when available */}
+                {item.serial_no && (
+                  <div className="w-full min-w-0 mt-0.5">
+                    <span
+                      className="truncate font-mono text-[10px] text-muted-foreground block leading-tight"
+                      title={`s/n: ${item.serial_no}`}
+                    >
+                      s/n: {item.serial_no}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -575,30 +576,30 @@ export const ItemTableRow = React.memo(function ItemTableRow({
             />
           </DataTableCell>
 
-          {/* Rich Primary Compound Column: Title, Asset Code Badge, Brand/Model */}
-          <DataTableCell className="w-[300px] min-w-[300px] max-w-[320px] px-3 overflow-hidden">
+          {/* Primary Item Name & Details Column */}
+          <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
             {isCompact ? (
-              <div className="flex flex-col justify-center min-w-0 pr-2">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
+                {/* 1. Item name MUST occupy its own full-width row */}
+                <div className="w-full min-w-0">
                   <span
-                    className="truncate text-xs font-bold text-foreground hover:text-primary transition-colors block"
+                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
                     title={item.item_name}
                   >
                     {item.item_name}
                   </span>
-                  <ClassificationBadge itemType={item.item_type} compact />
-                  {item.qualification_status && <QualificationBadge status={item.qualification_status} />}
                 </div>
+                {/* Keep Serial Number and identifiers when available */}
                 <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
-                  {assetCode ? (
+                  {item.asset_no ? (
                     <button
                       type="button"
                       onClick={handleCopy}
-                      title={`คัดลอก ${assetCode}`}
-                      aria-label={`คัดลอก ${assetCode}`}
+                      title={`คัดลอก ${item.asset_no}`}
+                      aria-label={`คัดลอก ${item.asset_no}`}
                       className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
                     >
-                      <span className="truncate max-w-[120px]">{assetCode}</span>
+                      <span className="truncate max-w-[120px]">{item.asset_no}</span>
                       {copied ? (
                         <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                       ) : (
@@ -611,6 +612,12 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                     </span>
                   )}
 
+                  {item.serial_no && (
+                    <span className="truncate font-mono text-muted-foreground text-[10.5px] shrink-0" title={`s/n: ${item.serial_no}`}>
+                      s/n: {item.serial_no}
+                    </span>
+                  )}
+
                   {brandModel && (
                     <span className="truncate text-muted-foreground text-[10.5px] leading-none" title={brandModel}>
                       • {brandModel}
@@ -619,37 +626,28 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col justify-center min-w-0 pr-2">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
+                {/* 1. Item name MUST occupy its own full-width row */}
+                <div className="w-full min-w-0">
                   <span
-                    className="truncate text-[13.5px] font-bold text-foreground hover:text-primary transition-colors leading-5 block"
+                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-5"
                     title={item.item_name}
                   >
                     {item.item_name}
                   </span>
-                  <ClassificationBadge itemType={item.item_type} />
-                  <QualificationBadge status={item.qualification_status} />
-                  {item.is_central && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 select-none"
-                      title={item.is_borrowed ? "ทรัพย์สินส่วนกลาง (กำลังถูกยืม)" : "ทรัพย์สินส่วนกลาง (ว่างพร้อมให้ยืม)"}
-                    >
-                      <span className={cn("size-1.5 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
-                      {item.is_borrowed ? "ส่วนกลาง • ถูกยืม" : "ส่วนกลาง"}
-                    </span>
-                  )}
                 </div>
 
+                {/* Keep Serial Number and identifiers when available */}
                 <div className="mt-1 flex items-center gap-2 min-w-0 text-xs leading-none">
-                  {assetCode ? (
+                  {item.asset_no ? (
                     <button
                       type="button"
                       onClick={handleCopy}
-                      title={`คัดลอก ${assetCode}`}
-                      aria-label={`คัดลอก ${assetCode}`}
+                      title={`คัดลอก ${item.asset_no}`}
+                      aria-label={`คัดลอก ${item.asset_no}`}
                       className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge"
                     >
-                      <span className="truncate">{assetCode}</span>
+                      <span className="truncate">{item.asset_no}</span>
                       {copied ? (
                         <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                       ) : (
@@ -659,6 +657,12 @@ export const ItemTableRow = React.memo(function ItemTableRow({
                   ) : (
                     <span className="text-[11px] font-medium text-muted-foreground/60 italic shrink-0">
                       ไม่มีเลขครุภัณฑ์
+                    </span>
+                  )}
+
+                  {item.serial_no && (
+                    <span className="truncate font-mono text-muted-foreground text-[11px] shrink-0" title={`s/n: ${item.serial_no}`}>
+                      s/n: {item.serial_no}
                     </span>
                   )}
 
@@ -672,15 +676,8 @@ export const ItemTableRow = React.memo(function ItemTableRow({
             )}
           </DataTableCell>
 
-          {/* Type Column */}
-          <DataTableCell className={cn("hidden w-20 px-2.5 text-xs font-semibold text-muted-foreground", isInspectorOpen ? "xl:table-cell" : "sm:table-cell")}>
-            <span className="inline-flex items-center rounded-lg bg-muted/60 px-2 py-0.5 text-xs border border-border/40 truncate">
-              {ITEM_TYPE_LABELS[item.item_type]}
-            </span>
-          </DataTableCell>
-
           {/* Category Column */}
-          <DataTableCell className={cn("hidden w-44 px-3 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
+          <DataTableCell className={cn("hidden w-36 px-2.5 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
             {item.category ? (
               <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} />
             ) : (
@@ -689,13 +686,13 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           </DataTableCell>
 
           {/* Quantity & Unit Column */}
-          <DataTableCell className="w-24 sm:w-28 px-2 sm:px-3 text-right">
+          <DataTableCell className="w-20 sm:w-24 px-2 sm:px-2.5 text-right">
             <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0">
               <span className="font-extrabold text-foreground text-sm tabular-nums text-right flex-1 min-w-0">
                 {item.quantity}
               </span>
               <span
-                className="text-xs font-normal text-muted-foreground truncate w-10 sm:w-12 text-left shrink-0"
+                className="text-xs font-normal text-muted-foreground truncate w-8 sm:w-10 text-left shrink-0"
                 title={item.unit?.name || undefined}
               >
                 {item.unit?.name ?? ''}
@@ -706,7 +703,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           {/* Location Column */}
           <DataTableCell
             className={cn(
-              "w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate",
+              "w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
               isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell"
             )}
             title={item.location?.name || undefined}
@@ -723,7 +720,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
           {/* Responsible Person Column */}
           <DataTableCell
             className={cn(
-              "hidden w-28 xl:w-36 px-2.5 text-xs font-medium text-muted-foreground truncate",
+              "hidden w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
               isInspectorOpen ? "2xl:table-cell" : "xl:table-cell"
             )}
             title={item.responsible_person || undefined}

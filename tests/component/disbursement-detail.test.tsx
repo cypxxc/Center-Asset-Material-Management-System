@@ -113,7 +113,7 @@ test('DisbursementDetailClient confirms draft and cancels draft when triggered',
     })
   );
 
-  const confirmBtn = screen.getByRole('button', { name: /ยืนยันการเบิก-จ่าย/ });
+  const confirmBtn = screen.getByRole('button', { name: /จ่ายและยืนยัน|ยืนยันการเบิก-จ่าย/ });
   fireEvent.click(confirmBtn);
 
   const confirmModalAction = screen.getByRole('button', { name: 'ยืนยันทำรายการ' });

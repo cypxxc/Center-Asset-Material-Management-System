@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
 import type { PostgresTransaction } from '@/lib/postgres/db'
-import { mockSupabaseRegistry } from '../../tests/mocks/supabase'
+
 
 const dialect = new PgDialect()
 const statements: { sql: string; params: unknown[] }[] = []
@@ -32,7 +32,7 @@ beforeEach(() => {
   responses = []
   authorized = true
   requests = 0
-  mockSupabaseRegistry.clear()
+
 })
 
 test('item search binds hostile filter values and ignores hostile sort identifiers', async () => {
@@ -49,10 +49,8 @@ test('item search binds hostile filter values and ignores hostile sort identifie
     assert.match(statement.sql, /i\.deleted_at is null/)
   }
   assert.match(statements[1].sql, /'color', c\.color/)
-  assert.match(statements[1].sql, /order by i\.updated_at desc, i\.id/)
+  assert.match(statements[1].sql, /order by i\.updated_at desc nulls last, i\.id/)
   assert.deepEqual(statements[1].params.slice(-2), [10, 10])
-  assert.equal(mockSupabaseRegistry.getQueryLog().length, 0)
-  assert.equal(mockSupabaseRegistry.getRpcLog().length, 0)
 })
 
 test('item pagination normalizes invalid pages and rejects external image URLs', async () => {
@@ -62,11 +60,11 @@ test('item pagination normalizes invalid pages and rejects external image URLs',
   assert.equal(result.page, 1)
   assert.equal(result.totalPages, 2)
   assert.equal(result.items[0].image_url, null)
-  assert.match(statements[1].sql, /order by i\.item_name asc/)
+  assert.match(statements[1].sql, /order by i\.item_name collate "th-TH-x-icu" asc nulls last/)
 
   responses = [[{ total: 1 }], [{ id: 'two', image_url: null }]]
   await getItems({ sort_by: 'category', sort_dir: 'asc' })
-  assert.match(statements[3].sql, /order by c\.name collate "th-TH-x-icu" asc/)
+  assert.match(statements[3].sql, /order by c\.name collate "th-TH-x-icu" asc nulls last/)
 })
 
 test('Postgres item batches use a precise timestamp projection and omit count after a cursor', async () => {
@@ -136,7 +134,6 @@ test('report empty pages retain totals from one snapshot and bind pagination', a
   assert.match(statements[0].sql, /coalesce\(i\.unit_price, 0\) \* i\.quantity asc/)
   assert.match(statements[0].sql, /sum\(coalesce\(unit_price, 0\) \* quantity\)/)
   assert.ok(statements[0].params.includes(1470))
-  assert.equal(mockSupabaseRegistry.getRpcLog().length, 0)
 })
 
 test('report export keeps the 5000-row cap while retaining full matching totals', async () => {
@@ -157,7 +154,6 @@ test('settings only loads the requested section', async () => {
   assert.deepEqual(result.locations, [])
   assert.equal(statements.length, 1)
   assert.match(statements[0].sql, /from public.units/)
-  assert.equal(mockSupabaseRegistry.getQueryLog().length, 0)
 })
 
 test('inherited object properties are not accepted as report sort columns', async () => {

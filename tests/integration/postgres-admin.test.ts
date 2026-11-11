@@ -45,13 +45,13 @@ afterEach(() => {
 
 test('every administrative surface denies untrusted users before privileged access', async () => {
   const admin = await actions
-  for (const denied of [null, { id: actor, role: 'staff', is_active: true }, { id: actor, role: 'admin', is_active: false }]) {
+  for (const denied of [null, { id: actor, role: 'viewer', is_active: true }, { id: actor, role: 'admin', is_active: false }]) {
     profile = denied
     const results = await Promise.all([
       admin.pgGetTableData('items'), admin.pgDeleteTableRow('items', target),
-      admin.pgCreateAuthUser({ full_name: 'User', password: 'password', role: 'staff', is_active: true }),
+      admin.pgCreateAuthUser({ full_name: 'User', password: 'password', role: 'viewer', is_active: true }),
       admin.pgDeleteAuthUser(target), admin.pgResetAuthPassword(target, 'password'),
-      admin.pgUpdateUserEmail(target, 'user@example.com'), admin.pgUpdateUserProfile(target, { role: 'staff' }),
+      admin.pgUpdateUserEmail(target, 'user@example.com'), admin.pgUpdateUserProfile(target, { role: 'viewer' }),
       admin.pgExportDatabaseData(), admin.pgImportDatabaseData(JSON.stringify(backup())),
       admin.pgGetProfilesList({}), admin.pgGetAuditLogsList({}), admin.pgUpsertTableRow('items', target, { item_name: 'Item' }),
     ])
@@ -84,7 +84,7 @@ test('password reset atomically revokes sessions and records only the event', as
 
 test('account creation failure rolls back and does not expose the failing SQL or hash', async () => {
   failOn = 'insert into private_auth.credentials'
-  const result = await (await actions).pgCreateAuthUser({ email: 'USER@example.com', full_name: 'User', password: 'password', role: 'staff', is_active: true })
+  const result = await (await actions).pgCreateAuthUser({ email: 'USER@example.com', full_name: 'User', password: 'password', role: 'viewer', is_active: true })
   assert.ok(result.error)
   assert.ok(!result.error.includes('secret-hash'))
   assert.equal(commits, 0)
@@ -105,7 +105,7 @@ test('cannot delete or demote the last remaining active administrator', async ()
   const deleteResult = await admin.pgDeleteAuthUser(target)
   assert.match(deleteResult.error ?? '', /ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้/)
 
-  const demoteResult = await admin.pgUpdateUserProfile(target, { role: 'staff' })
+  const demoteResult = await admin.pgUpdateUserProfile(target, { role: 'viewer' })
   assert.match(demoteResult.error ?? '', /ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน/)
 
   const deactivateResult = await admin.pgUpdateUserProfile(target, { is_active: false })
@@ -116,7 +116,7 @@ test('concurrent administrator demotion or deactivation acquires advisory lock t
   const admin = await actions
   queries.length = 0
   rowResult = [{ id: target, role: 'admin', is_active: true, count: 2 }]
-  const result = await admin.pgUpdateUserProfile(target, { role: 'staff' })
+  const result = await admin.pgUpdateUserProfile(target, { role: 'viewer' })
   assert.equal(result.success, true)
   const advisoryLockQuery = queries.find(q => q.sql.includes('pg_advisory_xact_lock'))
   assert.ok(advisoryLockQuery, 'Must acquire advisory lock before counting remaining active administrators')

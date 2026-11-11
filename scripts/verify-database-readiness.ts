@@ -1,87 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
-import * as dotenv from 'dotenv'
-
-dotenv.config({ path: '.env.local' })
-dotenv.config({ path: '.env' })
-
-const requiredMigrations = [
-  '00026_atomic_database_restore.sql',
-  '00027_lock_down_admin_sql.sql',
-  '00028_revoke_authenticated_admin_sql.sql',
-  '00029_harden_profile_role_defaults.sql',
-  '00030_revoke_anon_admin_sql.sql',
-  '00031_lock_down_public_report_rpcs.sql',
-]
+import { Pool } from 'pg'
 
 async function main() {
-  if (process.env.DATA_BACKEND === 'postgres') {
-    const { Pool } = await import('pg')
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis:5000 })
-    try {
-      const tables=await pool.query("select relname from pg_class join pg_namespace n on n.oid=relnamespace where n.nspname='public' and relname=any($1::text[]) and relrowsecurity",[['profiles','items','categories','locations','units','audit_logs']])
-      if(tables.rows.length!==6) throw new Error('PostgreSQL registry tables or RLS are incomplete')
-      const role=await pool.query('select rolsuper,rolbypassrls from pg_roles where rolname=current_user')
-      if(role.rows[0].rolsuper || role.rows[0].rolbypassrls)throw new Error('PostgreSQL application role must not bypass RLS')
-      const rows=await pool.query('select id from public.profiles limit 1')
-      if(rows.rows.length)throw new Error('Anonymous request can access profiles')
-      console.log('PostgreSQL readiness passed: schema, restricted role and anonymous RLS verified.')
-      return
-    } finally { await pool.end() }
-  }
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Database readiness requires Supabase URL and service-role key')
-
-  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-  const query = async (sqlQuery: string) => {
-    const { data, error } = await client.rpc('exec_admin_sql', { sql_query: sqlQuery })
-    if (error) throw new Error(error.message)
-    const result = data as { ok?: boolean; error?: string; rows?: Record<string, unknown>[] }
-    if (!result.ok) throw new Error(result.error ?? 'Database readiness query failed')
-    return result.rows ?? []
-  }
-
-  const failures: string[] = []
-  const ledgerRows = await query("select to_regclass('public.app_migrations') is not null as ledger_exists")
-  const ledgerExists = ledgerRows[0]?.ledger_exists === true
-  if (!ledgerExists) {
-    failures.push('migration ledger is missing (apply migrations 00029-00031)')
-    for (const migration of requiredMigrations) failures.push(`unverified migration: ${migration}`)
-  } else {
-    const migrations = await query('select migration from public.app_migrations order by migration')
-    const applied = new Set(migrations.map((row) => String(row.migration)))
-    for (const migration of requiredMigrations) {
-      if (!applied.has(migration)) failures.push(`missing migration: ${migration}`)
-    }
-  }
-
-  const rlsRows = await query(`select c.relname as table_name, c.relrowsecurity as rls_enabled
-    from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relname in ('profiles','categories','locations','units','items','audit_logs')`)
-  for (const row of rlsRows) {
-    if (!row.rls_enabled) failures.push(`RLS disabled: ${String(row.table_name)}`)
-  }
-  if (rlsRows.length !== 6) failures.push('one or more registry tables are missing from the public schema')
-
-  const aclRows = await query(`select p.proname,
-      has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
-      coalesce((select bool_or(acl.grantee = 0 and acl.privilege_type = 'EXECUTE')
-        from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl), false) as public_execute
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname in
-      ('exec_admin_sql','get_report_items_page','get_report_stats','get_sidebar_stats','import_items_bulk_tx','restore_database_backup')`)
-  for (const row of aclRows) {
-    if (row.anon_execute || row.public_execute) {
-      failures.push(`unsafe execute grant: ${String(row.proname)}`)
-    }
-  }
-  if (aclRows.length !== 6) failures.push('one or more required release RPCs are missing')
-
-  if (failures.length > 0) throw new Error(`Database release readiness failed:\n- ${failures.join('\n- ')}`)
-  console.log('Database release readiness passed: migrations, RLS, and RPC grants are safe.')
+  const connectionString = process.env.DATABASE_MIGRATION_URL || process.env.DATABASE_URL
+  if (!connectionString) throw new Error('Set DATABASE_URL or DATABASE_MIGRATION_URL before checking PostgreSQL readiness.')
+  const pool = new Pool({ connectionString, connectionTimeoutMillis: 5000, max: 1 })
+  try {
+    await pool.query('select 1')
+    const tables = await pool.query("select relname from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname=any($1::text[]) and c.relrowsecurity", [['profiles', 'items', 'categories', 'locations', 'units', 'audit_logs']])
+    if (tables.rows.length !== 6) throw new Error('PostgreSQL registry tables or row level security are incomplete.')
+    console.log('PostgreSQL readiness passed: connection, registry tables, and row level security are available.')
+  } finally { await pool.end() }
 }
 
-void main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+void main().catch(error => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1 })

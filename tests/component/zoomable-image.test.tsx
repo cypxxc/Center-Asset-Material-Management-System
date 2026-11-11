@@ -5,40 +5,21 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ZoomableImage } from '../../components/ui/zoomable-image';
 import { ItemForm } from '../../features/items/components/item-form';
-import { getTransformedImageUrl } from '../../lib/supabase/image';
 
-const mockPublicUrl = 'http://localhost/storage/v1/object/public/item-images/test.jpg';
-const mockTransformedUrl = getTransformedImageUrl(mockPublicUrl);
-const mockZoomTransformedUrl = getTransformedImageUrl(mockPublicUrl, { width: 1200 });
+const mockPublicUrl = '/api/files/items/test.jpg';
 
-test('ZoomableImage initially renders transformed image URL', () => {
+test('ZoomableImage initially renders image URL', () => {
   render(React.createElement(ZoomableImage, { src: mockPublicUrl, alt: 'Test Item' }));
   const img = screen.getByAltText('Test Item') as HTMLImageElement;
-  assert.equal(img.src, mockTransformedUrl);
+  assert.equal(img.src, 'http://localhost/api/files/items/test.jpg');
 });
 
-test('ZoomableImage falls back to raw original src on Error 1', () => {
+test('ZoomableImage falls back to placeholder UI on error', () => {
   render(React.createElement(ZoomableImage, { src: mockPublicUrl, alt: 'Test Item' }));
   const img = screen.getByAltText('Test Item') as HTMLImageElement;
 
-  // Trigger error on transformed URL
   fireEvent.error(img);
 
-  assert.equal(img.src, mockPublicUrl);
-});
-
-test('ZoomableImage falls back to placeholder UI on Error 2', () => {
-  render(React.createElement(ZoomableImage, { src: mockPublicUrl, alt: 'Test Item' }));
-  const img = screen.getByAltText('Test Item') as HTMLImageElement;
-
-  // Trigger error 1: transformed -> raw
-  fireEvent.error(img);
-  assert.equal(img.src, mockPublicUrl);
-
-  // Trigger error 2: raw -> failed UI
-  fireEvent.error(img);
-
-  // Image tag should no longer be present, placeholder UI shown
   assert.equal(screen.queryByAltText('Test Item'), null);
   assert.ok(screen.getByText('ไม่สามารถโหลดรูปภาพได้'));
 });
@@ -48,22 +29,16 @@ test('ZoomableImage overlay image handles fallback on error', () => {
   const btn = screen.getByRole('button');
   fireEvent.click(btn);
 
-  // Modal is open, there are two images with alt 'Test Item'
   const imgs = screen.getAllByAltText('Test Item') as HTMLImageElement[];
   assert.equal(imgs.length, 2);
   const zoomImg = imgs[1];
-  assert.equal(zoomImg.src, mockZoomTransformedUrl);
+  assert.equal(zoomImg.src, 'http://localhost/api/files/items/test.jpg');
 
-  // Trigger error 1 on zoom image
-  fireEvent.error(zoomImg);
-  assert.equal(zoomImg.src, mockPublicUrl);
-
-  // Trigger error 2 on zoom image
   fireEvent.error(zoomImg);
   assert.ok(screen.getByText('ไม่สามารถโหลดรูปภาพได้'));
 });
 
-test('ItemForm image preview falls back from transformed URL to original URL on error', () => {
+test('ItemForm image preview falls back to placeholder UI on error', () => {
   render(
     React.createElement(ItemForm, {
       action: async () => ({ success: true }),
@@ -94,13 +69,8 @@ test('ItemForm image preview falls back from transformed URL to original URL on 
   );
 
   const previewImg = screen.getByAltText('Item preview') as HTMLImageElement;
-  assert.equal(previewImg.src, mockTransformedUrl);
+  assert.equal(previewImg.src, 'http://localhost/api/files/items/test.jpg');
 
-  // Trigger error 1: falls back to raw public URL
-  fireEvent.error(previewImg);
-  assert.equal(previewImg.src, mockPublicUrl);
-
-  // Trigger error 2: falls back to placeholder UI
   fireEvent.error(previewImg);
   assert.equal(screen.queryByAltText('Item preview'), null);
   assert.ok(screen.getByText('ไม่สามารถโหลดรูปภาพได้'));

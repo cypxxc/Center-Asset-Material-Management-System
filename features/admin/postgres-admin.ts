@@ -130,7 +130,7 @@ export async function pgDeleteTableRow(tableName: string, rowId: string): Promis
   } catch (error) { return failure(error) }
 }
 
-export async function pgCreateAuthUser(raw: { email?: string; password: string; full_name: string; role: 'admin' | 'staff' | 'viewer'; is_active: boolean }): Promise<{ success?: boolean; error?: string; userId?: string }> {
+export async function pgCreateAuthUser(raw: { email?: string; password: string; full_name: string; role: 'admin' | 'viewer'; is_active: boolean }): Promise<{ success?: boolean; error?: string; userId?: string }> {
   try {
     await adminIdentity()
     const payload = newUserSchema.parse(raw)
@@ -206,7 +206,7 @@ export async function pgUpdateUserEmail(userId: string, email: string): Promise<
   } catch (error) { return failure(error) }
 }
 
-export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' | 'staff' | 'viewer'; is_active?: boolean; full_name?: string } | Record<string, unknown>): Promise<{ success?: boolean; error?: string; profile?: Record<string, unknown> }> {
+export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' | 'viewer' | 'staff'; is_active?: boolean; full_name?: string } | Record<string, unknown>): Promise<{ success?: boolean; error?: string; profile?: Record<string, unknown> }> {
   try {
     uuidSchema.parse(userId)
     const payload = profileUpdateSchema.parse(raw)

@@ -15,13 +15,6 @@ export const config = {
     logLevel: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
   },
 
-  supabase: {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-    storageBucket: 'item-images',
-  },
-
   limits: {
     rateLimitDefault: 30,
     rateLimitWindowMs: 60_000,
@@ -31,8 +24,6 @@ export const config = {
     csvImportRateLimitWindowMs: 300_000,
     imageMaxBytes: 5 * 1024 * 1024,
     adminSqlTimeoutMs: 30_000,
-    supabaseQueryTimeoutMs: 15_000,
-    supabaseAuthTimeoutMs: 10_000,
     exportTimeoutMs: 120_000,
   },
 

@@ -38,7 +38,7 @@ function friendlyError(error: unknown) {
 
 export async function mutatePostgresMetadata(table: MetadataTable, operation: 'create' | 'update' | 'delete', formData?: FormData, id?: string): Promise<never> {
   const profile = await getCurrentProfile()
-  if (!profile?.is_active || !['admin','staff'].includes(profile.role)) finish(table, 'คุณไม่มีสิทธิ์จัดการตั้งค่า')
+  if (!profile?.is_active || profile.role !== 'admin') finish(table, 'คุณไม่มีสิทธิ์จัดการตั้งค่า')
   const rate = await checkRateLimit(`${operation}-${table}`, 30, 60000)
   if (!rate.success) finish(table, rate.error!)
   if (!Object.hasOwn(definitions, table)) finish('categories', 'ข้อมูลไม่ถูกต้อง')
@@ -86,7 +86,7 @@ export async function updatePostgresSettingsProfile(id: string, formData: FormDa
   const profile = await getCurrentProfile()
   if (!profile?.is_active || profile.role !== 'admin') finish('users', 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการผู้ใช้ได้')
   if (profile.id === id) finish('users', 'ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้')
-  const parsed = z.object({ id: z.string().uuid(), role: z.enum(['admin','staff','viewer']) }).safeParse({ id, role: formData.get('role') })
+  const parsed = z.object({ id: z.string().uuid(), role: z.enum(['admin','viewer']) }).safeParse({ id, role: formData.get('role') })
   if (!parsed.success) finish('users', 'ข้อมูลผู้ใช้ไม่ถูกต้อง')
   const active = formData.get('is_active') === 'on' || formData.get('is_active') === 'true'
   const rate = await checkRateLimit('settings-update-profile', 30, 60000)
