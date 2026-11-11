@@ -97,6 +97,7 @@ export const itemFormSchema = z.object({
   responsible_person: optionalTextLimit(150),
   status: itemStatusSchema,
   note: optionalTextLimit(2000),
+  is_central: z.preprocess((val) => val === true || val === 'true', z.boolean()).default(false),
   image_url: optionalUrl,
   depreciation_enabled: z.preprocess((val) => val === true || val === 'true', z.boolean()),
   depreciation_cost: optionalPositiveNumber,

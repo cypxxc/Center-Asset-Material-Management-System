@@ -98,7 +98,7 @@ function DisbursementItemPickerModalContent({
         return it.item_type === 'material'
       }
       if (transactionType === 'asset_borrow') {
-        const isCentral = Boolean(it.note && it.note.includes('ส่วนกลาง'))
+        const isCentral = Boolean(it.is_central || (it.note && it.note.includes('ส่วนกลาง')))
         return it.item_type === 'asset' && Boolean(it.asset_no?.trim()) && isCentral
       }
       return it.item_type === 'asset'
@@ -379,7 +379,7 @@ function DisbursementItemPickerModalContent({
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-foreground">{item.item_name}</span>
-                            {item.note && item.note.includes('ส่วนกลาง') && (
+                            {(item.is_central || (item.note && item.note.includes('ส่วนกลาง'))) && (
                               <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
                                 ส่วนกลาง
                               </span>

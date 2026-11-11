@@ -346,6 +346,34 @@ export function ItemForm({
               <option value="disposed">จำหน่ายแล้ว</option>
             </FormSelect>
           </FormField>
+
+          {/* Checkbox: ครุภัณฑ์ส่วนกลาง (เปิดให้ยืมใช้งานได้) */}
+          {activeTab === 'asset' && (
+            <div className="sm:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  name="is_central"
+                  value="true"
+                  defaultChecked={Boolean(item?.is_central || (item?.note && item.note.includes('ส่วนกลาง')))}
+                  className="mt-0.5 h-4 w-4 rounded border-input text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      ครุภัณฑ์ส่วนกลาง (เปิดให้ยืมใช้งานได้)
+                    </span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
+                      กองกลาง
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    ครุภัณฑ์ชิ้นนี้ถือเป็นทรัพย์สินส่วนกลาง อนุญาตให้บุคลากรทุกกลุ่มงานยืมใช้งานได้ตามระเบียบพัสดุ
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
         </FormGrid>
       </FormSection>
 

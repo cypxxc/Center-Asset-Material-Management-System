@@ -17,14 +17,30 @@ export const itemRelations = sql`left join public.categories c on c.id = i.categ
 
 export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at,
-  i.brand, i.model, i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
+  i.brand, i.model, i.note, i.is_central,
+  EXISTS (
+    SELECT 1 FROM public.disbursement_items di
+    JOIN public.disbursements d ON d.id = di.disbursement_id
+    WHERE di.item_id = i.id
+      AND d.status IN ('active_borrow', 'partially_returned')
+      AND di.status NOT IN ('returned', 'reversed')
+  ) as is_borrowed,
+  i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
   case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
 
 const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
-  i.brand, i.model, i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
+  i.brand, i.model, i.note, i.is_central,
+  EXISTS (
+    SELECT 1 FROM public.disbursement_items di
+    JOIN public.disbursements d ON d.id = di.disbursement_id
+    WHERE di.item_id = i.id
+      AND d.status IN ('active_borrow', 'partially_returned')
+      AND di.status NOT IN ('returned', 'reversed')
+  ) as is_borrowed,
+  i.gfmis_number, i.budget_source, i.acquired_date::text as acquired_date,
   case when c.id is null then null else json_build_object('id', c.id, 'name', c.name, 'color', c.color) end as category,
   case when u.id is null then null else json_build_object('id', u.id, 'name', u.name) end as unit,
   case when l.id is null then null else json_build_object('id', l.id, 'name', l.name) end as location`
@@ -48,6 +64,7 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
   }
   if (params.category_id) clauses.push(sql`i.category_id = ${params.category_id}::uuid`)
   if (params.location_id) clauses.push(sql`i.location_id = ${params.location_id}::uuid`)
+  if (params.is_central === 'true' || params.is_central === '1' || params.is_central === true) clauses.push(sql`i.is_central = true`)
   return sql.join(clauses, sql` and `)
 }
 

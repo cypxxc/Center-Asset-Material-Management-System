@@ -147,9 +147,9 @@ export function DisbursementDraftFormClient({
     if (transactionType === 'asset_borrow') {
       for (const selected of selectedItems) {
         const item = itemsMap.get(selected.item_id)
-        if (item && (!item.note || !item.note.includes('ส่วนกลาง'))) {
+        if (item && !item.is_central && (!item.note || !item.note.includes('ส่วนกลาง'))) {
           setErrorMsg(
-            `ไม่สามารถทำรายการได้: ครุภัณฑ์ "${item.item_name}" ไม่มีหมายเหตุ "ส่วนกลาง" (อนุญาตให้ยืมเฉพาะครุภัณฑ์ส่วนกลางเท่านั้น)`
+            `ไม่สามารถทำรายการได้: ครุภัณฑ์ "${item.item_name}" ไม่ใช่ครุภัณฑ์ส่วนกลาง (อนุญาตให้ยืมเฉพาะครุภัณฑ์ส่วนกลางเท่านั้น)`
           )
           return
         }
@@ -447,12 +447,12 @@ export function DisbursementDraftFormClient({
                               <span className="font-semibold text-foreground">
                                 {currentItem?.item_name || 'ไม่พบข้อมูลสิ่งของ'}
                               </span>
-                              {currentItem?.note && currentItem.note.includes('ส่วนกลาง') && (
+                              {(currentItem?.is_central || (currentItem?.note && currentItem.note.includes('ส่วนกลาง'))) && (
                                 <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
                                   ส่วนกลาง
                                 </span>
                               )}
-                              {isAssetBorrow && currentItem && !currentItem.note?.includes('ส่วนกลาง') && (
+                              {isAssetBorrow && currentItem && !currentItem.is_central && !currentItem.note?.includes('ส่วนกลาง') && (
                                 <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
                                   ไม่ใช่ของส่วนกลาง
                                 </span>

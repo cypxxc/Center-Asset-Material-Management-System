@@ -90,7 +90,7 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('items')
-    .select('id, item_name, item_type, asset_no, serial_no, quantity, responsible_person, note, category:categories(id, name), unit:units(name), location:locations(name)')
+    .select('id, item_name, item_type, asset_no, serial_no, quantity, responsible_person, note, is_central, category:categories(id, name), unit:units(name), location:locations(name)')
     .is('deleted_at', null)
     .in('status', ['active', 'spare'])
     .order('item_type', { ascending: true })
@@ -107,6 +107,7 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
       quantity: number
       responsible_person: string | null
       note?: string | null
+      is_central?: boolean
       category: { id: string; name: string } | { id: string; name: string }[] | null
       unit: { name: string } | { name: string }[] | null
       location: { name: string } | { name: string }[] | null
@@ -123,6 +124,7 @@ export async function getDisbursementSelectableItems(): Promise<DisbursementSele
       location_name: Array.isArray(row.location) ? row.location[0]?.name ?? null : row.location?.name ?? null,
       responsible_person: row.responsible_person ?? null,
       note: row.note ?? null,
+      is_central: Boolean(row.is_central),
     }
   })
 }

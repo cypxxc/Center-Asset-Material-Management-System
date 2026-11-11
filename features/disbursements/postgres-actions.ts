@@ -35,8 +35,8 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
   return withUserDatabase(async (tx) => {
     // 1. Verify item types and unique borrowing constraints
     for (const item of data.items) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null }>(
-        sql`SELECT id, item_type, asset_no, note FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
+      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean }>(
+        sql`SELECT id, item_type, asset_no, note, is_central FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
       )
       const found = itemRes.rows[0]
       if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
@@ -67,8 +67,8 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
         if (item.requested_qty !== 1) {
           throw new Error('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
-        if (!found.note || !found.note.includes('ส่วนกลาง')) {
-          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่มีหมายเหตุ "ส่วนกลาง" เท่านั้น')
+        if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
+          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }
@@ -116,8 +116,8 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
 
     // 2. Validate items match transaction type
     for (const item of data.items) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null }>(
-        sql`SELECT id, item_type, asset_no, note FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
+      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean }>(
+        sql`SELECT id, item_type, asset_no, note, is_central FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
       )
       const found = itemRes.rows[0]
       if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
@@ -148,8 +148,8 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
         if (item.requested_qty !== 1) {
           throw new Error('การยืมครุภัณฑ์ที่มีทะเบียน สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
-        if (!found.note || !found.note.includes('ส่วนกลาง')) {
-          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่มีหมายเหตุ "ส่วนกลาง" เท่านั้น')
+        if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
+          throw new Error('การยืมครุภัณฑ์อนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
     }

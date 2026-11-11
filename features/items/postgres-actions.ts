@@ -13,7 +13,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 type ItemInput = z.infer<typeof itemFormSchema>
-const columns = ['item_name','item_type','category_id','quantity','unit_price','unit_id','asset_no','serial_no','brand','model','location_id','responsible_person','status','note','image_url','depreciation_enabled','depreciation_cost','depreciation_useful_life_years','depreciation_start_basis','depreciation_start_date','budget_source','gfmis_number','acquired_date'] as const
+const columns = ['item_name','item_type','category_id','quantity','unit_price','unit_id','asset_no','serial_no','brand','model','location_id','responsible_person','status','note','is_central','image_url','depreciation_enabled','depreciation_cost','depreciation_useful_life_years','depreciation_start_basis','depreciation_start_date','budget_source','gfmis_number','acquired_date'] as const
 const uuid = z.string().uuid()
 
 async function editor() {

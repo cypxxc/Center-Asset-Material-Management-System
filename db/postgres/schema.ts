@@ -27,6 +27,7 @@ export const items = pgTable('items', {
   category_id: uuid().references(() => categories.id), location_id: uuid().references(() => locations.id), unit_id: uuid().references(() => units.id),
   quantity: integer().notNull().default(1), unit_price: numeric({ precision: 12, scale: 2, mode: 'number' }),
   asset_no: text(), serial_no: text(), brand: text(), model: text(), responsible_person: text(), status: text().notNull().default('active'), note: text(), image_url: text(),
+  is_central: boolean().notNull().default(false),
   budget_source: text(), gfmis_number: text(), acquired_date: date({ mode: 'string' }),
   created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }), updated_by: uuid().references(() => profiles.id, { onDelete: 'set null' }), deleted_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
   deleted_at: timestamp({ withTimezone: true, mode: 'string' }),
@@ -38,7 +39,7 @@ export const items = pgTable('items', {
   check('items_depreciation_check', sql`not ${t.depreciation_enabled} or coalesce((${t.item_type}='asset' and ${t.depreciation_method}='straight_line' and ${t.depreciation_cost}>1 and ${t.depreciation_useful_life_years}>0 and ${t.depreciation_start_basis} in ('acquired','available','manual') and ${t.depreciation_start_date} is not null and ${t.depreciation_residual_value}=1),false)`),
   uniqueIndex('items_asset_no_unique').on(t.asset_no).where(sql`${t.deleted_at} is null and ${t.asset_no} is not null`),
   uniqueIndex('items_serial_no_unique').on(t.serial_no).where(sql`${t.deleted_at} is null and ${t.serial_no} is not null`),
-  index('items_updated_index').on(t.updated_at), index('items_category_index').on(t.category_id), index('items_location_index').on(t.location_id), index('items_type_status_index').on(t.item_type, t.status),
+  index('items_updated_index').on(t.updated_at), index('items_category_index').on(t.category_id), index('items_location_index').on(t.location_id), index('items_type_status_index').on(t.item_type, t.status), index('items_is_central_index').on(t.is_central).where(sql`${t.deleted_at} is null`),
 ])
 export const auditLogs = pgTable('audit_logs', {
   id: uuid().primaryKey().defaultRandom(), user_id: uuid().references(() => profiles.id, { onDelete: 'set null' }), action: text().notNull(), target_table: text().notNull(), target_id: uuid(), old_data: jsonb(), new_data: jsonb(), created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),

@@ -32,6 +32,8 @@ export interface ItemListRow {
   brand?: string | null
   model?: string | null
   note?: string | null
+  is_central?: boolean
+  is_borrowed?: boolean
   image_url?: string | null
   gfmis_number?: string | null
   budget_source?: string | null
@@ -58,6 +60,7 @@ export interface ItemListSearchParams {
   q?: string
   type?: string
   status?: string
+  is_central?: string
   page?: string
   category_id?: string
   location_id?: string

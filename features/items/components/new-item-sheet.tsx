@@ -53,21 +53,34 @@ function restoreDraft(root: ParentNode) {
   const draft = readDraft()
   for (const control of getDraftControls(root)) {
     const value = draft[control.name]
-    if (value !== undefined) control.value = value
+    if (value !== undefined) {
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        control.checked = value === 'true'
+      } else {
+        control.value = value
+      }
+    }
   }
 }
 
 function saveDraft(root: ParentNode) {
   const draft: Record<string, string> = {}
   for (const control of getDraftControls(root)) {
-    draft[control.name] = control.value
+    if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+      draft[control.name] = String(control.checked)
+    } else {
+      draft[control.name] = control.value
+    }
   }
   window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
 }
 
 function formSignature(root: ParentNode) {
   return getDraftControls(root)
-    .map((control) => `${control.name}\u0000${control.value}`)
+    .map((control) => {
+      const val = control instanceof HTMLInputElement && control.type === 'checkbox' ? String(control.checked) : control.value
+      return `${control.name}\u0000${val}`
+    })
     .join('\u0001')
 }
 

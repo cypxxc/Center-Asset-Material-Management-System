@@ -14,6 +14,7 @@ export interface NormalizedItemListSearchParams {
   status: ItemStatus | null
   category_id: string | null
   location_id: string | null
+  is_central: boolean | null
   sort_by: ItemSortColumn
   sort_dir: ItemSortDirection
 }
@@ -30,6 +31,7 @@ export function normalizeItemListSearchParams(params: ItemListSearchParams): Nor
     status: itemStatuses.includes(params.status as ItemStatus) ? params.status as ItemStatus : null,
     category_id: params.category_id || null,
     location_id: params.location_id || null,
+    is_central: params.is_central === 'true' || params.is_central === '1' ? true : null,
     sort_by,
     sort_dir,
   }
@@ -41,6 +43,7 @@ export interface ItemsFilterUpdates {
   status?: string
   category_id?: string
   location_id?: string
+  is_central?: string
   page?: string
   sort_by?: string
   sort_dir?: string
@@ -57,6 +60,7 @@ export function buildItemsUrl(
   if (params.status) query.set('status', params.status)
   if (params.category_id) query.set('category_id', params.category_id)
   if (params.location_id) query.set('location_id', params.location_id)
+  if (params.is_central) query.set('is_central', params.is_central)
   if (params.page && params.page !== '1' && Number(params.page) > 1) query.set('page', params.page)
   if (params.sort_by) query.set('sort_by', params.sort_by)
   if (params.sort_dir) query.set('sort_dir', params.sort_dir)

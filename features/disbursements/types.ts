@@ -108,5 +108,6 @@ export interface DisbursementSelectableItem {
   location_name?: string | null
   responsible_person?: string | null
   note?: string | null
+  is_central?: boolean
 }
 

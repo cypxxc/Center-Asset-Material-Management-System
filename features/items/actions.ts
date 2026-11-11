@@ -63,6 +63,7 @@ function parseFormData(formData: FormData) {
     acquired_date: formData.get('acquired_date'),
     status: formData.get('status'),
     note: formData.get('note'),
+    is_central: formData.get('is_central') === 'true' || formData.get('is_central') === 'on' || formData.get('is_central') === '1',
     image_url: formData.get('image_url'),
     depreciation_enabled: formData.get('depreciation_enabled'),
     depreciation_cost: formData.get('depreciation_cost'),

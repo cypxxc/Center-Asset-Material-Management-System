@@ -101,6 +101,15 @@ export function ItemsFilterBar({
       })
     }
 
+    if (params.is_central === 'true' || params.is_central === '1') {
+      chips.push({
+        id: 'is_central',
+        label: 'คลัง',
+        value: 'ของส่วนกลาง',
+        onRemove: () => onFilterChange({ is_central: '' }),
+      })
+    }
+
     if (params.q && params.q.trim()) {
       chips.push({
         id: 'q',
@@ -234,6 +243,22 @@ export function ItemsFilterBar({
                 onChange={(val) => onFilterChange({ location_id: val })}
                 icon={<MapPin className="h-3.5 w-3.5" />}
               />
+
+              {/* Quick Filter: ของส่วนกลาง */}
+              <button
+                type="button"
+                onClick={() => onFilterChange({ is_central: params.is_central === 'true' ? '' : 'true' })}
+                className={cn(
+                  "h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg border text-xs transition-all select-none cursor-pointer shrink-0",
+                  params.is_central === 'true'
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-semibold shadow-2xs"
+                    : "border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground"
+                )}
+                title="กรองเฉพาะครุภัณฑ์ส่วนกลางที่เปิดให้ยืม"
+              >
+                <span className={cn("size-1.5 rounded-full shrink-0", params.is_central === 'true' ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50")} />
+                <span className="whitespace-nowrap">ของส่วนกลาง</span>
+              </button>
 
               {/* Quick Reset Filters Button */}
               {activeChips.length > 0 && (

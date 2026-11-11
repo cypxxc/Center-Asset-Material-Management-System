@@ -275,6 +275,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
         brand,
         model,
         note,
+        is_central,
         image_url,
         category_id,
         unit_id,
@@ -371,6 +372,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
     brand: string | null
     model: string | null
     note: string | null
+    is_central?: boolean
     image_url: string | null
     category_id: string | null
     unit_id: string | null
@@ -391,6 +393,7 @@ export async function getItems(params: ItemListSearchParams, pageSize: number = 
     brand: row.brand,
     model: row.model,
     note: row.note,
+    is_central: Boolean(row.is_central),
     image_url: row.image_url,
     category: row.category_id ? catMap.get(row.category_id) ?? null : null,
     unit: row.unit_id ? unitMap.get(row.unit_id) ?? null : null,
@@ -479,6 +482,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     brand: string | null
     model: string | null
     note: string | null
+    is_central?: boolean
     image_url: string | null
     category_id: string | null
     unit_id: string | null
@@ -499,6 +503,7 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
     brand: row.brand,
     model: row.model,
     note: row.note,
+    is_central: Boolean(row.is_central),
     image_url: row.image_url,
     category: row.category_id ? catMap.get(row.category_id) ?? null : null,
     unit: row.unit_id ? unitMap.get(row.unit_id) ?? null : null,

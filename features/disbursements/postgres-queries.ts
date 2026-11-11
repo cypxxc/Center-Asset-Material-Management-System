@@ -136,6 +136,7 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
         location_name: string | null
         responsible_person: string | null
         note: string | null
+        is_central: boolean
       }>(
         sql`SELECT 
           i.id,
@@ -149,7 +150,8 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
           u.name as unit_name,
           l.name as location_name,
           i.responsible_person,
-          i.note
+          i.note,
+          i.is_central
         FROM public.items i
         LEFT JOIN public.categories c ON c.id = i.category_id
         LEFT JOIN public.units u ON u.id = i.unit_id
@@ -177,6 +179,7 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
         location_name: row.location_name ?? null,
         responsible_person: row.responsible_person ?? null,
         note: row.note ?? null,
+        is_central: Boolean(row.is_central),
       }))
     } catch (error: unknown) {
       const pgCode = (error as { code?: string })?.code || (error as { cause?: { code?: string } })?.cause?.code

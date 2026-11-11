@@ -29,6 +29,7 @@ export function useItemsFilter(
       updates.status !== undefined ||
       updates.category_id !== undefined ||
       updates.location_id !== undefined ||
+      updates.is_central !== undefined ||
       updates.sort_by !== undefined ||
       updates.sort_dir !== undefined
 
@@ -42,6 +43,7 @@ export function useItemsFilter(
       status: updates.status !== undefined ? updates.status : (params.status ?? ''),
       category_id: updates.category_id !== undefined ? updates.category_id : (params.category_id ?? ''),
       location_id: updates.location_id !== undefined ? updates.location_id : (params.location_id ?? ''),
+      is_central: updates.is_central !== undefined ? updates.is_central : (params.is_central ?? ''),
       page: targetPage,
       sort_by: updates.sort_by !== undefined ? updates.sort_by : (params.sort_by ?? ''),
       sort_dir: updates.sort_dir !== undefined ? updates.sort_dir : (params.sort_dir ?? ''),
