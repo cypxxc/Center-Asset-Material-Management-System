@@ -1,10 +1,11 @@
+import { ITEM_STATUSES } from './status'
 import { normalizeForSearch } from '@/lib/unicode'
 import type { ItemListSearchParams, ItemStatus, ItemType, ItemQualificationFilter } from './types'
 
 export const BATCH_SIZE = 25
 export const ITEMS_PAGE_SIZE = 50
 export const itemTypes: readonly ItemType[] = ['material', 'asset']
-export const itemStatuses: readonly ItemStatus[] = ['active', 'spare', 'damaged', 'waiting_repair', 'inactive', 'disposed']
+export const itemStatuses: readonly ItemStatus[] = ITEM_STATUSES
 export const itemQualificationStatuses: readonly ItemQualificationFilter[] = ['qualified', 'below_threshold', 'unclassified']
 const sortColumns = ['updated_at', 'item_name', 'category', 'item_type', 'quantity', 'status', 'acquired_date', 'budget_source', 'unit_price', 'asset_no', 'gfmis_number', 'responsible_person'] as const
 export type ItemSortColumn = typeof sortColumns[number]
@@ -63,6 +64,10 @@ export interface ItemsFilterUpdates {
   sort_dir?: string
 }
 
+export function resolveItemPageParams<T extends ItemListSearchParams>(pathname: string, params: T): T {
+  return pathname === '/central-items' ? { ...params, is_central: 'true' } : params
+}
+
 export function buildItemsUrl(
   pathname: string,
   params: ItemsFilterUpdates
@@ -75,7 +80,7 @@ export function buildItemsUrl(
   if (params.status) query.set('status', params.status)
   if (params.category_id) query.set('category_id', params.category_id)
   if (params.location_id) query.set('location_id', params.location_id)
-  if (params.is_central) query.set('is_central', params.is_central)
+  if (pathname !== '/central-items' && params.is_central) query.set('is_central', params.is_central)
   if (params.page && params.page !== '1' && Number(params.page) > 1) query.set('page', params.page)
   if (params.sort_by) query.set('sort_by', params.sort_by)
   if (params.sort_dir) query.set('sort_dir', params.sort_dir)

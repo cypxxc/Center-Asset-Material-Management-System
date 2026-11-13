@@ -100,7 +100,8 @@ const TYPE_LABELS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   admin: 'ผู้ดูแลระบบ',
   staff: 'เจ้าหน้าที่',
-  viewer: 'ผู้เข้าชม',
+  user: 'ผู้ใช้งานทั่วไป',
+  viewer: 'ผู้ใช้งานทั่วไป', // Historical audit entries keep their original role value.
 }
 
 const IGNORED_DIFF_KEYS = new Set(['updated_at'])

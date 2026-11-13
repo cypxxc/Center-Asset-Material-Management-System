@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import {
   Boxes,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   LayoutDashboard,
   LogOut,
@@ -14,25 +15,16 @@ import {
   Settings,
   User,
   History,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from 'lucide-react'
-import dynamic from 'next/dynamic'
 import { signOut } from '@/features/auth/actions'
 
-const IdleSessionTimeout = dynamic(
-  () => import('@/components/auth/idle-session-timeout').then((m) => m.IdleSessionTimeout),
-  { ssr: false }
-)
-import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
-import { ROLE_LABELS } from './nav-config'
 
 interface SidebarProps {
   profile: {
     full_name: string
     display_name?: string | null
-    email: string
+    email: string | null
     role: string
   } | null
   sidebarData?: {
@@ -83,7 +75,7 @@ export function Sidebar({ profile }: SidebarProps) {
   })
 
   // User-controlled manual overrides for admin folder expansion
-  const [adminFolderManual, setAdminFolderManual] = useState<boolean | null>(null)
+  const [adminFolderManual, setAdminFolderManual] = useState<boolean | null>(true)
 
   const [optimisticTarget, setOptimisticTarget] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -119,19 +111,19 @@ export function Sidebar({ profile }: SidebarProps) {
   const currentPath = optimisticTarget ? optimisticTarget.split('?')[0] : pathname
 
   const isAdmin = profile?.role === 'admin'
+  const disbursementsLabel = profile?.role === 'user' ? 'เบิก' : 'เบิก - จ่าย'
   const canWrite = isAdmin
 
   const isOverviewActive = currentPath === '/dashboard'
 
+  const isCentralActive = currentPath === '/central-items'
   const isInventoryActive = currentPath === '/items'
 
   const isDisbursementsActive = currentPath.startsWith('/disbursements')
 
   const isSettingsActive = currentPath === '/settings'
   const isAuditLogsActive = currentPath.startsWith('/admin/audit-logs')
-  const isAdminActive = isSettingsActive || isAuditLogsActive
-
-  const adminFolderExpanded = adminFolderManual ?? isAdminActive
+  const adminFolderExpanded = adminFolderManual ?? true
 
   const navItemClass = (isActive: boolean) =>
     cn(
@@ -155,7 +147,7 @@ export function Sidebar({ profile }: SidebarProps) {
       aria-label="เมนูหลัก"
       className={cn(
         'relative z-30 hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-card md:flex select-none transition-all duration-200 ease-in-out',
-        isCollapsed ? 'w-16' : 'w-64'
+        isCollapsed ? 'w-16' : 'w-50'
       )}
     >
         {/* Brand Header */}
@@ -173,7 +165,8 @@ export function Sidebar({ profile }: SidebarProps) {
               'flex items-center min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
               isCollapsed ? 'justify-center' : 'gap-2.5 flex-1'
             )}
-            title="CAMMS Portal — เขตสุขภาพที่ 7"
+            title="สำนักงานเขตสุขภาพที่ 7"
+            aria-label="สำนักงานเขตสุขภาพที่ 7"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-2xs ring-1 ring-border/60 bg-white/95 p-0.5">
               <Image
@@ -187,8 +180,8 @@ export function Sidebar({ profile }: SidebarProps) {
             </div>
             {!isCollapsed && (
               <div className="min-w-0 leading-tight">
-                <div className="truncate text-sm font-bold tracking-tight text-foreground">CAMMS Portal</div>
-                <div className="truncate text-[10px] font-medium text-muted-foreground">เขตสุขภาพที่ 7</div>
+                <div className="truncate text-sm font-bold tracking-tight text-foreground">Protal</div>
+                <div className="truncate text-[10px] font-medium text-muted-foreground">สำนักงานเขตสุขภาพที่ 7</div>
               </div>
             )}
           </Link>
@@ -201,7 +194,7 @@ export function Sidebar({ profile }: SidebarProps) {
               title="ย่อแถบเมนู"
               className="p-1 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
-              <PanelLeftClose className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -216,7 +209,7 @@ export function Sidebar({ profile }: SidebarProps) {
               title="ขยายแถบเมนู"
               className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
             >
-              <PanelLeftOpen className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -268,7 +261,20 @@ export function Sidebar({ profile }: SidebarProps) {
               </Link>
             </NavItemTooltip>
 
-            <NavItemTooltip label="เบิก-จ่าย" enabled={isCollapsed}>
+            <NavItemTooltip label="ส่วนกลาง" enabled={isCollapsed}>
+              <Link
+                href="/central-items"
+                onPointerDown={() => handleOptimisticNavigate('/central-items')}
+                onClick={() => handleOptimisticNavigate('/central-items')}
+                aria-current={isCentralActive ? 'page' : undefined}
+                className={navItemClass(isCentralActive)}
+              >
+                <Boxes className={navIconClass('text-emerald-500', isCentralActive)} />
+                {!isCollapsed && <span className="truncate">ส่วนกลาง</span>}
+              </Link>
+            </NavItemTooltip>
+
+            <NavItemTooltip label={disbursementsLabel} enabled={isCollapsed}>
               <Link
                 href="/disbursements"
                 onPointerDown={() => handleOptimisticNavigate('/disbursements')}
@@ -277,9 +283,11 @@ export function Sidebar({ profile }: SidebarProps) {
                 className={navItemClass(isDisbursementsActive)}
               >
                 <Boxes className={navIconClass('text-orange-500', isDisbursementsActive)} />
-                {!isCollapsed && <span className="truncate">เบิก-จ่าย</span>}
+                {!isCollapsed && <span className="truncate">{disbursementsLabel}</span>}
               </Link>
             </NavItemTooltip>
+
+
 
           </div>
 
@@ -290,7 +298,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 <div>
                   <button
                     type="button"
-                    onClick={() => setAdminFolderManual((prev) => (prev ?? isAdminActive) ? false : true)}
+                    onClick={() => setAdminFolderManual((prev) => !prev)}
                     className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer rounded"
                   >
                     <span>จัดการระบบ</span>
@@ -367,10 +375,10 @@ export function Sidebar({ profile }: SidebarProps) {
         </nav>
 
         {/* Footer Area: Profile & Logout */}
-        <div className="border-t border-sidebar-border bg-sidebar/40 p-2 shrink-0">
+        <div data-footer className="border-t border-sidebar-border bg-sidebar/40 p-2 shrink-0">
           {profile && (
             <NavItemTooltip
-              label={`${profile.display_name?.trim() || profile.full_name} (${ROLE_LABELS[profile.role] ?? profile.role})`}
+              label={profile.display_name?.trim() || profile.full_name}
               enabled={isCollapsed}
             >
               <Link
@@ -385,7 +393,7 @@ export function Sidebar({ profile }: SidebarProps) {
                     ? 'bg-primary/10 border-primary/20 shadow-xs'
                     : 'hover:border-sidebar-border'
                 )}
-                title="ตั้งค่าบัญชีส่วนบุคคล"
+                title="บัญชีผู้ใช้"
               >
                 <div
                   className={cn(
@@ -409,9 +417,6 @@ export function Sidebar({ profile }: SidebarProps) {
                     >
                       {profile.display_name?.trim() || profile.full_name}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {ROLE_LABELS[profile.role] ?? profile.role}
-                    </p>
                   </div>
                 )}
               </Link>
@@ -434,12 +439,8 @@ export function Sidebar({ profile }: SidebarProps) {
                 </button>
               </form>
             </NavItemTooltip>
-            <NavItemTooltip label="สลับโหมดสี (สว่าง/มืด)" enabled={isCollapsed}>
-              <ThemeToggle className={cn('shrink-0 border-sidebar-border bg-card/60 hover:bg-sidebar-accent', isCollapsed ? 'h-9 w-9' : 'h-8 w-8')} />
-            </NavItemTooltip>
           </div>
         </div>
-        <IdleSessionTimeout />
       </aside>
   )
 }

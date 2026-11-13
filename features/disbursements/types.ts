@@ -20,9 +20,24 @@ export type DisbursementLineStatus =
 
 export type ItemCondition = 'normal' | 'damaged' | 'lost'
 
+export interface DisbursementRequestedItem {
+  line_id: string
+  item_id: string
+  item_name: string
+  requested_qty: number
+  issued_qty: number
+  returned_qty: number
+  status: DisbursementLineStatus
+  asset_no: string | null
+  image_url?: string | null
+}
+
 export interface DisbursementRow extends Record<string, unknown> {
+  requester_name?: string | null
+  requested_items?: DisbursementRequestedItem[]
   id: string
   document_no: string | null
+  request_number?: string
   fiscal_year: number | null
   transaction_type: DisbursementTransactionType
   recipient_name: string
@@ -106,6 +121,7 @@ export interface DisbursementSelectableItem {
   asset_no: string | null
   serial_no: string | null
   quantity: number
+  image_url?: string | null
   category?: { id: string; name: string } | null
   unit?: { name: string } | null
   location_name?: string | null
@@ -115,6 +131,7 @@ export interface DisbursementSelectableItem {
 }
 
 export interface CentralAvailableItem {
+  unavailable_reason?: string | null
   id: string
   item_name: string
   item_type: 'material' | 'asset'

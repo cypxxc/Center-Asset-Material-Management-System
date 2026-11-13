@@ -11,6 +11,8 @@ import { errorResponse, successResponse, type ActionResponse } from '@/lib/actio
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logging'
+import { archivePostgresItems, ItemArchiveBlockedError } from './archive-items'
 
 type ItemInput = z.infer<typeof itemFormSchema>
 const columns = ['item_name','item_type','qualification_status','category_id','quantity','unit_price','unit_id','asset_no','serial_no','brand','model','location_id','responsible_person','status','note','is_central','image_url','depreciation_enabled','depreciation_cost','depreciation_useful_life_years','depreciation_start_basis','depreciation_start_date','budget_source','gfmis_number','acquired_date'] as const
@@ -36,6 +38,7 @@ function refreshItems() {
   revalidatePath('/', 'layout')
   revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
   revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max')
+  revalidateTag(CACHE_TAGS.ITEMS, 'max')
 }
 
 export async function lockItemReferences(tx: PostgresTransaction, values: Partial<ItemInput>) {
@@ -109,14 +112,28 @@ export async function mutatePostgresItems(ids: string[], operation: 'update' | '
         if (changes.status !== undefined) assignments.push(sql`status=${changes.status}`)
         return (await tx.execute<{ id: string; image_url: string | null }>(sql`update public.items set ${sql.join(assignments, sql`, `)} where ${match} and deleted_at is null returning id, image_url`)).rows
       }
-      // Match the current registry behavior: ordinary deletion is permanent; purge targets trash only.
-      return (await tx.execute<{ id: string; image_url: string | null }>(sql`delete from public.items where ${match} and ${operation === 'purge' ? sql`deleted_at is not null` : sql`deleted_at is null`} returning id, image_url`)).rows
+      if (operation === 'delete') return archivePostgresItems(tx, uniqueIds, profile.id)
+      // Permanent purge remains separate and cannot remove referenced historical rows.
+      return (await tx.execute<{ id: string; image_url: string | null }>(sql`delete from public.items where ${match} and deleted_at is not null returning id, image_url`)).rows
     })
     if (!rows.length) return errorResponse('ไม่พบรายการที่สามารถดำเนินการได้')
-    if (operation !== 'update') await Promise.allSettled(rows.map(row => deleteLocalItemImage(row.image_url)))
+    if (operation === 'purge') await Promise.allSettled(rows.map(row => deleteLocalItemImage(row.image_url)))
     refreshItems()
     return successResponse(`${operation === 'update' ? 'อัปเดต' : 'ลบ'}เรียบร้อย ${rows.length} รายการ`)
-  } catch (error) { return errorResponse(databaseMessage(error)) }
+  } catch (error) {
+    if (error instanceof ItemArchiveBlockedError) return errorResponse(error.message)
+    if (operation === 'update') return errorResponse(databaseMessage(error))
+    const outer = error as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } } | null
+    const databaseError = outer?.cause ?? outer
+    // Drizzle messages include SQL and bound values: log only safe diagnostic fields.
+    logger.error({ operation, feature: 'items', status: 'failed', details: {
+      code: databaseError?.code, constraint: databaseError?.constraint, requestedCount: ids.length,
+    } })
+    if (databaseError?.code === '23503') {
+      return errorResponse('ไม่สามารถลบรายการได้ เนื่องจากมีเอกสารหรือประวัติการเบิกจ่าย/ถือครองอ้างอิงอยู่ กรุณาตรวจสอบรายการที่เลือก')
+    }
+    return errorResponse('ไม่สามารถลบรายการได้ กรุณาลองอีกครั้ง หากยังพบปัญหาให้ติดต่อผู้ดูแลระบบ')
+  }
 }
 
 type ImportRow = {

@@ -30,7 +30,7 @@ interface SeedItemDef {
   brand: string
   model: string
   responsiblePerson: string
-  status: 'active' | 'spare' | 'damaged' | 'waiting_repair' | 'inactive' | 'disposed'
+  status: 'active' | 'damaged' | 'inactive'
   note: string
   assetNo?: string
   serialNo?: string
@@ -85,7 +85,7 @@ const ITEMS_DATA: SeedItemDef[] = [
     brand: 'HP',
     model: 'CE285A',
     responsiblePerson: 'อนันต์ เทคโนโลยี',
-    status: 'spare',
+    status: 'active',
     note: 'สำรองสำหรับเครื่องพิมพ์ห้องการเงินและธุรการ',
     imageUrlSource: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=500&q=80',
   },

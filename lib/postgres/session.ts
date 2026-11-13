@@ -7,7 +7,7 @@ import { getAuthDatabase, type PostgresTransaction } from './db'
 import { hashPassword, verifyPassword } from './password'
 
 export const SESSION_COOKIE = 'camms_session'
-export type LocalProfile = { id: string; full_name: string; display_name?: string | null; email: string; department?: string | null; role: 'admin' | 'staff' | 'viewer'; is_active: boolean; sidebar_order: string[] | null; created_at: string; updated_at: string }
+export type LocalProfile = { id: string; full_name: string; display_name?: string | null; email: string | null; department?: string | null; role: 'admin' | 'staff' | 'user'; is_active: boolean; sidebar_order: string[] | null; created_at: string; updated_at: string }
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex') }
 export async function profileForToken(token: string | undefined): Promise<LocalProfile | null> {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null
@@ -80,6 +80,22 @@ export async function replaceCurrentPassword(password: string) {
   if (!replacement) return false
   await setSessionCookie(replacement)
   return true
+}
+
+/** Update only the account owned by a live session, while it still has no real email.
+ * Uses the auth connection, like password changes; the app role cannot edit email.
+ */
+export async function addCurrentAccountEmail(email: string, previousEmail: string | null) {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) return false
+  const result = await getAuthDatabase().execute(sql`
+    update public.profiles p set email=${email}, updated_at=now()
+    where p.is_active=true and p.email is not distinct from ${previousEmail}
+      and (p.email is null or p.email='' or lower(p.email) like '%@registry.internal')
+      and exists (select 1 from private_auth.sessions s
+        where s.user_id=p.id and s.token_hash=${tokenHash(token)} and s.expires_at>now())
+    returning p.id`)
+  return result.rows.length === 1
 }
 export async function deleteSession() {
   const store = await cookies()

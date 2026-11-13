@@ -3,12 +3,12 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { ArrowUp, ArrowDown, ArrowUpDown, Check, Copy, Package } from 'lucide-react'
 import {
-  DataTable,
-  DataTableHeader,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableCell,
+ DataTable,
+ DataTableHeader,
+ DataTableHead,
+ DataTableBody,
+ DataTableRow,
+ DataTableCell,
 } from '@/components/ui/data-table'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -20,754 +20,665 @@ import { CategoryBadge } from './category-badge'
 import { formatDateThaiBE } from '@/lib/date'
 
 export interface ItemsListProps {
-  items: (ItemListRow | null | undefined)[]
-  density?: 'comfortable' | 'compact'
-  startIndex?: number
-  topSpace?: number
-  bottomSpace?: number
-  selectedItemId: string | null
-  selectedItemIds: string[]
-  onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
-  onToggleSelectItem: (id: string) => void
-  onToggleSelectAll: () => void
-  allLoadedSelected: boolean
-  params: ItemListSearchParams
-  onToggleSort: (field: string) => void
-  isInspectorOpen?: boolean
-  userCanWrite?: boolean
-  onCopy?: (value: string | null | undefined) => void
-  onPrint?: (item: ItemListRow) => void
-  onEdit?: (item: ItemListRow) => void
-  mode?: 'standard' | 'ledger'
-  onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
+ items: (ItemListRow | null | undefined)[]
+ density?: 'comfortable' | 'compact'
+ startIndex?: number
+ topSpace?: number
+ bottomSpace?: number
+ selectedItemId: string | null
+ selectedItemIds: string[]
+ onSelect: (item: ItemListRow) => void
+ onToggleSelectItem: (id: string) => void
+ onToggleSelectAll: () => void
+ allLoadedSelected: boolean
+ params: ItemListSearchParams
+ onToggleSort: (field: string) => void
+ isInspectorOpen?: boolean
+ userCanWrite?: boolean
+ onCopy?: (value: string | null | undefined) => void
+ onPrint?: (item: ItemListRow) => void
+ onEdit?: (item: ItemListRow) => void
+ mode?: 'standard' | 'ledger'
+ onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
 }
 
 
 
 export function ItemsList({
-  items,
-  density = 'compact',
-  startIndex = 0,
-  allLoadedSelected,
-  selectedItemId,
-  selectedItemIds,
-  onSelect,
-  onDoubleClick,
-  onToggleSelectItem,
-  onToggleSelectAll,
-  params,
-  onToggleSort,
-  isInspectorOpen = false,
-  userCanWrite = false,
-  onCopy,
-  mode = 'standard',
-  onUpdateStatus,
+ items,
+ density = 'compact',
+ startIndex = 0,
+ allLoadedSelected,
+ selectedItemId,
+ selectedItemIds,
+ onSelect,
+ onToggleSelectItem,
+ onToggleSelectAll,
+ params,
+ onToggleSort,
+ isInspectorOpen = false,
+ userCanWrite = false,
+ onCopy,
+ mode = 'standard',
+ onUpdateStatus,
 }: ItemsListProps) {
-  const masterCheckboxRef = useRef<HTMLInputElement>(null)
+ const masterCheckboxRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (masterCheckboxRef.current) {
-      masterCheckboxRef.current.indeterminate = selectedItemIds.length > 0 && !allLoadedSelected
-    }
-  }, [selectedItemIds.length, allLoadedSelected])
+ useEffect(() => {
+ if (masterCheckboxRef.current) {
+ masterCheckboxRef.current.indeterminate = selectedItemIds.length > 0 && !allLoadedSelected
+ }
+ }, [selectedItemIds.length, allLoadedSelected])
 
-  const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
-    const isSorted = Boolean(params.sort_by && params.sort_by === field)
-    const currentDir = isSorted ? (params.sort_dir || 'asc') : null
+ const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
+ const isSorted = Boolean(params.sort_by && params.sort_by === field)
+ const currentDir = isSorted ? (params.sort_dir || 'asc') : null
 
-    const isAscDefault = ascSortColumns.includes(field as ItemSortColumn)
-    const initialDir: 'asc' | 'desc' = isAscDefault ? 'asc' : 'desc'
-    const oppositeDir: 'asc' | 'desc' = initialDir === 'asc' ? 'desc' : 'asc'
+ const isAscDefault = ascSortColumns.includes(field as ItemSortColumn)
+ const initialDir: 'asc' | 'desc' = isAscDefault ? 'asc' : 'desc'
+ const oppositeDir: 'asc' | 'desc' = initialDir === 'asc' ? 'desc' : 'asc'
 
-    let nextActionText = ''
-    if (!isSorted) {
-      nextActionText = initialDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
-    } else if (currentDir === initialDir) {
-      nextActionText = oppositeDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
-    } else {
-      nextActionText = 'ยกเลิกการจัดเรียง (กลับสู่ค่าเริ่มต้น)'
-    }
+ let nextActionText = ''
+ if (!isSorted) {
+ nextActionText = initialDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
+ } else if (currentDir === initialDir) {
+ nextActionText = oppositeDir === 'asc' ? 'เรียงจากน้อยไปมาก' : 'เรียงจากมากไปน้อย'
+ } else {
+ nextActionText = 'ยกเลิกการจัดเรียง (กลับสู่ค่าเริ่มต้น)'
+ }
 
-    const currentSortText = isSorted
-      ? (currentDir === 'asc' ? 'กำลังเรียงจากน้อยไปมาก' : 'กำลังเรียงจากมากไปน้อย')
-      : 'ยังไม่ได้จัดเรียง'
+ const currentSortText = isSorted
+ ? (currentDir === 'asc' ? 'กำลังเรียงจากน้อยไปมาก' : 'กำลังเรียงจากมากไปน้อย')
+ : 'ยังไม่ได้จัดเรียง'
 
-    const ariaLabel = `จัดเรียงตาม ${label} (${currentSortText}, กดเพื่อ${nextActionText})`
-    const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : 'justify-start w-full'
+ const ariaLabel = `จัดเรียงตาม ${label} (${currentSortText}, กดเพื่อ${nextActionText})`
+ const alignClass = align === 'center' ? 'justify-center w-full' : align === 'right' ? 'justify-end w-full' : 'justify-start w-full'
 
-    return (
-      <button
-        type="button"
-        onClick={() => onToggleSort(field)}
-        aria-label={ariaLabel}
-        title={ariaLabel}
-        className={cn(
-          "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
-          isSorted && "text-foreground",
-          alignClass
-        )}
-      >
-        <span>{label}</span>
-        {isSorted ? (
-          currentDir === 'asc' ? (
-            <ArrowUp className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
-          ) : (
-            <ArrowDown className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" aria-hidden="true" />
-        )}
-      </button>
-    )
-  }
+ return (
+ <button
+ type="button"
+ onClick={() => onToggleSort(field)}
+ aria-label={ariaLabel}
+ title={ariaLabel}
+ className={cn(
+ "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
+ "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
+ isSorted && "text-foreground",
+ alignClass
+ )}
+ >
+ <span>{label}</span>
+ {isSorted ? (
+ currentDir === 'asc' ? (
+ <ArrowUp className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
+ ) : (
+ <ArrowDown className="w-3 h-3 text-primary shrink-0" aria-hidden="true" />
+ )
+ ) : (
+ <ArrowUpDown className="w-3 h-3 text-muted-foreground/50 shrink-0" aria-hidden="true" />
+ )}
+ </button>
+ )
+ }
 
-  const getSortAria = (field: string): 'ascending' | 'descending' | 'none' => {
-    if (!params.sort_by || params.sort_by !== field) return 'none'
-    return params.sort_dir === 'asc' ? 'ascending' : 'descending'
-  }
+ const getSortAria = (field: string): 'ascending' | 'descending' | 'none' => {
+ if (!params.sort_by || params.sort_by !== field) return 'none'
+ return params.sort_dir === 'asc' ? 'ascending' : 'descending'
+ }
 
-  const isLedger = mode === 'ledger'
+ const isLedger = mode === 'ledger'
 
-  return (
-    <div className={cn("bg-muted/10 min-w-0", isLedger ? "w-max min-w-full" : "w-full")}>
-      {isLedger && (
-        <div className="sr-only print:not-sr-only print:block bg-card/90 border-b border-border/80 px-4 py-3 text-xs">
-          <div>
-            <h3 className="font-bold text-sm text-foreground">
-              ทะเบียนคุมสินทรัพย์
-            </h3>
-            <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
-            <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
-            <span><strong className="text-foreground">หมวด:</strong> {params.category_id ? 'ตามตัวกรอง' : 'ครุภัณฑ์ทั้งหมด'}</span>
-          </div>
-        </div>
-      )}
-      <DataTable
-        responsive={false}
-        wrapperClassName={cn(
-          "border-0 rounded-none bg-transparent shadow-none min-w-0",
-          isLedger ? "overflow-visible w-max min-w-full" : "w-full"
-        )}
-        className={cn(
-          "text-card-foreground table-fixed min-w-0",
-          isLedger
-            ? "w-max min-w-[1924px]"
-            : isInspectorOpen
-              ? "w-full min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
-              : "w-full min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
-        )}
-      >
-        <caption className="sr-only">รายการทะเบียนพัสดุและครุภัณฑ์</caption>
-        {isLedger && (
-          <colgroup>
-            <col style={{ width: '40px' }} />
-            <col style={{ width: '48px' }} />
-            <col style={{ width: '300px' }} />
-            <col style={{ width: '112px' }} />
-            <col style={{ width: '128px' }} />
-            <col style={{ width: '224px' }} />
-            <col style={{ width: '96px' }} />
-            <col style={{ width: '64px' }} />
-            <col style={{ width: '176px' }} />
-            <col style={{ width: '144px' }} />
-            <col style={{ width: '144px' }} />
-            <col style={{ width: '144px' }} />
-            <col style={{ width: '64px' }} />
-            <col style={{ width: '56px' }} />
-            <col style={{ width: '64px' }} />
-            <col style={{ width: '120px' }} />
-          </colgroup>
-        )}
-        <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10">
-          {isLedger ? (
-            <>
-              <tr>
-                <DataTableHead rowSpan={2} isCheckbox className="w-10 px-3 align-middle">
-                  <input
-                    ref={masterCheckboxRef}
-                    type="checkbox"
-                    aria-label="เลือกทุกรายการที่โหลดอยู่"
-                    checked={allLoadedSelected}
-                    onChange={onToggleSelectAll}
-                    className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-                  />
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-12 px-2 text-center align-middle font-bold text-muted-foreground">ลำดับ</DataTableHead>
-                <DataTableHead rowSpan={2} className="w-[300px] min-w-[280px] max-w-[320px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
-                  {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-28 px-2 text-center align-middle font-bold text-muted-foreground" aria-sort={getSortAria('acquired_date')}>
-                  {renderSortHeader('acquired_date', 'วัน เดือน ปีที่รับ', 'center')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-32 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('budget_source')}>
-                  {renderSortHeader('budget_source', 'รับจาก (งปม.)')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-56 px-2.5 align-middle font-bold text-muted-foreground">ยี่ห้อ/รุ่น</DataTableHead>
-                <DataTableHead rowSpan={2} className="w-24 px-2.5 text-right align-middle font-bold text-muted-foreground" aria-sort={getSortAria('unit_price')}>
-                  {renderSortHeader('unit_price', 'ราคา', 'right')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-16 px-2 text-center align-middle font-bold text-muted-foreground">หน่วย</DataTableHead>
-                <DataTableHead rowSpan={2} className="w-44 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('asset_no')}>
-                  {renderSortHeader('asset_no', 'เลขครุภัณฑ์')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-36 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('gfmis_number')}>
-                  {renderSortHeader('gfmis_number', 'เลขสินทรัพย์')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-36 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('responsible_person')}>
-                  {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
-                <DataTableHead colSpan={3} scope="colgroup" className="w-[184px] text-center font-bold text-muted-foreground border-l border-r border-border/60 py-1 bg-muted/40 text-xs">
-                  สภาพพัสดุ
-                </DataTableHead>
-                <DataTableHead rowSpan={2} className="w-[120px] px-2.5 align-middle font-bold text-muted-foreground">หมายเหตุ</DataTableHead>
-              </tr>
-              <tr className="border-b border-border/80 text-[11px]">
-                <DataTableHead scope="col" className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-l border-border/40 py-1">ใช้งานได้</DataTableHead>
-                <DataTableHead scope="col" className="w-14 px-1 text-center font-semibold text-muted-foreground text-[11px] py-1">ชำรุด</DataTableHead>
-                <DataTableHead scope="col" className="w-16 px-1 text-center font-semibold text-muted-foreground text-[11px] border-r border-border/40 py-1">เสื่อมสภาพ</DataTableHead>
-              </tr>
-            </>
-          ) : (
-            <tr>
-              <DataTableHead isCheckbox className="w-10 px-3">
-                <input
-                  ref={masterCheckboxRef}
-                  type="checkbox"
-                  aria-label="เลือกทุกรายการที่โหลดอยู่"
-                  checked={allLoadedSelected}
-                  onChange={onToggleSelectAll}
-                  className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-                />
-              </DataTableHead>
-              <DataTableHead className="w-11 px-1" />
-              <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อสิ่งของ')}</DataTableHead>
-              <DataTableHead className={cn("hidden w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} aria-sort={getSortAria('category')}>{renderSortHeader('category', 'หมวดหมู่')}</DataTableHead>
-              <DataTableHead className="w-20 sm:w-24 px-2 sm:px-2.5 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
-              <DataTableHead className={cn("w-28 xl:w-32 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
-              <DataTableHead className={cn("hidden w-28 xl:w-32 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
-              <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
-            </tr>
-          )}
-        </DataTableHeader>
-        <DataTableBody className="divide-y divide-border/40 bg-transparent">
-          {items.map((item, index) => {
-            if (!item) return null
-            return (
-              <ItemTableRow
-                key={item.id}
-                item={item}
-                index={startIndex + index}
-                density={density}
-                isSelected={selectedItemId === item.id}
-                isChecked={selectedItemIds.includes(item.id)}
-                onSelect={onSelect}
-                onDoubleClick={onDoubleClick}
-                onToggleSelectItem={onToggleSelectItem}
-                isInspectorOpen={isInspectorOpen}
-                userCanWrite={userCanWrite}
-                onCopy={onCopy}
-                mode={mode}
-                onUpdateStatus={onUpdateStatus}
-              />
-            )
-          })}
-          {!items.length && <EmptyRows colSpan={isLedger ? 16 : 8} />}
-        </DataTableBody>
-      </DataTable>
-    </div>
-  )
+ return (
+ <div className="bg-muted/10 min-w-0 w-full">
+ {isLedger && (
+ <div className="sr-only print:not-sr-only print:block bg-card/90 border-b border-border/80 px-4 py-3 text-xs">
+ <div>
+ <h3 className="font-bold text-sm text-foreground">
+ ทะเบียนคุมสินทรัพย์
+ </h3>
+ <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
+ </div>
+ <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
+ <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
+ <span><strong className="text-foreground">หมวด:</strong> {params.category_id ? 'ตามตัวกรอง' : 'ครุภัณฑ์ทั้งหมด'}</span>
+ </div>
+ </div>
+ )}
+ <DataTable
+ responsive={false}
+ wrapperClassName={cn(
+ "border-0 rounded-none bg-transparent shadow-none min-w-0",
+ isLedger ? "overflow-visible w-full" : "w-full"
+ )}
+ className={cn(
+ "text-card-foreground table-fixed min-w-0",
+ isLedger
+ ? "w-full min-w-[1476px]"
+ : isInspectorOpen
+ ? "w-full min-w-[420px] xl:min-w-[640px] 2xl:min-w-[840px]"
+ : "w-full min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
+ )}
+ >
+ <caption className="sr-only">รายการทะเบียนพัสดุและครุภัณฑ์</caption>
+ {isLedger && (
+ <colgroup>
+ {userCanWrite && <col style={{ width: '40px' }} />}
+ <col style={{ width: '48px' }} />
+ <col style={{ width: '300px' }} />
+ <col style={{ width: '112px' }} />
+ <col style={{ width: '224px' }} />
+ <col style={{ width: '96px' }} />
+ <col style={{ width: '64px' }} />
+ <col style={{ width: '176px' }} />
+ <col style={{ width: '144px' }} />
+ <col style={{ width: '144px' }} />
+ <col style={{ width: '128px' }} />
+ </colgroup>
+ )}
+ <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10 [&_th]:text-center [&_th>button]:w-full [&_th>button]:justify-center">
+ {isLedger ? (
+ <>
+ <tr>
+ {userCanWrite && (
+<DataTableHead isCheckbox className="w-10 px-3 align-middle">
+ <input
+ ref={masterCheckboxRef}
+ type="checkbox"
+ aria-label="เลือกทุกรายการที่โหลดอยู่"
+ checked={allLoadedSelected}
+ onChange={onToggleSelectAll}
+ className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
+ />
+ </DataTableHead>
+)}
+ <DataTableHead className="w-12 px-2 text-center align-middle font-bold text-muted-foreground">ลำดับ</DataTableHead>
+ <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
+ {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
+ </DataTableHead>
+ <DataTableHead className="w-28 px-2 text-center align-middle font-bold text-muted-foreground" aria-sort={getSortAria('acquired_date')}>
+ {renderSortHeader('acquired_date', 'วัน เดือน ปีที่รับ', 'center')}
+ </DataTableHead>
+ <DataTableHead className="w-56 px-2.5 align-middle font-bold text-muted-foreground">ยี่ห้อ/รุ่น</DataTableHead>
+ <DataTableHead className="w-24 px-2.5 text-right align-middle font-bold text-muted-foreground" aria-sort={getSortAria('unit_price')}>
+ {renderSortHeader('unit_price', 'ราคา', 'right')}
+ </DataTableHead>
+ <DataTableHead className="w-16 px-2 text-center align-middle font-bold text-muted-foreground">หน่วย</DataTableHead>
+ <DataTableHead className="w-44 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('asset_no')}>
+ {renderSortHeader('asset_no', 'เลขครุภัณฑ์')}
+ </DataTableHead>
+ <DataTableHead className="w-36 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('responsible_person')}>
+ {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
+ </DataTableHead>
+ <DataTableHead className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
+ <DataTableHead className="w-32 px-2.5 text-center font-bold text-muted-foreground">สภาพพัสดุ</DataTableHead>
+ </tr>
+ </>
+ ) : (
+ <tr>
+ {userCanWrite && (
+<DataTableHead isCheckbox className="w-10 px-3">
+ <input
+ ref={masterCheckboxRef}
+ type="checkbox"
+ aria-label="เลือกทุกรายการที่โหลดอยู่"
+ checked={allLoadedSelected}
+ onChange={onToggleSelectAll}
+ className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
+ />
+ </DataTableHead>
+)}
+ <DataTableHead className="w-11 px-1" />
+ <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3" aria-sort={getSortAria('item_name')}>{renderSortHeader('item_name', 'ชื่อสิ่งของ')}</DataTableHead>
+ <DataTableHead className={cn("hidden w-36 px-2.5", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} aria-sort={getSortAria('category')}>{renderSortHeader('category', 'หมวดหมู่')}</DataTableHead>
+ <DataTableHead className="w-20 sm:w-24 px-2 sm:px-2.5 text-right" aria-sort={getSortAria('quantity')}>{renderSortHeader('quantity', 'จำนวน', 'right')}</DataTableHead>
+ <DataTableHead className={cn("w-28 xl:w-32 px-2.5", isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell")}>สถานที่</DataTableHead>
+ <DataTableHead className={cn("hidden w-28 xl:w-32 px-2.5", isInspectorOpen ? "2xl:table-cell" : "xl:table-cell")}>ผู้รับผิดชอบ</DataTableHead>
+ <DataTableHead className="w-24 sm:w-28 px-2 sm:px-3" aria-sort={getSortAria('status')}>{renderSortHeader('status', 'สถานะ')}</DataTableHead>
+ </tr>
+ )}
+ </DataTableHeader>
+ <DataTableBody className="divide-y divide-border/40 bg-transparent">
+ {items.map((item, index) => {
+ if (!item) return null
+ return (
+ <ItemTableRow
+ key={item.id}
+ item={item}
+ index={startIndex + index}
+ density={density}
+ isSelected={selectedItemId === item.id}
+ isChecked={selectedItemIds.includes(item.id)}
+ onSelect={onSelect}
+ onToggleSelectItem={onToggleSelectItem}
+ isInspectorOpen={isInspectorOpen}
+ userCanWrite={userCanWrite}
+ onCopy={onCopy}
+ mode={mode}
+ onUpdateStatus={onUpdateStatus}
+ />
+ )
+ })}
+ {!items.length && <EmptyRows colSpan={isLedger ? (userCanWrite ? 11 : 10) : 8} />}
+ </DataTableBody>
+ </DataTable>
+ </div>
+ )
 }
 
 export interface ItemTableRowProps {
-  item: ItemListRow
-  index?: number
-  density?: 'comfortable' | 'compact'
-  isSelected: boolean
-  isChecked: boolean
-  onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
-  onToggleSelectItem: (id: string) => void
-  isInspectorOpen?: boolean
-  userCanWrite?: boolean
-  onCopy?: (value: string | null | undefined) => void
-  onPrint?: (item: ItemListRow) => void
-  onEdit?: (item: ItemListRow) => void
-  mode?: 'standard' | 'ledger'
-  onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
+ item: ItemListRow
+ index?: number
+ density?: 'comfortable' | 'compact'
+ isSelected: boolean
+ isChecked: boolean
+ onSelect: (item: ItemListRow) => void
+ onToggleSelectItem: (id: string) => void
+ isInspectorOpen?: boolean
+ userCanWrite?: boolean
+ onCopy?: (value: string | null | undefined) => void
+ onPrint?: (item: ItemListRow) => void
+ onEdit?: (item: ItemListRow) => void
+ mode?: 'standard' | 'ledger'
+ onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
 }
 
 export const ItemTableRow = React.memo(function ItemTableRow({
-  item,
-  index = 0,
-  density = 'comfortable',
-  isSelected,
-  isChecked,
-  onSelect,
-  onDoubleClick,
-  onToggleSelectItem,
-  isInspectorOpen,
-  userCanWrite = false,
-  onCopy,
-  mode = 'standard',
-  onUpdateStatus,
+ item,
+ index = 0,
+ density = 'comfortable',
+ isSelected,
+ isChecked,
+ onSelect,
+ onToggleSelectItem,
+ isInspectorOpen,
+ userCanWrite = false,
+ onCopy,
+ mode = 'standard',
 }: ItemTableRowProps) {
-  const [copied, setCopied] = useState(false)
-  const isCompact = density === 'compact'
-  const isLedger = mode === 'ledger'
-  const assetCode = item.asset_no || item.serial_no
-  const brandModel = [item.brand, item.model].filter(Boolean).join(' ')
+ const [copied, setCopied] = useState(false)
+ const isCompact = density === 'compact'
+ const isLedger = mode === 'ledger'
+ const assetCode = item.asset_no || item.serial_no
+ const brandModel = [item.brand, item.model].filter(Boolean).join(' ')
 
-  const isUsable = item.status === 'active' || item.status === 'spare'
-  const isDamaged = item.status === 'damaged' || item.status === 'waiting_repair'
-  const isDeteriorated = item.status === 'inactive' || item.status === 'disposed'
+ const isUsable = item.status === 'active' || item.status === 'spare'
+ const isDamaged = item.status === 'damaged' || item.status === 'waiting_repair'
+ const isDeteriorated = item.status === 'inactive' || item.status === 'disposed'
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!assetCode) return
-    onCopy?.(assetCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+ const handleCopy = (e: React.MouseEvent) => {
+ e.stopPropagation()
+ if (!assetCode) return
+ onCopy?.(assetCode)
+ setCopied(true)
+ setTimeout(() => setCopied(false), 1500)
+ }
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>) => {
-    if (event.target !== event.currentTarget) return
-    if (event.key === 'Enter') {
-      onSelect(item)
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      const nextRow = (event.currentTarget as HTMLElement).nextElementSibling as HTMLElement | null
-      nextRow?.focus()
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      const prevRow = (event.currentTarget as HTMLElement).previousElementSibling as HTMLElement | null
-      prevRow?.focus()
-    }
-  }
+ const handleKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>) => {
+ if (event.target !== event.currentTarget) return
+ if (event.key === 'Enter') {
+ onSelect(item)
+ } else if (event.key === 'ArrowDown') {
+ event.preventDefault()
+ const nextRow = (event.currentTarget as HTMLElement).nextElementSibling as HTMLElement | null
+ nextRow?.focus()
+ } else if (event.key === 'ArrowUp') {
+ event.preventDefault()
+ const prevRow = (event.currentTarget as HTMLElement).previousElementSibling as HTMLElement | null
+ prevRow?.focus()
+ }
+ }
 
-  const handleStatusChange = (e: React.MouseEvent, targetStatus: ItemListRow['status']) => {
-    e.stopPropagation()
-    if (!userCanWrite) return
-    onUpdateStatus?.(item.id, targetStatus)
-  }
+ return (
+ <DataTableRow
+ tabIndex={0}
+ onKeyDown={handleKeyDown}
+ title={item.item_name}
+ onClick={() => onSelect(item)}
+ className={cn(
+ 'group cursor-pointer transition-colors outline-none focus-visible:bg-muted/70 focus-visible:ring-1 focus-visible:ring-primary/50',
+ isCompact
+ ? 'h-[42px] max-h-[42px] [&>td]:h-[42px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-0'
+ : 'h-[64px] max-h-[64px] [&>td]:h-[64px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-0',
+ isSelected
+ ? 'border-b border-primary/40 bg-primary/10 text-card-foreground shadow-2xs'
+ : 'border-b border-border/40 text-card-foreground hover:bg-muted/40'
+ )}
+ >
+ {/* Checkbox Column */}
+ {userCanWrite && (
+<DataTableCell isCheckbox className="w-10 px-3" onClick={(e) => e.stopPropagation()}>
+ <input
+ type="checkbox"
+ aria-label={`เลือก ${item.item_name}`}
+ checked={isChecked}
+ onChange={() => onToggleSelectItem(item.id)}
+ className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
+ />
+ </DataTableCell>
+)}
 
-  return (
-    <DataTableRow
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      title={item.item_name}
-      onClick={() => onSelect(item)}
-      onDoubleClick={() => onDoubleClick?.(item)}
-      className={cn(
-        'group cursor-pointer transition-colors outline-none focus-visible:bg-muted/70 focus-visible:ring-1 focus-visible:ring-primary/50',
-        isCompact
-          ? 'h-[42px] max-h-[42px] [&>td]:h-[42px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-0'
-          : 'h-[64px] max-h-[64px] [&>td]:h-[64px] [&>td]:max-w-0 [&>td]:truncate [&>td]:py-0',
-        isSelected
-          ? 'border-b border-primary/40 bg-primary/10 text-card-foreground shadow-2xs'
-          : 'border-b border-border/40 text-card-foreground hover:bg-muted/40'
-      )}
-    >
-      {/* Checkbox Column */}
-      <DataTableCell isCheckbox className="w-10 px-3" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          aria-label={`เลือก ${item.item_name}`}
-          checked={isChecked}
-          onChange={() => onToggleSelectItem(item.id)}
-          className="rounded border-input text-primary focus:ring-ring w-4 h-4 cursor-pointer"
-        />
-      </DataTableCell>
+ {isLedger ? (
+ <>
+ {/* ลำดับ (Index) */}
+ <DataTableCell className="w-12 px-2 text-center text-xs font-mono text-muted-foreground tabular-nums">
+ {index + 1}
+ </DataTableCell>
 
-      {isLedger ? (
-        <>
-          {/* ลำดับ (Index) */}
-          <DataTableCell className="w-12 px-2 text-center text-xs font-mono text-muted-foreground tabular-nums">
-            {index + 1}
-          </DataTableCell>
+ {/* รายการครุภัณฑ์ (Asset Name) */}
+ <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
+ <div className="flex items-center gap-2.5 min-w-0 w-full">
+ <ItemThumbnail
+ imageUrl={item.image_url}
+ itemName={item.item_name}
+ itemType={item.item_type}
+ size="sm"
+ className={isCompact ? "h-7 w-7 rounded shrink-0" : "h-8 w-8 rounded shrink-0"}
+ showZoom={!isCompact}
+ />
+ <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden">
+ {/* 1. Item name MUST occupy its own full-width row */}
+ <div className="w-full min-w-0">
+ <span
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
+ title={item.item_name}
+ >
+ {item.item_name}
+ </span>
+ </div>
 
-          {/* รายการครุภัณฑ์ (Asset Name) */}
-          <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
-            <div className="flex items-center gap-2.5 min-w-0 w-full">
-              <ItemThumbnail
-                imageUrl={item.image_url}
-                itemName={item.item_name}
-                itemType={item.item_type}
-                size="sm"
-                className={isCompact ? "h-7 w-7 rounded shrink-0" : "h-8 w-8 rounded shrink-0"}
-                showZoom={!isCompact}
-              />
-              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden">
-                {/* 1. Item name MUST occupy its own full-width row */}
-                <div className="w-full min-w-0">
-                  <span
-                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
-                    title={item.item_name}
-                  >
-                    {item.item_name}
-                  </span>
-                </div>
+ {/* Keep Serial Number when available */}
+ {item.serial_no && (
+ <div className="w-full min-w-0 mt-0.5">
+ <span
+ className="truncate font-mono text-[10px] text-muted-foreground block leading-tight"
+ title={`s/n: ${item.serial_no}`}
+ >
+ s/n: {item.serial_no}
+ </span>
+ </div>
+ )}
+ </div>
+ </div>
+ </DataTableCell>
 
-                {/* Keep Serial Number when available */}
-                {item.serial_no && (
-                  <div className="w-full min-w-0 mt-0.5">
-                    <span
-                      className="truncate font-mono text-[10px] text-muted-foreground block leading-tight"
-                      title={`s/n: ${item.serial_no}`}
-                    >
-                      s/n: {item.serial_no}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </DataTableCell>
+ {/* วัน เดือน ปีที่รับ */}
+ <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate" title={item.acquired_date ?? undefined}>
+ {formatDateThaiBE(item.acquired_date)}
+ </DataTableCell>
 
-          {/* วัน เดือน ปีที่รับ */}
-          <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate" title={item.acquired_date ?? undefined}>
-            {formatDateThaiBE(item.acquired_date)}
-          </DataTableCell>
+ {/* ยี่ห้อ/รุ่น */}
+ <DataTableCell className="w-56 px-2.5 text-xs text-muted-foreground truncate" title={[brandModel, item.serial_no ? `s/n: ${item.serial_no}` : ''].filter(Boolean).join(' • ') || undefined}>
+ <div className="truncate">
+ <span className="text-foreground">{brandModel || '-'}</span>
+ {item.serial_no && (
+ <span className="text-[11px] font-mono text-muted-foreground/80 block truncate">
+ s/n: {item.serial_no}
+ </span>
+ )}
+ </div>
+ </DataTableCell>
 
-          {/* รับจาก (งปม.) */}
-          <DataTableCell className="w-32 px-2.5 text-xs text-foreground truncate" title={item.budget_source || undefined}>
-            {item.budget_source || <span className="text-muted-foreground/40 italic">-</span>}
-          </DataTableCell>
+ {/* ราคา */}
+ <DataTableCell className="w-24 px-2.5 text-right font-mono text-xs tabular-nums text-foreground">
+ {item.unit_price !== null && item.unit_price !== undefined
+ ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+ : '-'}
+ </DataTableCell>
 
-          {/* ยี่ห้อ/รุ่น */}
-          <DataTableCell className="w-56 px-2.5 text-xs text-muted-foreground truncate" title={[brandModel, item.serial_no ? `s/n: ${item.serial_no}` : ''].filter(Boolean).join(' • ') || undefined}>
-            <div className="truncate">
-              <span className="text-foreground">{brandModel || '-'}</span>
-              {item.serial_no && (
-                <span className="text-[11px] font-mono text-muted-foreground/80 block truncate">
-                  s/n: {item.serial_no}
-                </span>
-              )}
-            </div>
-          </DataTableCell>
+ {/* หน่วย */}
+ <DataTableCell className="w-16 px-2 text-center text-xs text-muted-foreground truncate" title={item.unit?.name || undefined}>
+ {item.unit?.name || '-'}
+ </DataTableCell>
 
-          {/* ราคา */}
-          <DataTableCell className="w-24 px-2.5 text-right font-mono text-xs tabular-nums text-foreground">
-            {item.unit_price !== null && item.unit_price !== undefined
-              ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-              : '-'}
-          </DataTableCell>
+ {/* เลขครุภัณฑ์ */}
+ <DataTableCell className="w-44 px-2.5 font-mono text-xs text-foreground truncate" title={item.asset_no || undefined}>
+ {item.asset_no ? (
+ <button
+ type="button"
+ onClick={handleCopy}
+ title={`คัดลอก ${item.asset_no}`}
+ aria-label={`คัดลอก ${item.asset_no}`}
+ className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer group/badge truncate max-w-full"
+ >
+ <span className="truncate">{item.asset_no}</span>
+ {copied ? <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> : <Copy className="w-2.5 h-2.5 opacity-40 group-hover/badge:opacity-100 shrink-0" />}
+ </button>
+ ) : (
+ <span className="text-muted-foreground/40 italic">-</span>
+ )}
+ </DataTableCell>
 
-          {/* หน่วย */}
-          <DataTableCell className="w-16 px-2 text-center text-xs text-muted-foreground truncate" title={item.unit?.name || undefined}>
-            {item.unit?.name || '-'}
-          </DataTableCell>
+ {/* ผู้ครอบครอง */}
+ <DataTableCell className="w-36 px-2.5 text-xs text-foreground truncate" title={item.responsible_person || undefined}>
+ {item.responsible_person || '-'}
+ </DataTableCell>
 
-          {/* เลขครุภัณฑ์ */}
-          <DataTableCell className="w-44 px-2.5 font-mono text-xs text-foreground truncate" title={item.asset_no || undefined}>
-            {item.asset_no ? (
-              <button
-                type="button"
-                onClick={handleCopy}
-                title={`คัดลอก ${item.asset_no}`}
-                aria-label={`คัดลอก ${item.asset_no}`}
-                className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer group/badge truncate max-w-full"
-              >
-                <span className="truncate">{item.asset_no}</span>
-                {copied ? <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> : <Copy className="w-2.5 h-2.5 opacity-40 group-hover/badge:opacity-100 shrink-0" />}
-              </button>
-            ) : (
-              <span className="text-muted-foreground/40 italic">-</span>
-            )}
-          </DataTableCell>
+ {/* ใช้งานที่ */}
+ <DataTableCell className="w-36 px-2.5 text-xs text-muted-foreground truncate" title={item.location?.name || undefined}>
+ {item.location?.name || '-'}
+ </DataTableCell>
 
-          {/* เลขสินทรัพย์ GFMIS */}
-          <DataTableCell className="w-36 px-2.5 font-mono text-xs text-foreground truncate" title={item.gfmis_number || undefined}>
-            {item.gfmis_number || <span className="text-muted-foreground/40 italic">-</span>}
-          </DataTableCell>
+ {/* สภาพพัสดุ */}
+ <DataTableCell className="w-32 px-2.5 text-center text-xs">
+ <span className="inline-flex items-center gap-1.5 text-card-foreground">
+ <span
+ className={cn(
+ "h-1.5 w-1.5 rounded-full shrink-0",
+ isUsable ? "bg-emerald-500" : isDamaged ? "bg-rose-500" : "bg-slate-400"
+ )}
+ aria-hidden="true"
+ />
+ {isUsable ? 'ใช้งานได้' : isDamaged ? 'ชำรุด' : isDeteriorated ? 'เสื่อมสภาพ' : '-'}
+ </span>
+ </DataTableCell>
 
-          {/* ผู้ครอบครอง */}
-          <DataTableCell className="w-36 px-2.5 text-xs text-foreground truncate" title={item.responsible_person || undefined}>
-            {item.responsible_person || '-'}
-          </DataTableCell>
+ </>
+ ) : (
+ <>
+ {/* Visual Thumbnail */}
+ <DataTableCell className="w-11 px-1">
+ <ItemThumbnail
+ imageUrl={item.image_url}
+ itemName={item.item_name}
+ itemType={item.item_type}
+ size="sm"
+ className={isCompact ? "h-7 w-7 rounded-md" : undefined}
+ showZoom={!isCompact}
+ />
+ </DataTableCell>
 
-          {/* ใช้งานที่ */}
-          <DataTableCell className="w-36 px-2.5 text-xs text-muted-foreground truncate" title={item.location?.name || undefined}>
-            {item.location?.name || '-'}
-          </DataTableCell>
+ {/* Primary Item Name & Details Column */}
+ <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
+ {isCompact ? (
+ <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
+ {/* 1. Item name MUST occupy its own full-width row */}
+ <div className="w-full min-w-0">
+ <span
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
+ title={item.item_name}
+ >
+ {item.item_name}
+ </span>
+ </div>
+ {/* Keep Serial Number and identifiers when available */}
+ <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
+ {item.asset_no ? (
+ <button
+ type="button"
+ onClick={handleCopy}
+ title={`คัดลอก ${item.asset_no}`}
+ aria-label={`คัดลอก ${item.asset_no}`}
+ className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
+ >
+ <span className="truncate max-w-[120px]">{item.asset_no}</span>
+ {copied ? (
+ <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+ ) : (
+ <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
+ )}
+ </button>
+ ) : (
+ <span className="text-[10px] text-muted-foreground/50 italic shrink-0">
+ ไม่มีเลขครุภัณฑ์
+ </span>
+ )}
 
-          {/* สภาพพัสดุ: ใช้งานได้ */}
-          <DataTableCell className="w-16 px-1 text-center border-l border-border/40 py-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              disabled={!userCanWrite}
-              onClick={(e) => handleStatusChange(e, 'active')}
-              title={isUsable ? "ใช้งานได้" : userCanWrite ? "คลิกเพื่อเปลี่ยนสภาพเป็น [ใช้งานได้]" : "สภาพใช้งานได้"}
-              aria-label={`${item.item_name} สภาพใช้งานได้`}
-              className={cn(
-                "w-6 h-6 mx-auto rounded flex items-center justify-center text-xs transition-all",
-                isUsable
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold"
-                  : userCanWrite
-                    ? "border border-border/80 hover:border-emerald-500/60 hover:bg-emerald-500/10 text-transparent hover:text-emerald-500/40 cursor-pointer"
-                    : "border border-border/30 opacity-30 cursor-default"
-              )}
-            >
-              ✓
-            </button>
-          </DataTableCell>
+ {item.serial_no && (
+ <span className="truncate font-mono text-muted-foreground text-[10.5px] shrink-0" title={`s/n: ${item.serial_no}`}>
+ s/n: {item.serial_no}
+ </span>
+ )}
 
-          {/* สภาพพัสดุ: ชำรุด */}
-          <DataTableCell className="w-14 px-1 text-center py-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              disabled={!userCanWrite}
-              onClick={(e) => handleStatusChange(e, 'damaged')}
-              title={isDamaged ? "ชำรุด" : userCanWrite ? "คลิกเพื่อเปลี่ยนสภาพเป็น [ชำรุด]" : "สภาพชำรุด"}
-              aria-label={`${item.item_name} สภาพชำรุด`}
-              className={cn(
-                "w-6 h-6 mx-auto rounded flex items-center justify-center text-xs transition-all",
-                isDamaged
-                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold"
-                  : userCanWrite
-                    ? "border border-border/80 hover:border-rose-500/60 hover:bg-rose-500/10 text-transparent hover:text-rose-500/40 cursor-pointer"
-                    : "border border-border/30 opacity-30 cursor-default"
-              )}
-            >
-              ✓
-            </button>
-          </DataTableCell>
+ {brandModel && (
+ <span className="truncate text-muted-foreground text-[10.5px] leading-none" title={brandModel}>
+ • {brandModel}
+ </span>
+ )}
+ </div>
+ </div>
+ ) : (
+ <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
+ {/* 1. Item name MUST occupy its own full-width row */}
+ <div className="w-full min-w-0">
+ <span
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-5"
+ title={item.item_name}
+ >
+ {item.item_name}
+ </span>
+ </div>
 
-          {/* สภาพพัสดุ: เสื่อมสภาพ */}
-          <DataTableCell className="w-16 px-1 text-center border-r border-border/40 py-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              disabled={!userCanWrite}
-              onClick={(e) => handleStatusChange(e, 'inactive')}
-              title={isDeteriorated ? "เสื่อมสภาพ" : userCanWrite ? "คลิกเพื่อเปลี่ยนสภาพเป็น [เสื่อมสภาพ]" : "สภาพเสื่อมสภาพ"}
-              aria-label={`${item.item_name} สภาพเสื่อมสภาพ`}
-              className={cn(
-                "w-6 h-6 mx-auto rounded flex items-center justify-center text-xs transition-all",
-                isDeteriorated
-                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold"
-                  : userCanWrite
-                    ? "border border-border/80 hover:border-amber-500/60 hover:bg-amber-500/10 text-transparent hover:text-amber-500/40 cursor-pointer"
-                    : "border border-border/30 opacity-30 cursor-default"
-              )}
-            >
-              ✓
-            </button>
-          </DataTableCell>
+ {/* Keep Serial Number and identifiers when available */}
+ <div className="mt-1 flex items-center gap-2 min-w-0 text-xs leading-none">
+ {item.asset_no ? (
+ <button
+ type="button"
+ onClick={handleCopy}
+ title={`คัดลอก ${item.asset_no}`}
+ aria-label={`คัดลอก ${item.asset_no}`}
+ className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge"
+ >
+ <span className="truncate">{item.asset_no}</span>
+ {copied ? (
+ <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+ ) : (
+ <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
+ )}
+ </button>
+ ) : (
+ <span className="text-[11px] font-medium text-muted-foreground/60 italic shrink-0">
+ ไม่มีเลขครุภัณฑ์
+ </span>
+ )}
 
-          {/* หมายเหตุ */}
-          <DataTableCell className="w-[120px] px-2.5 text-xs text-muted-foreground truncate" title={item.note || undefined}>
-            {item.note || '-'}
-          </DataTableCell>
-        </>
-      ) : (
-        <>
-          {/* Visual Thumbnail */}
-          <DataTableCell className="w-11 px-1">
-            <ItemThumbnail
-              imageUrl={item.image_url}
-              itemName={item.item_name}
-              itemType={item.item_type}
-              size="sm"
-              className={isCompact ? "h-7 w-7 rounded-md" : undefined}
-              showZoom={!isCompact}
-            />
-          </DataTableCell>
+ {item.serial_no && (
+ <span className="truncate font-mono text-muted-foreground text-[11px] shrink-0" title={`s/n: ${item.serial_no}`}>
+ s/n: {item.serial_no}
+ </span>
+ )}
 
-          {/* Primary Item Name & Details Column */}
-          <DataTableCell className="w-[300px] min-w-[280px] max-w-[320px] px-3 overflow-hidden">
-            {isCompact ? (
-              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
-                {/* 1. Item name MUST occupy its own full-width row */}
-                <div className="w-full min-w-0">
-                  <span
-                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
-                    title={item.item_name}
-                  >
-                    {item.item_name}
-                  </span>
-                </div>
-                {/* Keep Serial Number and identifiers when available */}
-                <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
-                  {item.asset_no ? (
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      title={`คัดลอก ${item.asset_no}`}
-                      aria-label={`คัดลอก ${item.asset_no}`}
-                      className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
-                    >
-                      <span className="truncate max-w-[120px]">{item.asset_no}</span>
-                      {copied ? (
-                        <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                      ) : (
-                        <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
-                      )}
-                    </button>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground/50 italic shrink-0">
-                      ไม่มีเลขครุภัณฑ์
-                    </span>
-                  )}
+ {brandModel && (
+ <span className="truncate text-muted-foreground text-[11.5px] leading-none" title={brandModel}>
+ • {brandModel}
+ </span>
+ )}
+ </div>
+ </div>
+ )}
+ </DataTableCell>
 
-                  {item.serial_no && (
-                    <span className="truncate font-mono text-muted-foreground text-[10.5px] shrink-0" title={`s/n: ${item.serial_no}`}>
-                      s/n: {item.serial_no}
-                    </span>
-                  )}
+ {/* Category Column */}
+ <DataTableCell className={cn("hidden w-36 px-2.5 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
+ {item.category ? (
+ <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} />
+ ) : (
+ <span className="text-muted-foreground/50">-</span>
+ )}
+ </DataTableCell>
 
-                  {brandModel && (
-                    <span className="truncate text-muted-foreground text-[10.5px] leading-none" title={brandModel}>
-                      • {brandModel}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
-                {/* 1. Item name MUST occupy its own full-width row */}
-                <div className="w-full min-w-0">
-                  <span
-                    className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-5"
-                    title={item.item_name}
-                  >
-                    {item.item_name}
-                  </span>
-                </div>
+ {/* Quantity & Unit Column */}
+ <DataTableCell className="w-20 sm:w-24 px-2 sm:px-2.5 text-right">
+ <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0">
+ <span className="font-extrabold text-foreground text-sm tabular-nums text-right flex-1 min-w-0">
+ {item.quantity}
+ </span>
+ <span
+ className="text-xs font-normal text-muted-foreground truncate w-8 sm:w-10 text-left shrink-0"
+ title={item.unit?.name || undefined}
+ >
+ {item.unit?.name ?? ''}
+ </span>
+ </div>
+ </DataTableCell>
 
-                {/* Keep Serial Number and identifiers when available */}
-                <div className="mt-1 flex items-center gap-2 min-w-0 text-xs leading-none">
-                  {item.asset_no ? (
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      title={`คัดลอก ${item.asset_no}`}
-                      aria-label={`คัดลอก ${item.asset_no}`}
-                      className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge"
-                    >
-                      <span className="truncate">{item.asset_no}</span>
-                      {copied ? (
-                        <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                      ) : (
-                        <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
-                      )}
-                    </button>
-                  ) : (
-                    <span className="text-[11px] font-medium text-muted-foreground/60 italic shrink-0">
-                      ไม่มีเลขครุภัณฑ์
-                    </span>
-                  )}
+ {/* Location Column */}
+ <DataTableCell
+ className={cn(
+ "w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
+ isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell"
+ )}
+ title={item.location?.name || undefined}
+ >
+ {item.location?.name ? (
+ <span className="truncate block" title={item.location.name}>
+ {item.location.name}
+ </span>
+ ) : (
+ <span className="text-muted-foreground/50">-</span>
+ )}
+ </DataTableCell>
 
-                  {item.serial_no && (
-                    <span className="truncate font-mono text-muted-foreground text-[11px] shrink-0" title={`s/n: ${item.serial_no}`}>
-                      s/n: {item.serial_no}
-                    </span>
-                  )}
+ {/* Responsible Person Column */}
+ <DataTableCell
+ className={cn(
+ "hidden w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
+ isInspectorOpen ? "2xl:table-cell" : "xl:table-cell"
+ )}
+ title={item.responsible_person || undefined}
+ >
+ {item.responsible_person ? (
+ <span className="truncate block" title={item.responsible_person}>
+ {item.responsible_person}
+ </span>
+ ) : (
+ <span className="text-muted-foreground/50">-</span>
+ )}
+ </DataTableCell>
 
-                  {brandModel && (
-                    <span className="truncate text-muted-foreground text-[11.5px] leading-none" title={brandModel}>
-                      • {brandModel}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </DataTableCell>
-
-          {/* Category Column */}
-          <DataTableCell className={cn("hidden w-36 px-2.5 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
-            {item.category ? (
-              <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} />
-            ) : (
-              <span className="text-muted-foreground/50">-</span>
-            )}
-          </DataTableCell>
-
-          {/* Quantity & Unit Column */}
-          <DataTableCell className="w-20 sm:w-24 px-2 sm:px-2.5 text-right">
-            <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0">
-              <span className="font-extrabold text-foreground text-sm tabular-nums text-right flex-1 min-w-0">
-                {item.quantity}
-              </span>
-              <span
-                className="text-xs font-normal text-muted-foreground truncate w-8 sm:w-10 text-left shrink-0"
-                title={item.unit?.name || undefined}
-              >
-                {item.unit?.name ?? ''}
-              </span>
-            </div>
-          </DataTableCell>
-
-          {/* Location Column */}
-          <DataTableCell
-            className={cn(
-              "w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
-              isInspectorOpen ? "hidden xl:table-cell" : "hidden sm:table-cell"
-            )}
-            title={item.location?.name || undefined}
-          >
-            {item.location?.name ? (
-              <span className="truncate block" title={item.location.name}>
-                {item.location.name}
-              </span>
-            ) : (
-              <span className="text-muted-foreground/50">-</span>
-            )}
-          </DataTableCell>
-
-          {/* Responsible Person Column */}
-          <DataTableCell
-            className={cn(
-              "hidden w-28 xl:w-32 px-2.5 text-xs font-medium text-muted-foreground truncate",
-              isInspectorOpen ? "2xl:table-cell" : "xl:table-cell"
-            )}
-            title={item.responsible_person || undefined}
-          >
-            {item.responsible_person ? (
-              <span className="truncate block" title={item.responsible_person}>
-                {item.responsible_person}
-              </span>
-            ) : (
-              <span className="text-muted-foreground/50">-</span>
-            )}
-          </DataTableCell>
-
-          {/* Status Column */}
-          <DataTableCell className="w-24 sm:w-28 px-2 sm:px-3">
-            <div className="flex flex-col gap-1 items-start">
-              <StatusBadge status={item.status} size="sm" showDot className="shrink-0" />
-              {item.is_central && (
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap",
-                  item.is_borrowed
-                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25"
-                    : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25"
-                )}>
-                  <span className={cn("size-1 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
-                  {item.is_borrowed ? "ถูกยืม" : "พร้อมยืม"}
-                </span>
-              )}
-            </div>
-          </DataTableCell>
-        </>
-      )}
-    </DataTableRow>
-  )
+ {/* Status Column */}
+ <DataTableCell className="w-24 sm:w-28 px-2 sm:px-3">
+ <div className="flex flex-col gap-1 items-start">
+ <StatusBadge status={item.status} size="sm" showDot className="shrink-0" />
+ {item.is_central && (
+ <span className={cn(
+ "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap",
+ item.is_borrowed
+ ? "bg-amber-500/10 text-amber-700 border-amber-500/25"
+ : "bg-emerald-500/10 text-emerald-700 border-emerald-500/25"
+ )}>
+ <span className={cn("size-1 rounded-full", item.is_borrowed ? "bg-amber-500" : "bg-emerald-500")} />
+ {item.is_borrowed ? "ถูกยืม" : "พร้อมยืม"}
+ </span>
+ )}
+ </div>
+ </DataTableCell>
+ </>
+ )}
+ </DataTableRow>
+ )
 })
 
 function EmptyRows({ colSpan = 9 }: { colSpan?: number }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-12">
-        <EmptyState
-          title="ไม่พบข้อมูลสิ่งของ"
-          description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
-          icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
-          className="border-0 shadow-none bg-transparent"
-        />
-      </td>
-    </tr>
-  )
+ return (
+ <tr>
+ <td colSpan={colSpan} className="px-5 py-12">
+ <EmptyState
+ title="ไม่พบข้อมูลสิ่งของ"
+ description="ลองล้างตัวกรองหรือขึ้นทะเบียนรายการใหม่"
+ icon={<Package className="h-10 w-10 text-muted-foreground opacity-60" />}
+ className="border-0 shadow-none bg-transparent"
+ />
+ </td>
+ </tr>
+ )
 }

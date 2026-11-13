@@ -3,7 +3,12 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
-import { createPostgresDisbursementDraft, updatePostgresDisbursementDraft, cancelPostgresDisbursementDraft, confirmPostgresDisbursement, returnPostgresDisbursementItem, reversePostgresDisbursement, submitPostgresBorrowRequest, rejectPostgresDisbursement } from './postgres-actions'
+import { getCurrentProfile } from '@/features/auth/queries'
+import { canCreateDisbursement } from '@/lib/permissions'
+import { getDisbursementSelectableItems } from './queries'
+import type { DisbursementSelectableItem } from './types'
+import { assignPostgresCustody, getCustodyHistory, inspectHistoricalPool, loadCustodyData } from './custody-postgres'
+import { createPostgresDisbursementDraft, updatePostgresDisbursementDraft, cancelPostgresDisbursementDraft, confirmPostgresDisbursement, returnPostgresDisbursement, returnPostgresDisbursementItem, reversePostgresDisbursement, submitPostgresBorrowRequest, rejectPostgresDisbursement } from './postgres-actions'
 
 function refreshDisbursementCaches() {
   revalidatePath('/items'); revalidatePath('/disbursements'); revalidatePath('/', 'layout')
@@ -17,6 +22,37 @@ async function run<T>(message: string, action: () => Promise<T>): Promise<Action
 
 export async function createDisbursementDraft(input: unknown) {
   return run('สร้างเอกสารสำเร็จ', () => createPostgresDisbursementDraft(input))
+}
+
+export async function loadDisbursementFormItems(): Promise<ActionResponse<DisbursementSelectableItem[]>> {
+  const profile = await getCurrentProfile()
+  if (!profile?.is_active || !canCreateDisbursement(profile.role)) {
+    return errorResponse('คุณไม่มีสิทธิ์สร้างเอกสารเบิกจ่าย')
+  }
+  try {
+    return successResponse('โหลดรายการสำเร็จ', await getDisbursementSelectableItems())
+  } catch {
+    return errorResponse('โหลดรายการพัสดุไม่สำเร็จ กรุณาลองใหม่')
+  }
+}
+
+export async function loadCustodyForm() {
+  try { return successResponse('โหลดข้อมูลสำเร็จ', await loadCustodyData()) }
+  catch { return errorResponse<Awaited<ReturnType<typeof loadCustodyData>>>('โหลดข้อมูลผู้ถือครองไม่สำเร็จ') }
+}
+
+export async function loadCustodyHistory(input: unknown = {}) {
+  try { return successResponse('โหลดประวัติสำเร็จ', await getCustodyHistory(input)) }
+  catch { return errorResponse<Awaited<ReturnType<typeof getCustodyHistory>>>('โหลดประวัติไม่สำเร็จ กรุณาลองใหม่') }
+}
+
+export async function assignCustody(input: unknown) {
+  return run('มอบหมายผู้ถือครองแล้ว', () => assignPostgresCustody(input))
+}
+
+export async function inspectPoolHistory() {
+  try { return successResponse('ตรวจสอบย้อนหลังแล้ว', await inspectHistoricalPool()) }
+  catch { return errorResponse<Awaited<ReturnType<typeof inspectHistoricalPool>>>('ตรวจสอบย้อนหลังไม่สำเร็จ กรุณาลองใหม่ด้วยบัญชี admin') }
 }
 
 export async function updateDisbursementDraft(input: unknown) {
@@ -35,11 +71,15 @@ export async function returnDisbursementItem(input: unknown) {
   return run('บันทึกรับคืนสำเร็จ', () => returnPostgresDisbursementItem(input))
 }
 
+export async function returnDisbursement(id: string) {
+  return run('คืนพัสดุเรียบร้อยแล้ว', () => returnPostgresDisbursement(id))
+}
+
 export async function reverseDisbursement(input: unknown) {
   return run('ย้อนรายการสำเร็จ', () => reversePostgresDisbursement(input))
 }
 
-export async function submitBorrowRequest(input: { item_ids: string[]; due_date: string; purpose: string }) {
+export async function submitBorrowRequest(input: { item_ids: string[]; request_type?: 'issue' | 'borrow'; due_date?: string | null; purpose: string }) {
   return run('ส่งคำขอสำเร็จ รอผู้ดูแลอนุมัติ', () => submitPostgresBorrowRequest(input))
 }
 

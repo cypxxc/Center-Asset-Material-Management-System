@@ -1,4 +1,5 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from 'node:crypto'
+import { compare } from 'bcryptjs'
 
 export const SCRYPT_CONFIG = {
   keylen: 64,
@@ -27,6 +28,12 @@ export async function hashPassword(password: string) {
   return `scrypt:${salt}:${derived.toString('hex')}`
 }
 export async function verifyPassword(password: string, encoded: string) {
+  // pgcrypto creates bcrypt hashes for passwords entered directly through Navicat.
+  // Reject overlong input instead of silently accepting bcrypt's 72-byte truncation.
+  if (/^\$2[ab]\$12\$[./A-Za-z0-9]{53}$/.test(encoded)) {
+    if (password.length < 6 || Buffer.byteLength(password, 'utf8') > 72 || password.includes('\0')) return false
+    return compare(password, encoded)
+  }
   const [algorithm, salt, hash, extra] = encoded.split(':')
   if (extra !== undefined || algorithm !== 'scrypt' || !/^[a-f0-9]{64}$/.test(salt ?? '') || !/^[a-f0-9]{128}$/.test(hash ?? '') || password.length < 6 || password.length > 1024) return false
   const actual = await scryptAsync(password, salt, SCRYPT_CONFIG.keylen, {

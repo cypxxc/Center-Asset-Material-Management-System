@@ -16,10 +16,11 @@
 /playwright-report/
 /blob-report/
 tests/
-*.test.ts
-*.test.tsx
-**/*.test.ts
-**/*.test.tsx
+*.test.*
+*.spec.*
+__tests__/
+.nyc_output/
+/playwright/.cache/
 scripts/ai-uat/
 
 # database migrations
@@ -39,6 +40,8 @@ db/postgres/migrations/
 Thumbs.db
 *.pem
 *.tmp
+*.temp
+*.bak
 *.swp
 *~
 
@@ -49,6 +52,9 @@ yarn-error.log*
 .pnpm-debug.log*
 debug.log
 *.log
+*.log.*
+*.pid
+*.pid.lock
 
 # editor & ide
 .vscode/
@@ -75,7 +81,7 @@ desktop.ini
 scratch/
 docs/
 *.md
-**/*.md
+*.mdx
 
 
 # env files (can opt-in for committing if needed)
@@ -91,6 +97,15 @@ docs/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Migration SQL and its journal are required to reproduce the repaired schema.
+!/db/postgres/migrations/
+/db/postgres/migrations/*
+!/db/postgres/migrations/*.sql
+!/db/postgres/migrations/meta/
+/db/postgres/migrations/meta/*
+!/db/postgres/migrations/meta/_journal.json
+!/db/postgres/migrations/meta/0000_snapshot.json
 
 # documents & spreadsheets
 *.xlsx

@@ -49,7 +49,7 @@ export function FilterDropdown({
         className="sr-only max-w-[160px] truncate"
         tabIndex={-1}
       >
-        <option value="">{allLabel || `กรองตาม${label}`}</option>
+        <option value="">{allLabel || label}</option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
@@ -69,18 +69,18 @@ export function FilterDropdown({
                 ? 'bg-primary/10 border-primary/40 text-primary font-bold hover:bg-primary/15'
                 : 'bg-card hover:bg-muted/70 text-foreground/80 hover:text-foreground border-input'
             )}
-            title={selectedOption ? `${label}: ${selectedOption.label}` : `กรองตาม${label}`}
+            title={selectedOption ? `${label}: ${selectedOption.label}` : label}
           >
-            <span
+            {icon && <span
               className={cn(
                 'shrink-0 transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
               )}
             >
               {icon}
-            </span>
+            </span>}
             <span className="truncate max-w-[130px] sm:max-w-[160px]">
-              {selectedOption ? selectedOption.label : `กรองตาม${label}`}
+              {selectedOption ? selectedOption.label : label}
             </span>
             {isActive && (
               <span className="size-1.5 rounded-full bg-primary shrink-0 animate-pulse" />

@@ -1,4 +1,5 @@
 import 'server-only'
+import { itemStatusStorageValues, ITEM_STATUSES } from './status'
 
 import { sql, type SQL } from 'drizzle-orm'
 import { withUserDatabase } from '@/lib/postgres/request'
@@ -117,12 +118,14 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
   if (params.qualification && (!validateEnums || ['qualified', 'below_threshold', 'unclassified'].includes(params.qualification))) {
     clauses.push(params.qualification === 'unclassified' ? sql`i.qualification_status is null` : sql`i.qualification_status = ${params.qualification}`)
   }
-  if (params.status && (!validateEnums || ['active', 'spare', 'damaged', 'waiting_repair', 'inactive', 'disposed'].includes(params.status))) {
-    clauses.push(sql`i.status = ${params.status}`)
+  if (params.status && ITEM_STATUSES.some(status => status === params.status)) {
+    clauses.push(sql`i.status in (${sql.join(itemStatusStorageValues(params.status).map(status => sql`${status}`), sql`, `)})`)
   }
   if (params.category_id) clauses.push(sql`i.category_id = ${params.category_id}::uuid`)
   if (params.location_id) clauses.push(sql`i.location_id = ${params.location_id}::uuid`)
-  if (params.is_central === 'true' || params.is_central === '1' || params.is_central === true) clauses.push(sql`i.is_central = true`)
+  // Match the central-pool definition used by borrowing and the item form,
+  // including older items identified through their notes.
+  if (params.is_central === 'true' || params.is_central === '1' || params.is_central === true) clauses.push(sql`(i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')`)
   return sql.join(clauses, sql` and `)
 }
 
@@ -131,7 +134,8 @@ export async function getPostgresItemReferences() {
     const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color, icon from public.categories where is_active order by name`)
     const locations = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.locations where is_active order by name`)
     const units = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.units where is_active order by name`)
-    return { categories: categories.rows, locations: locations.rows, units: units.rows }
+    const responsibleUsers = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, full_name as name from public.profiles where is_active order by full_name, id`)
+    return { categories: categories.rows, locations: locations.rows, units: units.rows, responsibleUsers: responsibleUsers.rows }
   })
 }
 
@@ -145,12 +149,12 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
     item_type: sql`i.item_type`,
     quantity: sql`i.quantity`,
     status: sql`case i.status
-      when 'active' then 'ใช้งานอยู่'
-      when 'spare' then 'สำรอง'
-      when 'waiting_repair' then 'รอซ่อม'
+      when 'active' then 'ใช้งานได้'
+      when 'spare' then 'ใช้งานได้'
+      when 'waiting_repair' then 'ชำรุด'
       when 'damaged' then 'ชำรุด'
-      when 'inactive' then 'ไม่ใช้งาน'
-      when 'disposed' then 'จำหน่ายแล้ว'
+      when 'inactive' then 'เสื่อมสภาพ'
+      when 'disposed' then 'เสื่อมสภาพ'
       else i.status
     end collate "th-TH-x-icu"`,
     acquired_date: sql`i.acquired_date`,
@@ -165,7 +169,9 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
   const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by ?? ''))
   return withUserDatabase(async (tx) => {
     const where = itemFilters(params, true)
-    const classificationWhere = itemFilters({ ...params, type: undefined }, true)
+    // Type totals define the inventory scope independently of qualification.
+    // Qualification totals stay within the selected type; shared filters apply to both.
+    const classificationWhere = itemFilters({ ...params, type: undefined, qualification: undefined }, true)
     const selectedType = params.type === 'asset' || params.type === 'material' ? params.type : null
     const selectedQualification = params.qualification === 'qualified' || params.qualification === 'below_threshold' ? params.qualification : null
     const selectedUnclassified = params.qualification === 'unclassified'

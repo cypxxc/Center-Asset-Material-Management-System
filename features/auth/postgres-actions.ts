@@ -3,10 +3,29 @@ import { sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
-import { getPostgresProfile, authenticatePassword, setSessionCookie, replaceCurrentPassword, deleteSession } from '@/lib/postgres/session'
+import { getPostgresProfile, authenticatePassword, setSessionCookie, replaceCurrentPassword, deleteSession, addCurrentAccountEmail } from '@/lib/postgres/session'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { consumeLoginAttempt, pruneLoginAttempts } from '@/lib/postgres/login-throttle'
+import { isInternalEmail } from '@/lib/display-email'
+import { parsePersonalEmail } from './personal-email'
+
+export async function postgresAddPersonalEmail(formData: FormData) {
+  const profile = await getPostgresProfile()
+  if (!profile?.is_active) return { error: 'กรุณาเข้าสู่ระบบ' }
+  if (profile.email && !isInternalEmail(profile.email)) return { error: 'บัญชีนี้มีอีเมลแล้ว' }
+  const email = parsePersonalEmail(formData.get('email'))
+  if (!email) return { error: 'กรุณาระบุอีเมลให้ถูกต้อง' }
+  try {
+    if (!await addCurrentAccountEmail(email, profile.email)) return { error: 'ข้อมูลบัญชีเปลี่ยนแปลงแล้ว กรุณาโหลดหน้าใหม่' }
+  } catch (error) {
+    const cause = error as { code?: string; cause?: { code?: string } }
+    if (cause.code === '23505' || cause.cause?.code === '23505') return { error: 'อีเมลนี้ถูกใช้งานแล้ว' }
+    return { error: 'ไม่สามารถบันทึกอีเมลได้ กรุณาลองใหม่' }
+  }
+  revalidatePath('/', 'layout')
+  return { success: 'เพิ่มอีเมลเรียบร้อยแล้ว สามารถใช้อีเมลนี้เข้าสู่ระบบได้' }
+}
 
 export async function postgresLogin(formData: FormData) {
   const limit = await checkRateLimit('login', 10, 60000, 'anonymous')
@@ -23,36 +42,6 @@ export async function postgresLogin(formData: FormData) {
   redirect('/dashboard')
 }
 export async function postgresSignOut() { await deleteSession(); redirect('/login') }
-export async function postgresUpdateProfile(formData: FormData) {
-  const displayNameRaw = formData.get('display_name')
-  const fullNameRaw = formData.get('full_name')
-
-  const displayName = displayNameRaw !== null ? String(displayNameRaw).trim() : null
-  const fullName = fullNameRaw !== null ? String(fullNameRaw).trim() : null
-
-  if (displayName && displayName.length > 200) {
-    return { error: 'ชื่อแสดงผลต้องมีความยาวไม่เกิน 200 ตัวอักษร' }
-  }
-
-  const profile = await getPostgresProfile()
-  if (!profile) return { error: 'กรุณาเข้าสู่ระบบ' }
-
-  // If display_name is provided in form (even empty string to reset), update display_name.
-  // full_name remains untouched so login identifier is protected from accidental mutation.
-  if (displayNameRaw !== null) {
-    await withUserDatabase((tx) =>
-      tx.execute(sql`update public.profiles set display_name=${displayName || null} where id=${profile.id}`)
-    )
-  } else if (fullName) {
-    // Fallback if legacy form submitting full_name only
-    await withUserDatabase((tx) =>
-      tx.execute(sql`update public.profiles set full_name=${fullName} where id=${profile.id}`)
-    )
-  }
-
-  revalidatePath('/', 'layout')
-  return { success: 'อัปเดตข้อมูลส่วนตัวเรียบร้อยแล้ว' }
-}
 export async function postgresUpdatePassword(formData: FormData) {
   const profile = await getPostgresProfile()
   if (!profile) return { error: 'กรุณาเข้าสู่ระบบ' }

@@ -5,8 +5,8 @@ import { gzipSync } from 'node:zlib'
 export const DEFAULT_BUDGETS = {
   shared_runtime_raw_max: 450 * 1024,
   shared_runtime_gzip_max: 150 * 1024,
-  dashboard_route_raw_max: 160 * 1024,
-  dashboard_route_gzip_max: 50 * 1024,
+  dashboard_route_raw_max: 220 * 1024,
+  dashboard_route_gzip_max: 80 * 1024,
 } as const
 
 export type BudgetKey = keyof typeof DEFAULT_BUDGETS

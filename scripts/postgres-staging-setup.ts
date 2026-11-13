@@ -41,7 +41,7 @@ async function run() {
     console.log(`PASS Gate 1: camms_registry verified untouched (${regTables.rows[0].count} tables in main db).\n`)
 
     // ---------------------------------------------------------
-    // Gate 2: Run Drizzle migrations 0000-0008 on camms_staging
+    // Gate 2: Install the final Drizzle baseline on camms_staging
     // ---------------------------------------------------------
     console.log('[Gate 2] Running Drizzle migrations on camms_staging...')
     const stagingOwnerUrl = new URL(appEnv.DATABASE_MIGRATION_URL)
@@ -57,8 +57,8 @@ async function run() {
       const migRows = await stagingOwnerPool.query<{ id: number; hash: string; created_at: number }>(
         'SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id ASC'
       )
-      assert.equal(migRows.rows.length, 9, 'Exactly 9 migrations (0000 to 0008) must be recorded')
-      console.log(`PASS Gate 2: All 9 migrations recorded in drizzle.__drizzle_migrations.`)
+      assert.equal(migRows.rows.length, 1, 'Exactly one final baseline must be recorded')
+      console.log(`PASS Gate 2: Final baseline recorded in drizzle.__drizzle_migrations.`)
 
       // Verify tables in public and private_auth
       const tables = await stagingOwnerPool.query<{ table_schema: string; table_name: string }>(
@@ -111,15 +111,15 @@ async function run() {
       // Generate random test passwords
       const adminPass = `UAT_Admin_${randomBytes(8).toString('hex')}`
       const staffPass = `UAT_Staff_${randomBytes(8).toString('hex')}`
-      const viewerPass = `UAT_Viewer_${randomBytes(8).toString('hex')}`
+      const userPass = `UAT_User_${randomBytes(8).toString('hex')}`
 
       const adminHash = await hashPassword(adminPass)
       const staffHash = await hashPassword(staffPass)
-      const viewerHash = await hashPassword(viewerPass)
+      const userHash = await hashPassword(userPass)
 
       const adminId = randomUUID()
       const staffId = randomUUID()
-      const viewerId = randomUUID()
+      const userId = randomUUID()
 
       // Insert profiles and credentials
       const client = await stagingOwnerPool.connect()
@@ -135,18 +135,18 @@ async function run() {
           [adminId]
         )
         await client.query(
-          "INSERT INTO public.profiles (id, full_name, email, role, is_active) VALUES ($1, 'เจ้าหน้าที่พัสดุ UAT', 'staff_uat@camms.test', 'staff', true)",
+          "INSERT INTO public.profiles (id, full_name, email, role, is_active) VALUES ($1, 'เจ้าหน้าที่พัสดุ UAT', 'staff_uat@camms.test', 'admin', true)",
           [staffId]
         )
         await client.query(
-          "INSERT INTO public.profiles (id, full_name, email, role, is_active) VALUES ($1, 'ผู้ดูข้อมูล UAT', 'viewer_uat@camms.test', 'viewer', true)",
-          [viewerId]
+          "INSERT INTO public.profiles (id, full_name, email, role, is_active) VALUES ($1, 'ผู้ดูข้อมูล UAT', 'viewer_uat@camms.test', 'user', true)",
+          [userId]
         )
 
         // 2. Credentials
         await client.query('INSERT INTO private_auth.credentials (user_id, password_hash) VALUES ($1, $2)', [adminId, adminHash])
         await client.query('INSERT INTO private_auth.credentials (user_id, password_hash) VALUES ($1, $2)', [staffId, staffHash])
-        await client.query('INSERT INTO private_auth.credentials (user_id, password_hash) VALUES ($1, $2)', [viewerId, viewerHash])
+        await client.query('INSERT INTO private_auth.credentials (user_id, password_hash) VALUES ($1, $2)', [userId, userHash])
 
         // 3. Metadata
         const matCatId = randomUUID()
@@ -228,7 +228,7 @@ async function run() {
         `UAT_STAFF_EMAIL="staff_uat@camms.test"`,
         `UAT_STAFF_PASSWORD=${JSON.stringify(staffPass)}`,
         `UAT_VIEWER_EMAIL="viewer_uat@camms.test"`,
-        `UAT_VIEWER_PASSWORD=${JSON.stringify(viewerPass)}`,
+        `UAT_VIEWER_PASSWORD=${JSON.stringify(userPass)}`,
       ].join('\n') + '\n'
       writeFileSync('.env.staging.accounts', accountsPayload, { mode: 0o600 })
 

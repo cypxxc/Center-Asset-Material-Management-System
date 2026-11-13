@@ -8,22 +8,31 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { withIdentity, type PostgresTransaction } from '@/lib/postgres/db'
 import { AuthorizationError } from '@/lib/errors'
+import {
+  buildQualificationMappings,
+  getSheetQualificationStatus,
+  type SourceRow,
+  type Status,
+} from './qualification-mapping-core'
 
-export type Status = 'qualified' | 'below_threshold'
-export type SourceRow = { assetNo: string; status: Status | null }
-export type Mapping = { id: string; asset_no: string; qualification_status: Status }
+export type { Mapping, SourceRow, Status } from './qualification-mapping-core'
 
 export type QualificationMappingPreview = {
   eligible: number
   qualified: number
   belowThreshold: number
   alreadyApplied: number
-  conflictingExistingStatus: number
+  existingStatusesToCorrect: number
   ambiguousSourceIds: number
+  ambiguousDatabaseIds: number
   unmatchedSource: number
   unmatchedDatabase: number
   sourceTotalWithAssetNo: number
   sourceTotalWithoutAssetNo: number
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? '').normalize('NFC').trim().replace(/\s+/g, ' ')
 }
 
 function cleanCellText(val: unknown): string {
@@ -35,10 +44,6 @@ function cleanCellText(val: unknown): string {
     return String((val as { result?: unknown }).result ?? '').trim()
   }
   return String(val).trim()
-}
-
-function normalize(value: unknown): string {
-  return String(value ?? '').normalize('NFC').trim().replace(/\s+/g, ' ')
 }
 
 export function getAuthoritativeWorkbookPath(): string {
@@ -60,28 +65,12 @@ export async function readAuthoritativeSourceRows(): Promise<{
   let totalWithAsset = 0
   let totalWithoutAsset = 0
 
-  workbook.worksheets.forEach((sheet, sheetIndex) => {
-    // Determine sheet classification based strictly on worksheet headings and name:
-    // Conflicting Sheet 14: Sheet name has '(ต)' but subtitle heading has 'ตามเกณฑ์' -> unresolved (null)
-    let sheetStatus: Status | null = null
-    const isSheet14Conflicted = sheetIndex === 13 || sheet.name.includes('14.')
-
-    if (isSheet14Conflicted) {
-      sheetStatus = null
-    } else if (sheet.name.includes('(ต)') || sheet.name.includes('(ต.)')) {
-      sheetStatus = 'below_threshold'
-    } else {
-      let hasBelow = false
-      let hasQualified = false
-      for (let r = 1; r <= 6; r++) {
-        const text = sheet.getRow(r).values ? String(sheet.getRow(r).values) : ''
-        if (text.includes('ต่ำกว่าเกณฑ์')) hasBelow = true
-        if (text.includes('ตามเกณฑ์')) hasQualified = true
-      }
-      if (hasBelow) sheetStatus = 'below_threshold'
-      else if (hasQualified) sheetStatus = 'qualified'
-      else sheetStatus = 'qualified'
+  workbook.worksheets.forEach((sheet) => {
+    const headingTexts: string[] = []
+    for (let rowNumber = 1; rowNumber <= 6; rowNumber++) {
+      sheet.getRow(rowNumber).eachCell((cell) => headingTexts.push(cleanCellText(cell.value)))
     }
+    const sheetStatus = getSheetQualificationStatus(sheet.name, headingTexts)
 
     // Locate header row containing 'ลำดับ'
     let headerRowIdx = -1
@@ -155,62 +144,25 @@ export async function calculateMappingsInTx(tx: PostgresTransaction, lock = fals
   if (!admin.rows.length) throw new AuthorizationError('Admin permission required')
 
   const { rows: source, totalWithAsset, totalWithoutAsset } = await readAuthoritativeSourceRows()
-  const sourceIndex = new Map<string, SourceRow[]>()
-  for (const row of source) {
-    sourceIndex.set(row.assetNo, [...(sourceIndex.get(row.assetNo) ?? []), row])
-  }
-
-  // Filter for unique, non-null status source rows
-  const sourceUnique = [...sourceIndex.entries()].filter(
-    ([, rows]) => rows.length === 1 && rows[0].status !== null
-  )
-
   const dbRows = await tx.execute<{ id: string; asset_no: string; qualification_status: Status | null }>(sql`
     select id, asset_no, qualification_status from public.items
     where deleted_at is null and asset_no is not null ${lock ? sql`for update` : sql``}
   `)
 
-  const dbIndex = new Map<string, typeof dbRows.rows>()
-  for (const row of dbRows.rows) {
-    const key = normalize(row.asset_no)
-    dbIndex.set(key, [...(dbIndex.get(key) ?? []), row])
-  }
-
-  const mappings: Mapping[] = []
-  let alreadyApplied = 0
-  let conflictingExistingStatus = 0
-
-  for (const [assetNo, sourceRows] of sourceUnique) {
-    const targets = dbIndex.get(assetNo) ?? []
-    if (targets.length !== 1) continue
-    const target = targets[0]
-    const status = sourceRows[0].status!
-
-    if (target.qualification_status === status) {
-      alreadyApplied++
-      continue
-    }
-    if (target.qualification_status !== null) {
-      conflictingExistingStatus++
-      continue
-    }
-    mappings.push({ id: target.id, asset_no: assetNo, qualification_status: status })
-  }
-
-  const duplicateSourceIds = [...sourceIndex.values()].filter((rows) => rows.length > 1).length
-  const sourceMatched = new Set([...sourceUnique.map(([key]) => key)])
+  const plan = buildQualificationMappings(source, dbRows.rows)
 
   return {
-    mappings,
+    mappings: plan.mappings,
     summary: {
-      eligible: mappings.length,
-      qualified: mappings.filter((row) => row.qualification_status === 'qualified').length,
-      belowThreshold: mappings.filter((row) => row.qualification_status === 'below_threshold').length,
-      alreadyApplied,
-      conflictingExistingStatus,
-      ambiguousSourceIds: duplicateSourceIds,
-      unmatchedSource: source.length - mappings.length - alreadyApplied - conflictingExistingStatus,
-      unmatchedDatabase: dbRows.rows.filter((row) => !sourceMatched.has(normalize(row.asset_no)) && row.qualification_status === null).length,
+      eligible: plan.mappings.length,
+      qualified: plan.mappings.filter((row) => row.qualification_status === 'qualified').length,
+      belowThreshold: plan.mappings.filter((row) => row.qualification_status === 'below_threshold').length,
+      alreadyApplied: plan.alreadyApplied,
+      existingStatusesToCorrect: plan.mappings.filter((row) => row.previousStatus !== null).length,
+      ambiguousSourceIds: plan.ambiguousSourceIds,
+      ambiguousDatabaseIds: plan.ambiguousDatabaseIds,
+      unmatchedSource: plan.unmatchedSource,
+      unmatchedDatabase: plan.unmatchedDatabase,
       sourceTotalWithAssetNo: totalWithAsset,
       sourceTotalWithoutAssetNo: totalWithoutAsset,
     },
@@ -253,7 +205,7 @@ export async function applyQualificationMapping(expected: { eligible: number; qu
         where id = ${mapping.id}::uuid
           and asset_no = ${mapping.asset_no}
           and deleted_at is null
-          and qualification_status is null
+          and qualification_status is not distinct from ${mapping.previousStatus}
         returning id
       `)
       if (!result.rows.length) {
@@ -267,7 +219,7 @@ export async function applyQualificationMapping(expected: { eligible: number; qu
           'qualification_mapping',
           'items',
           ${mapping.id}::uuid,
-          ${JSON.stringify({ qualification_status: null })}::jsonb,
+          ${JSON.stringify({ qualification_status: mapping.previousStatus })}::jsonb,
           ${JSON.stringify({ qualification_status: mapping.qualification_status, asset_no: mapping.asset_no })}::jsonb
         )
       `)
@@ -304,7 +256,7 @@ export async function executeAdminQualificationMapping(
         where id = ${mapping.id}::uuid
           and asset_no = ${mapping.asset_no}
           and deleted_at is null
-          and qualification_status is null
+          and qualification_status is not distinct from ${mapping.previousStatus}
         returning id
       `)
       if (!result.rows.length) {
@@ -318,7 +270,7 @@ export async function executeAdminQualificationMapping(
           'qualification_mapping',
           'items',
           ${mapping.id}::uuid,
-          ${JSON.stringify({ qualification_status: null })}::jsonb,
+          ${JSON.stringify({ qualification_status: mapping.previousStatus })}::jsonb,
           ${JSON.stringify({ qualification_status: mapping.qualification_status, asset_no: mapping.asset_no })}::jsonb
         )
       `)

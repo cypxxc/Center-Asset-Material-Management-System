@@ -56,7 +56,7 @@ export function DeleteItemButton({
       <ConfirmDialog
         open={showConfirm}
         title="ยืนยันการลบพัสดุ"
-        description="รายการและรูปภาพที่เกี่ยวข้องจะถูกลบถาวร และไม่สามารถกู้คืนจากระบบได้"
+        description="รายการจะถูกนำออกจากทะเบียน โดยยังเก็บเอกสาร ประวัติ และรูปภาพเดิมไว้ ต้องปิดคำขอค้างหรือรับคืนให้เรียบร้อยก่อนลบ"
         confirmText="ลบรายการ"
         cancelText="ยกเลิก"
         variant="destructive"

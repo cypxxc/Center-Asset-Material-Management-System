@@ -16,7 +16,7 @@ export const DataTable = React.forwardRef<HTMLTableElement, DataTableProps>(
       )}>
         <table
           ref={ref}
-          className={cn("w-full border-collapse text-left text-[13px] text-foreground", className)}
+          className={cn("table-data-uniform w-full border-collapse text-left text-[13px] text-foreground", className)}
           {...props}
         >
           {children}

@@ -1,660 +1,600 @@
-'use client'
+﻿'use client'
 
 import React, { useState } from 'react'
 import {
-  History,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Check,
-  Table as TableIcon,
-  RefreshCw,
-  Clock,
-  Layers,
-  ArrowRight,
-  Code2,
+ History,
+ ChevronDown,
+ ChevronUp,
+ Copy,
+ Check,
+ Table as TableIcon,
+ Clock,
+ ArrowRight,
+ Code2,
 } from 'lucide-react'
 import type { AuditLogListItem } from '@/features/admin/types'
 import { useAuditLogsFilter } from '@/features/admin/hooks/use-audit-logs-filter'
-import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
+import { SearchInput } from '@/components/ui/search-input'
 import {
-  DataTable,
-  DataTableHeader,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableCell,
+ DataTable,
+ DataTableHeader,
+ DataTableHead,
+ DataTableBody,
+ DataTableRow,
+ DataTableCell,
 } from '@/components/ui/data-table'
 import { cn } from '@/lib/utils'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import {
-  buildAuditDiff,
-  getAuditActionLabel,
-  getAuditTableLabel,
-  formatJsonForDisplay,
+ buildAuditDiff,
+ getAuditActionLabel,
+ getAuditTableLabel,
+ formatJsonForDisplay,
 } from '@/features/audit-log-display/format'
 import { formatDateTime } from '@/lib/date'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
+import { getPageNumbers } from '@/features/disbursements/pagination'
 
 interface AuditLogsClientProps {
-  currentUserId?: string
-  initialLogs: AuditLogListItem[]
-  initialTotalCount: number
-  initialSearchParams: {
-    q: string
-    action: string
-    target_table: string
-    page: number
-    pageSize: number
-  }
+ currentUserId?: string
+ initialLogs: AuditLogListItem[]
+ initialTotalCount: number
+ initialSearchParams: {
+ q: string
+ action: string
+ target_table: string
+ page: number
+ pageSize: number
+ }
 }
 
 const ACTION_DROPDOWN_OPTIONS: FilterOption[] = [
-  { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)', colorDot: 'bg-emerald-500' },
-  { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)', colorDot: 'bg-blue-500' },
-  { value: 'DELETE', label: 'ลบข้อมูล (DELETE)', colorDot: 'bg-rose-500' },
-  { value: 'EXPORT_REPORT', label: 'ส่งออกรายงาน (EXPORT)', colorDot: 'bg-purple-500' },
-  { value: 'create_user', label: 'สร้างผู้ใช้', colorDot: 'bg-emerald-500' },
-  { value: 'update_user', label: 'แก้ไขผู้ใช้', colorDot: 'bg-blue-500' },
-  { value: 'delete_user', label: 'ลบผู้ใช้', colorDot: 'bg-rose-500' },
-  { value: 'sql_query', label: 'เรียกใช้ SQL', colorDot: 'bg-amber-500' },
-  { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล', colorDot: 'bg-indigo-500' },
-  { value: 'restore', label: 'กู้คืนพัสดุ', colorDot: 'bg-teal-500' },
-  { value: 'bulk_delete', label: 'ลบหลายรายการ', colorDot: 'bg-rose-600' },
+ { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)', colorDot: 'bg-emerald-500' },
+ { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)', colorDot: 'bg-blue-500' },
+ { value: 'DELETE', label: 'ลบข้อมูล (DELETE)', colorDot: 'bg-rose-500' },
+ { value: 'EXPORT_REPORT', label: 'ส่งออกรายงาน (EXPORT)', colorDot: 'bg-purple-500' },
+ { value: 'create_user', label: 'สร้างผู้ใช้', colorDot: 'bg-emerald-500' },
+ { value: 'update_user', label: 'แก้ไขผู้ใช้', colorDot: 'bg-blue-500' },
+ { value: 'delete_user', label: 'ลบผู้ใช้', colorDot: 'bg-rose-500' },
+ { value: 'sql_query', label: 'เรียกใช้ SQL', colorDot: 'bg-amber-500' },
+ { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล', colorDot: 'bg-indigo-500' },
+ { value: 'restore', label: 'กู้คืนพัสดุ', colorDot: 'bg-teal-500' },
+ { value: 'bulk_delete', label: 'ลบหลายรายการ', colorDot: 'bg-rose-600' },
 ]
 
 const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
-  { value: 'items', label: 'พัสดุครุภัณฑ์ (items)' },
-  { value: 'categories', label: 'หมวดหมู่ (categories)' },
-  { value: 'locations', label: 'สถานที่ (locations)' },
-  { value: 'units', label: 'หน่วยนับ (units)' },
-  { value: 'profiles', label: 'ผู้ใช้งาน (profiles)' },
-  { value: 'audit_logs', label: 'ประวัติบันทึก (audit_logs)' },
+ { value: 'items', label: 'พัสดุครุภัณฑ์ (items)' },
+ { value: 'categories', label: 'หมวดหมู่ (categories)' },
+ { value: 'locations', label: 'สถานที่ (locations)' },
+ { value: 'units', label: 'หน่วยนับ (units)' },
+ { value: 'profiles', label: 'ผู้ใช้งาน (profiles)' },
+ { value: 'audit_logs', label: 'ประวัติบันทึก (audit_logs)' },
 ]
 
 function getActionBadge(action: string) {
-  const upper = action.toUpperCase()
-  const lower = action.toLowerCase()
+ const upper = action.toUpperCase()
+ const lower = action.toLowerCase()
 
-  if (
-    upper === 'INSERT' ||
-    lower === 'create' ||
-    lower === 'create_user' ||
-    lower === 'create_table_row' ||
-    lower === 'restore' ||
-    upper === 'RESTORE'
-  ) {
-    return {
-      label: getAuditActionLabel(action),
-      className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
-      dotClass: 'bg-emerald-500',
-    }
-  }
+ if (
+ upper === 'INSERT' ||
+ lower === 'create' ||
+ lower === 'create_user' ||
+ lower === 'create_table_row' ||
+ lower === 'restore' ||
+ upper === 'RESTORE'
+ ) {
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-emerald-50 text-emerald-700 border-emerald-200 ',
+ dotClass: 'bg-emerald-500',
+ }
+ }
 
-  if (
-    upper === 'UPDATE' ||
-    lower === 'update' ||
-    lower === 'update_user' ||
-    lower === 'update_table_row' ||
-    lower === 'update_role_status' ||
-    lower === 'reset_password'
-  ) {
-    return {
-      label: getAuditActionLabel(action),
-      className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
-      dotClass: 'bg-blue-500',
-    }
-  }
+ if (
+ upper === 'UPDATE' ||
+ lower === 'update' ||
+ lower === 'update_user' ||
+ lower === 'update_table_row' ||
+ lower === 'update_role_status' ||
+ lower === 'reset_password'
+ ) {
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-blue-50 text-blue-700 border-blue-200 ',
+ dotClass: 'bg-blue-500',
+ }
+ }
 
-  if (
-    upper === 'DELETE' ||
-    lower === 'delete' ||
-    lower === 'delete_user' ||
-    lower === 'delete_table_row' ||
-    lower === 'hard_delete' ||
-    lower === 'bulk_delete'
-  ) {
-    return {
-      label: getAuditActionLabel(action),
-      className: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
-      dotClass: 'bg-rose-500',
-    }
-  }
+ if (
+ upper === 'DELETE' ||
+ lower === 'delete' ||
+ lower === 'delete_user' ||
+ lower === 'delete_table_row' ||
+ lower === 'hard_delete' ||
+ lower === 'bulk_delete'
+ ) {
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-rose-50 text-rose-700 border-rose-200 ',
+ dotClass: 'bg-rose-500',
+ }
+ }
 
-  if (
-    upper.includes('EXPORT') ||
-    lower.includes('export')
-  ) {
-    return {
-      label: getAuditActionLabel(action),
-      className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-      dotClass: 'bg-amber-500',
-    }
-  }
+ if (
+ upper.includes('EXPORT') ||
+ lower.includes('export')
+ ) {
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-amber-50 text-amber-700 border-amber-200 ',
+ dotClass: 'bg-amber-500',
+ }
+ }
 
-  return {
-    label: getAuditActionLabel(action),
-    className: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
-    dotClass: 'bg-purple-500',
-  }
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-purple-50 text-purple-700 border-purple-200 ',
+ dotClass: 'bg-purple-500',
+ }
 }
 
 export default function AuditLogsClient({
-  initialLogs,
-  initialTotalCount,
-  initialSearchParams,
+ initialLogs,
+ initialTotalCount,
+ initialSearchParams,
 }: AuditLogsClientProps) {
-  useRealtimeRefresh(['audit_logs'], {
-    pauseOnHidden: true,
-    debounceDelay: 300,
-    maxWait: 1500,
-  })
-  const {
-    searchTerm,
-    setSearchTerm,
-    selectedAction,
-    setSelectedAction,
-    selectedTable,
-    setSelectedTable,
-    isPending,
-    applyFilters,
-    handleSearchSubmit,
-    handleResetFilters,
-    handleRefresh,
-  } = useAuditLogsFilter(initialSearchParams)
+ useRealtimeRefresh(['audit_logs'], {
+ pauseOnHidden: true,
+ debounceDelay: 300,
+ maxWait: 1500,
+ })
+ const {
+ searchTerm,
+ setSearchTerm,
+ selectedAction,
+ setSelectedAction,
+ selectedTable,
+ setSelectedTable,
+ isPending,
+ applyFilters,
+ handleResetFilters,
+ } = useAuditLogsFilter(initialSearchParams)
 
-  // Expanded row IDs
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+ // Expanded row IDs
+ const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
-  // Copied state tracking
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+ // Copied state tracking
+ const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
-  }
+ const handleCopy = (text: string, id: string) => {
+ navigator.clipboard.writeText(text)
+ setCopiedId(id)
+ setTimeout(() => setCopiedId(null), 2000)
+ }
 
-  const toggleRow = (id: string) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }))
-  }
+ const toggleRow = (id: string) => {
+ setExpandedRows((prev) => ({
+ ...prev,
+ [id]: !prev[id],
+ }))
+ }
 
-  // Pagination calculations
-  const totalPages = Math.ceil(initialTotalCount / initialSearchParams.pageSize) || 1
-  const currentPage = initialSearchParams.page
-  const startItem = initialTotalCount === 0 ? 0 : (currentPage - 1) * initialSearchParams.pageSize + 1
-  const endItem = Math.min(currentPage * initialSearchParams.pageSize, initialTotalCount)
+ // Pagination calculations
+ const totalPages = Math.ceil(initialTotalCount / initialSearchParams.pageSize) || 1
+ const currentPage = initialSearchParams.page
+ const startItem = initialTotalCount === 0 ? 0 : (currentPage - 1) * initialSearchParams.pageSize + 1
+ const endItem = Math.min(currentPage * initialSearchParams.pageSize, initialTotalCount)
 
-  return (
-    <PageContainer>
-      <PageHeader
-        title="ประวัติการทำรายการ (Audit Log Explorer)"
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isPending}
-            className="text-xs h-9 font-medium"
-          >
-            <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', isPending && 'animate-spin')} />
-            รีเฟรช
-          </Button>
-        }
-      />
+ return (
+ <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+ <div className="flex h-14 shrink-0 items-center border-b border-border px-4 sm:px-6">
+ <PageHeader
+ title="Logs"
+ />
+ </div>
+ <div className="max-h-[60%] shrink-0 space-y-4 overflow-y-auto border-b border-border p-4 sm:px-6">
 
-      {/* Metrics Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">บันทึกทั้งหมด</div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-              {initialTotalCount.toLocaleString('th-TH')}
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center">
-            <History className="w-5 h-5" />
-          </div>
-        </div>
+ {/* Filter and Search Bar */}
+ <div className="space-y-3">
+ <div className="flex flex-col md:flex-row gap-3">
+ <div className="flex flex-1 [&>div]:max-w-none">
+ <SearchInput
+ aria-label="ค้นหาประวัติการทำรายการ"
+ placeholder="ค้นหาตาม Target ID, ชื่อตาราง, หรือประเภทรายการ..."
+ value={searchTerm}
+ onChange={(value) => {
+ setSearchTerm(value)
+ applyFilters({ q: value, page: 1 })
+ }}
+ isLoading={isPending}
+ debounceMs={300}
+ className="h-9 text-xs"
+ />
+ </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">หน้าปัจจุบัน</div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-              {currentPage} <span className="text-sm font-normal text-slate-400">/ {totalPages}</span>
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
-            <Layers className="w-5 h-5" />
-          </div>
-        </div>
+ <div className="flex flex-wrap sm:flex-nowrap gap-2">
+ <FilterDropdown
+ label="การทำรายการ"
+ ariaLabel="กรองตามการทำรายการ"
+ name="action"
+ value={selectedAction === 'all' ? '' : selectedAction}
+ options={ACTION_DROPDOWN_OPTIONS}
+ onChange={(val) => {
+ const next = val || 'all'
+ setSelectedAction(next)
+ applyFilters({ action: next, page: 1 })
+ }}
+ icon={<History className="w-3.5 h-3.5" />}
+ allLabel="การทำรายการทั้งหมด"
+ />
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">จำนวนแถวที่แสดง</div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-              {initialLogs.length} <span className="text-sm font-normal text-slate-400">แถว</span>
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
-            <TableIcon className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
+ <FilterDropdown
+ label="ตารางข้อมูล"
+ ariaLabel="กรองตามตารางข้อมูล"
+ name="target_table"
+ value={selectedTable === 'all' ? '' : selectedTable}
+ options={TABLE_DROPDOWN_OPTIONS}
+ onChange={(val) => {
+ const next = val || 'all'
+ setSelectedTable(next)
+ applyFilters({ target_table: next, page: 1 })
+ }}
+ icon={<TableIcon className="w-3.5 h-3.5" />}
+ allLabel="ทุกตารางข้อมูล"
+ />
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 mb-4 shadow-sm space-y-3">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="ค้นหาตาม Target ID, ชื่อตาราง, หรือประเภทรายการ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
-            />
-          </div>
+ {(searchTerm || selectedAction !== 'all' || selectedTable !== 'all') && (
+ <Button
+ type="button"
+ variant="outline"
+ size="sm"
+ onClick={handleResetFilters}
+ className="text-xs h-9 px-3 text-slate-600"
+ >
+ ล้างตัวกรอง
+ </Button>
+ )}
+ </div>
+ </div>
 
-          <div className="flex flex-wrap sm:flex-nowrap gap-2">
-            <FilterDropdown
-              label="การทำรายการ"
-              ariaLabel="กรองตามการทำรายการ"
-              name="action"
-              value={selectedAction === 'all' ? '' : selectedAction}
-              options={ACTION_DROPDOWN_OPTIONS}
-              onChange={(val) => {
-                const next = val || 'all'
-                setSelectedAction(next)
-                applyFilters({ action: next, page: 1 })
-              }}
-              icon={<History className="w-3.5 h-3.5" />}
-              allLabel="การทำรายการทั้งหมด"
-            />
+ </div>
+ </div>
+ {/* Main Table */}
+ <section aria-label="รายการบันทึกประวัติ" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
+ <DataTable
+ responsive={true}
+ wrapperClassName="min-h-0 flex-1 overflow-auto rounded-none border-0 bg-muted/10 shadow-none"
+ className="table-fixed min-w-[1420px] text-card-foreground"
+ >
+ <caption className="sr-only">ประวัติการทำรายการในระบบ</caption>
+ <colgroup>
+ <col style={{ width: 48 }} />
+ <col style={{ width: 180 }} />
+ <col style={{ width: 160 }} />
+ <col style={{ width: 160 }} />
+ <col style={{ width: 300 }} />
+ <col style={{ width: 260 }} />
+ <col style={{ width: 200 }} />
+ <col style={{ width: 112 }} />
+ </colgroup>
+ <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10 [&_th]:px-2.5 [&_th]:text-xs">
+ <tr>
+ <DataTableHead className="w-12 text-center">ลำดับ</DataTableHead>
+ <DataTableHead className="min-w-[150px]">วัน-เวลา</DataTableHead>
+ <DataTableHead className="min-w-[140px]">ประเภทรายการ</DataTableHead>
+ <DataTableHead className="min-w-[130px]">ตารางเป้าหมาย</DataTableHead>
+ <DataTableHead className="min-w-[150px]">รหัสเป้าหมาย (Target ID)</DataTableHead>
+ <DataTableHead className="min-w-[180px]">ผู้ทำรายการ</DataTableHead>
+ <DataTableHead className="min-w-[150px]">การเปลี่ยนแปลง</DataTableHead>
+ <DataTableHead isActions className="w-20">รายละเอียด</DataTableHead>
+ </tr>
+ </DataTableHeader>
+ <DataTableBody>
+ {initialLogs.length === 0 ? (
+ <tr>
+ <td colSpan={8} className="py-12 text-center text-muted-foreground">
+ <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-60" />
+ <p className="text-sm font-semibold text-foreground">ไม่พบบันทึกประวัติการทำรายการ</p>
+ <p className="text-xs text-muted-foreground mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองรายการด้านบน</p>
+ </td>
+ </tr>
+ ) : (
+ initialLogs.map((log, index) => {
+ const isExpanded = !!expandedRows[log.id]
+ const badge = getActionBadge(log.action)
+ const tableLabel = getAuditTableLabel(log.target_table)
+ const diff = buildAuditDiff(log.old_data, log.new_data)
+ const formattedDate = formatDateTime(log.created_at)
 
-            <FilterDropdown
-              label="ตารางข้อมูล"
-              ariaLabel="กรองตามตารางข้อมูล"
-              name="target_table"
-              value={selectedTable === 'all' ? '' : selectedTable}
-              options={TABLE_DROPDOWN_OPTIONS}
-              onChange={(val) => {
-                const next = val || 'all'
-                setSelectedTable(next)
-                applyFilters({ target_table: next, page: 1 })
-              }}
-              icon={<TableIcon className="w-3.5 h-3.5" />}
-              allLabel="ทุกตารางข้อมูล"
-            />
+ return (
+ <React.Fragment key={log.id}>
+ <DataTableRow
+ tabIndex={0}
+ onClick={() => toggleRow(log.id)}
+ onKeyDown={(event) => {
+ if (event.target === event.currentTarget && event.key === 'Enter') toggleRow(log.id)
+ }}
+ className={cn(
+ 'group h-[42px] cursor-pointer transition-colors outline-none focus-visible:bg-muted/70 focus-visible:ring-1 focus-visible:ring-primary/50 [&>td]:h-[42px] [&>td]:px-2.5 [&>td]:py-0 [&>td]:text-xs',
+ isExpanded
+ ? 'border-b border-primary/40 bg-primary/10 text-card-foreground shadow-2xs'
+ : 'border-b border-border/40 text-card-foreground hover:bg-muted/40'
+ )}
+ >
+ <DataTableCell className="text-center font-mono text-[11px] text-muted-foreground">
+ {startItem + index}
+ </DataTableCell>
+ <DataTableCell className="whitespace-nowrap">
+ <div className="flex items-center gap-1.5 font-medium text-foreground">
+ <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+ <span>{formattedDate}</span>
+ </div>
+ </DataTableCell>
+ <DataTableCell className="min-w-0">
+ <span
+ className={cn(
+ 'inline-flex max-w-full items-start gap-1.5 whitespace-normal break-words px-2 py-0.5 rounded-md text-[11px] font-semibold border',
+ badge.className
+ )}
+ >
+ <span className={cn('mt-1 w-1.5 h-1.5 shrink-0 rounded-full', badge.dotClass)} />
+ <span className="min-w-0">{badge.label}</span>
+ </span>
+ </DataTableCell>
+ <DataTableCell className="whitespace-nowrap">
+ <div className="font-semibold text-foreground">
+ {tableLabel}
+ </div>
+ <div className="text-[10px] font-mono text-muted-foreground">{log.target_table}</div>
+ </DataTableCell>
+ <DataTableCell className="whitespace-nowrap">
+ {log.target_id ? (
+ <div className="flex items-center gap-1">
+ <span className="font-mono text-[11px] text-muted-foreground break-all whitespace-normal" title={log.target_id}>
+ {log.target_id}
+ </span>
+ <button
+ type="button"
+ onClick={(e) => {
+ e.stopPropagation()
+ handleCopy(log.target_id!, `target-${log.id}`)
+ }}
+ className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground cursor-pointer"
+ title="คัดลอกรหัส"
+ >
+ {copiedId === `target-${log.id}` ? (
+ <Check className="w-3 h-3 text-emerald-600" />
+ ) : (
+ <Copy className="w-3 h-3" />
+ )}
+ </button>
+ </div>
+ ) : (
+ <span className="text-muted-foreground text-[11px]">-</span>
+ )}
+ </DataTableCell>
+ <DataTableCell className="whitespace-nowrap">
+ <div className="font-normal text-foreground whitespace-normal break-words">
+ {log.actor_name || 'ระบบอัตโนมัติ'}
+ </div>
+ </DataTableCell>
+ <DataTableCell className="whitespace-nowrap">
+ {diff.length > 0 ? (
+ <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground">
+ {diff.length} ฟิลด์เปลี่ยนแปลง
+ </span>
+ ) : (
+ <span className="text-[11px] text-muted-foreground">
+ {log.new_data ? 'ข้อมูล JSON' : 'ไม่มีรายละเอียด'}
+ </span>
+ )}
+ </DataTableCell>
+ <DataTableCell isActions className="whitespace-nowrap">
+ <button
+ type="button"
+ aria-label={isExpanded ? 'ซ่อนรายละเอียดรายการ' : 'ดูรายละเอียดรายการ'}
+ aria-expanded={isExpanded}
+ onClick={(e) => {
+ e.stopPropagation()
+ toggleRow(log.id)
+ }}
+ className={cn(
+ 'p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer',
+ isExpanded
+ ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+ : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+ )}
+ >
+ {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+ </button>
+ </DataTableCell>
+ </DataTableRow>
 
-            <Button type="submit" size="sm" className="text-xs h-9 px-4">
-              ค้นหา
-            </Button>
+ {/* Expanded Row Content */}
+ {isExpanded && (
+ <tr className="bg-muted/30">
+ <td colSpan={8} className="p-4 sm:p-6 border-y border-border">
+ <div className="space-y-4 max-w-5xl">
+ {/* Summary Header */}
+ <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border">
+ <div className="flex items-center gap-2">
+ <Code2 className="w-4 h-4 text-primary" />
+ <h4 className="text-xs font-bold text-foreground uppercase tracking-wide">
+ การเปลี่ยนแปลงข้อมูล (Diff Inspector)
+ </h4>
+ </div>
+ <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+ <span>Log ID: {log.id}</span>
+ <button
+ type="button"
+ onClick={() => handleCopy(log.id, `logid-${log.id}`)}
+ className="p-1 hover:bg-muted rounded cursor-pointer"
+ >
+ {copiedId === `logid-${log.id}` ? (
+ <Check className="w-3 h-3 text-emerald-600" />
+ ) : (
+ <Copy className="w-3 h-3" />
+ )}
+ </button>
+ </div>
+ </div>
 
-            {(searchTerm || selectedAction !== 'all' || selectedTable !== 'all') && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleResetFilters}
-                className="text-xs h-9 px-3 text-slate-600"
-              >
-                ล้างตัวกรอง
-              </Button>
-            )}
-          </div>
-        </form>
+ {/* Visual Field Diff Grid */}
+ {diff.length > 0 ? (
+ <div className="rounded-lg border border-border bg-card overflow-hidden">
+ <div className="bg-muted/70 px-4 py-2 text-[11px] font-bold text-foreground border-b border-border">
+ รายการฟิลด์ที่ตรวจพบการเปลี่ยนแปลง ({diff.length} ฟิลด์)
+ </div>
+ <div className="divide-y divide-border">
+ {diff.map((entry) => (
+ <div
+ key={entry.key}
+ className="grid grid-cols-1 md:grid-cols-[180px_1fr_auto_1fr] items-center gap-3 p-3.5 text-xs"
+ >
+ <div>
+ <div className="font-bold text-foreground">{entry.label}</div>
+ <div className="font-mono text-[10px] text-muted-foreground">{entry.key}</div>
+ </div>
+ <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-2.5">
+ <div className="text-[10px] font-bold text-destructive mb-1">ค่าเดิม (Old)</div>
+ <div className="text-foreground font-mono text-[11px] break-words">
+ {entry.oldValue || 'ไม่มีข้อมูล'}
+ </div>
+ </div>
+ <div className="hidden md:flex justify-center text-muted-foreground">
+ <ArrowRight className="w-4 h-4" />
+ </div>
+ <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5">
+ <div className="text-[10px] font-bold text-emerald-600 mb-1">ค่าใหม่ (New)</div>
+ <div className="text-foreground font-mono text-[11px] break-words">
+ {entry.newValue || 'ไม่มีข้อมูล'}
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+ ) : (
+ <div className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
+ {log.old_data || log.new_data
+ ? 'ไม่พบฟิลด์ที่มีการเปลี่ยนแปลงโดยตรง (ข้อมูลเหตุการณ์แบบก้อนเดียว หรือไม่มีค่าเดิม)'
+ : 'ไม่มีข้อมูลรายละเอียด JSON สำหรับรายการนี้'}
+ </div>
+ )}
 
-        {/* Quick Filter Action Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-1 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-semibold text-slate-400 shrink-0 mr-1">ตัวกรองด่วน:</span>
-          {['all', 'INSERT', 'UPDATE', 'DELETE', 'EXPORT_REPORT'].map((actionKey) => {
-            const isSelected = selectedAction === actionKey
-            const label =
-              actionKey === 'all'
-                ? 'ทั้งหมด'
-                : actionKey === 'INSERT'
-                ? 'INSERT (สร้าง)'
-                : actionKey === 'UPDATE'
-                ? 'UPDATE (แก้ไข)'
-                : actionKey === 'DELETE'
-                ? 'DELETE (ลบ)'
-                : 'EXPORT (รายงาน)'
+ {/* Raw JSON Accordion */}
+ <details className="rounded-lg border border-border bg-card">
+ <summary className="cursor-pointer px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted/50 flex items-center justify-between select-none">
+ <span>ดูโครงสร้างข้อมูลดิบ (Raw JSON Payloads)</span>
+ <span className="text-[11px] font-normal text-muted-foreground">คลิกเพื่อดู</span>
+ </summary>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border-t border-border bg-muted/20">
+ <div>
+ <div className="flex items-center justify-between mb-1.5">
+ <span className="text-[11px] font-bold text-muted-foreground">old_data</span>
+ {log.old_data && (
+ <button
+ type="button"
+ onClick={() => handleCopy(formatJsonForDisplay(log.old_data), `raw-old-${log.id}`)}
+ className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+ >
+ {copiedId === `raw-old-${log.id}` ? 'คัดลอกแล้ว' : 'คัดลอก JSON'}
+ </button>
+ )}
+ </div>
+ <pre className="p-3 bg-slate-950 text-slate-200 rounded-lg text-[11px] font-mono max-h-64 overflow-auto border border-slate-800">
+ {formatJsonForDisplay(log.old_data)}
+ </pre>
+ </div>
+ <div>
+ <div className="flex items-center justify-between mb-1.5">
+ <span className="text-[11px] font-bold text-muted-foreground">new_data</span>
+ {log.new_data && (
+ <button
+ type="button"
+ onClick={() => handleCopy(formatJsonForDisplay(log.new_data), `raw-new-${log.id}`)}
+ className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+ >
+ {copiedId === `raw-new-${log.id}` ? 'คัดลอกแล้ว' : 'คัดลอก JSON'}
+ </button>
+ )}
+ </div>
+ <pre className="p-3 bg-slate-950 text-slate-200 rounded-lg text-[11px] font-mono max-h-64 overflow-auto border border-slate-800">
+ {formatJsonForDisplay(log.new_data)}
+ </pre>
+ </div>
+ </div>
+ </details>
+ </div>
+ </td>
+ </tr>
+ )}
+ </React.Fragment>
+ )
+ })
+ )}
+ </DataTableBody>
+ </DataTable>
 
-            return (
-              <button
-                key={actionKey}
-                type="button"
-                onClick={() => {
-                  setSelectedAction(actionKey)
-                  applyFilters({ action: actionKey, page: 1 })
-                }}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors shrink-0',
-                  isSelected
-                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
-                )}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+ {/* Pagination Footer */}
+ <footer className="flex min-h-12 flex-wrap gap-3 py-2.5 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
+ <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground shrink-0" aria-live="polite">
+ {initialTotalCount > 0
+ ? `แสดง ${startItem}–${endItem} จาก ${initialTotalCount.toLocaleString()} รายการ`
+ : 'แสดง 0 จาก 0 รายการ'}
+ </span>
 
-      {/* Main Table */}
-      <DataTable responsive={true}>
-        <DataTableHeader>
-          <tr>
-            <DataTableHead className="w-12 text-center">#</DataTableHead>
-            <DataTableHead className="min-w-[150px]">วัน-เวลา</DataTableHead>
-            <DataTableHead className="min-w-[140px]">ประเภทรายการ</DataTableHead>
-            <DataTableHead className="min-w-[130px]">ตารางเป้าหมาย</DataTableHead>
-            <DataTableHead className="min-w-[150px]">รหัสเป้าหมาย (Target ID)</DataTableHead>
-            <DataTableHead className="min-w-[180px]">ผู้ทำรายการ</DataTableHead>
-            <DataTableHead className="min-w-[150px]">การเปลี่ยนแปลง</DataTableHead>
-            <DataTableHead isActions className="w-20">รายละเอียด</DataTableHead>
-          </tr>
-        </DataTableHeader>
-        <DataTableBody>
-          {initialLogs.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-60" />
-                <p className="text-sm font-semibold text-foreground">ไม่พบบันทึกประวัติการทำรายการ</p>
-                <p className="text-xs text-muted-foreground mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองรายการด้านบน</p>
-              </td>
-            </tr>
-          ) : (
-            initialLogs.map((log, index) => {
-              const isExpanded = !!expandedRows[log.id]
-              const badge = getActionBadge(log.action)
-              const tableLabel = getAuditTableLabel(log.target_table)
-              const diff = buildAuditDiff(log.old_data, log.new_data)
-              const formattedDate = formatDateTime(log.created_at)
+ <nav aria-label="การแบ่งหน้าประวัติการทำรายการ" className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => applyFilters({ page: currentPage - 1 })}
+ disabled={currentPage <= 1 || isPending}
+ className="h-8 px-2.5 text-xs font-semibold"
+ aria-label="หน้าก่อนหน้า"
+ >
+ ก่อนหน้า
+ </Button>
 
-              return (
-                <React.Fragment key={log.id}>
-                  <DataTableRow
-                    onClick={() => toggleRow(log.id)}
-                    className={cn(
-                      'cursor-pointer transition-colors',
-                      isExpanded && 'bg-primary/5 dark:bg-primary/10'
-                    )}
-                  >
-                    <DataTableCell className="text-center font-mono text-[11px] text-muted-foreground">
-                      {startItem + index}
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-medium text-foreground">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span>{formattedDate}</span>
-                      </div>
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border',
-                          badge.className
-                        )}
-                      >
-                        <span className={cn('w-1.5 h-1.5 rounded-full', badge.dotClass)} />
-                        {badge.label}
-                      </span>
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      <div className="font-semibold text-foreground">
-                        {tableLabel}
-                      </div>
-                      <div className="text-[10px] font-mono text-muted-foreground">{log.target_table}</div>
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      {log.target_id ? (
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[130px]" title={log.target_id}>
-                            {log.target_id}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCopy(log.target_id!, `target-${log.id}`)
-                            }}
-                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground cursor-pointer"
-                            title="คัดลอกรหัส"
-                          >
-                            {copiedId === `target-${log.id}` ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-[11px]">-</span>
-                      )}
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-foreground font-bold text-[10px]">
-                          {log.actor_name?.charAt(0) || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-foreground truncate max-w-[140px]">
-                            {log.actor_name || 'ระบบอัตโนมัติ'}
-                          </div>
-                          {log.actor_email && (
-                            <div className="text-[10px] text-muted-foreground truncate max-w-[140px]">
-                              {log.actor_email}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </DataTableCell>
-                    <DataTableCell className="whitespace-nowrap">
-                      {diff.length > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground">
-                          {diff.length} ฟิลด์เปลี่ยนแปลง
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">
-                          {log.new_data ? 'ข้อมูล JSON' : 'ไม่มีรายละเอียด'}
-                        </span>
-                      )}
-                    </DataTableCell>
-                    <DataTableCell isActions className="whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleRow(log.id)
-                        }}
-                        className={cn(
-                          'p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer',
-                          isExpanded
-                            ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                            : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-                        )}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    </DataTableCell>
-                  </DataTableRow>
+ <div className="flex items-center gap-1">
+ {getPageNumbers(currentPage, totalPages).map((page, index) => page === 'ellipsis' ? (
+ <span key={`ellipsis-${index}`} className="px-1 text-muted-foreground" aria-hidden="true">…</span>
+ ) : (
+ <button
+ key={page}
+ type="button"
+ disabled={isPending}
+ onClick={() => applyFilters({ page })}
+ aria-current={page === currentPage ? 'page' : undefined}
+ aria-label={`หน้า ${page}`}
+ className={cn(
+ 'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring',
+ page === currentPage
+ ? 'bg-primary text-primary-foreground shadow-xs font-bold'
+ : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+ )}
+ >
+ {page}
+ </button>
+ ))}
+ </div>
 
-                  {/* Expanded Row Content */}
-                  {isExpanded && (
-                    <tr className="bg-muted/30">
-                      <td colSpan={8} className="p-4 sm:p-6 border-y border-border">
-                        <div className="space-y-4 max-w-5xl">
-                          {/* Summary Header */}
-                          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border">
-                            <div className="flex items-center gap-2">
-                              <Code2 className="w-4 h-4 text-primary" />
-                              <h4 className="text-xs font-bold text-foreground uppercase tracking-wide">
-                                การเปลี่ยนแปลงข้อมูล (Diff Inspector)
-                              </h4>
-                            </div>
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-                              <span>Log ID: {log.id}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(log.id, `logid-${log.id}`)}
-                                className="p-1 hover:bg-muted rounded cursor-pointer"
-                              >
-                                {copiedId === `logid-${log.id}` ? (
-                                  <Check className="w-3 h-3 text-emerald-600" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Visual Field Diff Grid */}
-                          {diff.length > 0 ? (
-                            <div className="rounded-lg border border-border bg-card overflow-hidden">
-                              <div className="bg-muted/70 px-4 py-2 text-[11px] font-bold text-foreground border-b border-border">
-                                รายการฟิลด์ที่ตรวจพบการเปลี่ยนแปลง ({diff.length} ฟิลด์)
-                              </div>
-                              <div className="divide-y divide-border">
-                                {diff.map((entry) => (
-                                  <div
-                                    key={entry.key}
-                                    className="grid grid-cols-1 md:grid-cols-[180px_1fr_auto_1fr] items-center gap-3 p-3.5 text-xs"
-                                  >
-                                    <div>
-                                      <div className="font-bold text-foreground">{entry.label}</div>
-                                      <div className="font-mono text-[10px] text-muted-foreground">{entry.key}</div>
-                                    </div>
-                                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-2.5">
-                                      <div className="text-[10px] font-bold text-destructive mb-1">ค่าเดิม (Old)</div>
-                                      <div className="text-foreground font-mono text-[11px] break-words">
-                                        {entry.oldValue || 'ไม่มีข้อมูล'}
-                                      </div>
-                                    </div>
-                                    <div className="hidden md:flex justify-center text-muted-foreground">
-                                      <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5">
-                                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1">ค่าใหม่ (New)</div>
-                                      <div className="text-foreground font-mono text-[11px] break-words">
-                                        {entry.newValue || 'ไม่มีข้อมูล'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
-                              {log.old_data || log.new_data
-                                ? 'ไม่พบฟิลด์ที่มีการเปลี่ยนแปลงโดยตรง (ข้อมูลเหตุการณ์แบบก้อนเดียว หรือไม่มีค่าเดิม)'
-                                : 'ไม่มีข้อมูลรายละเอียด JSON สำหรับรายการนี้'}
-                            </div>
-                          )}
-
-                          {/* Raw JSON Accordion */}
-                          <details className="rounded-lg border border-border bg-card">
-                            <summary className="cursor-pointer px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted/50 flex items-center justify-between select-none">
-                              <span>ดูโครงสร้างข้อมูลดิบ (Raw JSON Payloads)</span>
-                              <span className="text-[11px] font-normal text-muted-foreground">คลิกเพื่อดู</span>
-                            </summary>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border-t border-border bg-muted/20">
-                              <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text-[11px] font-bold text-muted-foreground">old_data</span>
-                                  {log.old_data && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(formatJsonForDisplay(log.old_data), `raw-old-${log.id}`)}
-                                      className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                                    >
-                                      {copiedId === `raw-old-${log.id}` ? 'คัดลอกแล้ว' : 'คัดลอก JSON'}
-                                    </button>
-                                  )}
-                                </div>
-                                <pre className="p-3 bg-slate-950 text-slate-200 rounded-lg text-[11px] font-mono max-h-64 overflow-auto border border-slate-800">
-                                  {formatJsonForDisplay(log.old_data)}
-                                </pre>
-                              </div>
-                              <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text-[11px] font-bold text-muted-foreground">new_data</span>
-                                  {log.new_data && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(formatJsonForDisplay(log.new_data), `raw-new-${log.id}`)}
-                                      className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                                    >
-                                      {copiedId === `raw-new-${log.id}` ? 'คัดลอกแล้ว' : 'คัดลอก JSON'}
-                                    </button>
-                                  )}
-                                </div>
-                                <pre className="p-3 bg-slate-950 text-slate-200 rounded-lg text-[11px] font-mono max-h-64 overflow-auto border border-slate-800">
-                                  {formatJsonForDisplay(log.new_data)}
-                                </pre>
-                              </div>
-                            </div>
-                          </details>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              )
-            })
-          )}
-        </DataTableBody>
-      </DataTable>
-
-        {/* Pagination Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs">
-          <div className="text-slate-500 font-medium">
-            แสดง <span className="font-bold text-slate-700 dark:text-slate-300">{startItem}</span> ถึง{' '}
-            <span className="font-bold text-slate-700 dark:text-slate-300">{endItem}</span> จากทั้งหมด{' '}
-            <span className="font-bold text-slate-900 dark:text-slate-100">
-              {initialTotalCount.toLocaleString('th-TH')}
-            </span>{' '}
-            รายการ
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => applyFilters({ page: currentPage - 1 })}
-              disabled={currentPage <= 1 || isPending}
-              className="text-xs h-8 px-2.5"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-              ก่อนหน้า
-            </Button>
-
-            <span className="text-xs font-semibold px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
-              {currentPage} / {totalPages}
-            </span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => applyFilters({ page: currentPage + 1 })}
-              disabled={currentPage >= totalPages || isPending}
-              className="text-xs h-8 px-2.5"
-            >
-              ถัดไป
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-        </div>
-    </PageContainer>
-  )
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => applyFilters({ page: currentPage + 1 })}
+ disabled={currentPage >= totalPages || isPending}
+ className="h-8 px-2.5 text-xs font-semibold"
+ aria-label="หน้าถัดไป"
+ >
+ ถัดไป
+ </Button>
+ </nav>
+ </footer>
+ </section>
+ </div>
+ )
 }
+

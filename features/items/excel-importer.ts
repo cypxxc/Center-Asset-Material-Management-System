@@ -1,4 +1,5 @@
 import type { Workbook } from 'exceljs'
+import { getSheetQualificationStatus } from './qualification-mapping-core'
 
 export const HEADER_KEYWORD_MAP: Record<string, string> = {
   'item_name': 'item_name',
@@ -10,6 +11,9 @@ export const HEADER_KEYWORD_MAP: Record<string, string> = {
   'item_type': 'item_type',
   'ประเภท': 'item_type',
   'ประเภทสิ่งของ': 'item_type',
+  'qualification_status': 'qualification_status',
+  'สถานะตามเกณฑ์': 'qualification_status',
+  'สถานะตามเกณฑ์ครุภัณฑ์': 'qualification_status',
   'acquired_date': 'acquired_date',
   'วันเดือนปีที่รับ': 'acquired_date',
   'วัน เดือน ปี ที่ได้มา': 'acquired_date',
@@ -82,6 +86,7 @@ export const HEADER_KEYWORD_MAP: Record<string, string> = {
 export const STANDARD_CSV_HEADERS = [
   'item_name',
   'item_type',
+  'qualification_status',
   'category_name',
   'location_name',
   'unit_name',
@@ -105,6 +110,16 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
 
   for (const sheet of workbook.worksheets) {
     if (sheet.rowCount === 0) continue
+
+    const headingTexts: string[] = []
+    for (let r = 1; r <= Math.min(sheet.rowCount, 6); r++) {
+      sheet.getRow(r).eachCell((cell) => {
+        // ExcelJS cannot read .text on a merged cell whose master is empty.
+        if (cell.value == null) return
+        headingTexts.push(cell.text || String(cell.value))
+      })
+    }
+    const sheetQualificationStatus = getSheetQualificationStatus(sheet.name, headingTexts)
 
     // Determine category from sheet title or top banner rows
     let sheetCategory = sheet.name.replace(/^[\d\s.]+|(?:\s*\(.*?\))/g, '').trim()
@@ -145,12 +160,23 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
     let startRow = headerRowNumber + 1
     if (headerRowNumber < sheet.rowCount) {
       const nextRow = sheet.getRow(headerRowNumber + 1)
+      const conditionAliases = ['condition_usable', 'condition_damaged', 'condition_deteriorated']
+      const subheaderConditions = new Set<string>()
+      nextRow.eachCell((cell) => {
+        const val = String(cell.value || '').trim()
+        const mapped = HEADER_KEYWORD_MAP[val] || HEADER_KEYWORD_MAP[val.toLowerCase()]
+        if (conditionAliases.includes(mapped)) subheaderConditions.add(mapped)
+      })
       let isSubheader = false
       nextRow.eachCell((cell, colNumber) => {
         const val = String(cell.value || '').trim()
         const mapped = HEADER_KEYWORD_MAP[val] || HEADER_KEYWORD_MAP[val.toLowerCase()]
-        if (mapped) {
-          if (!colMapping.has(colNumber)) colMapping.set(colNumber, mapped)
+        // A condition value in an already mapped status column is data,
+        // not a second header row (e.g. the first item is "ชำรุด").
+        const replacesConditionGroup = subheaderConditions.size >= 2 &&
+          colMapping.get(colNumber) === 'status' && conditionAliases.includes(mapped)
+        if (mapped && (!colMapping.has(colNumber) || replacesConditionGroup)) {
+          colMapping.set(colNumber, mapped)
           if (['condition_usable', 'condition_damaged', 'condition_deteriorated', 'unit_price', 'acquired_date'].includes(mapped)) {
             isSubheader = true
           }
@@ -250,23 +276,25 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
         return s === '/' || s === '✓' || s === '1' || s === 'true' || s === 'x' || s === 'yes' || s === 'ใช้ได้' || s === 'ปกติ'
       }
       if (isMarked(damaged)) status = 'damaged'
-      else if (isMarked(deteriorated)) status = 'deteriorated'
+      else if (isMarked(deteriorated)) status = 'inactive'
       else if (isMarked(usable)) status = 'active'
       else {
         const exp = getSingle('status').trim().toLowerCase()
-        if (exp.includes('ชำรุด')) status = 'damaged'
-        else if (exp.includes('เสื่อม')) status = 'deteriorated'
-        else if (exp.includes('จำหน่าย') || exp.includes('สูญหาย')) status = 'disposed'
+        if (exp.includes('ชำรุด') || exp.includes('รอซ่อม') || exp === 'damaged' || exp === 'waiting_repair') status = 'damaged'
+        else if (exp.includes('เสื่อม') || exp === 'inactive' || exp === 'deteriorated' || exp === 'ไม่ใช้งาน') status = 'inactive'
+        else if (exp.includes('จำหน่าย') || exp.includes('สูญหาย') || exp === 'disposed') status = 'inactive'
       }
 
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`
 
       const declaredItemType = getSingle('item_type').trim().toLowerCase()
       const itemType = declaredItemType === 'material' ? 'material' : 'asset'
+      const qualificationStatus = getSingle('qualification_status').trim() || sheetQualificationStatus || ''
 
       const rowData = [
         esc(itemName),
         esc(itemType),
+        esc(qualificationStatus),
         esc(getSingle('category_name') || sheetCategory),
         esc(getSingle('location_name')),
         esc(unitName),

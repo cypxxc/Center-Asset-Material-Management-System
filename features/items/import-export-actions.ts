@@ -28,6 +28,8 @@ const HEADER_ALIASES: Record<string, string> = {
   // item_type
   'item_type': 'item_type',
   'qualification_status': 'qualification_status',
+  'สถานะตามเกณฑ์': 'qualification_status',
+  'สถานะตามเกณฑ์ครุภัณฑ์': 'qualification_status',
   'ประเภท': 'item_type',
   'ประเภทสิ่งของ': 'item_type',
 
@@ -166,10 +168,10 @@ function parseConditionStatus(
   const s = explicitStatus.trim().toLowerCase()
   if (!s) return 'active'
   if (s === 'ชำรุด' || s === 'damaged') return 'damaged'
-  if (s === 'เสื่อมสภาพ' || s === 'ไม่ใช้งาน' || s === 'inactive') return 'inactive'
-  if (s === 'รอซ่อม' || s === 'waiting_repair') return 'waiting_repair'
-  if (s === 'สำรอง' || s === 'spare') return 'spare'
-  if (s === 'จำหน่ายแล้ว' || s === 'disposed') return 'disposed'
+  if (s === 'เสื่อมสภาพ' || s === 'ไม่ใช้งาน' || s === 'inactive' || s === 'deteriorated') return 'inactive'
+  if (s === 'รอซ่อม' || s === 'waiting_repair') return 'damaged'
+  if (s === 'สำรอง' || s === 'spare') return 'active'
+  if (s === 'จำหน่ายแล้ว' || s === 'disposed') return 'inactive'
   if (s === 'ใช้งานได้' || s === 'ใช้งานอยู่' || s === 'active') return 'active'
   return s
 }
@@ -332,11 +334,14 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       const rawQualification = getVal('qualification_status').trim().toLowerCase()
       const qualificationStatus: 'qualified' | 'below_threshold' | null = ['qualified', 'ตามเกณฑ์', 'ครุภัณฑ์ตามเกณฑ์'].includes(rawQualification)
         ? 'qualified'
-        : ['below_threshold', 'ต่ำกว่าเกณฑ์', 'ต่ำกว่าเกณฑ์ (ต.)', 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)'].includes(rawQualification)
+        : ['below_threshold', 'ต่ำกว่าเกณฑ์', 'ต่ำกว่าเกณฑ์ (ต)', 'ต่ำกว่าเกณฑ์ (ต.)', 'ครุภัณฑ์ต่ำกว่าเกณฑ์', 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)'].includes(rawQualification)
           ? 'below_threshold'
           : null
       if (rawQualification && qualificationStatus === null) {
         return errorResponse(`บรรทัดที่ ${lineNum}: qualification_status ต้องเป็น qualified หรือ below_threshold`)
+      }
+      if (itemType === 'asset' && qualificationStatus === null) {
+        return errorResponse(`บรรทัดที่ ${lineNum}: ครุภัณฑ์ต้องระบุสถานะตามเกณฑ์เป็น “ตามเกณฑ์” หรือ “ต่ำกว่าเกณฑ์”`)
       }
 
       const rawQuantity = getVal('quantity')

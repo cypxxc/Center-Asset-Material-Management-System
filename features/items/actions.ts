@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { itemFormSchema } from './schema'
-import { bulkEditSchema, BULK_EDIT_LIMIT, type BulkItemUpdates } from './bulk-edit'
+import { bulkEditSchema, BULK_EDIT_LIMIT } from './bulk-edit'
 import type { ItemListSearchParams } from './types'
 import { getItems } from './queries'
 import { ActionResponse, successResponse, errorResponse } from '@/lib/actions-helper'
@@ -14,6 +14,7 @@ import { importItemsBulk as importItemsBulkCore, getItemsForExport as getItemsFo
 import { applyQualificationMapping as applyQualificationMappingCore, previewQualificationMapping as previewQualificationMappingCore } from './qualification-mapping'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { writeAuditLog } from '@/lib/audit'
+import { syncCentralNote } from './central-note'
 
 export type ItemActionState = ActionResponse
 export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> { return importItemsBulkCore(csvContent) }
@@ -27,13 +28,14 @@ export async function applyQualificationMapping(expected: { eligible: number; qu
 
 function refreshItems() { revalidatePath('/items'); revalidatePath('/', 'layout'); revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max'); revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max') }
 function parseFormData(formData: FormData) {
+  const isCentral = ['true', 'on', '1'].includes(String(formData.get('is_central')))
   return itemFormSchema.safeParse({
     item_name: formData.get('item_name'), item_type: formData.get('item_type'), qualification_status: formData.get('qualification_status'),
     category_id: formData.get('category_id'), quantity: formData.get('quantity'), unit_price: formData.get('unit_price'), unit_id: formData.get('unit_id'),
     asset_no: formData.get('asset_no'), serial_no: formData.get('serial_no'), brand: formData.get('brand'), model: formData.get('model'),
     location_id: formData.get('location_id'), responsible_person: formData.get('responsible_person'), gfmis_number: formData.get('gfmis_number'),
-    budget_source: formData.get('budget_source'), acquired_date: formData.get('acquired_date'), status: formData.get('status'), note: formData.get('note'),
-    is_central: ['true', 'on', '1'].includes(String(formData.get('is_central'))), image_url: formData.get('image_url'),
+    budget_source: formData.get('budget_source'), acquired_date: formData.get('acquired_date'), status: formData.get('status'), note: syncCentralNote(String(formData.get('note') ?? ''), isCentral),
+    is_central: isCentral, image_url: formData.get('image_url'),
     depreciation_enabled: formData.get('depreciation_enabled'), depreciation_cost: formData.get('depreciation_cost'),
     depreciation_useful_life_years: formData.get('depreciation_useful_life_years'), depreciation_start_basis: formData.get('depreciation_start_basis'),
     depreciation_start_date: formData.get('depreciation_start_date'),
@@ -85,12 +87,11 @@ export async function createItemInline(_prevState: ActionResponse | null, formDa
 export async function updateItem(id: string, _prevState: ItemActionState | null, formData: FormData): Promise<ItemActionState> {
   return saveItem(formData, id)
 }
-export async function bulkUpdateItems(ids: string[], updates: BulkItemUpdates): Promise<ActionResponse> {
-  const parsed = bulkEditSchema.safeParse({ ids, updates })
+export async function updateItemConditionStatus(id: string, status: import('./types').ItemStatus): Promise<ActionResponse> {
+  const parsed = bulkEditSchema.safeParse({ ids: [id], updates: { status } })
   if (!parsed.success) return errorResponse('กรุณาตรวจสอบรายการและช่องที่ต้องการแก้ไข')
   return mutatePostgresItems(parsed.data.ids, 'update', parsed.data.updates)
 }
-export async function updateItemConditionStatus(id: string, status: 'active' | 'spare' | 'damaged' | 'waiting_repair' | 'inactive' | 'disposed'): Promise<ActionResponse> { return bulkUpdateItems([id], { status }) }
 export async function getMatchingItemIds(params: ItemListSearchParams): Promise<ActionResponse<string[]>> {
   const auth = await requireEditor()
   if (auth.error) return errorResponse(auth.error)

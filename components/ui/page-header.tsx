@@ -23,7 +23,7 @@ export function PageHeader({
       {...props}
     >
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground leading-snug">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground leading-snug">
           {title}
         </h1>
         {subtitle && <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{subtitle}</p>}

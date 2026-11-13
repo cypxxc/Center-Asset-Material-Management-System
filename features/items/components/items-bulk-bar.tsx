@@ -1,80 +1,40 @@
 'use client'
 
-import { Tag, FileText } from 'lucide-react'
+import { Edit, Tag, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+const actionButtonClassName = 'h-8.5 gap-1.5 rounded-lg px-3 text-xs font-semibold cursor-pointer bg-card hover:bg-accent text-card-foreground border-input'
+
 export interface ItemsBulkBarProps {
+  onEdit?: () => void
   selectedCount: number
-  total: number
   userCanWrite: boolean
   userCanDelete: boolean
-  selectingAll: boolean
   canPrintBatch: boolean
-  onBulkEdit: () => void
-  onSelectAllMatching: () => void
   onBatchPrint: () => void
   onBulkDelete: () => void
   onClearSelection: () => void
-  onDisburse?: () => void
-  disburseLabel?: string
 }
 
 export function ItemsBulkBar({
+  onEdit,
   selectedCount,
-  total,
   userCanWrite,
   userCanDelete,
-  selectingAll,
   canPrintBatch,
-  onBulkEdit,
-  onSelectAllMatching,
   onBatchPrint,
   onBulkDelete,
   onClearSelection,
-  onDisburse,
-  disburseLabel,
 }: ItemsBulkBarProps) {
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-6 md:bottom-8 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-2.5 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
+    <div role="region" aria-label="จัดการรายการที่เลือก" className="fixed bottom-6 md:bottom-8 left-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 flex flex-wrap items-center justify-center gap-2.5 rounded-2xl border border-border bg-card/95 backdrop-blur-md px-5 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 text-card-foreground">
       <span className="text-xs font-bold text-card-foreground">
         เลือกอยู่ <span className="text-primary font-black">{selectedCount}</span> รายการ
       </span>
 
       <div className="h-4 w-px bg-border" />
-
-      {userCanWrite && (
-        <>
-          {onDisburse && (
-            <Button
-              onClick={onDisburse}
-              variant="default"
-              className="h-8.5 rounded-lg px-3.5 text-xs font-bold flex items-center gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>{disburseLabel ?? `ขอเบิกพัสดุ (${selectedCount})`}</span>
-            </Button>
-          )}
-          <Button
-            id="bulk-edit-trigger"
-            disabled={selectingAll}
-            onClick={onBulkEdit}
-            variant="outline"
-            className="h-8.5 rounded-lg px-3 text-xs font-semibold cursor-pointer"
-          >
-            แก้ไขหลายรายการ
-          </Button>
-          <Button
-            variant="outline"
-            disabled={selectingAll}
-            onClick={onSelectAllMatching}
-            className="h-8.5 rounded-lg px-3 text-xs font-semibold cursor-pointer"
-          >
-            {selectingAll ? 'กำลังเลือก...' : `เลือกทั้งหมดตามผลค้นหา (${total})`}
-          </Button>
-        </>
-      )}
 
       {/* Bulk Print Asset Tag */}
       {userCanWrite && (
@@ -83,33 +43,42 @@ export function ItemsBulkBar({
           title={!canPrintBatch ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}
           onClick={onBatchPrint}
           variant="outline"
-          className="h-8.5 rounded-lg px-3 text-xs font-semibold flex items-center gap-1.5 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
+          className={actionButtonClassName}
         >
-          <Tag className="h-3.5 w-3.5" />
+          <Tag className="size-3.5" />
           <span>พิมพ์ลาเบล ({selectedCount})</span>
         </Button>
       )}
 
-      {/* Bulk Delete - Admin Only */}
+      {userCanWrite && (
+        <Button variant="outline" className={actionButtonClassName} disabled={!onEdit} title={!onEdit ? 'เลือกรายการเดียวเพื่อแก้ไขข้อมูล' : undefined} onClick={onEdit}>
+          <Edit className="size-3.5" />แก้ไขข้อมูล
+        </Button>
+      )}
+
       {userCanDelete && (
         <Button
           onClick={onBulkDelete}
           variant="outline"
-          className="h-8.5 rounded-lg px-3 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
+          className={`${actionButtonClassName} text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30`}
         >
-          ลบทั้งหมด
+          <Trash2 className="size-3.5" />
+          ยกเลิก
         </Button>
       )}
 
       <div className="h-4 w-px bg-border" />
 
       {/* Clear Selection */}
-      <button
+      <Button
+        variant="outline"
         onClick={onClearSelection}
-        className="text-xs text-muted-foreground hover:text-card-foreground font-semibold transition-colors cursor-pointer"
+        className="h-8.5 w-8.5 rounded-lg p-0 cursor-pointer"
+        aria-label="ปิดแถบรายการที่เลือก"
+        title="ปิด"
       >
-        ยกเลิก
-      </button>
+        <X className="size-3.5" />
+      </Button>
     </div>
   )
 }

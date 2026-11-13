@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
-import type { ItemStatus, ItemType } from './types'
-import { itemStatuses, itemTypes, type NormalizedItemListSearchParams } from './list-params'
+import type { ItemType } from './types'
+import { itemTypes, type NormalizedItemListSearchParams } from './list-params'
+import { itemStatusStorageValues } from './status'
 export { BATCH_SIZE, normalizeItemListSearchParams, type NormalizedItemListSearchParams } from './list-params'
 export type ItemCursorKey = string | number | null
 
@@ -53,7 +54,7 @@ function assertKey(params: NormalizedItemListSearchParams, key: unknown): assert
   if (params.sort_by === 'category' && (typeof key !== 'string' || key.length > 512)) {
     throw new CursorError()
   }
-  if (params.sort_by === 'status' && (typeof key !== 'string' || !itemStatuses.includes(key as ItemStatus))) {
+  if (params.sort_by === 'status' && (typeof key !== 'string' || itemStatusStorageValues(key).length === 0)) {
     throw new CursorError()
   }
   if (params.sort_by === 'item_name' && (typeof key !== 'string' || key.length > 512)) {

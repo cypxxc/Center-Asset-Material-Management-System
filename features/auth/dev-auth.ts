@@ -5,13 +5,13 @@ const DEVELOPMENT_AUTH_COOKIE_NAME = 'registry-dev-auth'
 type DevelopmentSeedAccount = {
   email: string
   password: string
-  role: 'admin' | 'staff' | 'viewer'
+  role: 'admin' | 'staff' | 'user'
 }
 
 export type DevelopmentSessionUser = {
   id: string
   email: string
-  role: 'admin' | 'staff' | 'viewer'
+  role: 'admin' | 'staff' | 'user'
   full_name?: string | null
 }
 
@@ -24,7 +24,7 @@ export type CookieStoreLike = {
 const DEVELOPMENT_SEED_ACCOUNTS: DevelopmentSeedAccount[] = [
   { email: 'admin@registry.s', password: 'admin1234', role: 'admin' },
   { email: 'staff@registry.s', password: 'staff1234', role: 'staff' },
-  { email: 'viewer@registry.s', password: 'viewer1234', role: 'viewer' },
+  { email: 'viewer@registry.s', password: 'viewer1234', role: 'user' },
 ]
 
 const DEVELOPMENT_SESSION_MEMORY = new Map<string, DevelopmentSessionUser>()
@@ -66,7 +66,7 @@ export function readDevelopmentSessionUser(cookieStore?: CookieStoreLike | null)
         return {
           id: parsed.id,
           email: parsed.email,
-          role: parsed.role ?? 'viewer',
+          role: (parsed.role as string) === 'viewer' ? 'user' : parsed.role ?? 'user',
           full_name: parsed.full_name ?? null,
         }
       }

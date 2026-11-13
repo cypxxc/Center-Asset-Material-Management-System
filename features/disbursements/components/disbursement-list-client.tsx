@@ -1,623 +1,460 @@
 'use client'
 
-import { useState, useTransition, useMemo, useCallback } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import {
-  Activity,
-  Boxes,
-  Plus,
-  RotateCcw,
-  ArrowRight,
-  Clock,
-  FileEdit,
-  CheckCircle2,
-  Tag,
-  X,
-  ShoppingCart,
-  FileText,
-  AlertTriangle,
+ Activity,
+ Boxes,
+ Plus,
+ RotateCcw,
+ Clock,
+ FileEdit,
+ CheckCircle2,
 } from 'lucide-react'
-import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import { EmptyState } from '@/components/ui/empty-state'
-import {
-  DataTable,
-  DataTableHeader,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableCell,
-} from '@/components/ui/data-table'
+import { GroupedTransactionsTable } from './grouped-transactions-table'
 import type { DisbursementRow, CentralAvailableItem } from '@/features/disbursements/types'
-import {
-  DisbursementStatusBadge,
-  DisbursementTypeBadge,
-} from '@/features/disbursements/components/badges'
-import {
-  DISBURSEMENT_TYPE_LABELS,
-  DISBURSEMENT_STATUS_LABELS,
-} from '@/features/disbursements/print-generator'
 import { BorrowCatalogView } from '@/features/disbursements/components/borrow-catalog-view'
+import { getPageNumbers } from '../pagination'
 
-export function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-  if (current <= 4) {
-    return [1, 2, 3, 4, 5, 'ellipsis', total]
-  }
-  if (current >= total - 3) {
-    return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total]
-  }
-  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
-}
+export { getPageNumbers } from '../pagination'
+
+const DisbursementCreateModal = dynamic(() => import('./disbursement-create-modal').then((module) => module.DisbursementCreateModal))
+const CustodyHistoryPanel = dynamic(() => import('./custody-history-panel').then((module) => module.CustodyHistoryPanel))
 
 const DISBURSEMENT_STATUS_OPTIONS: FilterOption[] = [
-  { value: 'pending_approval', label: 'รออนุมัติ', colorDot: 'bg-amber-500' },
-  { value: 'draft', label: 'ฉบับร่าง', colorDot: 'bg-slate-400' },
-  { value: 'confirmed', label: 'ยืนยันแล้ว', colorDot: 'bg-emerald-500' },
-  { value: 'active_borrow', label: 'กำลังยืม', colorDot: 'bg-amber-500' },
-  { value: 'partially_returned', label: 'คืนบางส่วน', colorDot: 'bg-sky-500' },
-  { value: 'returned', label: 'คืนครบแล้ว', colorDot: 'bg-teal-500' },
-  { value: 'reversed', label: 'คืนสภาพแล้ว', colorDot: 'bg-purple-500' },
-  { value: 'cancelled', label: 'ยกเลิกแล้ว', colorDot: 'bg-rose-500' },
-  { value: 'rejected', label: 'ไม่อนุมัติ', colorDot: 'bg-red-500' },
+ { value: 'pending_approval', label: 'รออนุมัติ', colorDot: 'bg-amber-500' },
+ { value: 'active_borrow', label: 'อนุมัติแล้ว / กำลังยืม', colorDot: 'bg-amber-500' },
 ]
 
-const DISBURSEMENT_TYPE_OPTIONS: FilterOption[] = [
-  { value: 'material_issue', label: 'เบิกจ่ายพัสดุ', colorDot: 'bg-sky-500' },
-  { value: 'asset_handover', label: 'ส่งมอบครุภัณฑ์', colorDot: 'bg-indigo-500' },
-  { value: 'asset_borrow', label: 'ยืมครุภัณฑ์', colorDot: 'bg-orange-500' },
+const HISTORY_STATUS_OPTIONS: FilterOption[] = [
+ { value: 'confirmed', label: 'เบิกอนุมัติแล้ว' },
+ { value: 'cancelled', label: 'ยกเลิกแล้ว' },
+ { value: 'reversed', label: 'คืนสภาพแล้ว' },
+ { value: 'returned', label: 'คืนครบแล้ว' },
+ { value: 'rejected', label: 'ไม่อนุมัติ' },
 ]
 
 interface DisbursementListClientProps {
-  initialItems: DisbursementRow[]
-  total: number
-  currentPage: number
-  pageSize: number
-  totalPages: number
-  currentQ: string
-  currentStatus: string
-  currentType: string
-  canCreate: boolean
-  stats?: {
-    total: number
-    active_borrow: number
-    draft: number
-    confirmed: number
-    pending_approval?: number
-  }
-  centralItems?: CentralAvailableItem[]
-  userRole?: string
-  currentUser?: {
-    id: string
-    full_name?: string | null
-    role?: string | null
-    department?: string | null
-  } | null
-  initialTab?: 'catalog' | 'documents'
+ initialItems: DisbursementRow[]
+ total: number
+ currentPage: number
+ pageSize: number
+ totalPages: number
+ currentQ: string
+ currentStatus: string
+ currentType: string
+ canCreate: boolean
+ stats?: {
+ total: number
+ active_borrow: number
+ draft: number
+ confirmed: number
+ pending_approval?: number
+ }
+ centralItems?: CentralAvailableItem[]
+ userRole?: string
+ initialTab?: 'catalog' | 'documents' | 'requests' | 'history'
 }
 
 export function DisbursementListClient({
-  initialItems,
-  total,
-  currentPage,
-  pageSize,
-  totalPages,
-  currentQ,
-  currentStatus,
-  currentType,
-  canCreate,
-  stats,
-  centralItems = [],
-  userRole = 'viewer',
-  currentUser,
-  initialTab,
+ initialItems,
+ total,
+ currentPage,
+ pageSize,
+ totalPages,
+ currentQ,
+ currentStatus,
+ currentType,
+ canCreate,
+ stats,
+ centralItems = [],
+ userRole = 'user',
+ initialTab,
 }: DisbursementListClientProps) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'catalog' | 'documents'>(
-    initialTab || (userRole === 'viewer' ? 'catalog' : 'documents')
-  )
-  const [q, setQ] = useState(currentQ)
-  const [status, setStatus] = useState(currentStatus)
-  const [type, setType] = useState(currentType)
+ const router = useRouter()
+ const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+ const [custodyRevision, setCustodyRevision] = useState(0)
+ const [isPending, startTransition] = useTransition()
+ const [activeTab, setActiveTab] = useState<'catalog' | 'documents' | 'requests' | 'history'>(
+ initialTab || 'catalog'
+ )
+ const [q, setQ] = useState(currentQ)
+ const [catalogQuery, setCatalogQuery] = useState('')
+ const [cartContainer, setCartContainer] = useState<HTMLDivElement | null>(null)
+ const [status, setStatus] = useState(currentStatus)
+ const [type, setType] = useState(currentType)
+ const navigationState = JSON.stringify([initialTab, currentQ, currentStatus, currentType])
+ const [previousNavigation, setPreviousNavigation] = useState(navigationState)
+ if (previousNavigation !== navigationState) {
+ setPreviousNavigation(navigationState)
+ setActiveTab(initialTab || 'catalog')
+ setQ(currentQ)
+ setStatus(currentStatus)
+ setType(currentType)
+ }
 
-  const applyFilters = useCallback(
-    (newQ = q, newStatus = status, newType = type, newPage = 1) => {
-      const params = new URLSearchParams()
-      if (newQ.trim()) params.set('q', newQ.trim())
-      if (newStatus) params.set('status', newStatus)
-      if (newType) params.set('type', newType)
-      if (newPage > 1) params.set('page', String(newPage))
+ const applyFilters = useCallback(
+ (newQ = q, newStatus = status, newType = type, newPage = 1, newTab: 'documents' | 'requests' | 'history' = activeTab === 'history' ? 'history' : activeTab === 'requests' ? 'requests' : 'documents') => {
+ const params = new URLSearchParams()
+ params.set('tab', newTab)
+ if (newQ.trim()) params.set('q', newQ.trim())
+ params.set('status', newStatus || 'all')
+ if (newType) params.set('type', newType)
+ if (newPage > 1) params.set('page', String(newPage))
+ startTransition(() => {
+ router.replace(`/disbursements?${params}`, { scroll: false })
+ })
+ },
+ [q, status, type, router, activeTab]
+ )
 
-      startTransition(() => {
-        const qs = params.toString()
-        router.replace(`/disbursements${qs ? `?${qs}` : ''}`, { scroll: false })
-      })
-    },
-    [q, status, type, router]
-  )
+ function handleSearchChange(val: string) {
+ setQ(val)
+ if (userRole === 'admin' && activeTab === 'documents') return
+ applyFilters(val, status, type, 1)
+ }
 
-  function handleSearchChange(val: string) {
-    setQ(val)
-    applyFilters(val, status, type, 1)
-  }
+ function handleSearchClear() {
+ setQ('')
+ if (userRole === 'admin' && activeTab === 'documents') return
+ applyFilters('', status, type, 1)
+ }
 
-  function handleSearchClear() {
-    setQ('')
-    applyFilters('', status, type, 1)
-  }
+ function handleClearAll() {
+ setQ('')
+ setStatus('all')
+ setType('')
+ applyFilters('', 'all', '', 1)
+ }
 
-  function handleClearAll() {
-    setQ('')
-    setStatus('')
-    setType('')
-    startTransition(() => {
-      router.push('/disbursements')
-    })
-  }
+ const startIdx = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
+ const endIdx = Math.min(currentPage * pageSize, total)
 
-  const startIdx = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const endIdx = Math.min(currentPage * pageSize, total)
+ const hasActiveFilters = Boolean(q || (status && status !== 'all') || type)
 
-  // Active filter chips list
-  const activeChips = useMemo(() => {
-    const chips: { id: string; label: string; value: string; onRemove: () => void }[] = []
-    if (q.trim()) {
-      chips.push({
-        id: 'q',
-        label: 'ค้นหา',
-        value: `"${q.trim()}"`,
-        onRemove: () => {
-          setQ('')
-          applyFilters('', status, type, 1)
-        },
-      })
-    }
-    if (type) {
-      chips.push({
-        id: 'type',
-        label: 'ประเภท',
-        value: DISBURSEMENT_TYPE_LABELS[type as keyof typeof DISBURSEMENT_TYPE_LABELS] || type,
-        onRemove: () => {
-          setType('')
-          applyFilters(q, status, '', 1)
-        },
-      })
-    }
-    if (status) {
-      chips.push({
-        id: 'status',
-        label: 'สถานะ',
-        value: DISBURSEMENT_STATUS_LABELS[status as keyof typeof DISBURSEMENT_STATUS_LABELS] || status,
-        onRemove: () => {
-          setStatus('')
-          applyFilters(q, '', type, 1)
-        },
-      })
-    }
-    return chips
-  }, [q, status, type, applyFilters])
+ return (
+ <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
+ <div className="flex min-h-0 flex-1 min-w-0 overflow-hidden">
+ {/* Main Content Area */}
+ <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
+ {/* ZONE 1: Page Header (Title + Summary Badge + Primary Action Button) */}
+ <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 h-14 flex items-center">
+ <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+ {/* Left: Main Title & Count Badge */}
+ <div className="flex items-center gap-3 min-w-0">
+ <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
+ {activeTab === 'history' ? 'ประวัติการอนุมัติ' : userRole === 'user' ? 'เบิก' : 'เบิก - จ่าย'}
+ </h1>
+ <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
+ {activeTab === 'catalog'
+ ? `${centralItems.length} รายการพร้อมเบิก/ยืม`
+ : userRole === 'admin' && activeTab === 'documents' ? 'ผู้ถือครอง' : `${total.toLocaleString()} รายการเอกสาร`}
+ </span>
+ </div>
 
-  const hasActiveFilters = Boolean(q || status || type)
+ {/* Right: Primary Action Button */}
+ <div className="flex items-center gap-2 shrink-0">
+ {canCreate && userRole === 'admin' && activeTab === 'documents' && (
+ <Button
+ onClick={() => setIsCreateModalOpen(true)}
+ className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/15 text-primary font-normal text-xs px-3.5 gap-1.5 transition-colors cursor-pointer inline-flex items-center shrink-0"
+ >
+ <Plus className="h-4 w-4" />
+ <span>สั่งจ่าย</span>
+ </Button>
+ )}
+ {canCreate && userRole === 'user' && activeTab === 'documents' && (
+ <Button asChild className="h-8 border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">
+ <Link href="/disbursements/new">ส่งคำขอเบิก</Link>
+ </Button>
+ )}
+ </div>
+ </div>
+ </div>
 
-  return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-background text-foreground font-sans">
-      <div className="flex min-h-0 flex-1 min-w-0 overflow-hidden">
-        {/* Main Content Area */}
-        <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
-          {/* ZONE 1: Page Header (Title + Summary Badge + Primary Action Button) */}
-          <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 h-14 flex items-center">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
-              {/* Left: Main Title & Count Badge */}
-              <div className="flex items-center gap-3 min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
-                  ระบบเบิก-จ่ายและยืมพัสดุส่วนกลาง
-                </h1>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
-                  {activeTab === 'catalog'
-                    ? `${centralItems.length} รายการพร้อมยืม`
-                    : `${total.toLocaleString()} รายการเอกสาร`}
-                </span>
-              </div>
+ {/* Top Tab Switcher */}
+ <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
+ <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="เบิกและยืม">
+ <button
+ type="button"
+ onClick={() => { setActiveTab('catalog'); router.push('/disbursements?tab=catalog', { scroll: false }) }}
+ aria-pressed={activeTab === 'catalog'}
+ className={cn(
+ 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
+ activeTab === 'catalog'
+ ? 'bg-background text-primary shadow-xs'
+ : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ เบิก / ยืม
+ </button>
 
-              {/* Right: Primary Action Button */}
-              <div className="flex items-center gap-2 shrink-0">
-                {canCreate && (
-                  <Button
-                    asChild
-                    className="h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-3.5 gap-1.5 shadow-2xs transition-all cursor-pointer inline-flex items-center shrink-0"
-                  >
-                    <Link href="/disbursements/new">
-                      <Plus className="h-4 w-4" />
-                      <span>สร้างเอกสารเบิกจ่าย</span>
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+ </div>
+ <div className="ml-1 flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="จ่ายและอนุมัติ">
+ <button
+ type="button"
+ onClick={() => { setActiveTab('documents'); applyFilters('', 'all', '', 1, 'documents') }}
+ aria-pressed={activeTab === 'documents'}
+ className={cn(
+ 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
+ activeTab === 'documents'
+ ? 'bg-background text-primary shadow-xs'
+ : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ {userRole === 'admin' ? 'จ่าย' : 'รายการของฉัน'}
+ </button>
+ {userRole === 'admin' && (
+ <>
+ <button
+ type="button"
+ onClick={() => {
+ setActiveTab('requests')
+ setStatus('all')
+ setType('')
+ setQ('')
+ applyFilters('', 'all', '', 1, 'requests')
+ }}
+ aria-pressed={activeTab === 'requests'}
+ className={cn(
+ 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
+ activeTab === 'requests' ? 'bg-background text-primary shadow-xs' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ อนุมัติ
+ </button>
+ <button type="button" aria-pressed={activeTab === 'history'}
+ onClick={() => { setActiveTab('history'); setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1, 'history') }}
+ className={cn('min-h-9 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring', activeTab === 'history' ? 'bg-background text-primary shadow-xs' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground')}>
+ ประวัติการอนุมัติ
+ </button>
+ </>
+ )}
+ </div>
+ <div className="order-2 min-w-0 flex-1 basis-[calc(100%-8rem)] sm:order-1 sm:basis-0 sm:max-w-md sm:mx-auto">
+ <SearchInput
+ key={activeTab}
+ value={activeTab === 'catalog' ? catalogQuery : q}
+ onChange={activeTab === 'catalog' ? setCatalogQuery : handleSearchChange}
+ onClear={activeTab === 'catalog' ? () => setCatalogQuery('') : handleSearchClear}
+ debounceMs={activeTab === 'catalog' ? 300 : 500}
+ placeholder={activeTab === 'catalog' ? 'ค้นหาชื่อ, หมายเลขครุภัณฑ์, ยี่ห้อ, รุ่น, สถานที่...' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาสิ่งของ, ผู้ถือครอง, ผู้ทำรายการ...' : 'ค้นหาเลขที่เอกสาร, ผู้รับ/ยืม, กลุ่มงาน...'}
+ aria-label={activeTab === 'catalog' ? 'ค้นหาพัสดุส่วนกลาง' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาประวัติผู้ถือครอง' : 'ค้นหาเอกสารเบิกจ่าย'}
+ className="h-9 text-xs"
+ />
+ </div>
+ {activeTab === 'catalog' && <div ref={setCartContainer} className="order-3 shrink-0 sm:order-2" />}
+ {activeTab !== 'catalog' && (userRole !== 'admin' || activeTab === 'requests' || activeTab === 'history') && (
+ <div className="order-3 min-w-0">
+ {/* Dropdown Filters */}
+ <div className="flex flex-wrap items-center gap-2 min-w-0">
+ {/* Status Filter */}
+ {activeTab !== 'requests' && <FilterDropdown
+ label="สถานะ"
+ ariaLabel="กรองตามสถานะเอกสาร"
+ name="status"
+ value={status === 'all' ? '' : status}
+ options={activeTab === 'history' ? HISTORY_STATUS_OPTIONS : DISBURSEMENT_STATUS_OPTIONS}
+ onChange={(val) => {
+ setStatus(val || 'all')
+ applyFilters(q, val || 'all', type, 1)
+ }}
+ icon={<Activity className="h-3.5 w-3.5" />}
+ allLabel="ทั้งหมด (สถานะ)"
+ />}
 
-          {/* Top Tab Switcher */}
-          <div className="flex items-center gap-1 border-b border-border bg-card px-4 sm:px-6">
-            <button
-              type="button"
-              onClick={() => setActiveTab('catalog')}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer',
-                activeTab === 'catalog'
-                  ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40'
-                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              <ShoppingCart className="h-4 w-4 text-emerald-600" />
-              <span>ยืมพัสดุส่วนกลาง</span>
-              <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[11px] font-bold">
-                {centralItems.length}
-              </span>
-            </button>
+ {activeTab !== 'requests' && activeTab !== 'history' && <Button type="button" variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1) }}>ดูประวัติทั้งหมด</Button>}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('documents')}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer',
-                activeTab === 'documents'
-                  ? 'border-primary text-primary bg-primary/5'
-                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              <FileText className="h-4 w-4" />
-              <span>ทะเบียนเอกสารเบิก-จ่าย</span>
-              {Number(stats?.pending_approval) > 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                  รออนุมัติ {stats?.pending_approval}
-                </span>
-              ) : (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {total}
-                </span>
-              )}
-            </button>
-          </div>
+ {/* Quick Reset Filters Button */}
+ {hasActiveFilters && (
+ <Button
+ type="button"
+ variant="ghost"
+ size="sm"
+ onClick={handleClearAll}
+ className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
+ title="ล้างตัวกรองทั้งหมด"
+ aria-label="ล้างตัวกรอง"
+ >
+ <RotateCcw className="h-3.5 w-3.5" />
+ <span className="hidden sm:inline">ล้างตัวกรอง</span>
+ </Button>
+ )}
+ </div>
+ </div>
+ )}
+ </div>
 
-          {activeTab === 'catalog' ? (
-            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-50/40">
-              <BorrowCatalogView
-                items={centralItems}
-                currentUser={currentUser}
-                onSwitchToDocs={() => {
-                  setActiveTab('documents')
-                  setStatus('pending_approval')
-                  applyFilters(q, 'pending_approval', type, 1)
-                }}
-                onSuccess={(docId) => {
-                  router.push(`/disbursements/${docId}`)
-                }}
-              />
-            </div>
-          ) : (
-            <>
-              {/* Pending Approvals Notice Banner for Admin/Staff */}
-              {Number(stats?.pending_approval) > 0 && userRole !== 'viewer' && (
-                <div className="shrink-0 border-b border-amber-200 bg-amber-50/80 px-4 py-2 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-amber-900">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                    <span className="font-semibold">
-                      มีคำขอยืมพัสดุส่วนกลางรอการตรวจสอบและอนุมัติ {stats?.pending_approval} รายการ
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setStatus('pending_approval')
-                      applyFilters(q, 'pending_approval', type, 1)
-                    }}
-                    className="h-7 text-xs border-amber-300 bg-white text-amber-900 hover:bg-amber-100 self-start sm:self-auto"
-                  >
-                    กรองดูรายการรออนุมัติ
-                  </Button>
-                </div>
-              )}
+ {activeTab === 'catalog' ? (
+ <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+ <BorrowCatalogView
+ cartContainer={cartContainer}
+ items={centralItems}
+ searchQuery={catalogQuery}
+ onSwitchToDocs={() => router.refresh()}
+ onSuccess={() => router.refresh()}
+ />
+ </div>
+ ) : userRole === 'admin' && activeTab === 'documents' ? (
+ <CustodyHistoryPanel query={q} revision={custodyRevision} />
+ ) : (
+ <>
+ {/* ZONE 3: Main Table Area with Transition Dimming */}
+ <div className={cn('flex-1 min-h-0 overflow-auto bg-background transition-opacity duration-150', isPending && 'opacity-60 pointer-events-none')}>
+ {initialItems.length === 0 ? (
+ activeTab === 'requests' || activeTab === 'history' ? (
+ <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground sm:px-6">
+ {hasActiveFilters ? 'ไม่พบรายการตามเงื่อนไขที่ค้นหา' : activeTab === 'history' ? 'ยังไม่มีประวัติการอนุมัติ' : 'ไม่มีคำขอรออนุมัติ'}
+ </p>
+ ) : (
+ <div className="p-8 flex items-center justify-center min-h-[360px]">
+ <EmptyState
+ icon={<Boxes className="h-10 w-10 text-muted-foreground/60" />}
+ title={hasActiveFilters ? 'ไม่พบเอกสารตามเงื่อนไขที่ค้นหา' : 'ยังไม่มีประวัติการเบิก-จ่าย'}
+ description={
+ hasActiveFilters
+ ? 'ลองปรับคำค้นหา หรือล้างตัวกรองเพื่อเรียกดูเอกสารทั้งหมด'
+ : 'เริ่มต้นบันทึกการเบิกจ่ายพัสดุสิ้นเปลือง ส่งมอบ หรือยืม-คืนครุภัณฑ์เพื่อติดตามสถานะ'
+ }
+ action={
+ hasActiveFilters ? (
+ <Button
+ type="button"
+ variant="outline"
+ size="sm"
+ onClick={handleClearAll}
+ className="gap-1.5"
+ >
+ <RotateCcw className="h-3.5 w-3.5" />
+ <span>ล้างตัวกรองทั้งหมด</span>
+ </Button>
+ ) : canCreate ? (
+ <Button asChild size="sm" className="gap-1.5 border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">
+ <Link href="/disbursements/new">
+ <Plus className="h-4 w-4" />
+ <span>ส่งคำขอเบิก</span>
+ </Link>
+ </Button>
+ ) : undefined
+ }
+ />
+ </div>
+ )
+ ) : (
+ <GroupedTransactionsTable documents={initialItems} userRole={userRole} />
+ )}
+ </div>
 
-              {/* ZONE 2: Filter Toolbar (Search + Dropdown Filters + Clear Button) */}
-              <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
-            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between min-w-0">
-              {/* Left Side: Search + Dropdown Filters */}
-              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                {/* Search Input */}
-                <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs min-w-0">
-                  <SearchInput
-                    value={q}
-                    debounceMs={500}
-                    onChange={handleSearchChange}
-                    onClear={handleSearchClear}
-                    placeholder="ค้นหาเลขที่เอกสาร, ผู้รับ/ยืม, กลุ่มงาน, วัตถุประสงค์..."
-                    className="w-full h-9 text-xs"
-                  />
-                </div>
+ {/* ZONE 4: Sticky Footer with Server-Side Pagination Controls */}
+ <footer className="flex min-h-12 flex-wrap gap-3 py-2.5 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
+ <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+ <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground shrink-0">
+ {total > 0
+ ? `แสดง ${startIdx}–${endIdx} จาก ${total.toLocaleString()} รายการ`
+ : 'แสดง 0 จาก 0 รายการ'}
+ </span>
 
-                {/* Dropdown Filters */}
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  {/* Type Filter */}
-                  <FilterDropdown
-                    label="ประเภท"
-                    ariaLabel="กรองตามประเภทรายการ"
-                    name="type"
-                    value={type}
-                    options={DISBURSEMENT_TYPE_OPTIONS}
-                    onChange={(val) => {
-                      setType(val)
-                      applyFilters(q, status, val, 1)
-                    }}
-                    icon={<Tag className="h-3.5 w-3.5" />}
-                    allLabel="ทั้งหมด (ประเภท)"
-                  />
+ {activeTab !== 'history' && stats?.active_borrow !== undefined && stats.active_borrow > 0 && (
+ <span
+ title="เอกสารที่มีรายการกำลังยืม"
+ className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 shrink-0 select-none"
+ >
+ <Clock className="h-3 w-3" />
+ <span>กำลังยืม: {stats.active_borrow}</span>
+ </span>
+ )}
 
-                  {/* Status Filter */}
-                  <FilterDropdown
-                    label="สถานะ"
-                    ariaLabel="กรองตามสถานะเอกสาร"
-                    name="status"
-                    value={status}
-                    options={DISBURSEMENT_STATUS_OPTIONS}
-                    onChange={(val) => {
-                      setStatus(val)
-                      applyFilters(q, val, type, 1)
-                    }}
-                    icon={<Activity className="h-3.5 w-3.5" />}
-                    allLabel="ทั้งหมด (สถานะ)"
-                  />
+ {activeTab !== 'history' && stats?.draft !== undefined && stats.draft > 0 && (
+ <span
+ title="เอกสารฉบับร่าง"
+ className="inline-flex items-center gap-1.5 rounded-md border border-slate-500/20 bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-600 shrink-0 select-none"
+ >
+ <FileEdit className="h-3 w-3" />
+ <span>ฉบับร่าง: {stats.draft}</span>
+ </span>
+ )}
 
-                  {/* Quick Reset Filters Button */}
-                  {hasActiveFilters && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearAll}
-                      className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
-                      title="ล้างตัวกรองทั้งหมด"
-                      aria-label="ล้างตัวกรอง"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">ล้างตัวกรอง</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
+ {activeTab !== 'history' && stats?.confirmed !== undefined && stats.confirmed > 0 && (
+ <span
+ title="เอกสารที่ยืนยันแล้ว"
+ className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 shrink-0 select-none"
+ >
+ <CheckCircle2 className="h-3 w-3" />
+ <span>ยืนยันแล้ว: {stats.confirmed}</span>
+ </span>
+ )}
+ </div>
 
-            {/* Active Filter Chips */}
-            {activeChips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60 mt-2">
-                <span className="text-[11px] text-muted-foreground mr-1">ตัวกรองที่ใช้:</span>
-                {activeChips.map((chip) => (
-                  <span
-                    key={chip.id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground text-[11px] border border-border"
-                  >
-                    <span className="text-muted-foreground">{chip.label}:</span>
-                    <span className="font-semibold">{chip.value}</span>
-                    <button
-                      type="button"
-                      onClick={chip.onRemove}
-                      className="hover:text-destructive transition-colors ml-0.5 cursor-pointer"
-                      aria-label={`ลบตัวกรอง ${chip.label}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+ {/* Server-Side Pagination Controls matching items explorer */}
+ <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+ <Button
+ variant="outline"
+ size="sm"
+ disabled={currentPage <= 1 || isPending}
+ onClick={() => applyFilters(q, status, type, currentPage - 1)}
+ className="h-8 px-2.5 text-xs font-semibold"
+ aria-label="หน้าก่อนหน้า"
+ >
+ ก่อนหน้า
+ </Button>
 
-          {/* ZONE 3: Main Table Area with Transition Dimming */}
-          <div className={cn('flex-1 min-h-0 overflow-auto bg-background transition-opacity duration-150', isPending && 'opacity-60 pointer-events-none')}>
-            {initialItems.length === 0 ? (
-              <div className="p-8 flex items-center justify-center min-h-[360px]">
-                <EmptyState
-                  icon={<Boxes className="h-10 w-10 text-muted-foreground/60" />}
-                  title={hasActiveFilters ? 'ไม่พบเอกสารตามเงื่อนไขที่ค้นหา' : 'ยังไม่มีประวัติการเบิก-จ่าย'}
-                  description={
-                    hasActiveFilters
-                      ? 'ลองปรับคำค้นหา หรือล้างตัวกรองเพื่อเรียกดูเอกสารทั้งหมด'
-                      : 'เริ่มต้นบันทึกการเบิกจ่ายพัสดุสิ้นเปลือง ส่งมอบ หรือยืม-คืนครุภัณฑ์เพื่อติดตามสถานะ'
-                  }
-                  action={
-                    hasActiveFilters ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearAll}
-                        className="gap-1.5"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        <span>ล้างตัวกรองทั้งหมด</span>
-                      </Button>
-                    ) : canCreate ? (
-                      <Button asChild size="sm" className="gap-1.5">
-                        <Link href="/disbursements/new">
-                          <Plus className="h-4 w-4" />
-                          <span>สร้างเอกสารเบิกจ่าย</span>
-                        </Link>
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              </div>
-            ) : (
-              <DataTable wrapperClassName="border-0 rounded-none shadow-none">
-                <DataTableHeader>
-                  <tr>
-                    <DataTableHead className="w-[150px] font-bold text-muted-foreground uppercase text-xs py-3">เลขที่เอกสาร</DataTableHead>
-                    <DataTableHead className="w-[140px] font-bold text-muted-foreground uppercase text-xs py-3">ประเภทรายการ</DataTableHead>
-                    <DataTableHead className="min-w-[160px] font-bold text-muted-foreground uppercase text-xs py-3">ผู้รับ / ผู้ยืม</DataTableHead>
-                    <DataTableHead className="min-w-[150px] font-bold text-muted-foreground uppercase text-xs py-3">กลุ่มงาน / สังกัด</DataTableHead>
-                    <DataTableHead className="min-w-[180px] font-bold text-muted-foreground uppercase text-xs py-3">วัตถุประสงค์</DataTableHead>
-                    <DataTableHead className="w-[130px] font-bold text-muted-foreground uppercase text-xs py-3">วันที่ทำรายการ</DataTableHead>
-                    <DataTableHead className="w-[130px] font-bold text-muted-foreground uppercase text-xs py-3 text-center">สถานะ</DataTableHead>
-                    <DataTableHead isActions className="w-[120px] font-bold text-muted-foreground uppercase text-xs py-3 text-right">การจัดการ</DataTableHead>
-                  </tr>
-                </DataTableHeader>
-                <DataTableBody>
-                  {initialItems.map((doc) => (
-                    <DataTableRow key={doc.id} hoverable className="hover:bg-muted/40 transition-colors border-b border-border/40">
-                      <DataTableCell className="font-mono font-medium text-foreground whitespace-nowrap">
-                        <Link
-                          href={`/disbursements/${doc.id}`}
-                          className="hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5"
-                        >
-                          <span>{doc.document_no || 'ฉบับร่าง'}</span>
-                        </Link>
-                      </DataTableCell>
-                      <DataTableCell>
-                        <DisbursementTypeBadge type={doc.transaction_type} />
-                      </DataTableCell>
-                      <DataTableCell className="font-medium text-foreground">
-                        {doc.recipient_name || <span className="text-muted-foreground/60">—</span>}
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground">
-                        {doc.department_name || <span className="text-muted-foreground/60">—</span>}
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground max-w-xs truncate" title={doc.purpose || ''}>
-                        {doc.purpose || <span className="text-muted-foreground/60">—</span>}
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
-                        {formatDate(doc.confirmed_at || doc.created_at)}
-                      </DataTableCell>
-                      <DataTableCell className="text-center">
-                        <DisbursementStatusBadge status={doc.status} />
-                      </DataTableCell>
-                      <DataTableCell className="text-right whitespace-nowrap">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-7 px-2 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1"
-                        >
-                          <Link href={`/disbursements/${doc.id}`}>
-                            <span>ดูรายละเอียด</span>
-                            <ArrowRight className="h-3 w-3" />
-                          </Link>
-                        </Button>
-                      </DataTableCell>
-                    </DataTableRow>
-                  ))}
-                </DataTableBody>
-              </DataTable>
-            )}
-          </div>
+ <div className="flex items-center gap-1">
+ {getPageNumbers(currentPage, totalPages).map((item, idx) => {
+ if (item === 'ellipsis') {
+ return (
+ <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">
+ …
+ </span>
+ )
+ }
+ const isCurrent = item === currentPage
+ return (
+ <button
+ key={item}
+ type="button"
+ disabled={isPending}
+ onClick={() => applyFilters(q, status, type, item)}
+ aria-current={isCurrent ? 'page' : undefined}
+ aria-label={`หน้า ${item}`}
+ className={cn(
+ 'flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring',
+ isCurrent
+ ? 'border-primary/40 bg-primary/10 text-primary shadow-xs font-bold'
+ : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+ )}
+ >
+ {item}
+ </button>
+ )
+ })}
+ </div>
 
-          {/* ZONE 4: Sticky Footer with Server-Side Pagination Controls */}
-          <footer className="flex min-h-12 flex-wrap gap-3 py-2.5 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground shadow-inner z-10 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-              <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-bold text-card-foreground shrink-0">
-                {total > 0
-                  ? `แสดง ${startIdx}–${endIdx} จาก ${total.toLocaleString()} รายการ`
-                  : 'แสดง 0 จาก 0 รายการ'}
-              </span>
-
-              {stats?.active_borrow !== undefined && stats.active_borrow > 0 && (
-                <span
-                  title="เอกสารที่มีรายการกำลังยืม"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0 select-none"
-                >
-                  <Clock className="h-3 w-3" />
-                  <span>กำลังยืม: {stats.active_borrow}</span>
-                </span>
-              )}
-
-              {stats?.draft !== undefined && stats.draft > 0 && (
-                <span
-                  title="เอกสารฉบับร่าง"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-500/20 bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 shrink-0 select-none"
-                >
-                  <FileEdit className="h-3 w-3" />
-                  <span>ฉบับร่าง: {stats.draft}</span>
-                </span>
-              )}
-
-              {stats?.confirmed !== undefined && stats.confirmed > 0 && (
-                <span
-                  title="เอกสารที่ยืนยันแล้ว"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 select-none"
-                >
-                  <CheckCircle2 className="h-3 w-3" />
-                  <span>ยืนยันแล้ว: {stats.confirmed}</span>
-                </span>
-              )}
-            </div>
-
-            {/* Server-Side Pagination Controls matching items explorer */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1 || isPending}
-                onClick={() => applyFilters(q, status, type, currentPage - 1)}
-                className="h-8 px-2.5 text-xs font-semibold"
-                aria-label="หน้าก่อนหน้า"
-              >
-                ก่อนหน้า
-              </Button>
-
-              <div className="flex items-center gap-1">
-                {getPageNumbers(currentPage, totalPages).map((item, idx) => {
-                  if (item === 'ellipsis') {
-                    return (
-                      <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">
-                        …
-                      </span>
-                    )
-                  }
-                  const isCurrent = item === currentPage
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => applyFilters(q, status, type, item)}
-                      aria-current={isCurrent ? 'page' : undefined}
-                      aria-label={`หน้า ${item}`}
-                      className={cn(
-                        'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
-                        isCurrent
-                          ? 'bg-primary text-primary-foreground shadow-xs font-bold'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      )}
-                    >
-                      {item}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages || isPending}
-                onClick={() => applyFilters(q, status, type, currentPage + 1)}
-                className="h-8 px-2.5 text-xs font-semibold"
-                aria-label="หน้าถัดไป"
-              >
-                ถัดไป
-              </Button>
-            </div>
-          </footer>
-        </>
-      )}
-        </main>
-      </div>
-    </div>
-  )
+ <Button
+ variant="outline"
+ size="sm"
+ disabled={currentPage >= totalPages || isPending}
+ onClick={() => applyFilters(q, status, type, currentPage + 1)}
+ className="h-8 px-2.5 text-xs font-semibold"
+ aria-label="หน้าถัดไป"
+ >
+ ถัดไป
+ </Button>
+ </div>
+ </footer>
+ </>
+ )}
+ {isCreateModalOpen && canCreate && userRole === 'admin' && (
+ <DisbursementCreateModal onClose={() => setIsCreateModalOpen(false)} onSuccess={() => { setIsCreateModalOpen(false); setCustodyRevision((value) => value + 1); router.refresh() }} />
+ )}
+ </main>
+ </div>
+ </div>
+ )
 }

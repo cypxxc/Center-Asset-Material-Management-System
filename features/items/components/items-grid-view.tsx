@@ -14,7 +14,6 @@ interface ItemGridCardProps {
   isChecked: boolean
   priority?: boolean
   onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
   userCanWrite?: boolean
   onCopy?: (value: string | null | undefined) => void
@@ -28,7 +27,6 @@ const ItemGridCard = React.memo(function ItemGridCard({
   isChecked,
   priority = false,
   onSelect,
-  onDoubleClick,
   onToggleSelectItem,
   userCanWrite = false,
   onCopy,
@@ -41,7 +39,6 @@ const ItemGridCard = React.memo(function ItemGridCard({
       onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
       title={item.item_name}
       onClick={() => onSelect(item)}
-      onDoubleClick={() => onDoubleClick?.(item)}
       className={cn(
         'group relative flex h-[208px] min-w-0 overflow-hidden flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
         isSelected ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20' : 'border-border bg-card hover:border-border/80 hover:shadow-2xs'
@@ -96,6 +93,7 @@ const ItemGridCard = React.memo(function ItemGridCard({
         </div>
 
         {/* Selection Checkbox */}
+        {userCanWrite && (
         <button
           onClick={() => onToggleSelectItem(item.id)}
           type="button"
@@ -108,6 +106,7 @@ const ItemGridCard = React.memo(function ItemGridCard({
         >
           {isChecked && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
         </button>
+        )}
       </div>
 
       <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-muted-foreground shadow-inner transition-transform group-hover:scale-105">
@@ -157,7 +156,6 @@ export interface ItemsGridProps {
   selectedItemId: string | null
   selectedItemIds: string[]
   onSelect: (item: ItemListRow) => void
-  onDoubleClick?: (item: ItemListRow) => void
   onToggleSelectItem: (id: string) => void
   userCanWrite?: boolean
   onCopy?: (value: string | null | undefined) => void
@@ -171,7 +169,6 @@ export function ItemsGrid({
   selectedItemId,
   selectedItemIds,
   onSelect,
-  onDoubleClick,
   onToggleSelectItem,
   userCanWrite = false,
   onCopy,
@@ -192,7 +189,6 @@ export function ItemsGrid({
                 isSelected={selectedItemId === item.id}
                 isChecked={selectedItemIds.includes(item.id)}
                 onSelect={onSelect}
-                onDoubleClick={onDoubleClick}
                 onToggleSelectItem={onToggleSelectItem}
                 userCanWrite={userCanWrite}
                 onCopy={onCopy}

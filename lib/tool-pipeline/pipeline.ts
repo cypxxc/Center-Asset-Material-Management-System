@@ -143,7 +143,7 @@ export async function runToolPipeline<
           message: `Tool '${tool.name}' requires 'staff' or 'admin' role. Current role is '${role || 'anonymous'}'.`,
           remediationHint: 'Execute this tool under an account with staff/admin privileges.',
         })
-      } else if (tool.requiredRole === 'viewer' && role !== 'admin' && role !== 'staff' && role !== 'viewer') {
+      } else if (tool.requiredRole === 'user' && role !== 'admin' && role !== 'staff' && role !== 'user') {
         throw new ToolPipelineError({
           code: 'UNAUTHORIZED_ERROR',
           message: `Tool '${tool.name}' requires authenticated role. Current role is '${role || 'anonymous'}'.`,

@@ -5,7 +5,7 @@ export const itemGetTool = defineTool({
   name: 'items_get',
   description: 'Retrieve an item record by its UUID or asset code',
   category: 'inventory',
-  requiredRole: 'viewer',
+  requiredRole: 'user',
   rateLimitTier: 'read',
   inputSchema: z.object({
     idOrCode: z.string().min(1, 'Item ID or Code is required').max(100),
@@ -32,7 +32,7 @@ export const itemListTool = defineTool({
   name: 'items_list',
   description: 'List inventory items with optional pagination and filters',
   category: 'inventory',
-  requiredRole: 'viewer',
+  requiredRole: 'user',
   rateLimitTier: 'read',
   inputSchema: z.object({
     limit: z.number().int().min(1).max(100).default(20),

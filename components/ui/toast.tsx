@@ -6,104 +6,104 @@ import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react"
 export type ToastType = "success" | "error" | "warning" | "info"
 
 export interface Toast {
-  id: string
-  message: string
-  type: ToastType
-  duration?: number
+ id: string
+ message: string
+ type: ToastType
+ duration?: number
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: ToastType, duration?: number) => void
-  toasts: Toast[]
-  removeToast: (id: string) => void
+ toast: (message: string, type?: ToastType, duration?: number) => void
+ toasts: Toast[]
+ removeToast: (id: string) => void
 }
 
 const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = React.useState<Toast[]>([])
+ const [toasts, setToasts] = React.useState<Toast[]>([])
 
-  const toast = React.useCallback((message: string, type: ToastType = "info", duration = 3000) => {
-    const id = Math.random().toString(36).substring(2, 9)
-    setToasts((prev) => [...prev, { id, message, type, duration }])
-  }, [])
+ const toast = React.useCallback((message: string, type: ToastType = "info", duration = 3000) => {
+ const id = Math.random().toString(36).substring(2, 9)
+ setToasts((prev) => [...prev, { id, message, type, duration }])
+ }, [])
 
-  const removeToast = React.useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+ const removeToast = React.useCallback((id: string) => {
+ setToasts((prev) => prev.filter((t) => t.id !== id))
+ }, [])
 
-  return (
-    <ToastContext.Provider value={{ toast, toasts, removeToast }}>
-      {children}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-    </ToastContext.Provider>
-  )
+ return (
+ <ToastContext.Provider value={{ toast, toasts, removeToast }}>
+ {children}
+ <ToastContainer toasts={toasts} removeToast={removeToast} />
+ </ToastContext.Provider>
+ )
 }
 
 export function useToast() {
-  const context = React.useContext(ToastContext)
-  if (!context) {
-    return {
-      toast: (message: string) => {
-        if (typeof window !== 'undefined' && typeof window.alert === 'function' && process.env.NODE_ENV === 'test') {
-          window.alert(message)
-        }
-      },
-      toasts: [],
-      removeToast: () => {},
-    }
-  }
-  return context
+ const context = React.useContext(ToastContext)
+ if (!context) {
+ return {
+ toast: (message: string) => {
+ if (typeof window !== 'undefined' && typeof window.alert === 'function' && process.env.NODE_ENV === 'test') {
+ window.alert(message)
+ }
+ },
+ toasts: [],
+ removeToast: () => {},
+ }
+ }
+ return context
 }
 
 function ToastContainer({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) {
-  return (
-    <div 
-      className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      {toasts.map((t) => (
-        <ToastCard key={t.id} toast={t} onClose={() => removeToast(t.id)} />
-      ))}
-    </div>
-  )
+ return (
+ <div 
+ className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
+ role="status"
+ aria-live="polite"
+ aria-atomic="true"
+ >
+ {toasts.map((t) => (
+ <ToastCard key={t.id} toast={t} onClose={() => removeToast(t.id)} />
+ ))}
+ </div>
+ )
 }
 
 function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
-  React.useEffect(() => {
-    const timer = setTimeout(onClose, toast.duration || 3000)
-    return () => clearTimeout(timer)
-  }, [toast, onClose])
+ React.useEffect(() => {
+ const timer = setTimeout(onClose, toast.duration || 3000)
+ return () => clearTimeout(timer)
+ }, [toast, onClose])
 
-  const icons = {
-    success: <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
-    error: <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />,
-    warning: <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />,
-    info: <Info className="h-4 w-4 text-primary" />,
-  }
+ const icons = {
+ success: <CheckCircle className="h-4 w-4 text-emerald-600 " />,
+ error: <AlertCircle className="h-4 w-4 text-rose-600 " />,
+ warning: <AlertTriangle className="h-4 w-4 text-amber-600 " />,
+ info: <Info className="h-4 w-4 text-primary" />,
+ }
 
-  const bgColors = {
-    success: "bg-emerald-50/90 border-emerald-200 text-emerald-900 dark:bg-emerald-950/90 dark:border-emerald-800 dark:text-emerald-100",
-    error: "bg-rose-50/90 border-rose-200 text-rose-900 dark:bg-rose-950/90 dark:border-rose-800 dark:text-rose-100",
-    warning: "bg-amber-50/90 border-amber-200 text-amber-900 dark:bg-amber-950/90 dark:border-amber-800 dark:text-amber-100",
-    info: "bg-primary/10 border-primary/20 text-foreground dark:bg-primary/15 dark:border-primary/30",
-  }
+ const bgColors = {
+ success: "bg-emerald-50/90 border-emerald-200 text-emerald-900 ",
+ error: "bg-rose-50/90 border-rose-200 text-rose-900 ",
+ warning: "bg-amber-50/90 border-amber-200 text-amber-900 ",
+ info: "bg-primary/10 border-primary/20 text-foreground ",
+ }
 
-  return (
-    <div className={`flex items-start gap-3 p-3.5 rounded-xl border shadow-lg pointer-events-auto backdrop-blur-sm transition-all animate-in slide-in-from-top-2 duration-300 ${bgColors[toast.type]}`}>
-      <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
-      <div className="flex-1 text-[11px] font-semibold leading-relaxed">{toast.message}</div>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="ปิดการแจ้งเตือน"
-        title="ปิดการแจ้งเตือน"
-        className="flex-shrink-0 text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  )
+ return (
+ <div className={`flex items-start gap-3 p-3.5 rounded-xl border shadow-lg pointer-events-auto backdrop-blur-sm transition-all animate-in slide-in-from-top-2 duration-300 ${bgColors[toast.type]}`}>
+ <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
+ <div className="flex-1 text-[11px] font-semibold leading-relaxed">{toast.message}</div>
+ <button
+ type="button"
+ onClick={onClose}
+ aria-label="ปิดการแจ้งเตือน"
+ title="ปิดการแจ้งเตือน"
+ className="flex-shrink-0 text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+ >
+ <X className="h-3.5 w-3.5" />
+ </button>
+ </div>
+ )
 }

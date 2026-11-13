@@ -18,6 +18,8 @@ services:
       LOCAL_STORAGE_PATH: /data/storage
       LOG_LEVEL: ${CAMMS_LOG_LEVEL:-info}
     secrets: [camms_runtime]
+    ports:
+      - "0.0.0.0:3000:3000"
     volumes:
       - type: bind
         source: ${CAMMS_STORAGE_HOST_PATH:?Set the absolute existing upload directory}

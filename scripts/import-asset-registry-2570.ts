@@ -32,7 +32,7 @@ const SHEET_CONFIGS: SheetConfig[] = [
   { sheetIndex: 10, sheetName: '12. ครุภัณฑ์ยานพาหนะและขนส่ง ', categoryCode: '2310', categoryName: 'ยานพาหนะและขนส่ง', isBelowThreshold: false, isDonated: false, defaultUnit: 'คัน' },
   { sheetIndex: 11, sheetName: '13. ครุภัณฑ์การแพทย์ ', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: false, isDonated: false, defaultUnit: 'เครื่อง' },
   { sheetIndex: 12, sheetName: '11. ครุภัณฑ์งานบ้านงานครัว ', categoryCode: '7810', categoryName: 'ครุภัณฑ์งานบ้านงานครัว', isBelowThreshold: false, isDonated: false, defaultUnit: 'เครื่อง' },
-  { sheetIndex: 13, sheetName: '14. ครุภัณฑ์การแพทย์ (ต)', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: null, isDonated: false, defaultUnit: 'เครื่อง' },
+  { sheetIndex: 13, sheetName: '14. ครุภัณฑ์การแพทย์ (ต)', categoryCode: '6515', categoryName: 'ครุภัณฑ์การแพทย์', isBelowThreshold: false, isDonated: false, defaultUnit: 'เครื่อง' },
 ]
 
 function cleanCellText(val: any): string {
@@ -308,7 +308,9 @@ async function runImport() {
             $13, $14, $15, $16, $17,
             $18, $19, false
           )
-          ON CONFLICT (asset_no) WHERE deleted_at IS NULL AND asset_no IS NOT NULL DO NOTHING;
+          ON CONFLICT (asset_no) WHERE deleted_at IS NULL AND asset_no IS NOT NULL
+          DO UPDATE SET qualification_status = EXCLUDED.qualification_status
+          WHERE public.items.qualification_status IS DISTINCT FROM EXCLUDED.qualification_status;
         `, [
           normalizeForStorage(rawName), itemType, qualificationStatus, categoryId, locationId, unitId,
           1, unitPrice, assetNo ? normalizeForStorage(assetNo) : null,

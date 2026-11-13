@@ -1,8 +1,10 @@
 'use client'
 
+import { FormCombobox } from '@/components/ui/form-combobox'
+
 import { useState } from 'react'
 import { Calculator } from 'lucide-react'
-import { FormField, FormGrid, FormInput, FormLabel, FormSection, FormSelect } from '@/components/ui/form'
+import { FormField, FormGrid, FormInput, FormLabel, FormSection } from '@/components/ui/form'
 import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { calculateStraightLineDepreciation } from '../calculation'
 import type { ItemDetail } from '@/features/items/types'
@@ -42,9 +44,9 @@ export function DepreciationFields({ item }: { item?: ItemDetail }) {
           </FormField>
           <FormField>
             <FormLabel htmlFor="depreciation_start_basis" required>อ้างอิงวันเริ่มคิด</FormLabel>
-            <FormSelect id="depreciation_start_basis" name="depreciation_start_basis" defaultValue={item?.depreciation_start_basis ?? 'available'}>
+            <FormCombobox id="depreciation_start_basis" name="depreciation_start_basis" defaultValue={item?.depreciation_start_basis ?? 'available'}>
               <option value="acquired">วันที่ได้มา</option><option value="available">วันที่พร้อมใช้งาน</option><option value="manual">กำหนดวันเอง</option>
-            </FormSelect>
+            </FormCombobox>
           </FormField>
           <FormField>
             <FormLabel htmlFor="depreciation_start_date" required>วันเริ่มคิดค่าเสื่อม</FormLabel>

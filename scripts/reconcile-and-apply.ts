@@ -1,12 +1,27 @@
-import { executeAdminQualificationMapping, getAuthoritativeWorkbookPath } from '../features/items/qualification-mapping'
+import {
+  calculateMappingsInTx,
+  executeAdminQualificationMapping,
+  getAuthoritativeWorkbookPath,
+} from '../features/items/qualification-mapping'
+import { withIdentity } from '../lib/postgres/db'
 import { Pool } from 'pg'
 import * as dotenv from 'dotenv'
 
 dotenv.config({ path: '.env.postgres.app' })
 
 async function run() {
+  const [mode, ...args] = process.argv.slice(2)
+  if (mode !== '--preview' && mode !== '--apply') {
+    throw new Error('Usage: tsx scripts/reconcile-and-apply.ts --preview | --apply --expected-eligible=N --expected-qualified=N --expected-below-threshold=N')
+  }
+
+  const expected = Object.fromEntries(args.map((arg) => {
+    const [key, value] = arg.replace(/^--/, '').split('=')
+    return [key, Number(value)]
+  })) as Record<string, number>
+
   console.log('=================================================================')
-  console.log('📌 CAMMS OFFICIAL INVENTORY MASTER DATA RECONCILIATION & APPLY')
+  console.log(mode === '--preview' ? 'CAMMS INVENTORY STATUS SYNC PREVIEW' : 'CAMMS INVENTORY STATUS SYNC APPLY')
   console.log('=================================================================')
 
   const workbookPath = getAuthoritativeWorkbookPath()
@@ -33,14 +48,27 @@ async function run() {
     await pool.end()
   }
 
-  console.log(`\n[STEP 2: PREVIEW & RECONCILIATION]`)
-  // Run with expected verification
-  console.log('Applying qualification mapping through authorized Admin workflow with RLS...')
-  
+  if (mode === '--preview') {
+    const preview = await withIdentity(adminId, (tx) => calculateMappingsInTx(tx, false))
+    console.log('\n[PREVIEW COUNTS]')
+    console.log(JSON.stringify(preview.summary, null, 2))
+    console.log('\nReview these counts, then apply with the three eligible/qualified/below-threshold values shown above.')
+    return
+  }
+
+  const expectedEligible = expected['expected-eligible']
+  const expectedQualified = expected['expected-qualified']
+  const expectedBelowThreshold = expected['expected-below-threshold']
+  if (![expectedEligible, expectedQualified, expectedBelowThreshold].every(Number.isInteger)) {
+    throw new Error('Apply requires integer --expected-eligible, --expected-qualified, and --expected-below-threshold values from a reviewed preview.')
+  }
+
+  console.log('\n[STEP 2: APPLY REVIEWED PREVIEW]')
+  console.log('Applying only qualification statuses through the authenticated admin mapping workflow...')
   const result = await executeAdminQualificationMapping(adminId, {
-    eligible: 867,
-    qualified: 200,
-    belowThreshold: 667
+    eligible: expectedEligible,
+    qualified: expectedQualified,
+    belowThreshold: expectedBelowThreshold,
   })
 
   console.log(`\n[STEP 3: APPLY RESULTS]`)

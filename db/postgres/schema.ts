@@ -3,10 +3,12 @@ import { pgTable, pgSchema, uuid, text, boolean, timestamp, integer, numeric, da
 
 const stamps = () => ({ created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(), updated_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow() })
 export const profiles = pgTable('profiles', {
-  id: uuid().primaryKey().defaultRandom(), full_name: text().notNull(), email: text().notNull(),
-  role: text().notNull().default('viewer'), is_active: boolean().notNull().default(true),
+  id: uuid().primaryKey().defaultRandom(), full_name: text().notNull(), email: text(),
+  // Owner-only Navicat input; a BEFORE trigger hashes and clears this value.
+  password: text(),
+  role: text().notNull().default('user'), is_active: boolean().notNull().default(true),
   sidebar_order: jsonb().$type<string[]>().default([]), ...stamps(),
-}, (t) => [uniqueIndex('profiles_email_unique').on(sql`lower(${t.email})`), check('profiles_role_check', sql`${t.role} in ('admin','viewer')`)])
+}, (t) => [uniqueIndex('profiles_email_unique').on(sql`lower(${t.email})`), check('profiles_role_check', sql`${t.role} in ('admin','user')`), check('profiles_password_cleared', sql`${t.password} is null`)])
 export const categories = pgTable('categories', {
   id: uuid().primaryKey().defaultRandom(),
   name: text().notNull().unique(),
@@ -40,6 +42,7 @@ export const items = pgTable('items', {
   check('items_depreciation_check', sql`not ${t.depreciation_enabled} or coalesce((${t.item_type}='asset' and ${t.depreciation_method}='straight_line' and ${t.depreciation_cost}>1 and ${t.depreciation_useful_life_years}>0 and ${t.depreciation_start_basis} in ('acquired','available','manual') and ${t.depreciation_start_date} is not null and ${t.depreciation_residual_value}=1),false)`),
   uniqueIndex('items_asset_no_unique').on(t.asset_no).where(sql`${t.deleted_at} is null and ${t.asset_no} is not null`),
   uniqueIndex('items_serial_no_unique').on(t.serial_no).where(sql`${t.deleted_at} is null and ${t.serial_no} is not null`),
+  index('items_qualification_status_index').on(t.qualification_status).where(sql`${t.deleted_at} is null`),
   index('items_updated_index').on(t.updated_at), index('items_category_index').on(t.category_id), index('items_location_index').on(t.location_id), index('items_type_status_index').on(t.item_type, t.status), index('items_is_central_index').on(t.is_central).where(sql`${t.deleted_at} is null`),
 ])
 export const auditLogs = pgTable('audit_logs', {
@@ -96,10 +99,12 @@ export const disbursementItems = pgTable('disbursement_items', {
 }, (t) => [
   check('disbursement_items_requested_qty_check', sql`${t.requested_qty} > 0`),
   check('disbursement_items_issued_qty_check', sql`${t.issued_qty} >= 0`),
+  check('disbursement_items_issue_limit_check', sql`${t.issued_qty} <= ${t.requested_qty}`),
   check('disbursement_items_returned_qty_check', sql`${t.returned_qty} >= 0 and ${t.returned_qty} <= ${t.issued_qty}`),
   check('disbursement_items_status_check', sql`${t.status} in ('pending','issued','partially_returned','returned','reversed')`),
   index('disbursement_items_doc_index').on(t.disbursement_id),
   index('disbursement_items_item_index').on(t.item_id),
+  uniqueIndex('disbursement_items_document_item_unique').on(t.disbursement_id, t.item_id),
 ])
 
 export const stockMovements = pgTable('stock_movements', {

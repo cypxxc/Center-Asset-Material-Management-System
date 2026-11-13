@@ -18,6 +18,7 @@ interface NewItemDialogProviderProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
+  responsibleUsers?: ReferenceOption[]
 }
 
 interface NewItemDialogTriggerProps {
@@ -48,6 +49,7 @@ export function NewItemDialogProvider({
   categories,
   locations,
   units,
+  responsibleUsers,
 }: NewItemDialogProviderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
@@ -87,6 +89,7 @@ export function NewItemDialogProvider({
           categories={categories}
           locations={locations}
           units={units}
+          responsibleUsers={responsibleUsers}
         />
       )}
     </NewItemDialogContext.Provider>

@@ -116,17 +116,12 @@ export const ITEM_QUALIFICATION_LABELS: Record<ItemQualificationStatus, string> 
 }
 
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
-  active: 'ใช้งานอยู่',
-  spare: 'สำรอง',
+  active: 'ใช้งานได้',
+  spare: 'ใช้งานได้',
   damaged: 'ชำรุด',
-  waiting_repair: 'รอซ่อม',
-  inactive: 'ไม่ใช้งาน',
-  disposed: 'จำหน่ายแล้ว',
-}
-
-export interface ItemDetailPageData {
-  item: ItemDetail | null
-  auditLogs: ItemAuditLog[]
+  waiting_repair: 'ชำรุด',
+  inactive: 'เสื่อมสภาพ',
+  disposed: 'เสื่อมสภาพ',
 }
 
 export interface ItemEditPageData {
@@ -135,6 +130,7 @@ export interface ItemEditPageData {
     categories: ReferenceOption[]
     locations: ReferenceOption[]
     units: ReferenceOption[]
+    responsibleUsers?: ReferenceOption[]
   }
 }
 
@@ -150,6 +146,7 @@ export interface ItemsExplorerPageData {
     categories: ReferenceOption[]
     locations: ReferenceOption[]
     units: ReferenceOption[]
+    responsibleUsers?: ReferenceOption[]
   }
 }
 
@@ -168,6 +165,7 @@ export interface DashboardLayoutData {
     categories: ReferenceOption[]
     locations: ReferenceOption[]
     units: ReferenceOption[]
+    responsibleUsers?: ReferenceOption[]
   }
 }
 

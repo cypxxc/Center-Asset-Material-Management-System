@@ -1,5 +1,18 @@
 const THAI_LOCALE = 'th-TH' as const
 const THAI_TIMEZONE = 'Asia/Bangkok' as const
+const BANGKOK_DATE_PARTS = new Intl.DateTimeFormat('en', {
+  timeZone: THAI_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+export function isDateReachedInBangkok(dateOnly?: string | null, now: Date = new Date()): boolean {
+  if (!dateOnly || !/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return false
+  const parts = Object.fromEntries(BANGKOK_DATE_PARTS.formatToParts(now).map(({ type, value }) => [type, value]))
+  const today = `${parts.year}-${parts.month}-${parts.day}`
+  return dateOnly <= today
+}
 
 export function formatDate(dateInput: string | Date | number = new Date()): string {
   if (!dateInput) return ''

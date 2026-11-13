@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794500100000,
+      "tag": "0000_final_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794543672673,
+      "tag": "0001_navicat_password_input",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794543833453,
+      "tag": "0002_password_insert_conflict_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794544005076,
+      "tag": "0003_serialize_all_profile_inserts",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794560745858,
+      "tag": "0004_rename_viewer_to_user",
+      "breakpoints": true
+    }
+  ]
+}

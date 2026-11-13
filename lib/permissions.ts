@@ -15,5 +15,5 @@ export function canManageSettings(role?: string | null): boolean {
 }
 
 export function canCreateDisbursement(role?: string | null): boolean {
-  return role === 'admin' || role === 'viewer';
+  return role === 'admin' || role === 'user';
 }

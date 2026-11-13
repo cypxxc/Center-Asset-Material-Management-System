@@ -6,406 +6,365 @@ import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
 import { ItemDetail, ReferenceOption } from '../types'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 const NEW_ITEM_DRAFT_KEY = 'center-asset-material-management-system:new-item-draft'
 const LEGACY_DRAFT_KEYS = ['omni-asset:new-item-draft', 'camms:new-item-draft']
 
 interface NewItemSheetProps {
-  open: boolean
-  onClose: () => void
-  onSuccess: (keepOpen?: boolean) => void
-  categories: ReferenceOption[]
-  locations: ReferenceOption[]
-  units: ReferenceOption[]
-  item?: ItemDetail | null
+ open: boolean
+ onClose: () => void
+ onSuccess: (keepOpen?: boolean) => void
+ categories: ReferenceOption[]
+ locations: ReferenceOption[]
+ units: ReferenceOption[]
+ responsibleUsers?: ReferenceOption[]
+ item?: ItemDetail | null
 }
 
 function getDraftControls(root: ParentNode) {
-  return Array.from(root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-    'input[name], select[name], textarea[name]'
-  )).filter((control) => {
-    if (control instanceof HTMLInputElement) {
-      return !['file', 'submit', 'button'].includes(control.type)
-    }
-    return true
-  })
+ return Array.from(root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+ 'input[name], select[name], textarea[name]'
+ )).filter((control) => {
+ if (control instanceof HTMLInputElement) {
+ return !['file', 'submit', 'button'].includes(control.type)
+ }
+ return true
+ })
 }
 
 function readDraft(): Record<string, string> {
-  try {
-    let raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
-    if (!raw) {
-      for (const legacyKey of LEGACY_DRAFT_KEYS) {
-        raw = window.localStorage.getItem(legacyKey)
-        if (raw) break
-      }
-    }
-    if (!raw) return {}
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
+ try {
+ let raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
+ if (!raw) {
+ for (const legacyKey of LEGACY_DRAFT_KEYS) {
+ raw = window.localStorage.getItem(legacyKey)
+ if (raw) break
+ }
+ }
+ if (!raw) return {}
+ const parsed = JSON.parse(raw)
+ return parsed && typeof parsed === 'object' ? parsed : {}
+ } catch {
+ return {}
+ }
 }
 
 function restoreDraft(root: ParentNode) {
-  const draft = readDraft()
-  for (const control of getDraftControls(root)) {
-    const value = draft[control.name]
-    if (value !== undefined) {
-      if (control instanceof HTMLInputElement && control.type === 'checkbox') {
-        control.checked = value === 'true'
-      } else {
-        control.value = value
-      }
-    }
-  }
+ const draft = readDraft()
+ for (const control of getDraftControls(root)) {
+ const value = draft[control.name]
+ if (value !== undefined) {
+ if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+ control.checked = value === 'true'
+ } else {
+ control.value = value
+ }
+ }
+ }
 }
 
 function saveDraft(root: ParentNode) {
-  const draft: Record<string, string> = {}
-  for (const control of getDraftControls(root)) {
-    if (control instanceof HTMLInputElement && control.type === 'checkbox') {
-      draft[control.name] = String(control.checked)
-    } else {
-      draft[control.name] = control.value
-    }
-  }
-  window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
-}
-
-function formSignature(root: ParentNode) {
-  return getDraftControls(root)
-    .map((control) => {
-      const val = control instanceof HTMLInputElement && control.type === 'checkbox' ? String(control.checked) : control.value
-      return `${control.name}\u0000${val}`
-    })
-    .join('\u0001')
+ const draft: Record<string, string> = {}
+ for (const control of getDraftControls(root)) {
+ if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+ draft[control.name] = String(control.checked)
+ } else {
+ draft[control.name] = control.value
+ }
+ }
+ window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
 }
 
 export function NewItemSheet({
-  open,
-  onClose,
-  onSuccess,
-  categories,
-  locations,
-  units,
-  item = null,
+ open,
+ onClose,
+ onSuccess,
+ categories,
+ locations,
+ units,
+ responsibleUsers,
+ item = null,
 }: NewItemSheetProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const initialFormSignatureRef = useRef('')
-  const [formVersion, setFormVersion] = useState(0)
-  const [pending, setPending] = useState(false)
-  const [isConfirmCloseOpen, setIsConfirmCloseOpen] = useState(false)
-  const formId = useId()
+ const dialogRef = useRef<HTMLDialogElement>(null)
+ const [formVersion, setFormVersion] = useState(0)
+ const [pending, setPending] = useState(false)
+ const formId = useId()
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
+ useEffect(() => {
+ const dialog = dialogRef.current
+ if (!dialog) return
 
-    if (open) {
-      if (dialog.open) return
-      dialog.showModal()
-      setFormVersion((version) => version + 1)
-    } else if (dialog.open) {
-      dialog.close()
-    }
-  }, [open])
+ if (open) {
+ if (dialog.open) return
+ dialog.showModal()
+ setFormVersion((version) => version + 1)
+ } else if (dialog.open) {
+ dialog.close()
+ }
+ }, [open])
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!open || !dialog) return
-    if (!item) {
-      restoreDraft(dialog)
-    }
-    initialFormSignatureRef.current = formSignature(dialog)
-  }, [open, formVersion, item])
+ useEffect(() => {
+ const dialog = dialogRef.current
+ if (!open || !dialog) return
+ if (!item) {
+ restoreDraft(dialog)
+ }
+ }, [open, formVersion, item])
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!open || !dialog || item) return
+ useEffect(() => {
+ const dialog = dialogRef.current
+ if (!open || !dialog || item) return
 
-    const handleDraftChange = () => saveDraft(dialog)
-    dialog.addEventListener('input', handleDraftChange)
-    dialog.addEventListener('change', handleDraftChange)
+ const handleDraftChange = () => saveDraft(dialog)
+ dialog.addEventListener('input', handleDraftChange)
+ dialog.addEventListener('change', handleDraftChange)
 
-    return () => {
-      dialog.removeEventListener('input', handleDraftChange)
-      dialog.removeEventListener('change', handleDraftChange)
-    }
-  }, [open, formVersion, item])
+ return () => {
+ dialog.removeEventListener('input', handleDraftChange)
+ dialog.removeEventListener('change', handleDraftChange)
+ }
+ }, [open, formVersion, item])
 
-  const isFormDirty = useCallback(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return false
-    return formSignature(dialog) !== initialFormSignatureRef.current
-  }, [])
+ const handleSuccess = useCallback((data?: { itemId?: string; intent?: string }) => {
+ const isSaveAndAnother = data?.intent === 'save_and_another'
+ if (isSaveAndAnother) {
+ const draft = readDraft()
+ delete draft.item_name
+ delete draft.asset_no
+ delete draft.serial_no
+ delete draft.unit_price
+ delete draft.image_file
+ delete draft.note
+ delete draft.gfmis_number
+ window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
+ setFormVersion((v) => v + 1)
+ onSuccess(true)
+ } else {
+ window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
+ for (const legacyKey of LEGACY_DRAFT_KEYS) {
+ window.localStorage.removeItem(legacyKey)
+ }
+ setFormVersion((version) => version + 1)
+ onSuccess(false)
+ }
+ }, [onSuccess])
 
-  const handleSuccess = useCallback((data?: { itemId?: string; intent?: string }) => {
-    const isSaveAndAnother = data?.intent === 'save_and_another'
-    if (isSaveAndAnother) {
-      const draft = readDraft()
-      delete draft.item_name
-      delete draft.asset_no
-      delete draft.serial_no
-      delete draft.unit_price
-      delete draft.image_file
-      delete draft.note
-      delete draft.gfmis_number
-      window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
-      setFormVersion((v) => v + 1)
-      onSuccess(true)
-    } else {
-      window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
-      for (const legacyKey of LEGACY_DRAFT_KEYS) {
-        window.localStorage.removeItem(legacyKey)
-      }
-      setFormVersion((version) => version + 1)
-      onSuccess(false)
-    }
-  }, [onSuccess])
+ const handleCloseAttempt = useCallback(() => {
+ if (pending) return
+ onClose()
+ }, [onClose, pending])
 
-  const handleCloseAttempt = useCallback(() => {
-    if (pending) return
-    if (isFormDirty()) {
-      const isMocked = typeof window !== 'undefined' && window.confirm && !window.confirm.toString().includes('[native code]')
-      if (isMocked) {
-        const confirmClose = window.confirm('ปิดแบบฟอร์มหรือไม่? ระบบบันทึกร่างไว้แล้ว คุณกลับมากรอกต่อได้')
-        if (!confirmClose) return
-        onClose()
-        return
-      }
-      setIsConfirmCloseOpen(true)
-      return
-    }
-    onClose()
-  }, [isFormDirty, onClose, pending])
+ // Close on backdrop click (outside the panel).
+ // Native <dialog>: backdrop clicks have event.target === dialog element itself.
+ const handleDialogClick = useCallback(
+ (e: React.MouseEvent<HTMLDialogElement>) => {
+ if (e.target === dialogRef.current) handleCloseAttempt()
+ },
+ [handleCloseAttempt]
+ )
 
-  // Close on backdrop click (outside the panel).
-  // Native <dialog>: backdrop clicks have event.target === dialog element itself.
-  const handleDialogClick = useCallback(
-    (e: React.MouseEvent<HTMLDialogElement>) => {
-      if (e.target === dialogRef.current) handleCloseAttempt()
-    },
-    [handleCloseAttempt]
-  )
+ // Close on Escape key
+ const handleCancel = useCallback(
+ (e: Event) => {
+ e.preventDefault()
+ handleCloseAttempt()
+ },
+ [handleCloseAttempt]
+ )
 
-  // Close on Escape key
-  const handleCancel = useCallback(
-    (e: Event) => {
-      e.preventDefault()
-      handleCloseAttempt()
-    },
-    [handleCloseAttempt]
-  )
+ useEffect(() => {
+ const dialog = dialogRef.current
+ if (!dialog) return
+ dialog.addEventListener('cancel', handleCancel)
+ return () => dialog.removeEventListener('cancel', handleCancel)
+ }, [handleCancel])
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    dialog.addEventListener('cancel', handleCancel)
-    return () => dialog.removeEventListener('cancel', handleCancel)
-  }, [handleCancel])
+ return (
+ <>
+ <dialog
+ ref={dialogRef}
+ aria-labelledby={`${formId}-title`}
+ aria-describedby={`${formId}-description`}
+ onClick={handleDialogClick}
+ className="new-item-sheet-dialog"
+ >
+ {/* Centered panel with independently scrolling content */}
+ <div
+ className="new-item-sheet-panel bg-card text-card-foreground border-border"
+ onClick={(e) => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="new-item-sheet-header bg-card text-card-foreground border-border">
+ <div className="flex items-center gap-3">
+ <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+ <Plus className="h-5 w-5" />
+ </div>
+ <div>
+ <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900 ">
+ {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
+ </h2>
+ <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500 ">
+ กรอกข้อมูลในหน้าเดียว · ช่องที่มี * จำเป็นต้องกรอก
+ </p>
+ </div>
+ </div>
+ <button
+ type="button"
+ onClick={handleCloseAttempt}
+ className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+ aria-label="ปิด"
+ >
+ <X className="h-4 w-4" />
+ </button>
+ </div>
 
-  return (
-    <>
-      <dialog
-        ref={dialogRef}
-        aria-labelledby={`${formId}-title`}
-        aria-describedby={`${formId}-description`}
-        onClick={handleDialogClick}
-      className="new-item-sheet-dialog"
-    >
-      {/* Centered panel with independently scrolling content */}
-      <div
-        className="new-item-sheet-panel bg-card text-card-foreground border-border"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="new-item-sheet-header bg-card text-card-foreground border-border">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-              <Plus className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
-              </h2>
-              <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                กรอกข้อมูลในหน้าเดียว · ช่องที่มี * จำเป็นต้องกรอก
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleCloseAttempt}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
-            aria-label="ปิด"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+ {/* Scrollable form body */}
+ <div className="new-item-sheet-body bg-background text-foreground">
+ <ItemForm
+ key={formVersion}
+ action={item ? updateItem.bind(null, item.id) : createItemInline}
+ categories={categories}
+ locations={locations}
+ units={units}
+ responsibleUsers={responsibleUsers}
+ item={item ?? undefined}
+ inline
+ onCancel={handleCloseAttempt}
+ onSuccess={handleSuccess}
+ onPendingChange={setPending}
+ formId={formId}
+ showActions={false}
+ />
+ </div>
 
-        {/* Scrollable form body */}
-        <div className="new-item-sheet-body bg-background text-foreground">
-          <ItemForm
-            key={formVersion}
-            action={item ? updateItem.bind(null, item.id) : createItemInline}
-            categories={categories}
-            locations={locations}
-            units={units}
-            item={item ?? undefined}
-            inline
-            onCancel={handleCloseAttempt}
-            onSuccess={handleSuccess}
-            onPendingChange={setPending}
-            formId={formId}
-            showActions={false}
-          />
-        </div>
+ <div className="new-item-sheet-footer bg-card text-card-foreground border-border">
+ <span className="mr-auto hidden text-xs text-muted-foreground sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
+ <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt} className="cursor-pointer">ยกเลิก</Button>
+ {!item && (
+ <Button
+ type="submit"
+ name="intent"
+ value="save_and_another"
+ form={formId}
+ disabled={pending}
+ variant="secondary"
+ className="gap-2 font-semibold cursor-pointer"
+ >
+ <Plus className="h-4 w-4" />
+ <span>บันทึกและเพิ่มรายการถัดไป</span>
+ </Button>
+ )}
+ <Button type="submit" name="intent" value="save_and_close" form={formId} disabled={pending} className="gap-2 font-semibold cursor-pointer">
+ <Save className="h-4 w-4" />
+ {pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
+ </Button>
+ </div>
+ </div>
 
-        <div className="new-item-sheet-footer bg-card text-card-foreground border-border">
-          <span className="mr-auto hidden text-xs text-muted-foreground sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
-          <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt} className="cursor-pointer">ยกเลิก</Button>
-          {!item && (
-            <Button
-              type="submit"
-              name="intent"
-              value="save_and_another"
-              form={formId}
-              disabled={pending}
-              variant="secondary"
-              className="gap-2 font-semibold cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>บันทึกและเพิ่มรายการถัดไป</span>
-            </Button>
-          )}
-          <Button type="submit" name="intent" value="save_and_close" form={formId} disabled={pending} className="gap-2 font-semibold cursor-pointer">
-            <Save className="h-4 w-4" />
-            {pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
-          </Button>
-        </div>
-      </div>
+ <style>{`
+ .new-item-sheet-dialog {
+ position: fixed;
+ inset: 0;
+ width: 100%;
+ height: 100%;
+ max-width: 100%;
+ max-height: 100%;
+ margin: 0;
+ padding: 16px;
+ border: none;
+ outline: none;
+ background: transparent;
+ overflow: hidden;
+ align-items: center;
+ justify-content: center;
+ }
 
-      <style>{`
-        .new-item-sheet-dialog {
-          position: fixed;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          max-width: 100%;
-          max-height: 100%;
-          margin: 0;
-          padding: 16px;
-          border: none;
-          outline: none;
-          background: transparent;
-          overflow: hidden;
-          align-items: center;
-          justify-content: center;
-        }
+ .new-item-sheet-dialog[open] {
+ display: flex;
+ }
 
-        .new-item-sheet-dialog[open] {
-          display: flex;
-        }
+ .new-item-sheet-dialog::backdrop {
+ background: rgba(15, 23, 42, 0.45);
+ backdrop-filter: blur(2px);
+ }
 
-        .new-item-sheet-dialog::backdrop {
-          background: rgba(15, 23, 42, 0.45);
-          backdrop-filter: blur(2px);
-        }
+ .new-item-sheet-panel {
+ width: 100%;
+ max-width: 980px;
+ max-height: min(92vh, 860px);
+ background: var(--card);
+ color: var(--card-foreground);
+ display: flex;
+ flex-direction: column;
+ box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+ border: 1px solid var(--border);
+ border-radius: 20px;
+ overflow: hidden;
+ }
 
-        .new-item-sheet-panel {
-          width: 100%;
-          max-width: 980px;
-          max-height: min(92vh, 860px);
-          background: var(--card);
-          color: var(--card-foreground);
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
-          border: 1px solid var(--border);
-          border-radius: 20px;
-          overflow: hidden;
-        }
+ .new-item-sheet-header {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 12px;
+ padding: 18px 20px 14px;
+ border-bottom: 1px solid var(--border);
+ background: var(--card);
+ color: var(--card-foreground);
+ flex-shrink: 0;
+ z-index: 1;
+ }
 
-        .new-item-sheet-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 18px 20px 14px;
-          border-bottom: 1px solid var(--border);
-          background: var(--card);
-          color: var(--card-foreground);
-          flex-shrink: 0;
-          z-index: 1;
-        }
+ .new-item-sheet-body {
+ flex: 1;
+ overflow-y: auto;
+ padding: 20px;
+ background: var(--background);
+ color: var(--foreground);
+ min-height: 0;
+ overscroll-behavior: contain;
+ }
 
-        .new-item-sheet-body {
-          flex: 1;
-          overflow-y: auto;
-          padding: 20px;
-          background: var(--background);
-          color: var(--foreground);
-          min-height: 0;
-          overscroll-behavior: contain;
-        }
+ .new-item-sheet-footer {
+ display: flex;
+ align-items: center;
+ justify-content: flex-end;
+ gap: 8px;
+ flex-shrink: 0;
+ padding: 14px 20px;
+ border-top: 1px solid var(--border);
+ background: var(--card);
+ color: var(--card-foreground);
+ }
 
-        .new-item-sheet-footer {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 8px;
-          flex-shrink: 0;
-          padding: 14px 20px;
-          border-top: 1px solid var(--border);
-          background: var(--card);
-          color: var(--card-foreground);
-        }
+ /* Override ItemForm card styling inside sheet — remove double border */
+ .new-item-sheet-body form {
+ border: none !important;
+ box-shadow: none !important;
+ padding: 0 !important;
+ background: transparent !important;
+ border-radius: 0 !important;
+ }
 
-        /* Override ItemForm card styling inside sheet — remove double border */
-        .new-item-sheet-body form {
-          border: none !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-          background: transparent !important;
-          border-radius: 0 !important;
-        }
+ @media (max-width: 640px) {
+ .new-item-sheet-dialog {
+ padding: 8px;
+ }
 
-        @media (max-width: 640px) {
-          .new-item-sheet-dialog {
-            padding: 8px;
-          }
+ .new-item-sheet-panel {
+ width: min(100%, 760px);
+ max-height: calc(100dvh - 16px);
+ }
 
-          .new-item-sheet-panel {
-            width: min(100%, 760px);
-            max-height: calc(100dvh - 16px);
-          }
-
-          .new-item-sheet-header,
-          .new-item-sheet-body,
-          .new-item-sheet-footer {
-            padding-left: 16px;
-            padding-right: 16px;
-          }
-        }
-      `}</style>
-      </dialog>
-
-      <ConfirmDialog
-        open={isConfirmCloseOpen}
-        title="ปิดแบบฟอร์มหรือไม่?"
-        description="ระบบบันทึกร่างข้อมูลไว้แล้วในเครื่องของคุณ คุณสามารถกลับมากรอกข้อมูลต่อได้ในภายหลัง"
-        confirmText="ปิดแบบฟอร์ม"
-        cancelText="กรอกต่อ"
-        variant="default"
-        onConfirm={() => {
-          setIsConfirmCloseOpen(false)
-          onClose()
-        }}
-        onCancel={() => setIsConfirmCloseOpen(false)}
-      />
-    </>
-  )
+ .new-item-sheet-header,
+ .new-item-sheet-body,
+ .new-item-sheet-footer {
+ padding-left: 16px;
+ padding-right: 16px;
+ }
+ }
+ `}</style>
+ </dialog>
+ </>
+ )
 }

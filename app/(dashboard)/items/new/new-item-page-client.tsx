@@ -11,12 +11,14 @@ interface NewItemPageClientProps {
   categories: ReferenceOption[]
   locations: ReferenceOption[]
   units: ReferenceOption[]
+  responsibleUsers?: ReferenceOption[]
 }
 
 export function NewItemPageClient({
   categories,
   locations,
   units,
+  responsibleUsers,
 }: NewItemPageClientProps) {
   return (
     <div className="min-h-full bg-background text-foreground pb-12">
@@ -63,6 +65,7 @@ export function NewItemPageClient({
           categories={categories}
           locations={locations}
           units={units}
+          responsibleUsers={responsibleUsers}
           showActions={true}
         />
       </main>

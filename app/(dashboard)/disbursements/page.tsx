@@ -12,11 +12,12 @@ export const metadata = { title: 'ทะเบียนเบิก-จ่าย
 interface DisbursementsPageProps {
   searchParams: Promise<{
     q?: string
+    request_id?: string
     status?: string
     type?: string
     page?: string
     pageSize?: string
-    tab?: 'catalog' | 'documents'
+    tab?: 'catalog' | 'documents' | 'requests' | 'history'
   }>
 }
 
@@ -26,11 +27,12 @@ async function DisbursementListSection({
 }: {
   searchParamsPromise: Promise<{
     q?: string
+    request_id?: string
     status?: string
     type?: string
     page?: string
     pageSize?: string
-    tab?: 'catalog' | 'documents'
+    tab?: 'catalog' | 'documents' | 'requests' | 'history'
   }>
   profile: {
     id: string
@@ -39,11 +41,19 @@ async function DisbursementListSection({
     department?: string | null
   }
 }) {
-  const params = await searchParamsPromise
+  const rawParams = await searchParamsPromise
+  const params = rawParams.tab === 'history' && profile.role !== 'admin' ? { ...rawParams, tab: 'documents' as const } : rawParams
+  const effectiveStatus = profile.role === 'admin' && (params.tab === 'requests' || params.tab === 'history')
+    ? params.status || 'all'
+    : params.status
   const [result, centralItems] = await Promise.all([
     getDisbursements({
       q: params.q,
-      status: params.status,
+      request_id: profile.role === 'admin' && params.tab === 'requests' ? params.request_id : undefined,
+      status: effectiveStatus === 'all' ? undefined : effectiveStatus,
+      prioritizePending: profile.role === 'admin' && params.tab === 'requests',
+      hideCompleted: profile.role === 'admin' && params.tab === 'requests',
+      historyOnly: profile.role === 'admin' && params.tab === 'history',
       type: params.type,
       page: params.page,
       pageSize: params.pageSize,
@@ -59,13 +69,12 @@ async function DisbursementListSection({
       pageSize={result.pageSize}
       totalPages={result.totalPages}
       currentQ={params.q || ''}
-      currentStatus={params.status || ''}
+      currentStatus={effectiveStatus || ''}
       currentType={params.type || ''}
       canCreate={canCreateDisbursement(profile.role)}
       stats={result.stats}
       centralItems={centralItems}
       userRole={profile.role}
-      currentUser={profile}
       initialTab={params.tab}
     />
   )

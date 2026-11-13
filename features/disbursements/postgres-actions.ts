@@ -9,6 +9,8 @@ import {
   cancelDisbursementDraftSchema,
   returnItemSchema,
   reverseDisbursementSchema,
+  submitBorrowRequestSchema,
+  rejectDisbursementSchema,
 } from './schema'
 import type {
   DisbursementRow,
@@ -16,10 +18,13 @@ import type {
   AssetCustodyLogRow,
 } from './types'
 import { computeThaiFiscalYear } from './fiscal-year'
+import { assertCentralDisbursementItem } from './central-items'
+import { syncCentralNote } from '@/features/items/central-note'
+import { assertItemUnreserved, lockDisbursementItems } from './reservations'
 
 async function requireDisbursementWriter() {
   const profile = await getCurrentProfile()
-  if (!profile?.is_active || !['admin', 'viewer'].includes(profile.role)) {
+  if (!profile?.is_active || !['admin', 'user'].includes(profile.role)) {
     throw new Error('คุณไม่มีสิทธิ์ทำรายการเบิก-จ่ายพัสดุ')
   }
   return profile
@@ -39,16 +44,20 @@ async function requireDisbursementAdmin() {
 export async function createPostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = disbursementDraftSchema.parse(rawInput)
-  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('Viewer สร้างได้เฉพาะเอกสารเบิกพัสดุ')
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User สร้างได้เฉพาะเอกสารเบิกพัสดุ')
 
   return withUserDatabase(async (tx) => {
+    await lockDisbursementItems(tx, data.items.map((item) => item.item_id))
     // 1. Verify item types and unique borrowing constraints
-    for (const item of data.items) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean }>(
-        sql`SELECT id, item_type, asset_no, note, is_central FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
+    for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
+      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
+        sql`SELECT id, item_type, asset_no, note, is_central, quantity, status FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL ${user.role === 'admin' ? sql`FOR UPDATE` : sql``}`
       )
       const found = itemRes.rows[0]
       if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
+      assertCentralDisbursementItem(found)
+      if (found.status && !['active', 'spare'].includes(found.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
+      if (Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
 
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
         throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
@@ -56,19 +65,7 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
-        const activeBorrowRes = await tx.execute<{ count: number }>(
-          sql`SELECT count(*)::int as count 
-              FROM public.disbursement_items di
-              JOIN public.disbursements d ON d.id = di.disbursement_id
-              WHERE di.item_id = ${item.item_id}
-                AND d.status IN ('active_borrow', 'partially_returned')
-                AND di.status NOT IN ('returned', 'reversed')`
-        )
-        if (activeBorrowRes.rows[0].count > 0) {
-          throw new Error(`รายการ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
-        }
-      }
+      await assertItemUnreserved(tx, item.item_id)
       if (data.transaction_type === 'asset_borrow') {
         if (item.requested_qty !== 1) {
           throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
@@ -84,13 +81,13 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       sql`INSERT INTO public.disbursements (
         transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
       ) VALUES (
-        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, ${user.role === 'viewer' ? 'pending_approval' : 'draft'}, ${data.due_date || null}, ${user.id}
+        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, ${user.role === 'user' ? 'pending_approval' : 'draft'}, ${data.due_date || null}, ${user.id}
       ) RETURNING id`
     )
     const docId = docRes.rows[0].id
 
     // 3. Insert lines
-    for (const item of data.items) {
+    for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
       await tx.execute(
         sql`INSERT INTO public.disbursement_items (
           disbursement_id, item_id, requested_qty, status
@@ -100,6 +97,9 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
       )
     }
 
+    await tx.execute(sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+      VALUES (${user.id}, ${user.role === 'user' ? 'REQUEST_ISSUE' : 'CREATE_DISBURSEMENT_DRAFT'}, 'disbursements', ${docId}, NULL,
+        ${JSON.stringify({ transaction_type: data.transaction_type, items: data.items, status: user.role === 'user' ? 'pending_approval' : 'draft' })}::jsonb)`)
     return { id: docId }
   })
 }
@@ -110,7 +110,7 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
 export async function updatePostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = updateDisbursementDraftSchema.parse(rawInput)
-  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('Viewer แก้ไขได้เฉพาะเอกสารเบิกพัสดุ')
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User แก้ไขได้เฉพาะเอกสารเบิกพัสดุ')
 
   return withUserDatabase(async (tx) => {
     // 1. Lock document header and assert draft status
@@ -120,14 +120,18 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
     if (doc.status !== 'draft') throw new Error(`สามารถแก้ไขได้เฉพาะเอกสารฉบับร่างเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
+    await lockDisbursementItems(tx, data.items.map((item) => item.item_id))
 
     // 2. Validate items match transaction type
-    for (const item of data.items) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean }>(
-        sql`SELECT id, item_type, asset_no, note, is_central FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR SHARE`
+    for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
+      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
+        sql`SELECT id, item_type, asset_no, note, is_central, quantity, status FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const found = itemRes.rows[0]
       if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
+      assertCentralDisbursementItem(found)
+      if (found.status && !['active', 'spare'].includes(found.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
+      if (Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
 
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
         throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
@@ -135,19 +139,7 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
       if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
-      if (['asset_handover', 'asset_borrow'].includes(data.transaction_type)) {
-        const activeBorrowRes = await tx.execute<{ count: number }>(
-          sql`SELECT count(*)::int as count 
-              FROM public.disbursement_items di
-              JOIN public.disbursements d ON d.id = di.disbursement_id
-              WHERE di.item_id = ${item.item_id}
-                AND d.status IN ('active_borrow', 'partially_returned')
-                AND di.status NOT IN ('returned', 'reversed')`
-        )
-        if (activeBorrowRes.rows[0].count > 0) {
-          throw new Error(`รายการ "${found.asset_no || found.id}" กำลังอยู่ระหว่างการยืมในเอกสารอื่น ไม่สามารถทำรายการซ้ำได้`)
-        }
-      }
+      await assertItemUnreserved(tx, item.item_id)
       if (data.transaction_type === 'asset_borrow') {
         if (item.requested_qty !== 1) {
           throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
@@ -173,7 +165,7 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
     // 4. Recreate lines cleanly for draft
     await tx.execute(sql`DELETE FROM public.disbursement_items WHERE disbursement_id = ${data.id}`)
 
-    for (const item of data.items) {
+    for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
       await tx.execute(
         sql`INSERT INTO public.disbursement_items (
           disbursement_id, item_id, requested_qty, status
@@ -211,9 +203,9 @@ export async function cancelPostgresDisbursementDraft(rawInput: unknown): Promis
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
-    if (user.role !== 'admin' && doc.transaction_type !== 'material_issue') throw new Error('Viewer ยกเลิกได้เฉพาะเอกสารเบิกพัสดุ')
-    if (user.role !== 'admin' && doc.status !== 'draft') throw new Error('Viewer ยกเลิกได้เฉพาะร่างที่ยังไม่ส่งคำขอ')
-    if (doc.status !== 'draft') throw new Error(`สามารถยกเลิกได้เฉพาะเอกสารฉบับร่างเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
+    if (user.role !== 'admin' && doc.created_by !== user.id) throw new Error('คุณไม่มีสิทธิ์ยกเลิกคำขอของผู้อื่น')
+    if (user.role !== 'admin' && doc.status !== 'pending_approval') throw new Error('ยกเลิกได้เฉพาะคำขอของตนเองที่รออนุมัติ')
+    if (!['draft', 'pending_approval'].includes(doc.status)) throw new Error('ไม่สามารถยกเลิกรายการที่อนุมัติหรือจบแล้วได้')
 
     await tx.execute(
       sql`UPDATE public.disbursements SET status = 'cancelled', updated_at = now() WHERE id = ${data.id}`
@@ -223,8 +215,8 @@ export async function cancelPostgresDisbursementDraft(rawInput: unknown): Promis
     await tx.execute(
       sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
           VALUES (
-            ${user.id}, 'CANCEL_DISBURSEMENT_DRAFT', 'disbursements', ${data.id},
-            ${JSON.stringify({ status: 'draft' })}::jsonb,
+            ${user.id}, ${doc.status === 'draft' ? 'CANCEL_DISBURSEMENT_DRAFT' : 'WITHDRAW_DISBURSEMENT_REQUEST'}, 'disbursements', ${data.id},
+            ${JSON.stringify({ status: doc.status })}::jsonb,
             ${JSON.stringify({ status: 'cancelled' })}::jsonb
           )`
     )
@@ -252,33 +244,13 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
     }
 
     // 2. Lock and fetch lines with current item metadata (deterministic order by item_id to prevent lock cycle)
-    const linesRes = await tx.execute<DisbursementItemRow & {
-      current_qty: number
-      item_name: string
-      asset_no: string | null
-      serial_no: string | null
-      brand: string | null
-      model: string | null
-      responsible_person: string | null
-      unit_name: string | null
-      unit_price: number | null
-      category_name: string | null
-      location_name: string | null
-    }>(
-      sql`SELECT di.*, i.quantity as current_qty, i.item_name, i.asset_no, i.serial_no, i.brand, i.model, i.responsible_person,
-                 coalesce(u.name, '-') as unit_name, coalesce(i.unit_price, 0) as unit_price,
-                 c.name as category_name, l.name as location_name
-          FROM public.disbursement_items di
-          JOIN public.items i ON i.id = di.item_id
-          LEFT JOIN public.categories c ON c.id = i.category_id
-          LEFT JOIN public.units u ON u.id = i.unit_id
-          LEFT JOIN public.locations l ON l.id = i.location_id
-          WHERE di.disbursement_id = ${disbursementId}
-          ORDER BY di.item_id ASC
-          FOR UPDATE OF di`
+    const linesRes = await tx.execute<DisbursementItemRow>(
+      sql`SELECT * FROM public.disbursement_items
+          WHERE disbursement_id = ${disbursementId} ORDER BY item_id ASC FOR UPDATE`
     )
     const lines = linesRes.rows
     if (lines.length === 0) throw new Error('ไม่สามารถยืนยันเอกสารที่ไม่มีรายการสิ่งของได้')
+    await lockDisbursementItems(tx, lines.map((line) => line.item_id))
 
     // 3. Allocate Thai fiscal year sequence
     const fiscalYear = computeThaiFiscalYear()
@@ -295,17 +267,29 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
     // 4. Process each line with row locking on public.items
     for (const line of lines) {
       // Row lock on inventory item
-      const itemLock = await tx.execute<{ id: string; quantity: number; responsible_person: string | null }>(
-        sql`SELECT id, quantity, responsible_person FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
-      )
+      const itemLock = await tx.execute<{
+        id: string; quantity: number; item_type: string; item_name: string;
+        asset_no: string | null; serial_no: string | null; brand: string | null; model: string | null;
+        responsible_person: string | null; is_central: boolean; note: string | null; status: string | null;
+        unit_name: string | null; unit_price: number | null; category_name: string | null; location_name: string | null;
+      }>(sql`SELECT i.*, u.name AS unit_name, c.name AS category_name, l.name AS location_name
+        FROM public.items i
+        LEFT JOIN public.units u ON u.id = i.unit_id
+        LEFT JOIN public.categories c ON c.id = i.category_id
+        LEFT JOIN public.locations l ON l.id = i.location_id
+        WHERE i.id = ${line.item_id} AND i.deleted_at IS NULL FOR UPDATE OF i`)
       const currentItem = itemLock.rows[0]
-      if (!currentItem) throw new Error(`พัสดุ ${line.item_name} ถูกลบหรือไม่พร้อมใช้งาน`)
+      if (!currentItem) throw new Error(`พัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
+      assertCentralDisbursementItem(currentItem)
+      if (currentItem.status && !['active', 'spare'].includes(currentItem.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
+      if (currentItem.quantity < line.requested_qty) throw new Error('จำนวนคงเหลือไม่เพียงพอสำหรับการอนุมัติ')
+      if (doc.transaction_type === 'material_issue' ? currentItem.item_type !== 'material' : currentItem.item_type !== 'asset') {
+        throw new Error('ประเภทสิ่งของเปลี่ยนแปลง ไม่ตรงกับคำขอ')
+      }
+
+      await assertItemUnreserved(tx, line.item_id, disbursementId)
 
       if (doc.transaction_type === 'material_issue') {
-        if (currentItem.quantity < line.requested_qty) {
-          throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${line.item_name} (ต้องการ: ${line.requested_qty}, คงเหลือ: ${currentItem.quantity})`)
-        }
-
         // Deduct inventory
         await tx.execute(
           sql`UPDATE public.items SET quantity = quantity - ${line.requested_qty}, updated_at = now() WHERE id = ${line.item_id}`
@@ -320,21 +304,6 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
           )`
         )
       } else if (['asset_handover', 'asset_borrow'].includes(doc.transaction_type)) {
-        if (doc.transaction_type === 'asset_borrow') {
-          const activeBorrowRes = await tx.execute<{ count: number }>(
-            sql`SELECT count(*)::int as count 
-                FROM public.disbursement_items di
-                JOIN public.disbursements d ON d.id = di.disbursement_id
-                WHERE di.item_id = ${line.item_id}
-                  AND di.disbursement_id != ${disbursementId}
-                  AND d.status IN ('active_borrow', 'partially_returned')
-                  AND di.status NOT IN ('returned', 'reversed')`
-          )
-          if (activeBorrowRes.rows[0].count > 0) {
-            throw new Error(`ไม่สามารถอนุมัติได้: รายการ "${line.item_name}" กำลังอยู่ระหว่างการยืมในเอกสารอื่นแล้ว`)
-          }
-        }
-
         // Record custody log
         await tx.execute(
           sql`INSERT INTO public.asset_custody_logs (
@@ -347,24 +316,24 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
         )
 
         // Update custody on item
-        await tx.execute(
-          sql`UPDATE public.items SET responsible_person = ${doc.recipient_name}, updated_at = now() WHERE id = ${line.item_id}`
-        )
+        await tx.execute(sql`UPDATE public.items SET responsible_person = ${doc.recipient_name},
+          is_central = false, note = ${syncCentralNote(currentItem.note || '', false) || null},
+          updated_at = now() WHERE id = ${line.item_id}`)
       }
 
       // Snapshot line data
       await tx.execute(
         sql`UPDATE public.disbursement_items
             SET issued_qty = ${line.requested_qty},
-                item_name_snapshot = ${line.item_name},
-                asset_no_snapshot = ${line.asset_no},
-                serial_no_snapshot = ${line.serial_no},
-                brand_snapshot = ${line.brand},
-                model_snapshot = ${line.model},
-                unit_name_snapshot = ${line.unit_name},
-                unit_price_snapshot = ${line.unit_price},
-                category_name_snapshot = ${line.category_name},
-                location_name_snapshot = ${line.location_name},
+                item_name_snapshot = ${currentItem.item_name},
+                asset_no_snapshot = ${currentItem.asset_no},
+                serial_no_snapshot = ${currentItem.serial_no},
+                brand_snapshot = ${currentItem.brand},
+                model_snapshot = ${currentItem.model},
+                unit_name_snapshot = ${currentItem.unit_name},
+                unit_price_snapshot = ${currentItem.unit_price},
+                category_name_snapshot = ${currentItem.category_name},
+                location_name_snapshot = ${currentItem.location_name},
                 status = 'issued'
             WHERE id = ${line.id}`
       )
@@ -423,6 +392,10 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
     if (!['active_borrow', 'partially_returned'].includes(doc.status)) {
       throw new Error(`ไม่สามารถบันทึกรับคืนเอกสารในสถานะ ${doc.status} ได้`)
     }
+    const dueCheck = await tx.execute<{ is_due: boolean }>(
+      sql`SELECT ${doc.due_date}::date <= (current_timestamp AT TIME ZONE 'Asia/Bangkok')::date AS is_due`
+    )
+    if (dueCheck.rows[0]?.is_due !== true) throw new Error('ยังไม่ถึงกำหนดคืนพัสดุ')
 
     // 3. Lock target line item SECOND (under acquired parent lock)
     const lineRes = await tx.execute<DisbursementItemRow>(
@@ -430,6 +403,7 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
     )
     const line = lineRes.rows[0]
     if (!line) throw new Error('ไม่พบรายการพัสดุในเอกสาร')
+    if (!['issued', 'partially_returned'].includes(line.status)) throw new Error('รายการนี้ไม่ได้อยู่ระหว่างการยืมหรือรับคืนครบแล้ว')
 
     const newReturned = line.returned_qty + data.return_qty
     if (newReturned > line.issued_qty) {
@@ -437,8 +411,9 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
     }
 
     // 4. Lock asset item THIRD
-    const itemRes = await tx.execute<{ id: string; responsible_person: string | null }>(
-      sql`SELECT id, responsible_person FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+    await lockDisbursementItems(tx, [line.item_id])
+    const itemRes = await tx.execute<{ id: string; responsible_person: string | null; note: string | null }>(
+      sql`SELECT id, responsible_person, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
     )
     const item = itemRes.rows[0]
     if (!item) throw new Error('ไม่พบครุภัณฑ์หรือครุภัณฑ์ถูกลบแล้ว')
@@ -452,12 +427,17 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
       )`
     )
 
+    // Return to the central pool only after an admin receives the full quantity.
+    const restoredToPool = newReturned === line.issued_qty && data.condition !== 'lost'
+    const centralNote = syncCentralNote(item.note || '', restoredToPool) || null
     // 5. Update item status & custody based on return condition
     if (data.condition === 'damaged') {
       await tx.execute(
         sql`UPDATE public.items 
             SET responsible_person = NULL, 
                 status = 'damaged', 
+                is_central = ${restoredToPool},
+                note = ${centralNote},
                 updated_at = now() 
             WHERE id = ${item.id}`
       )
@@ -466,17 +446,19 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
         sql`UPDATE public.items 
             SET responsible_person = NULL, 
                 status = 'inactive', 
+                is_central = false,
                 quantity = 0,
                 note = CASE 
-                  WHEN note IS NULL OR note = '' THEN 'บันทึกสูญหายจากการยืม'
-                  ELSE note || ' [บันทึกสูญหายจากการยืม]'
+                  WHEN ${centralNote}::text IS NULL THEN 'บันทึกสูญหายจากการยืม'
+                  ELSE ${centralNote} || ' [บันทึกสูญหายจากการยืม]'
                 END,
                 updated_at = now() 
             WHERE id = ${item.id}`
       )
     } else {
       await tx.execute(
-        sql`UPDATE public.items SET responsible_person = NULL, updated_at = now() WHERE id = ${item.id}`
+        sql`UPDATE public.items SET responsible_person = NULL, is_central = ${restoredToPool},
+          note = ${centralNote}, updated_at = now() WHERE id = ${item.id}`
       )
     }
 
@@ -513,6 +495,72 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
   })
 }
 
+/** Return every outstanding item in a due borrowed-asset document as normal. */
+export async function returnPostgresDisbursement(disbursementIdInput: unknown): Promise<{ ok: boolean }> {
+  const user = await requireDisbursementAdmin()
+  const { disbursement_id: disbursementId } = z.object({ disbursement_id: z.string().uuid() }).parse({ disbursement_id: disbursementIdInput })
+
+  return withUserDatabase(async (tx) => {
+    const docRes = await tx.execute<DisbursementRow>(
+      sql`SELECT * FROM public.disbursements WHERE id = ${disbursementId} FOR UPDATE`
+    )
+    const doc = docRes.rows[0]
+    if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
+    if (doc.transaction_type !== 'asset_borrow') throw new Error('สามารถคืนได้เฉพาะเอกสารยืมครุภัณฑ์')
+    if (!['active_borrow', 'partially_returned'].includes(doc.status)) throw new Error('เอกสารนี้ไม่ได้อยู่ระหว่างการยืม')
+
+    const dueCheck = await tx.execute<{ is_due: boolean }>(
+      sql`SELECT ${doc.due_date}::date <= (current_timestamp AT TIME ZONE 'Asia/Bangkok')::date AS is_due`
+    )
+    if (dueCheck.rows[0]?.is_due !== true) throw new Error('ยังไม่ถึงกำหนดคืนพัสดุ')
+
+    const linesRes = await tx.execute<DisbursementItemRow>(
+      sql`SELECT * FROM public.disbursement_items WHERE disbursement_id = ${doc.id} ORDER BY item_id ASC FOR UPDATE`
+    )
+    const outstandingLines = linesRes.rows.filter(line =>
+      ['issued', 'partially_returned'].includes(line.status) && line.issued_qty > line.returned_qty
+    )
+    if (outstandingLines.length === 0) throw new Error('ไม่มีรายการค้างคืนในเอกสารนี้')
+
+    await lockDisbursementItems(tx, outstandingLines.map(line => line.item_id))
+    for (const line of outstandingLines) {
+      const itemRes = await tx.execute<{ id: string; note: string | null }>(
+        sql`SELECT id, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+      )
+      const item = itemRes.rows[0]
+      if (!item) throw new Error('ไม่พบครุภัณฑ์หรือครุภัณฑ์ถูกลบแล้ว')
+
+      const returnedQty = line.issued_qty - line.returned_qty
+      const centralNote = syncCentralNote(item.note || '', true) || null
+      await tx.execute(sql`
+        INSERT INTO public.asset_custody_logs (
+          item_id, disbursement_item_id, action, quantity, from_responsible, to_responsible, item_condition, note, created_by
+        ) VALUES (
+          ${item.id}, ${line.id}, 'return', ${returnedQty}, ${doc.recipient_name}, NULL, 'normal', NULL, ${user.id}
+        )
+      `)
+      await tx.execute(sql`
+        UPDATE public.items SET responsible_person = NULL, is_central = true, note = ${centralNote}, updated_at = now()
+        WHERE id = ${item.id}
+      `)
+      await tx.execute(sql`
+        UPDATE public.disbursement_items SET returned_qty = ${line.issued_qty}, status = 'returned' WHERE id = ${line.id}
+      `)
+      await tx.execute(sql`
+        INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+        VALUES (
+          ${user.id}, 'RETURN_DISBURSEMENT_ITEM', 'disbursement_items', ${line.id},
+          ${JSON.stringify({ returned_qty: line.returned_qty })}::jsonb,
+          ${JSON.stringify({ returned_qty: line.issued_qty, condition: 'normal', doc_status: 'returned' })}::jsonb
+        )
+      `)
+    }
+
+    await tx.execute(sql`UPDATE public.disbursements SET status = 'returned', updated_at = now() WHERE id = ${doc.id}`)
+    return { ok: true }
+  })
+}
+
 /**
  * Reverse a confirmed disbursement
  */
@@ -544,10 +592,11 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
     const linesRes = await tx.execute<DisbursementItemRow>(
       sql`SELECT * FROM public.disbursement_items WHERE disbursement_id = ${doc.id} ORDER BY item_id ASC FOR UPDATE`
     )
+    await lockDisbursementItems(tx, linesRes.rows.map((line) => line.item_id))
 
     for (const line of linesRes.rows) {
-      const itemRes = await tx.execute<{ id: string; quantity: number; responsible_person: string | null }>(
-        sql`SELECT id, quantity, responsible_person FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+      const itemRes = await tx.execute<{ id: string; quantity: number; responsible_person: string | null; note: string | null }>(
+        sql`SELECT id, quantity, responsible_person, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const item = itemRes.rows[0]
       if (!item) throw new Error(`พัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
@@ -581,9 +630,8 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
         const prevPerson = origCustody.rows[0]?.from_responsible ?? null
 
         // Revert custody
-        await tx.execute(
-          sql`UPDATE public.items SET responsible_person = ${prevPerson}, updated_at = now() WHERE id = ${item.id}`
-        )
+        await tx.execute(sql`UPDATE public.items SET responsible_person = ${prevPerson},
+          is_central = true, note = ${syncCentralNote(item.note || '', true)}, updated_at = now() WHERE id = ${item.id}`)
 
         // Custody log
         await tx.execute(
@@ -621,11 +669,8 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
   })
 }
 
-export async function submitPostgresBorrowRequest(input: {
-  item_ids: string[]
-  due_date: string
-  purpose: string
-}) {
+export async function submitPostgresBorrowRequest(rawInput: unknown) {
+  const input = submitBorrowRequestSchema.parse(rawInput)
   const profile = await getCurrentProfile()
   if (!profile?.is_active) {
     throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
@@ -637,7 +682,7 @@ export async function submitPostgresBorrowRequest(input: {
   if (input.item_ids.length > 20) {
     throw new Error('สามารถยืมได้สูงสุดครั้งละไม่เกิน 20 รายการ')
   }
-  if (!input.due_date || !input.due_date.trim()) {
+  if (input.request_type === 'borrow' && !input.due_date) {
     throw new Error('กรุณาระบุกำหนดวันส่งคืนพัสดุ')
   }
   if (!input.purpose || !input.purpose.trim()) {
@@ -645,13 +690,19 @@ export async function submitPostgresBorrowRequest(input: {
   }
 
   return withUserDatabase(async (tx) => {
+    await lockDisbursementItems(tx, input.item_ids)
     // 1. Verify items are central pool items and active
-    for (const itemId of input.item_ids) {
-      const itemRes = await tx.execute<{ id: string; item_name: string; is_central: boolean; note: string | null; status: string }>(
-        sql`SELECT id, item_name, is_central, note, status FROM public.items WHERE id = ${itemId} AND deleted_at IS NULL`
+    const itemTypes = new Set<string>()
+    for (const itemId of [...input.item_ids].sort()) {
+      const itemRes = await tx.execute<{ id: string; item_name: string; item_type: string; is_central: boolean; note: string | null; status: string; quantity: number }>(
+        sql`SELECT id, item_name, item_type, is_central, note, status, quantity FROM public.items WHERE id = ${itemId} AND deleted_at IS NULL ${profile.role === 'admin' ? sql`FOR UPDATE` : sql``}`
       )
       const it = itemRes.rows[0]
       if (!it) throw new Error('ไม่พบข้อมูลพัสดุบางรายการ')
+      itemTypes.add(it.item_type)
+      if (input.request_type === 'borrow' && it.item_type !== 'asset') {
+        throw new Error('การยืมรองรับเฉพาะครุภัณฑ์ กรุณาใช้แท็บเบิกสำหรับวัสดุ')
+      }
       if (!it.is_central && (!it.note || !it.note.includes('ส่วนกลาง'))) {
         throw new Error(`รายการ "${it.item_name}" ไม่ใช่ของส่วนกลาง`)
       }
@@ -659,20 +710,18 @@ export async function submitPostgresBorrowRequest(input: {
         throw new Error(`รายการ "${it.item_name}" ไม่อยู่ในสถานะพร้อมใช้งาน`)
       }
 
-      // Check if item is already in active_borrow
-      const activeBorrowRes = await tx.execute<{ count: number }>(
-        sql`SELECT count(*)::int as count 
-            FROM public.disbursement_items di
-            JOIN public.disbursements d ON d.id = di.disbursement_id
-            WHERE di.item_id = ${itemId}
-              AND d.status IN ('active_borrow', 'partially_returned')
-              AND di.status NOT IN ('returned', 'reversed')`
-      )
-      if (activeBorrowRes.rows[0].count > 0) {
-        throw new Error(`รายการ "${it.item_name}" กำลังอยู่ระหว่างการยืม ไม่สามารถยื่นขอซ้ำได้`)
-      }
+      // The inventory lock serializes concurrent requests before checking reservations.
+      if (Number(it.quantity) < 1) throw new Error(`รายการ "${it.item_name}" ไม่มีจำนวนพร้อมใช้งาน`)
+
+      await assertItemUnreserved(tx, itemId)
     }
 
+    if (itemTypes.size > 1) {
+      throw new Error('กรุณาแยกคำขอเบิกวัสดุและครุภัณฑ์คนละเอกสาร')
+    }
+    const transactionType = input.request_type === 'borrow'
+      ? 'asset_borrow'
+      : itemTypes.has('material') ? 'material_issue' : 'asset_handover'
     const recipientName = profile.full_name || 'ผู้ใช้งาน'
     const departmentName = profile.department || 'สำนักงานเขตสุขภาพที่ 7'
 
@@ -681,7 +730,7 @@ export async function submitPostgresBorrowRequest(input: {
       sql`INSERT INTO public.disbursements (
         transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
       ) VALUES (
-        'asset_borrow',
+        ${transactionType},
         ${recipientName},
         ${departmentName},
         ${input.purpose.trim()},
@@ -693,7 +742,7 @@ export async function submitPostgresBorrowRequest(input: {
     const docId = docRes.rows[0].id
 
     // 3. Insert line items
-    for (const itemId of input.item_ids) {
+    for (const itemId of [...input.item_ids].sort()) {
       await tx.execute(
         sql`INSERT INTO public.disbursement_items (
           disbursement_id, item_id, requested_qty, status
@@ -707,10 +756,11 @@ export async function submitPostgresBorrowRequest(input: {
     await tx.execute(
       sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
           VALUES (
-            ${profile.id}, 'REQUEST_BORROW', 'disbursements', ${docId},
+            ${profile.id}, ${input.request_type === 'borrow' ? 'REQUEST_BORROW' : 'REQUEST_ISSUE'}, 'disbursements', ${docId},
             null,
             ${JSON.stringify({
               items_count: input.item_ids.length,
+              request_type: input.request_type,
               due_date: input.due_date,
               purpose: input.purpose.trim(),
             })}::jsonb
@@ -723,6 +773,8 @@ export async function submitPostgresBorrowRequest(input: {
 
 export async function rejectPostgresDisbursement(disbursementId: string, reason?: string) {
   const user = await requireDisbursementAdmin()
+  const data = rejectDisbursementSchema.parse({ disbursement_id: disbursementId, reason })
+  reason = data.reason
   return withUserDatabase(async (tx) => {
     const docRes = await tx.execute<DisbursementRow>(
       sql`SELECT * FROM public.disbursements WHERE id = ${disbursementId} FOR UPDATE`

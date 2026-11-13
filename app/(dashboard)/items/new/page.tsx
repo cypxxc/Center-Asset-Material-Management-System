@@ -21,6 +21,7 @@ export default async function NewItemPage() {
       categories={references.categories}
       locations={references.locations}
       units={references.units}
+      responsibleUsers={references.responsibleUsers}
     />
   )
 }

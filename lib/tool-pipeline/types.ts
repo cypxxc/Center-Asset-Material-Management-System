@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { type RateLimitTier } from '@/lib/rate-limit'
 
-export type ToolRoleRequirement = 'admin' | 'staff' | 'viewer' | 'public'
+export type ToolRoleRequirement = 'admin' | 'staff' | 'user' | 'public'
 
 export interface ToolActor {
   id?: string
   email?: string
-  role?: 'admin' | 'staff' | 'viewer'
+  role?: 'admin' | 'staff' | 'user'
   isActive?: boolean
   ip?: string
   userAgent?: string

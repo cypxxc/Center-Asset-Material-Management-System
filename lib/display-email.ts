@@ -1,8 +1,8 @@
-/** Supabase Auth requires an email; admin-created accounts may use this placeholder domain. */
+/** Placeholder domain used by legacy accounts created without an email. */
 const INTERNAL_EMAIL_DOMAIN = '@registry.internal'
 
-export function isInternalEmail(email: string): boolean {
-  return email.trim().toLowerCase().endsWith(INTERNAL_EMAIL_DOMAIN)
+export function isInternalEmail(email: string | null | undefined): boolean {
+  return email?.trim().toLowerCase().endsWith(INTERNAL_EMAIL_DOMAIN) ?? false
 }
 
 /** Generates a safe internal email placeholder for accounts created without an email. */
@@ -12,7 +12,8 @@ export function generateInternalEmail(): string {
 }
 
 /** User-facing label for profile and admin lists. */
-export function formatDisplayEmail(email: string): string {
+export function formatDisplayEmail(email: string | null | undefined): string {
+  if (!email?.trim()) return 'ไม่มีอีเมล'
   if (isInternalEmail(email)) {
     return 'บัญชีภายใน (ไม่มีอีเมล)'
   }

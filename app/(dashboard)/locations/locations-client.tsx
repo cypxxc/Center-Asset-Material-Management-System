@@ -203,9 +203,9 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                       <span className="font-black text-foreground">{item.qty} ชิ้น</span>
                       <StatusBadge status={item.status} />
                       <Link
-                        href={`/items/${item.id}`}
+                        href="/items"
                         className="p-1 text-muted-foreground hover:text-blue-600 transition-colors"
-                        title="เปิดหน้ารายละเอียดเต็ม"
+                        title="เปิดหน้ารายการสิ่งของ"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Link>

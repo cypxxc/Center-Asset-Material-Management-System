@@ -19,7 +19,7 @@ export interface McpToolDeclaration {
 }
 
 export interface McpAdapter {
-  handleToolsList: (role?: 'admin' | 'staff' | 'viewer') => { tools: McpToolDeclaration[] }
+  handleToolsList: (role?: 'admin' | 'staff' | 'user') => { tools: McpToolDeclaration[] }
   handleToolsCall: (
     name: string,
     args: unknown,
@@ -29,7 +29,7 @@ export interface McpAdapter {
 
 export function createMcpAdapter(registry: ToolRegistry): McpAdapter {
   return {
-    handleToolsList: (role?: 'admin' | 'staff' | 'viewer') => {
+    handleToolsList: (role?: 'admin' | 'staff' | 'user') => {
       const tools = registry.listForRole(role).map((tool) => ({
         name: tool.name,
         description: tool.description,

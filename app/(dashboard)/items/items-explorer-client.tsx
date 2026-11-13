@@ -34,9 +34,7 @@ import { AssetTagModal } from '@/features/items/components/item-list-client'
 import type { ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 import { useToast } from '@/components/ui/toast'
-import { bulkUpdateItems, bulkDeleteItems, getItemsForExport, getMatchingItemIds, updateItemConditionStatus } from '@/features/items/actions'
-import { BulkEditDialog } from '@/features/items/components/bulk-edit-dialog'
-import type { BulkItemUpdates } from '@/features/items/bulk-edit'
+import { bulkDeleteItems, getItemsForExport, getMatchingItemIds, updateItemConditionStatus } from '@/features/items/actions'
 import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
 import { ITEMS_PAGE_SIZE } from '@/features/items/list-params'
@@ -61,6 +59,7 @@ export function getPageNumbers(current: number, total: number): (number | 'ellip
 }
 
 interface ItemsExplorerClientProps {
+  basePath?: '/items' | '/central-items'
   items: ItemListRow[]
   total: number
   classificationCounts?: ItemClassificationCounts
@@ -75,7 +74,7 @@ interface ItemsExplorerClientProps {
   locations: { id: string; name: string }[]
   categories: { id: string; name: string }[]
   units: { id: string; name: string }[]
-  bulkUpdateAction?: (ids: string[], updates: BulkItemUpdates) => Promise<ActionResponse>
+  responsibleUsers?: { id: string; name: string }[]
   bulkDeleteAction?: (ids: string[]) => Promise<ActionResponse>
   bulkHardDeleteAction?: (ids: string[]) => Promise<ActionResponse>
 }
@@ -92,10 +91,11 @@ function toItemDetail(item: ItemListRow): ItemDetail {
 }
 
 export function ItemsExplorerClient(props: ItemsExplorerClientProps) {
-  return <ItemsExplorerSession key={props.userId} {...props} />
+  return <ItemsExplorerSession key={`${props.userId}:${props.basePath ?? '/items'}`} {...props} />
 }
 
 function ItemsExplorerSession({
+  basePath = '/items',
   items,
   total,
   classificationCounts = { all: 0, assets: 0, materials: 0, qualified: 0, belowThreshold: 0, unclassified: 0 },
@@ -108,7 +108,7 @@ function ItemsExplorerSession({
   locations = [],
   categories = [],
   units = [],
-  bulkUpdateAction = bulkUpdateItems,
+  responsibleUsers = [],
   bulkDeleteAction,
   bulkHardDeleteAction,
 }: ItemsExplorerClientProps) {
@@ -142,7 +142,6 @@ function ItemsExplorerSession({
   const [inspectedItem, setInspectedItem] = useState<ItemListRow | null>(null)
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
-  const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [selectingAll, setSelectingAll] = useState(false)
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [blockingError, setBlockingError] = useState<string | null>(null)
@@ -197,7 +196,6 @@ function ItemsExplorerSession({
   if (filterKey !== previousFilterKey) {
     setPreviousFilterKey(filterKey)
     setSelectedItemIds([])
-    setBulkEditOpen(false)
   }
   if (inspectedItem && currentItems.length > 0 && !currentItems.some((item) => item.id === inspectedItem.id)) {
     setInspectedItem(null)
@@ -219,7 +217,7 @@ function ItemsExplorerSession({
     handleFilterChange,
     handlePageChange,
     toggleSort,
-  } = useItemsFilter(params)
+  } = useItemsFilter(params, basePath)
 
   const [isExporting, setIsExporting] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -245,21 +243,6 @@ function ItemsExplorerSession({
         responsible_person: item.responsible_person,
         unit_price: item.unit_price,
       }))
-  }, [currentItems, selectedItemIds])
-
-  const disburseLabel = useMemo(() => {
-    if (selectedItemIds.length === 0) return 'ขอเบิกพัสดุ (0)'
-    const selectedSet = new Set(selectedItemIds)
-    const chosen = currentItems.filter((it) => selectedSet.has(it.id))
-    const allAssets = chosen.length > 0 && chosen.every((t) => t.item_type === 'asset')
-    if (allAssets) {
-      return `ขอเบิก/ยืมครุภัณฑ์ (${selectedItemIds.length})`
-    }
-    const allMaterials = chosen.length > 0 && chosen.every((t) => t.item_type === 'material')
-    if (allMaterials) {
-      return `ขอเบิกพัสดุ (${selectedItemIds.length})`
-    }
-    return `ขอเบิก/ยืม (${selectedItemIds.length})`
   }, [currentItems, selectedItemIds])
 
   const effectiveSelectedItemId = inspectedItem?.id ?? null
@@ -383,15 +366,12 @@ function ItemsExplorerSession({
     }
   }
 
-  const folderValuation = useMemo(() => {
-    return currentItems.reduce((sum, item) => sum + ((item.unit_price ?? 0) * item.quantity), 0)
-  }, [currentItems])
-
   const handleToggleSelectItem = useCallback((id: string) => {
+    if (!userCanWrite) return
     setSelectedItemIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
-  }, [setSelectedItemIds])
+  }, [setSelectedItemIds, userCanWrite])
 
   const currentItemsRef = useRef(currentItems)
   useEffect(() => {
@@ -399,20 +379,17 @@ function ItemsExplorerSession({
   }, [currentItems])
 
   const handleToggleSelectAll = useCallback(() => {
+    if (!userCanWrite) return
     const pageIds = currentItemsRef.current.map(item => item.id)
     setSelectedItemIds(previous => pageIds.every(id => previous.includes(id))
       ? previous.filter(id => !pageIds.includes(id))
       : [...new Set([...previous, ...pageIds])])
-  }, [setSelectedItemIds])
+  }, [setSelectedItemIds, userCanWrite])
 
   const handleSelectItem = useCallback((item: ItemListRow) => {
     setInspectedItem(item)
     setIsInspectorOpen(true)
   }, [setInspectedItem, setIsInspectorOpen])
-
-  const handleDoubleClickItem = useCallback((item: ItemListRow) => {
-    router.push(`/items/${item.id}`)
-  }, [router])
 
   const handlePrintItem = useCallback((item: ItemListRow) => {
     setSinglePrintItem(toStickerItem(item))
@@ -519,7 +496,6 @@ function ItemsExplorerSession({
 
       const isAnyModalOpen =
         isSheetOpen ||
-        bulkEditOpen ||
         isBatchPrintOpen ||
         Boolean(singlePrintItem) ||
         Boolean(locationPrintItems) ||
@@ -571,7 +547,7 @@ function ItemsExplorerSession({
       }
 
       // Shortcut: "Space" -> Toggle selection of current inspected/active item
-      if (e.key === ' ' || e.key === 'Spacebar') {
+      if (userCanWrite && (e.key === ' ' || e.key === 'Spacebar')) {
         if (tagName === 'button' || tagName === 'a') return
         if (!inspectedItem) return
         e.preventDefault()
@@ -587,12 +563,12 @@ function ItemsExplorerSession({
     currentItems,
     inspectedItem,
     isSheetOpen,
-    bulkEditOpen,
     isBatchPrintOpen,
     singlePrintItem,
     locationPrintItems,
     blockingError,
     handleToggleSelectItem,
+    userCanWrite,
   ])
 
   return (
@@ -620,7 +596,9 @@ function ItemsExplorerSession({
               {/* Left: Dynamic Main Title, Count Badge & Official Badge */}
               <div className="flex items-center gap-2.5 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
-                  {params.type === 'material'
+                  {params.is_central === 'true' || params.is_central === '1'
+                    ? 'ส่วนกลาง'
+                    : params.type === 'material'
                     ? 'รายการทะเบียนพัสดุ'
                     : params.type === 'asset'
                       ? 'รายการทะเบียนครุภัณฑ์'
@@ -670,7 +648,7 @@ function ItemsExplorerSession({
                       setEditingItem(null)
                       setIsSheetOpen(true)
                     }}
-                    className="h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-3.5 gap-1.5 shadow-2xs transition-all cursor-pointer inline-flex items-center shrink-0"
+                    className="h-8 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-semibold text-xs px-3.5 gap-1.5 shadow-xs transition-all cursor-pointer inline-flex items-center shrink-0"
                   >
                     <Plus className="h-4 w-4" />
                     <span>ขึ้นทะเบียนใหม่</span>
@@ -683,12 +661,13 @@ function ItemsExplorerSession({
           {/* ZONE 2: Data Controls & Filter Bar (Search + Dropdown Filters + Export) */}
           <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
             <ItemsFilterBar
+              centralScope={basePath === '/central-items'}
               searchInputRef={searchInputRef}
               searchVal={searchVal}
               isLoading={isPending}
               onSearchChange={setSearchVal}
               onSearchClear={() => handleFilterChange({ q: '' })}
-              onNavigateToItem={(itemId) => router.push(`/items/${itemId}`)}
+              onNavigateToItem={() => router.push(basePath)}
               params={params}
               categories={categories}
               locations={locations}
@@ -697,7 +676,8 @@ function ItemsExplorerSession({
                 setSearchVal('')
                 handleFilterChange({
                   type: '',
-                    qualification: '',
+                  qualification: '',
+                  is_central: '',
                   category_id: '',
                   status: '',
                   location_id: '',
@@ -778,7 +758,6 @@ function ItemsExplorerSession({
                 selectedItemId={effectiveSelectedItemId}
                 selectedItemIds={selectedItemIds}
                 onSelect={handleSelectItem}
-                onDoubleClick={handleDoubleClickItem}
                 onToggleSelectItem={handleToggleSelectItem}
                 onToggleSelectAll={handleToggleSelectAll}
                 allLoadedSelected={currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.id))}
@@ -808,14 +787,6 @@ function ItemsExplorerSession({
                 {currentTotal > 0
                   ? `แสดง ${(currentPage - 1) * effectivePageSize + 1}–${Math.min(currentPage * effectivePageSize, currentTotal)} จาก ${currentTotal.toLocaleString()} รายการ`
                   : 'แสดง 0 จาก 0 รายการ'}
-              </span>
-              <span
-                data-testid="page-valuation-summary"
-                title="มูลค่ารวมของรายการที่แสดงในหน้านี้"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground shrink-0 select-none"
-              >
-                <span>มูลค่ารวมในหน้านี้:</span>
-                <span className="font-extrabold text-primary">฿{folderValuation.toLocaleString()}</span>
               </span>
               {selectedItemIds.length > 0 && (
                 <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0 select-none">
@@ -894,10 +865,10 @@ function ItemsExplorerSession({
                         aria-current={isCurrent ? 'page' : undefined}
                         aria-label={`หน้า ${item}`}
                         className={cn(
-                          'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
+                          'flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
                           isCurrent
-                            ? 'bg-primary text-primary-foreground shadow-xs font-bold'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            ? 'border-primary/40 bg-primary/10 text-primary shadow-xs font-bold'
+                            : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                         )}
                       >
                         {item}
@@ -923,98 +894,26 @@ function ItemsExplorerSession({
 
         {/* Adaptive Detail Inspector: Docked split-pane on desktop, slide-over drawer on mobile */}
         <Inspector
-          onOpenDetails={() => {}}
           isOpen={isInspectorOpen}
           mode={isFocusMode ? 'drawer' : 'auto'}
           onClose={() => setIsInspectorOpen(false)}
           item={selectedItem}
-          userCanWrite={userCanWrite}
-          userCanDelete={userCanDelete}
           onCopy={copyReference}
-          onPrint={(itemData) => setSinglePrintItem(itemData)}
-          onEdit={(itemToEdit) => {
-            setEditingItem(toItemDetail(itemToEdit))
-            setIsSheetOpen(true)
-          }}
         />
       </div>
-
-      {bulkEditOpen && (
-        <BulkEditDialog
-          count={selectedItemIds.length}
-          locations={locations}
-          categories={categories}
-          units={units}
-          onClose={() => setBulkEditOpen(false)}
-          onSave={async (updates) => {
-            const prevItems = currentItems
-            const patch: Partial<ItemListRow> = {}
-            if (updates.status !== undefined) {
-              patch.status = updates.status
-            }
-            if (updates.responsible_person !== undefined) {
-              patch.responsible_person = updates.responsible_person || null
-            }
-            if (updates.location_id !== undefined) {
-              const loc = locations.find((l) => l.id === updates.location_id)
-              patch.location = loc ? { id: loc.id, name: loc.name } : { id: updates.location_id, name: '' }
-            }
-            if (updates.category_id !== undefined) {
-              const cat = categories.find((c) => c.id === updates.category_id)
-              patch.category = cat ? { id: cat.id, name: cat.name } : { id: updates.category_id, name: '' }
-            }
-            if (updates.unit_id !== undefined) {
-              const u = units.find((unit) => unit.id === updates.unit_id)
-              patch.unit = u ? { id: u.id, name: u.name } : { id: updates.unit_id, name: '' }
-            }
-            setCurrentItems(prev => prev.map(item => selectedItemIds.includes(item.id) ? { ...item, ...patch } : item))
-            try {
-              const result = await bulkUpdateAction(selectedItemIds, updates)
-              if (!result.success) {
-                setCurrentItems(prevItems)
-              }
-              return result
-            } catch (err) {
-              setCurrentItems(prevItems)
-              throw err
-            }
-          }}
-          onSaved={(message) => {
-            triggerToast(message)
-            setBulkEditOpen(false)
-            setSelectedItemIds([])
-            router.refresh()
-          }}
-        />
-      )}
 
       {/* Floating Bulk Actions Toolbar */}
       <ItemsBulkBar
         selectedCount={selectedItemIds.length}
-        total={total}
         userCanWrite={userCanWrite}
         userCanDelete={userCanDelete}
-        selectingAll={selectingAll}
         canPrintBatch={selectedItemsData.length === selectedItemIds.length}
-        disburseLabel={disburseLabel}
-        onBulkEdit={() => setBulkEditOpen(true)}
-        onSelectAllMatching={handleSelectAllMatching}
         onBatchPrint={() => setIsBatchPrintOpen(true)}
         onBulkDelete={handleBulkDelete}
+        onEdit={selectedItemIds.length === 1 && currentItems.some(item => item.id === selectedItemIds[0])
+          ? () => handleEditItem(currentItems.find(item => item.id === selectedItemIds[0])!)
+          : undefined}
         onClearSelection={() => setSelectedItemIds([])}
-        onDisburse={() => {
-          if (selectedItemIds.length === 0) return
-          const selectedSet = new Set(selectedItemIds)
-          const chosen = currentItems.filter((it) => selectedSet.has(it.id))
-          const allMaterials = chosen.length > 0 && chosen.every((t) => t.item_type === 'material')
-          const allAssets = chosen.length > 0 && chosen.every((t) => t.item_type === 'asset')
-          if (!allMaterials && !allAssets && chosen.length > 0) {
-            triggerToast('ไม่สามารถทำรายการพัสดุและครุภัณฑ์พร้อมกันได้ กรุณาเลือกประเภทเดียวกัน', 'error')
-            return
-          }
-          const typeParam = allMaterials ? '&type=material_issue' : allAssets ? '&type=asset_borrow' : ''
-          router.push(`/disbursements/new?items=${selectedItemIds.join(',')}${typeParam}`)
-        }}
       />
 
       <AssetTagModal
@@ -1031,7 +930,7 @@ function ItemsExplorerSession({
       <ConfirmDialog
         open={isBulkDeleteDialogOpen}
         title={`ยืนยันการลบ ${selectedItemIds.length} รายการ`}
-        description="คุณแน่ใจหรือไม่ว่าต้องการลบรายการที่เลือกอย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้"
+        description="รายการที่เลือกจะถูกนำออกจากทะเบียน โดยยังเก็บเอกสารและประวัติเดิมไว้ หากมีคำขอค้างหรือยืมไม่คืน จะยังไม่ลบรายการที่เลือกชุดนี้"
         confirmText="ยืนยันการลบ"
         cancelText="ยกเลิก"
         variant="destructive"
@@ -1088,6 +987,7 @@ function ItemsExplorerSession({
         categories={categories}
         locations={locations}
         units={units}
+        responsibleUsers={responsibleUsers}
       />
     </div>
   )

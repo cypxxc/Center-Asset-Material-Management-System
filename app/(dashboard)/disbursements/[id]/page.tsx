@@ -21,9 +21,17 @@ export default async function DisbursementDetailPage({ params }: DetailPageProps
   const doc = await getDisbursementById(id)
   if (!doc) notFound()
 
+  if (doc.status === 'rejected') {
+    redirect(isAdmin(profile.role) ? '/disbursements?tab=requests' : '/disbursements?tab=documents')
+  }
+
+  if (isAdmin(profile.role) && (doc.status === 'pending_approval' || doc.status === 'draft')) {
+    redirect('/disbursements?tab=requests')
+  }
+
   return (
     <PageContainer maxWidth="7xl" contentClassName="max-w-5xl mx-auto">
-      <DisbursementDetailClient doc={doc} canMutate={isAdmin(profile.role)} canRequest={profile.role === 'viewer'} />
+      <DisbursementDetailClient doc={doc} canMutate={isAdmin(profile.role)} canRequest={profile.role === 'user'} canWithdraw={profile.role === 'user' && doc.created_by === profile.id && doc.status === 'pending_approval'} />
     </PageContainer>
   )
 }

@@ -8,7 +8,6 @@ import { hashPassword } from '@/lib/postgres/password'
 import { normalizeForStorage } from '@/lib/unicode'
 import { assertAdminTable } from './table-policy'
 import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, searchColumns, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
-import { generateInternalEmail } from '@/lib/display-email'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
 
@@ -130,13 +129,13 @@ export async function pgDeleteTableRow(tableName: string, rowId: string): Promis
   } catch (error) { return failure(error) }
 }
 
-export async function pgCreateAuthUser(raw: { email?: string; password: string; full_name: string; role: 'admin' | 'viewer'; is_active: boolean }): Promise<{ success?: boolean; error?: string; userId?: string }> {
+export async function pgCreateAuthUser(raw: { email?: string | null; password: string; full_name: string; role: 'admin' | 'user'; is_active: boolean }): Promise<{ success?: boolean; error?: string; userId?: string }> {
   try {
     await adminIdentity()
     const payload = newUserSchema.parse(raw)
     const fullName = normalizeForStorage(payload.full_name)
     if (!fullName) throw new Error('กรุณากรอกชื่อ-นามสกุล')
-    const email = normalizeForStorage(payload.email || generateInternalEmail()).toLowerCase()
+    const email = payload.email ? normalizeForStorage(payload.email).toLowerCase() : null
     const passwordHash = await hashPassword(payload.password)
     const userId = crypto.randomUUID()
     await withAdminAuth(async (tx, actorId) => {
@@ -206,7 +205,7 @@ export async function pgUpdateUserEmail(userId: string, email: string): Promise<
   } catch (error) { return failure(error) }
 }
 
-export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' | 'viewer' | 'staff'; is_active?: boolean; full_name?: string } | Record<string, unknown>): Promise<{ success?: boolean; error?: string; profile?: Record<string, unknown> }> {
+export async function pgUpdateUserProfile(userId: string, raw: { role?: 'admin' | 'user' | 'staff'; is_active?: boolean; full_name?: string } | Record<string, unknown>): Promise<{ success?: boolean; error?: string; profile?: Record<string, unknown> }> {
   try {
     uuidSchema.parse(userId)
     const payload = profileUpdateSchema.parse(raw)

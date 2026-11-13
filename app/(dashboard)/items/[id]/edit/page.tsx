@@ -34,7 +34,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
     <div className="h-full overflow-y-auto bg-slate-50 p-6 md:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center gap-3">
-          <Link href={`/items/${item.id}`}>
+          <Link href="/items">
             <Button variant="outline" size="icon-sm" className="rounded-full">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -51,6 +51,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
           categories={references.categories}
           locations={references.locations}
           units={references.units}
+          responsibleUsers={references.responsibleUsers}
         />
       </div>
     </div>

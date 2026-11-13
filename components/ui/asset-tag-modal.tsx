@@ -127,7 +127,7 @@ function SingleStickerItem({
   const assetCode = itemData.asset_no || itemData.serial_no || ""
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
   const itemUrl = itemData.id
-    ? `${baseUrl}/items/${itemData.id}`
+    ? `${baseUrl}/items`
     : assetCode
 
   let qrCodeData = null
@@ -1188,7 +1188,7 @@ export function AssetTagModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="px-5 py-3 bg-card border-t border-border flex items-center justify-between gap-2">
+          <div data-footer className="px-5 py-3 bg-card border-t border-border flex items-center justify-between gap-2">
             <div className="text-xs text-muted-foreground font-medium hidden sm:block">
               แผ่น A4 ({totalPages} แผ่น | {labelsPerPage} ป้าย/แผ่น)
             </div>

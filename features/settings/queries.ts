@@ -12,8 +12,8 @@ export const getLocationsOverview = cache(async (): Promise<LocationsOverview> =
   getPostgresLocationsOverview())
 
 export async function getSettingsPageData(tabParam?: string): Promise<SettingsPageData> {
-  const activeTab = ['categories', 'units', 'import'].includes(tabParam ?? '') ? tabParam! : 'categories'
-  const metadataSection = activeTab === 'categories' || activeTab === 'units' ? activeTab : 'all'
+  const activeTab = ['categories', 'locations', 'units', 'import'].includes(tabParam ?? '') ? tabParam! : 'categories'
+  const metadataSection = activeTab === 'categories' || activeTab === 'locations' || activeTab === 'units' ? activeTab : 'all'
   const data = activeTab === 'import' ? { categories: [], locations: [], units: [] } : await getSettingsData(metadataSection)
   return { activeTab, data }
 }

@@ -14,8 +14,8 @@ export async function importDatabaseData(source: string): Promise<{ success?: bo
   if (result.success) revalidatePath('/', 'layout')
   return result
 }
-export async function createAuthUser(payload: { email?: string; password: string; full_name: string; role: 'admin' | 'viewer'; is_active: boolean }) { return pgCreateAuthUser(payload) }
+export async function createAuthUser(payload: { email?: string | null; password: string; full_name: string; role: 'admin' | 'user'; is_active: boolean }) { return pgCreateAuthUser(payload) }
 export async function deleteAuthUser(userId: string) { return pgDeleteAuthUser(userId) }
 export async function resetAuthPassword(userId: string, newPassword: string) { return pgResetAuthPassword(userId, newPassword) }
 export async function updateUserEmail(userId: string, newEmail: string) { return pgUpdateUserEmail(userId, newEmail) }
-export async function updateUserProfileRoleAndStatus(userId: string, payload: { role?: 'admin' | 'viewer'; is_active?: boolean; full_name?: string }) { return pgUpdateUserProfile(userId, payload) }
+export async function updateUserProfileRoleAndStatus(userId: string, payload: { role?: 'admin' | 'user'; is_active?: boolean; full_name?: string }) { return pgUpdateUserProfile(userId, payload) }

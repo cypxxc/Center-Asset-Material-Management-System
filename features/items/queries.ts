@@ -1,14 +1,14 @@
 import 'server-only'
 import { cache } from 'react'
 import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getPostgresItemById, getPostgresSidebarData, getPostgresItemAuditLogs, getPostgresLowStockItems, getPostgresUrgentDamagedItems } from './postgres-queries'
-import type { ItemAuditLog, ItemDetail, ItemListResult, ItemBatchResult, ItemListSearchParams, ReferenceOption, ItemDetailPageData, ItemEditPageData, ItemsExplorerPageData, DashboardLayoutData, UrgentDamagedItem } from './types'
+import type { ItemAuditLog, ItemDetail, ItemListResult, ItemBatchResult, ItemListSearchParams, ReferenceOption, ItemEditPageData, ItemsExplorerPageData, DashboardLayoutData, UrgentDamagedItem } from './types'
 import { ITEMS_PAGE_SIZE, normalizeItemListSearchParams } from './list-params'
 import { decodeItemCursor } from './cursor'
 
 export type { UrgentDamagedItem } from './types'
 const PAGE_SIZE = 10
 
-export const getItemReferences = cache(async (): Promise<{ categories: ReferenceOption[]; locations: ReferenceOption[]; units: ReferenceOption[] }> => getPostgresItemReferences())
+export const getItemReferences = cache(async (): Promise<{ categories: ReferenceOption[]; locations: ReferenceOption[]; units: ReferenceOption[]; responsibleUsers: ReferenceOption[] }> => getPostgresItemReferences())
 export async function getItems(params: ItemListSearchParams, pageSize = PAGE_SIZE): Promise<ItemListResult> { return getPostgresItems(params, pageSize) }
 export async function getItemBatch(params: ItemListSearchParams, cursor?: string): Promise<ItemBatchResult> {
   const normalized = normalizeItemListSearchParams(params)
@@ -16,11 +16,6 @@ export async function getItemBatch(params: ItemListSearchParams, cursor?: string
 }
 export async function getItemById(id: string): Promise<ItemDetail | null> { return getPostgresItemById(id) }
 export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> { return getPostgresItemAuditLogs(itemId) }
-
-export async function getItemDetailPageData(id: string): Promise<ItemDetailPageData> {
-  const [item, auditLogs] = await Promise.all([getItemById(id), getItemAuditLogs(id)])
-  return { item, auditLogs }
-}
 
 export async function getItemEditPageData(id: string): Promise<ItemEditPageData> {
   const [item, references] = await Promise.all([getItemById(id), getItemReferences()])

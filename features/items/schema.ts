@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ITEM_STATUSES } from './status'
 import { normalizeForStorage, getGraphemeLength } from '@/lib/unicode'
 import { stripCommas } from '@/lib/number-format'
 
@@ -65,14 +66,7 @@ const itemQualificationSchema = z.preprocess(
   z.enum(['qualified', 'below_threshold']).nullable()
 )
 
-const itemStatusSchema = z.enum([
-  'active',
-  'spare',
-  'damaged',
-  'waiting_repair',
-  'inactive',
-  'disposed',
-])
+const itemStatusSchema = z.enum(ITEM_STATUSES)
 
 export const itemFormSchema = z.object({
   item_name: z.preprocess(

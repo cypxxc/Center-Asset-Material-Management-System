@@ -1,17 +1,27 @@
 'use client'
 
-import { Suspense, useActionState } from 'react'
+import { Suspense, useActionState, useEffect } from 'react'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { login } from '@/features/auth/actions'
 import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Clock } from 'lucide-react'
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const errorParam = searchParams.get('error')
+  const isIdleTimeout = searchParams.get('reason') === 'idle_timeout'
   const [state, formAction, isPending] = useActionState(login, null)
   const error = state?.error ?? (errorParam ? 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' : null)
+
+  useEffect(() => {
+    if (isIdleTimeout) {
+      try {
+        localStorage.removeItem('camms_last_activity')
+        sessionStorage.clear()
+      } catch {}
+    }
+  }, [isIdleTimeout])
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-12 text-foreground">
@@ -43,6 +53,19 @@ function LoginForm() {
           <h1 className="text-2xl font-semibold tracking-tight">เข้าสู่ระบบ</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">จัดการทะเบียนพัสดุและติดตามข้อมูลของหน่วยงาน</p>
         </div>
+
+        {isIdleTimeout && !error && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm text-amber-800 dark:text-amber-300"
+          >
+            <Clock className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <div>
+              <p className="font-medium">เซสชันหมดอายุเนื่องจากไม่มีการใช้งาน</p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">เพื่อความปลอดภัย กรุณาเข้าสู่ระบบใหม่อีกครั้ง</p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">

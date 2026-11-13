@@ -1,16 +1,20 @@
 'use server'
 
 import {
+  postgresAddPersonalEmail,
   postgresLogin,
   postgresSignOut,
   postgresUpdatePassword,
-  postgresUpdateProfile,
   postgresUpdateSidebar,
 } from './postgres-actions'
 
-export type PersonalProfileActionState = {
+export type PasswordActionState = {
   error?: string
   success?: string
+}
+
+export async function addPersonalEmail(_prevState: PasswordActionState | null, formData: FormData): Promise<PasswordActionState> {
+  return postgresAddPersonalEmail(formData)
 }
 
 export async function signOut() {
@@ -21,11 +25,7 @@ export async function login(_prevState: { error?: string } | null, formData: For
   return postgresLogin(formData)
 }
 
-export async function updatePersonalProfile(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
-  return postgresUpdateProfile(formData)
-}
-
-export async function updatePersonalPassword(_prevState: PersonalProfileActionState | null, formData: FormData): Promise<PersonalProfileActionState> {
+export async function updatePersonalPassword(_prevState: PasswordActionState | null, formData: FormData): Promise<PasswordActionState> {
   return postgresUpdatePassword(formData)
 }
 

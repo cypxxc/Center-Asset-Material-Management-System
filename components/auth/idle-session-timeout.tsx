@@ -8,6 +8,9 @@ interface IdleSessionTimeoutProps {
   warningSeconds?: number
 }
 
+const STORAGE_KEY = 'camms_last_activity'
+const CHANNEL_NAME = 'camms_idle_sync'
+
 export function IdleSessionTimeout({
   timeoutSeconds = 1800,
   warningSeconds = 60,
@@ -19,47 +22,158 @@ export function IdleSessionTimeout({
   const hasLoggedOutRef = useRef(false)
   const lastActivityRef = useRef<number>(0)
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    if (hasLoggedOutRef.current) return
+    hasLoggedOutRef.current = true
+
     setIsWarningOpen(false)
     isWarningOpenRef.current = false
-    signOut().catch(() => {})
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = '/login?reason=idle_timeout'
+
+    // Sync logout to other open tabs
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel(CHANNEL_NAME)
+        bc.postMessage({ type: 'LOGOUT' })
+        bc.close()
+      }
+    } catch {
+      // ignore
+    }
+
+    // Clear client-side state
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.clear()
+        document.cookie = 'camms_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      }
+    } catch {
+      // ignore
+    }
+
+    // Call server logout (both dedicated route and server action with timeout fallback)
+    try {
+      await Promise.race([
+        fetch('/api/auth/logout', { method: 'POST', keepalive: true }),
+        signOut(),
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ]).catch(() => {})
+    } catch {
+      // ignore
+    }
+
+    // Navigate to login page with idle_timeout reason
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login?reason=idle_timeout')
+    }
   }, [])
 
   const stayLoggedIn = useCallback(() => {
-    lastActivityRef.current = Date.now()
+    const now = Date.now()
+    lastActivityRef.current = now
     isWarningOpenRef.current = false
     hasLoggedOutRef.current = false
     setIsWarningOpen(false)
     setSecondsRemaining(warningSeconds)
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, String(now))
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel(CHANNEL_NAME)
+          bc.postMessage({ type: 'ACTIVITY', timestamp: now })
+          bc.close()
+        }
+      }
+    } catch {
+      // ignore
+    }
   }, [warningSeconds])
 
   useEffect(() => {
-    lastActivityRef.current = Date.now()
+    const now = Date.now()
+    lastActivityRef.current = now
     hasLoggedOutRef.current = false
 
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          const storedTime = parseInt(stored, 10)
+          if (!isNaN(storedTime) && storedTime > 0 && storedTime <= now) {
+            lastActivityRef.current = Math.max(lastActivityRef.current, storedTime)
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, String(now))
+      }
+    } catch {
+      // ignore
+    }
+
     const onActivity = () => {
-      if (!isWarningOpenRef.current) {
-        lastActivityRef.current = Date.now()
+      if (!isWarningOpenRef.current && !hasLoggedOutRef.current) {
+        const currentNow = Date.now()
+        lastActivityRef.current = currentNow
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY, String(currentNow))
+          }
+        } catch {
+          // ignore
+        }
       }
     }
 
-    const activityEvents = ['keydown', 'click', 'scroll', 'pointerdown'] as const
+    const activityEvents = ['keydown', 'click', 'scroll', 'pointerdown', 'mousemove', 'touchstart'] as const
     for (const ev of activityEvents) {
       window.addEventListener(ev, onActivity, { passive: true })
     }
 
-    const interval = setInterval(() => {
+    // Multi-tab sync via BroadcastChannel and storage event
+    let channel: BroadcastChannel | null = null
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel(CHANNEL_NAME)
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'LOGOUT') {
+            hasLoggedOutRef.current = true
+            window.location.replace('/login?reason=idle_timeout')
+          } else if (event.data?.type === 'ACTIVITY' && typeof event.data.timestamp === 'number') {
+            lastActivityRef.current = Math.max(lastActivityRef.current, event.data.timestamp)
+            if (isWarningOpenRef.current) {
+              isWarningOpenRef.current = false
+              setIsWarningOpen(false)
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        const remoteTime = parseInt(e.newValue, 10)
+        if (!isNaN(remoteTime)) {
+          lastActivityRef.current = Math.max(lastActivityRef.current, remoteTime)
+          if (isWarningOpenRef.current) {
+            isWarningOpenRef.current = false
+            setIsWarningOpen(false)
+          }
+        }
+      }
+    }
+    window.addEventListener('storage', onStorageChange)
+
+    const checkTimeout = () => {
       if (hasLoggedOutRef.current) return
 
-      const now = Date.now()
-      const elapsed = Math.floor((now - lastActivityRef.current) / 1000)
+      const currentNow = Date.now()
+      const elapsed = Math.floor((currentNow - lastActivityRef.current) / 1000)
       const remaining = timeoutSeconds - elapsed
 
       if (remaining <= 0) {
         hasLoggedOutRef.current = true
-        clearInterval(interval)
         handleLogout()
       } else if (remaining <= warningSeconds) {
         if (!isWarningOpenRef.current) {
@@ -73,11 +187,27 @@ export function IdleSessionTimeout({
           setIsWarningOpen(false)
         }
       }
-    }, 1000)
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkTimeout()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    const interval = setInterval(checkTimeout, 1000)
 
     return () => {
       for (const ev of activityEvents) {
         window.removeEventListener(ev, onActivity)
+      }
+      window.removeEventListener('storage', onStorageChange)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      if (channel) {
+        try {
+          channel.close()
+        } catch {}
       }
       clearInterval(interval)
     }

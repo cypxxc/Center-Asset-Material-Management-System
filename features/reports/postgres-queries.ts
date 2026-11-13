@@ -20,7 +20,7 @@ export async function getPostgresReportStats(): Promise<ReportStats> {
         from (select status, count(*) as cnt, coalesce(sum(quantity), 0) as qty from live_items group by status) t), '{}'::json),
       'categoryCounts', coalesce((select json_object_agg(t.name, json_build_object('count', t.cnt, 'qty', t.qty, 'activeQty', t.active_qty))
         from (select coalesce(c.name, 'ทั่วไป') as name, count(*) as cnt, coalesce(sum(i.quantity), 0) as qty,
-                     coalesce(sum(case when i.status = 'active' then i.quantity else 0 end), 0) as active_qty
+                     coalesce(sum(case when i.status in ('active', 'spare') then i.quantity else 0 end), 0) as active_qty
           from live_items i left join public.categories c on c.id = i.category_id
           group by coalesce(c.name, 'ทั่วไป')) t), '{}'::json),
       'locationCount', (select count(*) from public.locations)

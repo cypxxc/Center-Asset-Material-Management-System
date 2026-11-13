@@ -39,14 +39,14 @@ export class ToolRegistry {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  listForRole(role?: 'admin' | 'staff' | 'viewer'): ToolDefinition<any, any>[] {
+  listForRole(role?: 'admin' | 'staff' | 'user'): ToolDefinition<any, any>[] {
     return this.list().filter((tool) => {
       if (!tool.requiredRole || tool.requiredRole === 'public') return true
       if (role === 'admin') return true
-      if (role === 'staff' && (tool.requiredRole === 'staff' || tool.requiredRole === 'viewer')) {
+      if (role === 'staff' && (tool.requiredRole === 'staff' || tool.requiredRole === 'user')) {
         return true
       }
-      if (role === 'viewer' && tool.requiredRole === 'viewer') {
+      if (role === 'user' && tool.requiredRole === 'user') {
         return true
       }
       return false

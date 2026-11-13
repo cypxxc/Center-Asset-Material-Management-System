@@ -1,14 +1,15 @@
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'ผู้ดูแลระบบ',
-  viewer: 'ผู้เข้าชม',
+  user: 'ผู้ใช้งานทั่วไป',
 }
 
 export const PATH_LABELS: Record<string, string> = {
+  'central-items': 'ส่วนกลาง',
   items: 'รายการพัสดุ',
   locations: 'สถานที่ตั้ง',
   reports: 'สรุปรายงาน',
   settings: 'ตั้งค่าระบบ',
-  profile: 'โปรไฟล์',
+  profile: 'บัญชีผู้ใช้',
   dashboard: 'Dashboard',
   admin: 'ผู้ดูแลระบบ',
   users: 'จัดการผู้ใช้งาน',

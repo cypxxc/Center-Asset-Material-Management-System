@@ -7,6 +7,8 @@ const stringTrimmed = (max: number, msg: string) =>
     .transform(normalizeForStorage)
     .pipe(z.string().trim().min(1, msg).max(max, `ความยาวไม่เกิน ${max} ตัวอักษร`))
 
+const calendarDate = z.iso.date('วันที่ไม่ถูกต้อง กรุณาระบุรูปแบบ YYYY-MM-DD')
+
 export const disbursementDraftSchema = z.object({
   transaction_type: z.enum(['material_issue', 'asset_handover', 'asset_borrow'], {
     message: 'กรุณาเลือกประเภทการทำรายการ',
@@ -14,16 +16,19 @@ export const disbursementDraftSchema = z.object({
   recipient_name: stringTrimmed(150, 'กรุณาระบุชื่อผู้รับพัสดุ'),
   department_name: stringTrimmed(150, 'กรุณาระบุกลุ่มงาน'),
   purpose: stringTrimmed(500, 'กรุณาระบุวัตถุประสงค์'),
-  due_date: z.string().optional().nullable(),
+  due_date: calendarDate.or(z.literal('')).optional().nullable(),
   items: z
     .array(
       z.object({
-        item_id: z.string().uuid('รหัสสิ่งของไม่ถูกต้อง'),
+        item_id: z.string().uuid('รหัสสิ่งของไม่ถูกต้อง').toLowerCase(),
         requested_qty: z.coerce.number().int().min(1, 'จำนวนต้องมากกว่า 0'),
       })
     )
     .min(1, 'ต้องมีรายการสิ่งของอย่างน้อย 1 รายการ'),
 }).superRefine((data, ctx) => {
+  if (new Set(data.items.map((item) => item.item_id)).size !== data.items.length) {
+    ctx.addIssue({ code: 'custom', path: ['items'], message: 'ไม่สามารถเลือกรายการสิ่งของซ้ำได้' })
+  }
   if (data.transaction_type === 'asset_borrow' && !data.due_date) {
     ctx.addIssue({
       code: 'custom',
@@ -31,10 +36,19 @@ export const disbursementDraftSchema = z.object({
       message: 'กรุณาระบุกำหนดส่งคืนสำหรับรายการยืมครุภัณฑ์',
     })
   }
+  if (data.transaction_type === 'asset_borrow') {
+    data.items.forEach((item, index) => {
+      if (item.requested_qty !== 1) ctx.addIssue({ code: 'custom', path: ['items', index, 'requested_qty'], message: 'ครุภัณฑ์แต่ละชิ้นต้องมีจำนวนยืมเท่ากับ 1' })
+    })
+  }
 })
 
 export const disbursementListParamsSchema = z.object({
+  historyOnly: z.boolean().optional().default(false),
+  hideCompleted: z.boolean().optional().default(false),
+  prioritizePending: z.boolean().optional().default(false),
   q: z.string().optional().default(''),
+  request_id: z.string().uuid().optional(),
   status: z
     .enum([
       'draft',
@@ -54,10 +68,18 @@ export const disbursementListParamsSchema = z.object({
 })
 
 export const submitBorrowRequestSchema = z.object({
-  item_ids: z.array(z.string().uuid('รหัสสิ่งของไม่ถูกต้อง')).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ'),
-  due_date: z.string().min(1, 'กรุณาระบุกำหนดส่งคืน'),
+  item_ids: z.array(z.string().uuid('รหัสสิ่งของไม่ถูกต้อง').toLowerCase()).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ').max(20),
+  request_type: z.enum(['issue', 'borrow']).default('borrow'),
+  due_date: calendarDate.optional().nullable(),
   purpose: stringTrimmed(500, 'กรุณาระบุวัตถุประสงค์ในการยืม'),
-})
+}).superRefine((data, ctx) => {
+  if (new Set(data.item_ids).size !== data.item_ids.length) {
+    ctx.addIssue({ code: 'custom', path: ['item_ids'], message: 'ไม่สามารถเลือกรายการสิ่งของซ้ำได้' })
+  }
+  if (data.request_type === 'borrow' && !data.due_date) {
+    ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'กรุณาระบุกำหนดส่งคืน' })
+  }
+}).transform((data) => ({ ...data, due_date: data.request_type === 'issue' ? null : data.due_date! }))
 
 export const rejectDisbursementSchema = z.object({
   disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
