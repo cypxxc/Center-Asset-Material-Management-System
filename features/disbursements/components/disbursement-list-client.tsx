@@ -13,6 +13,7 @@ import {
  FileEdit,
  CheckCircle2,
 } from 'lucide-react'
+import { AuditActionFilter } from '@/features/admin/components/audit-action-filter'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
@@ -29,8 +30,9 @@ const DisbursementCreateModal = dynamic(() => import('./disbursement-create-moda
 const CustodyHistoryPanel = dynamic(() => import('./custody-history-panel').then((module) => module.CustodyHistoryPanel))
 
 const DISBURSEMENT_STATUS_OPTIONS: FilterOption[] = [
- { value: 'pending_approval', label: 'รออนุมัติ', colorDot: 'bg-amber-500' },
- { value: 'active_borrow', label: 'อนุมัติแล้ว / กำลังยืม', colorDot: 'bg-amber-500' },
+  { value: 'pending_approval', label: 'รออนุมัติ', colorDot: 'bg-amber-500' },
+  { value: 'active_borrow', label: 'อนุมัติแล้ว / กำลังยืม', colorDot: 'bg-amber-500' },
+  { value: 'rejected', label: 'ไม่อนุมัติ', colorDot: 'bg-rose-500' },
 ]
 
 const HISTORY_STATUS_OPTIONS: FilterOption[] = [
@@ -104,12 +106,13 @@ export function DisbursementListClient({
  (newQ = q, newStatus = status, newType = type, newPage = 1, newTab: 'documents' | 'requests' | 'history' = activeTab === 'history' ? 'history' : activeTab === 'requests' ? 'requests' : 'documents') => {
  const params = new URLSearchParams()
  params.set('tab', newTab)
+ if (newTab === 'history') params.set('action', 'approval_history')
  if (newQ.trim()) params.set('q', newQ.trim())
  params.set('status', newStatus || 'all')
  if (newType) params.set('type', newType)
  if (newPage > 1) params.set('page', String(newPage))
  startTransition(() => {
- router.replace(`/disbursements?${params}`, { scroll: false })
+ router.replace(`${activeTab === 'history' ? '/admin/audit-logs' : '/disbursements'}?${params}`, { scroll: false })
  })
  },
  [q, status, type, router, activeTab]
@@ -181,6 +184,7 @@ export function DisbursementListClient({
 
  {/* Top Tab Switcher */}
  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
+ {activeTab !== 'history' && <>
  <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="เบิกและยืม">
  <button
  type="button"
@@ -230,14 +234,10 @@ export function DisbursementListClient({
  >
  อนุมัติ
  </button>
- <button type="button" aria-pressed={activeTab === 'history'}
- onClick={() => { setActiveTab('history'); setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1, 'history') }}
- className={cn('min-h-9 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring', activeTab === 'history' ? 'bg-background text-primary shadow-xs' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground')}>
- ประวัติการอนุมัติ
- </button>
  </>
  )}
  </div>
+ </>}
  <div className="order-2 min-w-0 flex-1 basis-[calc(100%-8rem)] sm:order-1 sm:basis-0 sm:max-w-md sm:mx-auto">
  <SearchInput
  key={activeTab}
@@ -255,6 +255,7 @@ export function DisbursementListClient({
  <div className="order-3 min-w-0">
  {/* Dropdown Filters */}
  <div className="flex flex-wrap items-center gap-2 min-w-0">
+ {activeTab === 'history' && <AuditActionFilter value="approval_history" />}
  {/* Status Filter */}
  {activeTab !== 'requests' && <FilterDropdown
  label="สถานะ"
@@ -273,7 +274,7 @@ export function DisbursementListClient({
  {activeTab !== 'requests' && activeTab !== 'history' && <Button type="button" variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1) }}>ดูประวัติทั้งหมด</Button>}
 
  {/* Quick Reset Filters Button */}
- {hasActiveFilters && (
+ {hasActiveFilters && activeTab !== 'history' && (
  <Button
  type="button"
  variant="ghost"
@@ -348,7 +349,7 @@ export function DisbursementListClient({
  </div>
  )
  ) : (
- <GroupedTransactionsTable documents={initialItems} userRole={userRole} />
+ <GroupedTransactionsTable documents={initialItems} userRole={userRole} historyMode={activeTab === 'history'} />
  )}
  </div>
 

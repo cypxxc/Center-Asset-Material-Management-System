@@ -10,6 +10,7 @@ import { assertAdminTable } from './table-policy'
 import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, searchColumns, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
+import { buildAuditActionFilter } from './audit-action-filter'
 
 const denied = 'Access Denied: Admin role required and profile must be active'
 
@@ -294,7 +295,8 @@ export async function pgGetAuditLogsList(params: GetAuditLogsParams) {
   try {
     return await withAdmin(async tx => {
       const filters: SQL[] = [sql`true`]
-      if (params.action && params.action !== 'all') filters.push(sql`lower(a.action) = ${params.action.toLowerCase()}`)
+      const actionFilter = buildAuditActionFilter(params.action)
+      if (actionFilter) filters.push(actionFilter)
       if (params.target_table && params.target_table !== 'all') filters.push(sql`a.target_table = ${params.target_table}`)
       if (params.q?.trim()) {
         const term = params.q.trim()

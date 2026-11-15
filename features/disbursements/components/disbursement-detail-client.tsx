@@ -367,6 +367,11 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  </div>
  </div>
 
+ <div>
+ <span className="text-muted-foreground block text-[11px]">กลุ่มงาน</span>
+ <span className="font-medium text-foreground">{doc.department_name || '—'}</span>
+ </div>
+
  {isBorrow && doc.due_date && (
  <div className="flex items-start gap-2">
  <Calendar className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
@@ -384,7 +389,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
 
  {doc.reversal_reason && (
  <div className="sm:col-span-2 md:col-span-3 p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-700 ">
- <span className="font-semibold block mb-0.5">เหตุผลการคืนสภาพ (Reversed):</span>
+ <span className="font-semibold block mb-0.5">{doc.status === 'rejected' ? 'เหตุผลที่ไม่อนุมัติ:' : 'เหตุผลการคืนสภาพ (Reversed):'}</span>
  <span>{doc.reversal_reason}</span>
  {doc.reversed_at && (
  <span className="block text-[11px] text-muted-foreground mt-1">

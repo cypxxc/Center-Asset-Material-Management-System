@@ -42,6 +42,13 @@ async function DisbursementListSection({
   }
 }) {
   const rawParams = await searchParamsPromise
+  if (rawParams.tab === 'history' && profile.role === 'admin') {
+    const destination = new URLSearchParams({ tab: 'history' })
+    for (const key of ['q', 'status', 'type', 'page', 'pageSize'] as const) {
+      if (rawParams[key]) destination.set(key, rawParams[key])
+    }
+    redirect(`/admin/audit-logs?${destination}`)
+  }
   const params = rawParams.tab === 'history' && profile.role !== 'admin' ? { ...rawParams, tab: 'documents' as const } : rawParams
   const effectiveStatus = profile.role === 'admin' && (params.tab === 'requests' || params.tab === 'history')
     ? params.status || 'all'

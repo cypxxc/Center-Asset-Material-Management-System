@@ -4,7 +4,7 @@ import { FormCombobox } from '@/components/ui/form-combobox'
 
 import { normalizeItemStatus } from '../status'
 
-import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList, MapPin, Tag, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,7 +50,14 @@ function FieldError({ errors }: { errors?: string[] }) {
 }
 
 
-export function ItemForm({
+export function ItemForm(props: ItemFormProps) {
+ const [version, setVersion] = useState(0)
+ return <ItemFormFields key={version} {...props} onSuccess={props.onSuccess ?? (result => {
+ if (!props.item && result?.intent === 'save_and_another') setVersion(previous => previous + 1)
+ })} />
+}
+
+function ItemFormFields({
  action,
  categories,
  locations,
@@ -68,11 +75,9 @@ export function ItemForm({
  const [isCentral, setIsCentral] = useState(Boolean(item?.is_central || item?.note?.includes('ส่วนกลาง')))
  const [note, setNote] = useState(item?.note ?? '')
  useEffect(() => { onPendingChange?.(pending) }, [pending, onPendingChange])
- // Track which error message version the user has dismissed.
- // Using a ref + state avoids a useEffect→setState cascade.
- const dismissedRef = useRef<typeof state>(null)
+ // Dismiss only the current response; subsequent saves show fresh feedback.
  const [dismissed, setDismissed] = useState<typeof state>(null)
- const showError = !!state?.message && dismissed !== state
+ const showMessage = !!state?.message && dismissed !== state
 
  // Use a ref for onSuccess callback to avoid infinite loop when parent re-renders
  const onSuccessRef = useRef(onSuccess)
@@ -108,16 +113,24 @@ export function ItemForm({
  <form
  id={formId}
  action={formAction}
- className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col gap-6"
+ onSubmit={event => {
+ // Dispatch explicitly so React does not reset editable fields and confirmed
+ // files when a Server Action returns a validation error.
+ event.preventDefault()
+ const submitter = (event.nativeEvent as SubmitEvent).submitter
+ const data = new FormData(event.currentTarget, submitter)
+ startTransition(() => formAction(data))
+ }}
+ className="flex flex-col gap-8 rounded-xl border border-border bg-card px-4 py-5 text-foreground sm:p-8 [&_label]:text-sm [&_label]:font-medium [&_input:not([type=checkbox])]:h-11 [&_input:not([type=checkbox])]:border-input [&_input:not([type=checkbox])]:bg-card [&_input:not([type=checkbox])]:text-sm [&_input:not([type=checkbox])]:text-foreground [&_input::placeholder]:text-muted-foreground [&_textarea]:border-input [&_textarea]:bg-card [&_textarea]:text-sm [&_textarea]:text-foreground [&_textarea::placeholder]:text-muted-foreground"
  >
  {inline && <input type="hidden" name="inline" value="true" />}
- {showError && (
- <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+ {showMessage && (
+ <div role={state.success ? 'status' : 'alert'} className={cn('rounded-lg border p-4 text-sm', state.success ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'border-destructive/30 bg-destructive/10 text-destructive')}>
  <div className="flex items-center justify-between gap-3">
  <p>{state.message}</p>
  <button
  type="button"
- onClick={() => { dismissedRef.current = state; setDismissed(state) }}
+ onClick={() => setDismissed(state)}
  className="shrink-0 font-semibold underline underline-offset-2 cursor-pointer"
  >
  ปิด
@@ -126,15 +139,8 @@ export function ItemForm({
  </div>
  )}
 
- {/* Type Selector Hero Segmented Cards */}
- {item ? (
- <div className="flex items-center gap-2 text-xs">
- <span className="text-muted-foreground">ประเภทสิ่งของ</span>
- <span className="rounded-md border border-border bg-muted px-2 py-1 font-semibold text-foreground">
- {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
- </span>
- </div>
- ) : (
+ {/* Type selector */}
+ {!item && (
  <div role="tablist" aria-label="ประเภทสิ่งของ" className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
  <button
  type="button"
@@ -208,11 +214,12 @@ export function ItemForm({
  <FormGrid className="sm:grid-cols-2">
  <FormField className="sm:col-span-2">
  <FormLabel htmlFor="qualification_status">สถานะตามเกณฑ์ครุภัณฑ์</FormLabel>
- <FormCombobox id="qualification_status" name="qualification_status" defaultValue={item?.qualification_status ?? ''}>
+ <FormCombobox id="qualification_status" name="qualification_status" defaultValue={item?.qualification_status ?? ''} aria-invalid={!!state?.fieldErrors?.qualification_status}>
  <option value="">ยังไม่ระบุ</option>
  <option value="qualified">ครุภัณฑ์ตามเกณฑ์</option>
  <option value="below_threshold">ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)</option>
  </FormCombobox>
+ <FieldError errors={state?.fieldErrors?.qualification_status} />
  </FormField>
  <FormField className="sm:col-span-2">
  <FormLabel htmlFor="item_name" required>ชื่อสิ่งของ</FormLabel>
@@ -277,6 +284,40 @@ export function ItemForm({
  </FormCombobox>
  <FieldError errors={state?.fieldErrors?.unit_id} />
  </FormField>
+ <FormField>
+ <FormLabel htmlFor="unit_price">ราคาต่อหน่วย (บาท)</FormLabel>
+ <FormattedNumberInput
+ id="unit_price"
+ name="unit_price"
+ allowDecimals={true}
+ defaultValue={item?.unit_price ?? ''}
+ onChange={(e) => {
+ const raw = e.target.value.replace(/,/g, '')
+ const val = parseFloat(raw)
+ setCurrentUnitPrice(isNaN(val) ? null : val)
+ }}
+ aria-invalid={!!state?.fieldErrors?.unit_price}
+ />
+ <FieldError errors={state?.fieldErrors?.unit_price} />
+ </FormField>
+
+ {/* Live Total Value Card */}
+ <div className="flex flex-col justify-end">
+ <div className="rounded-lg bg-muted/50 px-4 py-3 flex items-center justify-between">
+ <div>
+ <span className="text-sm font-medium text-muted-foreground block">มูลค่ารวม</span>
+ <span className="text-xs text-muted-foreground">
+ {currentQty.toLocaleString('th-TH')} × {currentUnitPrice !== null ? `฿${currentUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+ </span>
+ </div>
+ <span className="text-base font-bold font-mono text-primary tabular-nums">
+ {liveTotal !== null
+ ? `฿${liveTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+ : '฿0.00'}
+ </span>
+ </div>
+ </div>
+
  </FormGrid>
  </FormSection>
 
@@ -323,8 +364,8 @@ export function ItemForm({
  placeholder="เช่น เงินงบประมาณ, เงินบำรุง, งปม.67..."
  />
 
- <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} placeholder="เช่น Dell, HP, Toyota..." />
- <TextInput name="model" label="รุ่น" defaultValue={item?.model} placeholder="เช่น Latitude 5420, Camry..." />
+ <TextInput name="brand" label="ยี่ห้อ" defaultValue={item?.brand} errors={state?.fieldErrors?.brand} placeholder="เช่น Dell, HP, Toyota..." />
+ <TextInput name="model" label="รุ่น" defaultValue={item?.model} errors={state?.fieldErrors?.model} placeholder="เช่น Latitude 5420, Camry..." />
  <TextInput name="serial_no" label="Serial Number" defaultValue={item?.serial_no} errors={state?.fieldErrors?.serial_no} placeholder="เช่น CN-098XYZ..." />
  </FormGrid>
  </FormSection>
@@ -368,15 +409,17 @@ export function ItemForm({
  id="status"
  name="status"
  defaultValue={normalizeItemStatus(item?.status ?? 'active')}
+ aria-invalid={!!state?.fieldErrors?.status}
  >
  <option value="active">ใช้งานได้</option>
  <option value="damaged">ชำรุด</option>
  <option value="inactive">เสื่อมสภาพ</option>
  </FormCombobox>
+ <FieldError errors={state?.fieldErrors?.status} />
  </FormField>
 
  {/* Checkbox: ทรัพย์สินส่วนกลาง (เปิดให้ยืมใช้งานได้) */}
- <div className="sm:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 space-y-2">
+ <div className="sm:col-span-2 rounded-lg bg-muted/40 p-4">
  <label className="flex items-start gap-3 cursor-pointer select-none">
  <input
  type="checkbox"
@@ -395,12 +438,12 @@ export function ItemForm({
  <span className="text-xs font-semibold text-foreground">
  {itemType === 'asset' ? 'ครุภัณฑ์ส่วนกลาง' : 'พัสดุส่วนกลาง'} (เปิดให้ยืมใช้งานได้)
  </span>
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300/40">
+ <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-600/30">
  กองกลาง
  </span>
  </div>
- <p className="text-[11px] text-muted-foreground leading-relaxed">
- รายการนี้ถือเป็นทรัพย์สินส่วนกลาง อนุญาตให้บุคลากรทุกกลุ่มงานยืมใช้งานได้ตามระเบียบพัสดุ
+ <p className="text-sm text-muted-foreground leading-relaxed">
+ บุคลากรทุกกลุ่มงานสามารถยืมรายการนี้ได้ตามระเบียบพัสดุ
  </p>
  </div>
  </label>
@@ -411,40 +454,6 @@ export function ItemForm({
  {/* SECTION 4: รูปภาพและหมายเหตุ */}
  <FormSection title="รูปภาพและหมายเหตุ" tone="slate" icon={<ImageIcon className="h-4 w-4" />}>
  <FormGrid className="sm:grid-cols-2">
- <FormField>
- <FormLabel htmlFor="unit_price">ราคาต่อหน่วย (บาท)</FormLabel>
- <FormattedNumberInput
- id="unit_price"
- name="unit_price"
- allowDecimals={true}
- defaultValue={item?.unit_price ?? ''}
- onChange={(e) => {
- const raw = e.target.value.replace(/,/g, '')
- const val = parseFloat(raw)
- setCurrentUnitPrice(isNaN(val) ? null : val)
- }}
- aria-invalid={!!state?.fieldErrors?.unit_price}
- />
- <FieldError errors={state?.fieldErrors?.unit_price} />
- </FormField>
-
- {/* Live Total Value Card */}
- <div className="flex flex-col justify-end">
- <div className="rounded-xl border border-border/80 bg-muted/40 p-3 flex items-center justify-between">
- <div>
- <span className="text-[11px] font-medium text-muted-foreground block">มูลค่ารวมทั้งหมด (คำนวณสด)</span>
- <span className="text-xs text-muted-foreground/80">
- {currentQty} {units.find((u) => u.id === item?.unit?.id)?.name || 'หน่วย'} × {currentUnitPrice !== null ? `฿${currentUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
- </span>
- </div>
- <span className="text-base font-bold font-mono text-primary tabular-nums">
- {liveTotal !== null
- ? `฿${liveTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
- : '฿0.00'}
- </span>
- </div>
- </div>
-
  <ImageUploadInput defaultValue={item?.image_url} />
 
  <FormField className="sm:col-span-2">
@@ -452,20 +461,22 @@ export function ItemForm({
  <FormTextarea
  id="note"
  name="note"
+ aria-invalid={!!state?.fieldErrors?.note}
  value={note}
  onChange={(event) => setNote(event.target.value)}
  rows={3}
  dir="auto"
  placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)..."
  />
+ <FieldError errors={state?.fieldErrors?.note} />
  </FormField>
  </FormGrid>
  </FormSection>
 
  {/* Depreciation or Below-threshold Regulatory notice */}
  {itemType === 'asset' ? (
- <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
- <DepreciationFields item={item} />
+ <div className="border-t border-border pt-6">
+ <DepreciationFields item={item} fieldErrors={state?.fieldErrors} />
  </div>
  ) : (
  <>
@@ -478,17 +489,13 @@ export function ItemForm({
  )}
 
  {showActions && (
- <FormActions className="flex items-center justify-between gap-3 pt-2">
+ <FormActions className={cn("mt-0 flex flex-wrap items-center justify-between gap-3 bg-card pt-5", item && "sticky bottom-0 z-10 -mx-4 border-t px-4 pb-4 sm:-mx-8 sm:px-8")}>
  {onCancel ? (
  <Button type="button" variant="outline" className="h-10 px-4 cursor-pointer" onClick={onCancel}>
  ยกเลิก
  </Button>
  ) : (
- <Link href="/items">
- <Button type="button" variant="outline" className="h-10 px-4 cursor-pointer">
- ยกเลิก
- </Button>
- </Link>
+ <Button asChild variant="outline" className="h-11 px-4"><Link href="/items">ยกเลิก</Link></Button>
  )}
  <div className="flex items-center gap-2">
  {!item && (
@@ -516,10 +523,10 @@ export function ItemForm({
 }
 
 const sectionTones = {
- blue: 'border-blue-200 bg-blue-50 text-blue-900 ',
- violet: 'border-violet-200 bg-violet-50 text-violet-900 ',
- emerald: 'border-emerald-200 bg-emerald-50 text-emerald-900 ',
- slate: 'border-slate-200 bg-slate-100 text-slate-800 ',
+ blue: 'text-blue-700 dark:text-blue-400',
+ violet: 'text-violet-700 dark:text-violet-400',
+ emerald: 'text-emerald-700 dark:text-emerald-400',
+ slate: 'text-muted-foreground',
 }
 
 function FormSection({ title, description, tone, icon, children }: {
@@ -530,15 +537,15 @@ function FormSection({ title, description, tone, icon, children }: {
  children: ReactNode
 }) {
  return (
- <section aria-label={title} className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
- <div className={`flex items-center gap-3 border-b border-l-4 px-4 py-3 ${sectionTones[tone]}`}>
- <span aria-hidden="true">{icon}</span>
+ <section aria-label={title} className="space-y-5 border-t border-border pt-6">
+ <div className="flex items-center gap-2.5">
+ <span aria-hidden="true" className={sectionTones[tone]}>{icon}</span>
  <div>
- <h3 className="text-sm font-bold">{title}</h3>
+ <h3 className="text-base font-semibold text-foreground">{title}</h3>
  {description && <p className="mt-0.5 text-xs opacity-80">{description}</p>}
  </div>
  </div>
- <div className="space-y-4 p-4 sm:p-5">{children}</div>
+ <div className="space-y-5">{children}</div>
  </section>
  )
 }
@@ -584,6 +591,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
  const [isCropOpen, setIsCropOpen] = useState<boolean>(false)
  const fileInputRef = useRef<HTMLInputElement>(null)
+ const confirmedInputRef = useRef<HTMLInputElement>(null)
  const objectUrlRef = useRef<string | null>(null)
 
  if (prevPreview !== preview) {
@@ -638,10 +646,10 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
  }
 
  const handleCropConfirm = (croppedFile: File) => {
- if (fileInputRef.current && typeof DataTransfer !== 'undefined') {
+ if (confirmedInputRef.current && typeof DataTransfer !== 'undefined') {
  const dt = new DataTransfer()
  dt.items.add(croppedFile)
- fileInputRef.current.files = dt.files
+ confirmedInputRef.current.files = dt.files
  }
 
  if (objectUrlRef.current) {
@@ -675,6 +683,7 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
  if (fileInputRef.current) {
  fileInputRef.current.value = ''
  }
+ if (confirmedInputRef.current) confirmedInputRef.current.value = ''
  }
 
  return (
@@ -765,12 +774,12 @@ function ImageUploadInput({ defaultValue }: { defaultValue?: string | null }) {
  <input
  ref={fileInputRef}
  id="image_file"
- name="image_file"
  type="file"
  accept="image/jpeg,image/png,image/webp"
  onChange={handleFileChange}
  className="hidden"
  />
+ <input ref={confirmedInputRef} type="file" name="image_file" className="hidden" tabIndex={-1} aria-hidden="true" />
 
  <input
  type="hidden"

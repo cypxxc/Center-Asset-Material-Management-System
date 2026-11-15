@@ -94,7 +94,7 @@ export function DashboardAcquisitionChartClient({ summary }: { summary: Acquisit
                     : `${number.format(series.totals.knownValue)} บาท`}
               </p>
             </div>
-            <p className="text-[11px] text-muted-foreground">{series.ongoing ? 'ข้อมูลถึงวันที่' : 'ทะเบียน ณ วันที่'} {displayDate}</p>
+            <p className="text-[11px] text-muted-foreground">{series.ongoing ? 'ข้อมูลวันที่' : 'ทะเบียน ณ วันที่'} {displayDate}</p>
           </div>
           {metric === 'value' && series.totals.missingPriceCount > 0 && <p role="status" className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
             <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />

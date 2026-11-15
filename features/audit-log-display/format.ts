@@ -6,6 +6,12 @@ export interface AuditDiffEntry {
 }
 
 const ACTION_LABELS: Record<string, string> = {
+  CONFIRM_DISBURSEMENT: 'อนุมัติเบิก–ยืม',
+  REJECT_BORROW_REQUEST: 'ไม่อนุมัติคำขอ',
+  CANCEL_DISBURSEMENT_DRAFT: 'ยกเลิกเอกสารเบิก–ยืม',
+  WITHDRAW_DISBURSEMENT_REQUEST: 'ถอนคำขอเบิก–ยืม',
+  REVERSE_DISBURSEMENT: 'คืนสภาพรายการเบิก–ยืม',
+  RETURN_DISBURSEMENT_ITEM: 'รับคืนพัสดุ',
   create: 'สร้างข้อมูล',
   update: 'แก้ไขข้อมูล',
   delete: 'ลบข้อมูล',
@@ -35,6 +41,8 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const TABLE_LABELS: Record<string, string> = {
+  disbursements: 'เอกสารเบิก–ยืม',
+  disbursement_items: 'รายการพัสดุเบิก–ยืม',
   items: 'รายการพัสดุ',
   profiles: 'บัญชีผู้ใช้',
   categories: 'หมวดหมู่',
@@ -44,6 +52,15 @@ const TABLE_LABELS: Record<string, string> = {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  document_no: 'เลขที่เอกสาร',
+  recipient_name: 'ผู้รับ/ผู้ยืม',
+  department_name: 'หน่วยงาน',
+  purpose: 'วัตถุประสงค์',
+  due_date: 'กำหนดคืน',
+  reason: 'เหตุผล',
+  returned_qty: 'จำนวนที่คืนแล้ว',
+  condition: 'สภาพพัสดุ',
+  doc_status: 'สถานะเอกสาร',
   id: 'รหัสแถว',
   user_id: 'ผู้ใช้ที่ทำรายการ',
   action: 'ประเภทการทำรายการ',
@@ -84,6 +101,15 @@ const FIELD_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  draft: 'ฉบับร่าง',
+  pending_approval: 'รออนุมัติ',
+  confirmed: 'อนุมัติแล้ว',
+  active_borrow: 'กำลังยืม',
+  partially_returned: 'คืนบางส่วน',
+  returned: 'คืนครบแล้ว',
+  reversed: 'คืนสภาพแล้ว',
+  cancelled: 'ยกเลิกแล้ว',
+  rejected: 'ไม่อนุมัติ',
   active: 'ใช้งานอยู่',
   spare: 'สำรอง',
   damaged: 'ชำรุด',

@@ -184,7 +184,6 @@ export function NewItemSheet({
  <dialog
  ref={dialogRef}
  aria-labelledby={`${formId}-title`}
- aria-describedby={`${formId}-description`}
  onClick={handleDialogClick}
  className="new-item-sheet-dialog"
  >
@@ -203,9 +202,6 @@ export function NewItemSheet({
  <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900 ">
  {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
  </h2>
- <p id={`${formId}-description`} className="mt-1 text-xs text-slate-500 ">
- กรอกข้อมูลในหน้าเดียว · ช่องที่มี * จำเป็นต้องกรอก
- </p>
  </div>
  </div>
  <button
@@ -290,7 +286,7 @@ export function NewItemSheet({
 
  .new-item-sheet-panel {
  width: 100%;
- max-width: 980px;
+ max-width: 800px;
  max-height: min(92vh, 860px);
  background: var(--card);
  color: var(--card-foreground);

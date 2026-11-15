@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState } from 'react'
 import {
@@ -35,6 +35,7 @@ import {
 } from '@/features/audit-log-display/format'
 import { formatDateTime } from '@/lib/date'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
+import { AuditActionFilter } from '@/features/admin/components/audit-action-filter'
 import { getPageNumbers } from '@/features/disbursements/pagination'
 
 interface AuditLogsClientProps {
@@ -50,21 +51,9 @@ interface AuditLogsClientProps {
  }
 }
 
-const ACTION_DROPDOWN_OPTIONS: FilterOption[] = [
- { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)', colorDot: 'bg-emerald-500' },
- { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)', colorDot: 'bg-blue-500' },
- { value: 'DELETE', label: 'ลบข้อมูล (DELETE)', colorDot: 'bg-rose-500' },
- { value: 'EXPORT_REPORT', label: 'ส่งออกรายงาน (EXPORT)', colorDot: 'bg-purple-500' },
- { value: 'create_user', label: 'สร้างผู้ใช้', colorDot: 'bg-emerald-500' },
- { value: 'update_user', label: 'แก้ไขผู้ใช้', colorDot: 'bg-blue-500' },
- { value: 'delete_user', label: 'ลบผู้ใช้', colorDot: 'bg-rose-500' },
- { value: 'sql_query', label: 'เรียกใช้ SQL', colorDot: 'bg-amber-500' },
- { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล', colorDot: 'bg-indigo-500' },
- { value: 'restore', label: 'กู้คืนพัสดุ', colorDot: 'bg-teal-500' },
- { value: 'bulk_delete', label: 'ลบหลายรายการ', colorDot: 'bg-rose-600' },
-]
-
 const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
+ { value: 'disbursements', label: 'เอกสารเบิก–ยืม (disbursements)' },
+ { value: 'disbursement_items', label: 'รายการพัสดุเบิก–ยืม (disbursement_items)' },
  { value: 'items', label: 'พัสดุครุภัณฑ์ (items)' },
  { value: 'categories', label: 'หมวดหมู่ (categories)' },
  { value: 'locations', label: 'สถานที่ (locations)' },
@@ -76,6 +65,14 @@ const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
 function getActionBadge(action: string) {
  const upper = action.toUpperCase()
  const lower = action.toLowerCase()
+
+ if (['CONFIRM_DISBURSEMENT', 'REJECT_BORROW_REQUEST', 'CANCEL_DISBURSEMENT_DRAFT', 'WITHDRAW_DISBURSEMENT_REQUEST', 'REVERSE_DISBURSEMENT', 'RETURN_DISBURSEMENT_ITEM'].includes(upper)) {
+ return {
+ label: getAuditActionLabel(action),
+ className: 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20',
+ dotClass: 'bg-violet-500',
+ }
+ }
 
  if (
  upper === 'INSERT' ||
@@ -159,7 +156,6 @@ export default function AuditLogsClient({
  setSelectedTable,
  isPending,
  applyFilters,
- handleResetFilters,
  } = useAuditLogsFilter(initialSearchParams)
 
  // Expanded row IDs
@@ -215,20 +211,11 @@ export default function AuditLogsClient({
  </div>
 
  <div className="flex flex-wrap sm:flex-nowrap gap-2">
- <FilterDropdown
- label="การทำรายการ"
- ariaLabel="กรองตามการทำรายการ"
- name="action"
- value={selectedAction === 'all' ? '' : selectedAction}
- options={ACTION_DROPDOWN_OPTIONS}
- onChange={(val) => {
+ <AuditActionFilter value={selectedAction} onChange={(val) => {
  const next = val || 'all'
  setSelectedAction(next)
  applyFilters({ action: next, page: 1 })
- }}
- icon={<History className="w-3.5 h-3.5" />}
- allLabel="การทำรายการทั้งหมด"
- />
+ }} />
 
  <FilterDropdown
  label="ตารางข้อมูล"
@@ -245,17 +232,6 @@ export default function AuditLogsClient({
  allLabel="ทุกตารางข้อมูล"
  />
 
- {(searchTerm || selectedAction !== 'all' || selectedTable !== 'all') && (
- <Button
- type="button"
- variant="outline"
- size="sm"
- onClick={handleResetFilters}
- className="text-xs h-9 px-3 text-slate-600"
- >
- ล้างตัวกรอง
- </Button>
- )}
  </div>
  </div>
 

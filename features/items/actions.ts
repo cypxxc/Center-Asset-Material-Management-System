@@ -55,18 +55,25 @@ async function saveItem(formData: FormData, id?: string): Promise<ActionResponse
   const previousResult = id ? await getPostgresItemForUpdate(id) : null
   if (previousResult?.error || (id && !previousResult?.data)) return errorResponse('ไม่พบรายการพัสดุ')
   const previousImage = previousResult?.data?.image_url ?? null
+  let uploadedImage: string | null = null
+  let persisted = false
   try {
-    const imageUrl = await imageForForm(formData, previousImage)
-    formData.set('image_url', imageUrl ?? '')
+    // Validate ordinary fields before creating a file on disk.
+    formData.set('image_url', previousImage ?? '')
     const parsed = parseFormData(formData)
     if (!parsed.success) return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', parsed.error.flatten().fieldErrors)
+    const imageUrl = await imageForForm(formData, previousImage)
+    if (imageUrl && imageUrl !== previousImage) uploadedImage = imageUrl
+    parsed.data.image_url = imageUrl
     if (id) {
       const { error } = await updatePostgresItem(id, parsed.data)
       if (error) return errorResponse(error.message)
+      persisted = true
       if (previousImage && previousImage !== imageUrl) await deleteLocalItemImage(previousImage, auth.profile)
     } else {
       const result = await insertPostgresItem(parsed.data)
       if (result.error || !result.data) return errorResponse(result.error?.message ?? 'บันทึกข้อมูลไม่สำเร็จ')
+      persisted = true
       const itemId = String((result.data as { id: string }).id)
       refreshItems()
       return successResponse('สร้างพัสดุสำเร็จ', { itemId, intent: String(formData.get('intent') || 'save_and_close') })
@@ -75,6 +82,9 @@ async function saveItem(formData: FormData, id?: string): Promise<ActionResponse
     refreshItems(); revalidatePath(`/items/${id}`)
     return successResponse('บันทึกการแก้ไขเรียบร้อยแล้ว')
   } catch (error) { return errorResponse(error instanceof Error ? error.message : 'บันทึกข้อมูลไม่สำเร็จ') }
+  finally {
+    if (uploadedImage && !persisted) await deleteLocalItemImage(uploadedImage, auth.profile)
+  }
 }
 
 export async function createItem(_prevState: ItemActionState | null, formData: FormData): Promise<ItemActionState> {

@@ -31,17 +31,15 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
   const action = updateItem.bind(null, item.id)
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 p-6 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="h-full overflow-y-auto bg-background p-4 md:p-8">
+      <div className="mx-auto max-w-[800px] space-y-6">
         <div className="flex items-center gap-3">
-          <Link href="/items">
-            <Button variant="outline" size="icon-sm" className="rounded-full">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">แก้ไขข้อมูลสิ่งของ</h2>
-            <p className="text-sm text-muted-foreground">{item.item_name}</p>
+          <Button asChild variant="outline" size="icon" className="size-10 shrink-0">
+            <Link href="/items" aria-label="กลับไปทะเบียนสิ่งของ"><ArrowLeft className="h-4 w-4" /></Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">แก้ไขข้อมูลสิ่งของ</h1>
+            <p className="break-words text-sm text-muted-foreground">{item.item_name}</p>
           </div>
         </div>
 

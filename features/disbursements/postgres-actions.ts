@@ -358,7 +358,7 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
       sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
           VALUES (
             ${user.id}, 'CONFIRM_DISBURSEMENT', 'disbursements', ${disbursementId},
-            ${JSON.stringify({ status: 'draft' })}::jsonb,
+            ${JSON.stringify({ status: doc.status })}::jsonb,
             ${JSON.stringify({ status: targetStatus, document_no: docNo })}::jsonb
           )`
     )

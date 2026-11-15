@@ -24,11 +24,12 @@ export async function getPostgresDisbursements(
     : sql`d.created_at DESC, d.id DESC`
 
   const completedStatuses = sql.join(COMPLETED_DISBURSEMENT_STATUSES.map(status => sql`${status}`), sql`, `)
-  const clauses: SQL[] = [params.historyOnly
-    ? sql`d.status in (${completedStatuses})`
-    : params.hideCompleted
-      ? sql`d.status not in (${completedStatuses})`
-      : sql`d.status <> 'rejected'`]
+  const clauses: SQL[] = []
+  if (params.historyOnly) {
+    clauses.push(sql`d.status in (${completedStatuses})`)
+  } else if (params.hideCompleted) {
+    clauses.push(sql`d.status not in (${completedStatuses})`)
+  }
 
   if (params.request_id) {
     clauses.push(sql`d.id = ${params.request_id}::uuid`)
