@@ -23,6 +23,17 @@ __tests__/
 /playwright/.cache/
 scripts/ai-uat/
 
+# Un-ignore specific tests and support files required by GitHub Actions CI
+!features/items/postgres-queries-live.test.ts
+!tests/e2e/solo-smoke.smoke.test.ts
+!tests/integration/postgres-admin-live.test.ts
+!tests/integration/postgres-admin-restore-live.test.ts
+!tests/setup/dom.ts
+!README.md
+!AGENTS.md
+!AGENT_SETUP.md
+!CLAUDE.md
+
 # database migrations
 db/migrations/
 db/postgres/migrations/
