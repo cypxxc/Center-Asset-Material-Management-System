@@ -116,7 +116,7 @@ next-env.d.ts
 !/db/postgres/migrations/meta/
 /db/postgres/migrations/meta/*
 !/db/postgres/migrations/meta/_journal.json
-!/db/postgres/migrations/meta/0000_snapshot.json
+!/db/postgres/migrations/meta/*.json
 
 # documents & spreadsheets
 *.xlsx
