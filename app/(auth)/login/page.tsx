@@ -44,7 +44,7 @@ function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">CAMMS</p>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">CAMMS Portal</h2>
             <h1 className="text-3xl font-semibold tracking-tight">เข้าสู่ระบบ</h1>
             <p className="text-sm leading-relaxed text-muted-foreground">
               ระบบบริหารจัดการครุภัณฑ์และพัสดุ
@@ -81,7 +81,7 @@ function LoginForm() {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck="false"
-          placeholder=" "
+          placeholder="ชื่อผู้ใช้"
           required
           className="peer h-12 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
@@ -98,7 +98,7 @@ function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
-          placeholder=" "
+          placeholder="รหัสผ่าน"
           required
           className="peer h-12 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />

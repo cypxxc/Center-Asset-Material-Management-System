@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic'
+import { getCurrentProfile } from '@/features/auth/queries'
 import { getDisbursements } from '@/features/disbursements/queries'
 import { logger } from '@/lib/logging'
 import type { DisbursementRow } from '@/features/disbursements/types'
@@ -9,6 +10,9 @@ const AdminWorkQueueView = dynamic(
 )
 
 export async function AdminDashboardWorkQueue() {
+  const profile = await getCurrentProfile()
+  if (!profile?.is_active || profile.role !== 'admin') return null
+
   let pendingRequests: DisbursementRow[] = []
   let failed = false
   try {

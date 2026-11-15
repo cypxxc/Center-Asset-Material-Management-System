@@ -147,7 +147,7 @@ export function Sidebar({ profile }: SidebarProps) {
       aria-label="เมนูหลัก"
       className={cn(
         'relative z-30 hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-card md:flex select-none transition-all duration-200 ease-in-out',
-        isCollapsed ? 'w-16' : 'w-50'
+        isCollapsed ? 'w-16' : 'w-64'
       )}
     >
         {/* Brand Header */}
