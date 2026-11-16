@@ -37,6 +37,11 @@ test('fresh database migrates twice and real business restore commits or rolls b
     const owner = drizzle(ownerPool)
     await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
     const migrationCount = await ownerPool.query('select count(*)::int as count from drizzle.__drizzle_migrations')
+    const journal = JSON.parse(readFileSync('db/postgres/migrations/meta/_journal.json', 'utf8'))
+    assert.deepEqual(
+      (await ownerPool.query('select created_at from drizzle.__drizzle_migrations order by id')).rows.map(row => Number(row.created_at)),
+      journal.entries.map((entry: { when: number }) => entry.when),
+    )
     await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
     assert.deepEqual((await ownerPool.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows, migrationCount.rows)
     assert.equal((await ownerPool.query('select count(*)::int as count from public.items')).rows[0].count, 0)
@@ -49,6 +54,16 @@ test('fresh database migrates twice and real business restore commits or rolls b
     const itemId = randomUUID()
     await ownerPool.query("insert into public.categories(id,name) values($1,'Original category')", [categoryId])
     await ownerPool.query("insert into public.items(id,item_name,item_type,category_id,quantity,unit_price,created_by) values($1,'Original item','material',$2,2,25,$3)", [itemId, categoryId, actor])
+    const existingData = async () => (await ownerPool.query(`select
+      (select jsonb_agg(to_jsonb(p) order by id) from public.profiles p) as profiles,
+      (select jsonb_agg(to_jsonb(c) order by user_id) from private_auth.credentials c) as credentials,
+      (select jsonb_agg(to_jsonb(s) order by token_hash) from private_auth.sessions s) as sessions,
+      (select jsonb_agg(to_jsonb(i) order by id) from public.items i) as items,
+      (select jsonb_agg(to_jsonb(a) order by id) from public.audit_logs a) as audit_logs`)).rows
+    const beforeRerun = await existingData()
+    await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
+    assert.deepEqual(await existingData(), beforeRerun)
+    assert.deepEqual((await ownerPool.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows, migrationCount.rows)
     const runtime = drizzle(fixturePool(env.DATABASE_URL))
     const auth = drizzle(fixturePool(env.DATABASE_AUTH_URL))
     mockModule('../../features/auth/queries', { getCurrentProfile: async () => ({ id: actor, role: 'admin', is_active: true }) })
@@ -61,6 +76,7 @@ test('fresh database migrates twice and real business restore commits or rolls b
     const exported = await admin.pgExportDatabaseData()
     assert.ok(exported.backup, JSON.stringify(exported))
     const backup = JSON.parse(JSON.stringify(exported.backup)) as Record<string, Array<Record<string, unknown>>>
+    assert.equal(Object.hasOwn(backup.profiles[0], 'password'), false)
     backup.items[0].item_name = 'Restored item'
     backup.items[0].created_by = randomUUID() // An author deleted after export must become null.
     const unrelated = randomUUID()

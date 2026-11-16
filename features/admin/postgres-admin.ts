@@ -239,7 +239,11 @@ export async function pgExportDatabaseData() {
   try {
     const backup = await withAdmin(async tx => {
       // One MVCC snapshot across every table; never export credentials or sessions.
-      const results = await tx.execute(sql`select ${sql.join(backupTables.map(table => sql`(select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from ${tableSql(table)} t) as ${sql.identifier(table)}`), sql`, `)}`)
+      const results = await tx.execute(sql`select ${sql.join(backupTables.map(table => {
+        // The owner-only password input is not part of the business backup format.
+        const row = table === 'profiles' ? sql`to_jsonb(t) - 'password'` : sql`to_jsonb(t)`
+        return sql`(select coalesce(jsonb_agg(${row}), '[]'::jsonb) from ${tableSql(table)} t) as ${sql.identifier(table)}`
+      }), sql`, `)}`)
       return { __meta: { version: 1, exportedAt: new Date().toISOString(), tables: backupTables, scope: 'business', identitiesRestored: false }, ...results.rows[0] }
     })
     return { backup, error: undefined }
