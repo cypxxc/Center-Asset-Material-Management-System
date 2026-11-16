@@ -47,20 +47,24 @@ async function main() {
       console.log(`PASS: authenticated ${path}`)
     }
     await page.goto(`${baseURL}/settings?tab=units`)
-    await page.getByLabel('ชื่อหน่วยนับใหม่',{exact:true}).fill(fixture)
-    await page.getByRole('button',{name:'เพิ่มหน่วยนับ',exact:true}).click()
+    const units = page.getByRole('region', { name: 'หน่วยนับ', exact: true })
+    await units.getByRole('textbox', { name: 'เพิ่มชื่อหน่วยนับ', exact: true }).fill(fixture)
+    await units.getByRole('button',{name:'เพิ่มหน่วยนับ',exact:true}).click()
     await expect(page.locator(`input[name=name][value="${fixture}"]:visible`)).toHaveValue(fixture)
+    console.log('PASS: browser creates unit metadata.')
     await page.goto(`${baseURL}/items/new`)
     await page.locator('input[name=item_name]:visible').fill(fixture)
     await page.locator('#quantity:visible').fill('2')
     await page.locator('#unit_price:visible').fill('125.50')
-    await page.locator('select[name=unit_id]:visible').selectOption({label:fixture})
-    await page.locator('button[type=submit]:visible').filter({hasText:/บันทึก/}).click()
+    await page.getByRole('combobox', { name: /^หน่วยนับ/ }).fill(fixture)
+    await page.getByRole('option', { name: fixture, exact: true }).click()
+    await page.getByRole('button', { name: 'บันทึกข้อมูล', exact: true }).click()
     await page.waitForURL(url => url.pathname === '/items')
     await expect.poll(async ()=>(await owner.query('select count(*)::int as count from public.items where item_name=$1',[fixture])).rows[0].count).toBe(1)
     const item = (await owner.query('select id,quantity,unit_price from public.items where item_name=$1',[fixture])).rows[0]
     expect(item.quantity).toBe(2)
     expect(Number(item.unit_price)).toBe(125.5)
+    console.log('PASS: browser creates item; stored quantity and price verified.')
     const editPath = `/items/${item.id}/edit`
     page.on('request', request => {
       if (request.method() === 'POST' && new URL(request.url()).pathname === editPath) {
@@ -98,17 +102,17 @@ async function main() {
       await expect(submittedQuantity).toHaveValue(quantity)
       diagnostics.push({ event: 'before-submit', run: run + 1, visible: await visibleQuantity.inputValue(), submitted: await submittedQuantity.inputValue() })
       const responsePromise = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === editPath)
-      await page.getByRole('button',{name:'บันทึกข้อมูล',exact:true}).click()
+      await page.getByRole('button',{name:'บันทึกการแก้ไข',exact:true}).click()
       const response = await responsePromise
       expect(response.status()).toBe(200)
-      await page.waitForURL(url => url.pathname === `/items/${item.id}`)
+      await expect(page.getByRole('status').filter({ hasText: 'บันทึกการแก้ไขเรียบร้อยแล้ว' })).toBeVisible()
       const stored = (await owner.query('select quantity from public.items where id=$1',[item.id])).rows[0].quantity
       diagnostics.push({ event: 'stored', run: run + 1, quantity: stored })
       expect(stored).toBe(Number(quantity))
       console.log(`PASS: edit ${run + 1}/${editRuns} submitted and stored quantity ${quantity}.`)
     }
-    await page.goto(`${baseURL}/items/${item.id}`)
-    await expect(page.locator('main')).toContainText(fixture)
+    await page.goto(`${baseURL}/items?q=${encodeURIComponent(fixture)}`)
+    await expect(page.locator('#main-content')).toContainText(fixture)
     console.log('PASS: browser creates metadata and item, edits item; stored PostgreSQL values verified.')
     const readiness = await page.request.get(`${baseURL}/api/health/readiness`)
     expect(readiness.status()).toBe(200)
