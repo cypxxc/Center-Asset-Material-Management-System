@@ -115,8 +115,8 @@ async function main() {
       const anonymous = await browser.newContext()
       assert.ok([401,403,404].includes((await anonymous.request.get(base+imageUrl)).status()))
       await anonymous.close()
-      await page.goto(`${base}/items/${item}`)
-      assert.match(await page.locator('main').innerText(),/Recovery drill item/)
+      await page.goto(`${base}/items?q=${encodeURIComponent('Recovery drill item')}`)
+      assert.match(await page.locator('#main-content').innerText(),/Recovery drill item/)
       console.log('PASS: restored production web login creates a new session, restored item renders, private image bytes match, anonymous image denied')
     } finally { await browser.close() }
   } finally {
