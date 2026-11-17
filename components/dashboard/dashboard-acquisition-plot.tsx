@@ -14,10 +14,13 @@ export function acquisitionValueLabel(period: AcquisitionPeriod, metric: Acquisi
   return `${number.format(period.knownValue)} บาท${period.missingPriceCount ? ' (เฉพาะที่ระบุราคา)' : ''}`
 }
 
-export function DashboardAcquisitionPlot({ periods, metric, forecast }: {
+export function DashboardAcquisitionPlot({ periods, metric, forecast, title = 'ทะเบียนทรัพย์สิน', dateBasis = 'วันที่ได้มา', showLegend = true }: {
   periods: AcquisitionPeriod[]
   metric: AcquisitionMetric
   forecast?: AcquisitionForecast | null
+  title?: string
+  dateBasis?: string
+  showLegend?: boolean
 }) {
   const forecastPeriod: AcquisitionPeriod | null = forecast ? {
     key: String(forecast.year), label: `${forecast.year + 543} คาดฯ`, fullLabel: `ปี ${forecast.year + 543} (คาดการณ์)`,
@@ -64,7 +67,7 @@ export function DashboardAcquisitionPlot({ periods, metric, forecast }: {
     <div>
       <div className="mb-1 text-[11px] text-muted-foreground">{metric === 'count' ? 'จำนวนรายการทะเบียน' : 'มูลค่าตามทะเบียน (บาท)'}</div>
       <div ref={containerRef} className="overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="กราฟเส้น เลื่อนแนวนอนเพื่อดูทุกช่วงเวลา">
-        <svg role="group" aria-label="กราฟทะเบียนทรัพย์สินตามวันที่ได้มา" viewBox={`0 0 ${width} 174`} width={width} height={174} style={{ minWidth: minimumWidth }} className="block text-muted-foreground">
+        <svg role="group" aria-label={`กราฟ${title}ตาม${dateBasis}`} viewBox={`0 0 ${width} 174`} width={width} height={174} style={{ minWidth: minimumWidth }} className="block text-muted-foreground">
           {[0, 1, 2, 3, 4].map(index => {
             const y = 12 + plotHeight - index * plotHeight / 4
             return <g key={index} aria-hidden="true">
@@ -87,14 +90,14 @@ export function DashboardAcquisitionPlot({ periods, metric, forecast }: {
                 onMouseEnter={() => setActiveKey(period.key)} onMouseLeave={() => setActiveKey(null)}>
                 <title>{label}</title>
               </rect>
-              <text x={left + index * slot + slot / 2} y={163} textAnchor="middle" fill="currentColor" fontSize="11" aria-hidden="true">{period.label}{period.partial ? '*' : ''}</text>
+              <text x={left + index * slot + slot / 2} y={163} textAnchor="middle" fill="currentColor" fontSize="11" aria-hidden="true">{period.label}{period.partial && showLegend ? '*' : ''}</text>
               {period.future && <text x={left + index * slot + slot / 2} y={128} textAnchor="middle" fill="currentColor" fontSize="13" aria-hidden="true">—</text>}
             </g>
           })}
         </svg>
       </div>
       <p className="min-h-4 text-[11px] leading-4 text-muted-foreground" aria-live="polite" aria-atomic="true">
-        {active ? `${active.fullLabel}: ${acquisitionValueLabel(active, metric)}${active.partial ? ' (ยังไม่ครบช่วงเวลา)' : ''}` : '* ยังไม่ครบช่วง · เส้นประ: คาดการณ์ · — ยังไม่ถึงช่วงเวลา'}
+        {active ? `${active.fullLabel}: ${acquisitionValueLabel(active, metric)}${active.partial ? ' (ยังไม่ครบช่วงเวลา)' : ''}` : showLegend ? '* ยังไม่ครบช่วง · เส้นประ: คาดการณ์ · — ยังไม่ถึงช่วงเวลา' : null}
       </p>
     </div>
   )

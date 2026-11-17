@@ -27,6 +27,7 @@ const checkboxBoolean = z
 const hex6ColorRegex = /^#[0-9A-Fa-f]{6}$/
 
 export const categorySchema = z.object({
+  item_type: z.enum(['asset', 'material']),
   name: requiredName,
   description: optionalText,
   color: z.preprocess(

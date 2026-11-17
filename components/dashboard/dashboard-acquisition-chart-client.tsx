@@ -10,7 +10,7 @@ const number = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 })
 const ChartFilterDropdown = lazy(() => import('@/components/ui/filter-dropdown').then(module => ({ default: module.FilterDropdown })))
 
 // Keep a usable select while the shared Items dropdown loads.
-function ChartSelect({ ariaLabel, name, value, options, onChange, allLabel }: {
+export function ChartSelect({ ariaLabel, name, value, options, onChange, allLabel }: {
   ariaLabel: string; name: string; value: string; options: { value: string; label: string }[];
   onChange: (value: string) => void; allLabel: string
 }) {
@@ -29,7 +29,8 @@ function ChartSelect({ ariaLabel, name, value, options, onChange, allLabel }: {
   </Suspense>
 }
 
-export function DashboardAcquisitionChartClient({ summary }: { summary: AcquisitionSummary }) {
+export function DashboardAcquisitionChartClient({ summary, title = 'ทะเบียนทรัพย์สิน', itemType = 'asset' }: { summary: AcquisitionSummary; title?: string; itemType?: 'asset' | 'material' }) {
+  const dateBasis = itemType === 'material' ? 'วันที่ยอดคงเหลือหรือวันที่ลงทะเบียน' : 'วันที่ได้มา'
   const id = useId()
   const [convention, setConvention] = useState<YearConvention>('calendar')
   const [year, setYear] = useState<number | null>(null)
@@ -54,7 +55,7 @@ export function DashboardAcquisitionChartClient({ summary }: { summary: Acquisit
     <section aria-labelledby={`${id}-title`} className="w-full min-w-0 rounded-xl border border-border bg-card text-card-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-5">
         <div>
-          <h2 id={`${id}-title`} className="flex items-center gap-2 text-sm font-semibold"><ChartNoAxesCombined className="size-4 text-muted-foreground" aria-hidden="true" />ทะเบียนทรัพย์สิน</h2>
+          <h2 id={`${id}-title`} className="flex items-center gap-2 text-sm font-semibold"><ChartNoAxesCombined className="size-4 text-muted-foreground" aria-hidden="true" />{title}</h2>
         </div>
       </div>
       <div className="space-y-3 px-4 pb-3 pt-2 sm:px-5">
@@ -102,10 +103,10 @@ export function DashboardAcquisitionChartClient({ summary }: { summary: Acquisit
           </p>}
           {series.totals.recordCount === 0 ? <div className="flex min-h-40 flex-col items-center justify-center gap-2 px-4 text-center">
             <ChartNoAxesCombined className="size-7 text-muted-foreground" aria-hidden="true" />
-            <p className="text-sm font-medium">ยังไม่มีรายการที่ระบุวันที่ได้มาในช่วงนี้</p>
-            <p className="text-xs text-muted-foreground">รายการที่ไม่มีวันที่ได้มาจะไม่รวมในกราฟ</p>
-          </div> : <DashboardAcquisitionPlot periods={chartPeriods} metric={metric} forecast={forecast} />}
-          {prediction && <div className="text-xs leading-relaxed text-muted-foreground">
+            <p className="text-sm font-medium">ยังไม่มีรายการที่ระบุ{dateBasis}ในช่วงนี้</p>
+            <p className="text-xs text-muted-foreground">รายการที่ไม่มี{dateBasis}จะไม่รวมในกราฟ</p>
+          </div> : <DashboardAcquisitionPlot periods={chartPeriods} metric={metric} forecast={forecast} title={title} dateBasis={dateBasis} showLegend={itemType !== 'material'} />}
+          {prediction && (forecast || itemType !== 'material') && <div className="text-xs leading-relaxed text-muted-foreground">
             {forecast ? <>
               <p><span className="font-medium text-foreground">แนวโน้มปี {forecast.year + 543}: ประมาณ {number.format(forecast.value)} {metric === 'count' ? 'รายการ' : 'บาท'}</span> จากแนวโน้มเชิงเส้น {forecast.yearsUsed} ปีที่สิ้นสุดแล้ว ({forecast.trainingStartYear + 543}–{forecast.baselineYear + 543})</p>
             </> : <p>{prediction.reason}</p>}
@@ -114,7 +115,7 @@ export function DashboardAcquisitionChartClient({ summary }: { summary: Acquisit
             <summary className="w-fit cursor-pointer rounded text-xs font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring">ดูตารางข้อมูล</summary>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-left text-xs leading-5">
-                <caption className="sr-only">ทะเบียนทรัพย์สิน {series.rangeLabel}</caption>
+                <caption className="sr-only">{title} {series.rangeLabel}</caption>
                 <thead><tr className="border-b border-border text-muted-foreground"><th scope="col" className="py-2 pr-4 font-medium">ช่วงเวลา</th><th scope="col" className="px-3 py-2 text-right font-medium">จำนวนรายการ</th><th scope="col" className="py-2 pl-3 text-right font-medium">มูลค่าตามทะเบียน</th><th scope="col" className="py-2 pl-3 text-right font-medium">เปลี่ยนแปลง ({metric === 'count' ? 'จำนวน' : 'มูลค่า'})</th></tr></thead>
                 <tbody>{chartPeriods.map((period, index) => <tr key={period.key} className="border-b border-border/60 last:border-0">
                   <th scope="row" className="whitespace-nowrap py-2.5 pr-4 font-normal">{period.fullLabel}{period.partial ? ' (ยังไม่ครบช่วง)' : ''}</th>

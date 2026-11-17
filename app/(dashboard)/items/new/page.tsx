@@ -5,7 +5,7 @@ import { getItemReferences } from '@/features/items/queries'
 import { NewItemPageClient } from './new-item-page-client'
 
 export const metadata = {
-  title: 'ขึ้นทะเบียนครุภัณฑ์และพัสดุใหม่',
+  title: 'ขึ้นทะเบียนครุภัณฑ์ใหม่',
 }
 
 export default async function NewItemPage() {

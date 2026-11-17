@@ -13,7 +13,7 @@ const ACTION_DROPDOWN_OPTIONS: FilterOption[] = [
  { value: 'delete_user', label: 'ลบผู้ใช้', colorDot: 'bg-rose-500' },
  { value: 'sql_query', label: 'เรียกใช้ SQL', colorDot: 'bg-amber-500' },
  { value: 'backup_restore', label: 'กู้คืนฐานข้อมูล', colorDot: 'bg-indigo-500' },
- { value: 'restore', label: 'กู้คืนพัสดุ', colorDot: 'bg-teal-500' },
+ { value: 'restore', label: 'กู้คืนวัสดุ', colorDot: 'bg-teal-500' },
  { value: 'bulk_delete', label: 'ลบหลายรายการ', colorDot: 'bg-rose-600' },
 ]
 

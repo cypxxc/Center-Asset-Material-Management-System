@@ -1,18 +1,22 @@
 import { z } from 'zod'
 import { assertAdminTable, type AdminTable } from './table-policy'
 import { stripBom } from '@/lib/unicode'
+import { MATERIAL_LEDGER_FIELDS } from '@/features/items/material-fields'
+import { randomUUID } from 'node:crypto'
 
-export const backupTables = ['profiles', 'categories', 'locations', 'units', 'items', 'audit_logs'] as const
+export const backupTables = ['profiles', 'categories', 'locations', 'units', 'items', 'materials', 'audit_logs'] as const
 export type BackupTable = typeof backupTables[number]
 const timestamps = ['created_at', 'updated_at']
 export const tableColumns: Record<BackupTable, readonly string[]> = {
   profiles: ['id', 'full_name', 'display_name', 'email', 'role', 'is_active', 'sidebar_order', ...timestamps],
-  categories: ['id', 'name', 'description', 'color', 'icon', 'is_active', ...timestamps],
+  categories: ['id', 'name', 'item_type', 'description', 'color', 'icon', 'is_active', ...timestamps],
   locations: ['id', 'name', 'building', 'floor', 'room', 'department', 'description', 'is_active', ...timestamps],
   units: ['id', 'name', 'is_active', ...timestamps],
   items: ['id', 'item_name', 'item_type', 'qualification_status', 'category_id', 'quantity', 'unit_price', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note', 'is_central', 'image_url', 'budget_source', 'gfmis_number', 'acquired_date', 'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at', 'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years', 'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value'],
   audit_logs: ['id', 'user_id', 'action', 'target_table', 'target_id', 'old_data', 'new_data', 'created_at'],
+  materials: [],
 }
+tableColumns.materials = [...tableColumns.items, ...MATERIAL_LEDGER_FIELDS]
 
 export const searchColumns: Record<AdminTable, readonly string[]> = {
   profiles: ['full_name', 'email', 'display_name'],
@@ -20,6 +24,7 @@ export const searchColumns: Record<AdminTable, readonly string[]> = {
   locations: ['name', 'building', 'room', 'department'],
   units: ['name'],
   items: ['item_name', 'asset_no', 'serial_no', 'brand', 'model', 'responsible_person', 'gfmis_number', 'budget_source'],
+  materials: ['item_name', 'specification', 'commodity_code'],
   audit_logs: ['action', 'target_table', 'target_id'],
 }
 
@@ -81,7 +86,7 @@ export function parseBusinessBackup(source: string) {
   }
   const result = {} as Record<BackupTable, Record<string, unknown>[]>
   for (const table of backupTables) {
-    const rows = value[table]
+    const rows = table === 'materials' && value[table] === undefined ? [] : value[table]
     if (!Array.isArray(rows)) throw new Error(`Invalid backup file format: ${table} must be an array.`)
     if (rows.length > 100_000) throw new Error('Backup contains too many rows.')
     for (const row of rows) {
@@ -94,6 +99,24 @@ export function parseBusinessBackup(source: string) {
       if (table === 'profiles' && row.role === 'viewer') row.role = 'user'
     }
     result[table] = rows
+  }
+  result.materials.push(...result.items.filter(row => row.item_type === 'material'))
+  result.items = result.items.filter(row => row.item_type !== 'material')
+  // Older exports shared category IDs. Normalize in memory before the atomic restore.
+  // Never reinterpret modern typed categories: inconsistent modern backups must fail their FK.
+  const materialCategories = new Set(result.materials.map(row => row.category_id))
+  const assetCategories = new Set(result.items.map(row => row.category_id))
+  for (const category of [...result.categories]) {
+    if (category.item_type !== undefined) {
+      z.enum(['asset', 'material']).parse(category.item_type)
+      continue
+    }
+    category.item_type = materialCategories.has(category.id) && !assetCategories.has(category.id) ? 'material' : 'asset'
+    if (materialCategories.has(category.id) && assetCategories.has(category.id)) {
+      const clone = { ...category, id: randomUUID(), item_type: 'material' }
+      result.categories.push(clone)
+      for (const material of result.materials) if (material.category_id === category.id) material.category_id = clone.id
+    }
   }
   return result
 }

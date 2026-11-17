@@ -59,7 +59,7 @@ export function getPageNumbers(current: number, total: number): (number | 'ellip
 }
 
 interface ItemsExplorerClientProps {
-  basePath?: '/items' | '/central-items'
+  basePath?: '/items' | '/central-items' | '/materials'
   items: ItemListRow[]
   total: number
   classificationCounts?: ItemClassificationCounts
@@ -288,7 +288,7 @@ function ItemsExplorerSession({
     triggerToast('กำลังเตรียมข้อมูลสำหรับส่งออก...', 'info')
     try {
       const { default: ExcelJS } = await import('exceljs')
-      triggerToast('กำลังดึงข้อมูลพัสดุจากระบบ...', 'info')
+      triggerToast('กำลังดึงข้อมูลวัสดุจากระบบ...', 'info')
       const allItems = await getItemsForExport(params)
       if (!allItems || allItems.length === 0) {
         setBlockingError('ไม่พบข้อมูลที่จะส่งออก')
@@ -404,14 +404,14 @@ function ItemsExplorerSession({
     try {
       const res = await updateItemConditionStatus(itemId, newStatus)
       if (res.success) {
-        toast('อัปเดตสภาพพัสดุเรียบร้อยแล้ว', 'success')
+        toast('อัปเดตสภาพวัสดุเรียบร้อยแล้ว', 'success')
         setCurrentItems(prev => prev.map(item => item.id === itemId ? { ...item, status: newStatus } : item))
         router.refresh()
       } else {
-        toast(res.message || 'ไม่สามารถอัปเดตสภาพพัสดุได้', 'error')
+        toast(res.message || 'ไม่สามารถอัปเดตสภาพวัสดุได้', 'error')
       }
     } catch {
-      toast('เกิดข้อผิดพลาดในการอัปเดตสภาพพัสดุ', 'error')
+      toast('เกิดข้อผิดพลาดในการอัปเดตสภาพวัสดุ', 'error')
     }
   }, [router, toast])
 
@@ -431,7 +431,7 @@ function ItemsExplorerSession({
         setCurrentItems(prevItems)
         setCurrentTotal(prevTotal)
         setSelectedItemIds(targetIds)
-        setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบพัสดุ')
+        setBlockingError(res.message || 'เกิดข้อผิดพลาดในการลบวัสดุ')
       } else {
         triggerToast(res.message || 'ลบเรียบร้อย')
         if (targetIds.length >= prevItems.length && currentPage > 1) {
@@ -599,7 +599,7 @@ function ItemsExplorerSession({
                   {params.is_central === 'true' || params.is_central === '1'
                     ? 'ส่วนกลาง'
                     : params.type === 'material'
-                    ? 'รายการทะเบียนพัสดุ'
+                    ? 'รายการทะเบียนวัสดุ'
                     : params.type === 'asset'
                       ? 'รายการทะเบียนครุภัณฑ์'
                       : 'รายการคลัง'}
@@ -661,6 +661,8 @@ function ItemsExplorerSession({
           {/* ZONE 2: Data Controls & Filter Bar (Search + Dropdown Filters + Export) */}
           <div className="shrink-0 border-b border-border bg-card/60 px-4 py-2.5 sm:px-6">
             <ItemsFilterBar
+              assetOnly={basePath === '/items'}
+              materialOnly={basePath === '/materials'}
               centralScope={basePath === '/central-items'}
               searchInputRef={searchInputRef}
               searchVal={searchVal}
@@ -768,7 +770,7 @@ function ItemsExplorerSession({
                 onCopy={copyReference}
                 onPrint={handlePrintItem}
                 onEdit={handleEditItem}
-                mode="ledger"
+                mode={basePath === '/materials' ? 'material' : 'ledger'}
                 onUpdateStatus={handleUpdateItemStatus}
               />
             </div>
@@ -908,6 +910,7 @@ function ItemsExplorerSession({
         userCanWrite={userCanWrite}
         userCanDelete={userCanDelete}
         canPrintBatch={selectedItemsData.length === selectedItemIds.length}
+        showPrintButton={currentItems.filter(item => selectedItemIds.includes(item.id)).every(item => item.item_type === 'asset')}
         onBatchPrint={() => setIsBatchPrintOpen(true)}
         onBulkDelete={handleBulkDelete}
         onEdit={selectedItemIds.length === 1 && currentItems.some(item => item.id === selectedItemIds[0])
@@ -964,6 +967,7 @@ function ItemsExplorerSession({
 
       {/* New Item Sheet */}
       <NewItemSheet
+        itemType={basePath === '/materials' ? 'material' : 'asset'}
         open={isSheetOpen}
         item={editingItem}
         onClose={() => {

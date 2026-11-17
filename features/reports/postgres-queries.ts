@@ -9,7 +9,7 @@ import type { ReportListResult, ReportStats } from './types'
 export async function getPostgresReportStats(): Promise<ReportStats> {
   return withUserDatabase(async (tx) => {
     const rows = await tx.execute<{ stats: ReportStats }>(sql`with live_items as materialized (
-      select i.item_type, i.quantity, i.unit_price, i.status, i.category_id from public.items i where i.deleted_at is null
+      select i.item_type, i.quantity, i.unit_price, i.status, i.category_id from public.inventory_items i where i.deleted_at is null
     ) select json_build_object(
       'totalItems', (select count(*) from live_items),
       'totalQuantity', (select coalesce(sum(quantity), 0) from live_items),
@@ -54,7 +54,7 @@ export async function getPostgresReportItemsList(
     // Totals and the page share one statement/snapshot, including when the requested page is empty.
     const rows = await tx.execute<{ result: ReportListResult }>(sql`with filtered as materialized (
       select ${itemListColumns}, row_number() over (order by ${order} ${ascending ? sql`asc` : sql`desc`}, i.updated_at desc, i.id) as position
-      from public.items i ${itemRelations} where ${itemFilters(params)}
+      from public.inventory_items i ${itemRelations} where ${itemFilters(params)}
     ), paged as (
       select id, item_name, item_type, quantity, unit_price, asset_no, serial_no,
         responsible_person, status, updated_at, brand, model, category, unit, location

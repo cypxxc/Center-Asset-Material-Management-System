@@ -104,7 +104,7 @@ export async function readAuthoritativeSourceRows(): Promise<{
     let colConditionUsable = -1
     subHRow.eachCell((cell, colNumber) => {
       const text = cleanCellText(cell.value)
-      if (text.includes('ใช้งานได้') || text.includes('สภาพพัสดุ')) colConditionUsable = colNumber
+      if (text.includes('ใช้งานได้') || text.includes('สภาพวัสดุ') || text.includes('สภาพพัสดุ')) colConditionUsable = colNumber
     })
 
     const startDataRow = headerRowIdx + (colConditionUsable !== -1 ? 2 : 1)

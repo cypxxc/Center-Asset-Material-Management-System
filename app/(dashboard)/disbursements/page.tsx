@@ -5,9 +5,13 @@ import { canCreateDisbursement } from '@/lib/permissions'
 import { getDisbursements, getCentralAvailableItems } from '@/features/disbursements/queries'
 import { DisbursementListClient } from '@/features/disbursements/components/disbursement-list-client'
 import DisbursementsLoading from './loading'
+import { parseMaterialApprovalSlaHours } from '@/features/disbursements/tracking'
 
 export const instant = false
-export const metadata = { title: 'ทะเบียนเบิก-จ่ายและยืมพัสดุส่วนกลาง' }
+export async function generateMetadata() {
+  const profile = await getCurrentProfile()
+  return { title: profile?.role === 'user' ? 'เบิก' : 'เบิก - จ่าย' }
+}
 
 interface DisbursementsPageProps {
   searchParams: Promise<{
@@ -70,6 +74,7 @@ async function DisbursementListSection({
 
   return (
     <DisbursementListClient
+      materialApprovalSlaHours={parseMaterialApprovalSlaHours(process.env.MATERIAL_APPROVAL_SLA_HOURS)}
       initialItems={result.items}
       total={result.total}
       currentPage={result.page}

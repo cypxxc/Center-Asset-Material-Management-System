@@ -4,13 +4,15 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog } from 'radix-ui'
 import { Button } from '@/components/ui/button'
-import { isDateReachedInBangkok } from '@/lib/date'
+import { MaterialReturnForm } from '@/features/materials/material-return-form'
+
 import { returnDisbursementItem } from '../actions'
 import type { DisbursementRow, DisbursementRequestedItem, ItemCondition } from '../types'
 
 export function TransactionItemsTable({ document, userRole }: { document: DisbursementRow; userRole: string }) {
   const router = useRouter()
-  const canReturn = userRole === 'admin' && document.transaction_type === 'asset_borrow' && ['active_borrow', 'partially_returned'].includes(document.status) && isDateReachedInBangkok(document.due_date)
+  const canReturn = userRole === 'admin' && document.transaction_type === 'asset_borrow' && ['active_borrow', 'partially_returned'].includes(document.status)
+  const canReturnMaterial = userRole === 'admin' && document.transaction_type === 'material_issue' && ['confirmed', 'partially_returned'].includes(document.status)
   const [line, setLine] = useState<DisbursementRequestedItem | null>(null)
   const [condition, setCondition] = useState<ItemCondition>('normal')
   const [note, setNote] = useState('')
@@ -41,12 +43,12 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
   }
 
   return <>
-    <table aria-label="รายการพัสดุในคำขอ" className="w-full text-left text-sm [&_th]:px-4 [&_th]:py-2 [&_th]:font-medium [&_td]:px-4 [&_td]:py-3">
+    <table aria-label="รายการวัสดุในคำขอ" className="w-full text-left text-sm [&_th]:px-4 [&_th]:py-2 [&_th]:font-medium [&_td]:px-4 [&_td]:py-3">
       <thead className="border-b border-border text-xs text-muted-foreground"><tr>
-        <th scope="col">เลขครุภัณฑ์</th><th scope="col">รายการพัสดุ</th>
+        <th scope="col">เลขครุภัณฑ์</th><th scope="col">รายการวัสดุ</th>
         <th scope="col" className="text-right">ขอ</th><th scope="col" className="text-right">จ่าย</th>
         <th scope="col" className="text-right">คืนแล้ว</th><th scope="col" className="text-right">คงค้าง</th><th scope="col">สถานะรายการ</th>
-        {canReturn && <th scope="col" className="text-right">คืน</th>}
+        {(canReturn || canReturnMaterial) && <th scope="col" className="text-right">คืน</th>}
       </tr></thead>
       <tbody className="divide-y divide-border">
         {(document.requested_items || []).map(item => {
@@ -64,9 +66,10 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
             <td className="text-right tabular-nums">{item.returned_qty}</td><td className="text-right tabular-nums">{document.transaction_type === 'asset_borrow' ? outstanding : '—'}</td>
             <td className="whitespace-nowrap">{labels[item.status]}</td>
             {canReturn && <td className="text-right">{outstanding > 0 && <Button size="sm" variant="outline" disabled={busy} aria-label={`คืน ${item.asset_no || item.item_name}`} onClick={event => { returnTrigger.current = event.currentTarget; received.current = false; setLine(item); setCondition('normal'); setNote(''); setError('') }}>คืน</Button>}</td>}
+            {canReturnMaterial && <td className="text-right"><MaterialReturnForm lineId={item.line_id} remaining={outstanding} /></td>}
           </tr>
         })}
-        {!document.requested_items?.length && <tr><td colSpan={canReturn ? 8 : 7} className="text-center text-muted-foreground">ไม่มีรายการพัสดุ</td></tr>}
+        {!document.requested_items?.length && <tr><td colSpan={canReturn || canReturnMaterial ? 8 : 7} className="text-center text-muted-foreground">ไม่มีรายการวัสดุ</td></tr>}
       </tbody>
     </table>
     <Dialog.Root open={!!line} onOpenChange={open => { if (!open && !busy) setLine(null) }}>
@@ -78,10 +81,10 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
             : globalThis.document.getElementById(`expand-${document.id}`)
           target?.focus()
         }} className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 text-foreground">
-          <Dialog.Title className="text-lg font-semibold">รับคืนพัสดุ</Dialog.Title>
+          <Dialog.Title className="text-lg font-semibold">รับคืนวัสดุ</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm text-muted-foreground">{line?.item_name} · {line?.asset_no} การรับคืนนี้มีผลเฉพาะรายการที่เลือก</Dialog.Description>
           <form onSubmit={receive} className="mt-4 space-y-4">
-            <label className="block text-sm">สภาพพัสดุ<select value={condition} onChange={event => setCondition(event.target.value as ItemCondition)} disabled={busy} className="mt-1 block w-full rounded-md border border-input bg-background p-2"><option value="normal">ปกติ</option><option value="damaged">ชำรุด</option><option value="lost">สูญหาย</option></select></label>
+            <label className="block text-sm">สภาพวัสดุ<select value={condition} onChange={event => setCondition(event.target.value as ItemCondition)} disabled={busy} className="mt-1 block w-full rounded-md border border-input bg-background p-2"><option value="normal">ปกติ</option><option value="damaged">ชำรุด</option><option value="lost">สูญหาย</option></select></label>
             <label className="block text-sm">หมายเหตุ<textarea value={note} onChange={event => setNote(event.target.value)} maxLength={500} disabled={busy} className="mt-1 block w-full rounded-md border border-input bg-background p-2" /></label>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-2"><Dialog.Close asChild><Button type="button" variant="outline" disabled={busy}>ยกเลิก</Button></Dialog.Close><Button type="submit" disabled={busy}>{busy ? 'กำลังบันทึก...' : 'ยืนยันรับคืน'}</Button></div>

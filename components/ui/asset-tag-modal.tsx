@@ -169,7 +169,7 @@ function SingleStickerItem({
       {visibility.showOrg && (
         <div className="border-b border-slate-200/90 pb-0.5 mb-0.5 flex items-center justify-between shrink-0">
           <div className={`font-bold tracking-tight text-slate-800 ${presetConfig.titleSize}`}>
-            CAMMS — ระบบบริหารจัดการทรัพย์สิน
+            Portal — ระบบบริหารจัดการทรัพย์สิน
           </div>
           {assetCode && (
             <div className="text-[6.5px] font-mono font-bold tracking-wider text-slate-500 bg-slate-100 px-1 py-0.2 rounded-[2px] border border-slate-200/60">
@@ -1022,7 +1022,7 @@ export function AssetTagModal({
                           onChange={() => toggleField("showOrg")}
                           className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                         />
-                        <span className="truncate">หัวเรื่อง CAMMS</span>
+                        <span className="truncate">หัวเรื่อง Portal</span>
                       </label>
 
                       <label

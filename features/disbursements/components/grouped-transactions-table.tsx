@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { formatDate, isDateReachedInBangkok } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import { DataTable, DataTableHeader, DataTableHead, DataTableBody, DataTableRow, DataTableCell } from '@/components/ui/data-table'
 import { DisbursementStatusBadge, DisbursementTypeBadge } from './badges'
 import { ApprovalRowActions } from './approval-row-actions'
@@ -10,7 +10,7 @@ import { DueBorrowReturnAction } from './due-borrow-return-action'
 import { TransactionItemsTable } from './transaction-items-table'
 import type { DisbursementRow } from '../types'
 
-export function GroupedTransactionsTable({ documents, userRole, historyMode = false }: { documents: DisbursementRow[]; userRole: string; historyMode?: boolean }) {
+export function GroupedTransactionsTable({ documents, userRole, historyMode = false }: { documents: DisbursementRow[]; userRole: string; historyMode?: boolean; materialApprovalSlaHours?: number | null }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   function toggleDetails(id: string) {
     setExpanded(previous => {
@@ -54,14 +54,14 @@ export function GroupedTransactionsTable({ documents, userRole, historyMode = fa
           <DataTableCell className="whitespace-normal"><div className="inline-flex items-center gap-2 text-foreground"><DisbursementTypeBadge type={doc.transaction_type} label={typeLabel} /><span className="text-xs break-words">{requesterName}</span></div></DataTableCell>
           <DataTableCell className="text-right tabular-nums">{doc.requested_items?.length || 0} รายการ</DataTableCell>
           <DataTableCell className="tabular-nums text-xs"><div className="space-y-1">{doc.transaction_type === 'asset_borrow' ? <><div>ยืม {formatDate(doc.confirmed_at || doc.created_at)}</div><div className="text-muted-foreground">คืน {doc.due_date ? formatDate(doc.due_date) : 'ไม่ระบุ'}</div></> : formatDate(doc.confirmed_at || doc.created_at)}</div></DataTableCell>
-          <DataTableCell><DisbursementStatusBadge status={doc.status} /></DataTableCell>
+          <DataTableCell className="whitespace-normal"><DisbursementStatusBadge status={doc.status} /></DataTableCell>
           <DataTableCell isActions className="w-48 text-center"><div className="flex items-center justify-center gap-2">
-            {userRole === 'admin' && doc.transaction_type === 'asset_borrow' && ['active_borrow', 'partially_returned'].includes(doc.status) && isDateReachedInBangkok(doc.due_date)
+            {userRole === 'admin' && doc.transaction_type === 'asset_borrow' && ['active_borrow', 'partially_returned'].includes(doc.status)
               && <DueBorrowReturnAction disbursementId={doc.id} />}
             {userRole === 'admin' && <ApprovalRowActions doc={doc} />}
           </div></DataTableCell>
         </DataTableRow>
-        {open && <DataTableRow hoverable={false}><DataTableCell colSpan={6} className="!p-0 whitespace-normal"><div id={`transaction-${doc.id}`} role="region" aria-label={`พัสดุ ${reference}`} className="border-y border-border bg-muted/20 px-6 py-4">
+        {open && <DataTableRow hoverable={false}><DataTableCell colSpan={6} className="!p-0 whitespace-normal"><div id={`transaction-${doc.id}`} role="region" aria-label={`วัสดุ ${reference}`} className="border-y border-border bg-muted/20 px-6 py-4">
           <dl className="mb-3 flex flex-wrap gap-x-8 gap-y-2 text-xs"><div><dt className="inline text-muted-foreground">วัตถุประสงค์: </dt><dd className="inline break-words">{doc.purpose || '—'}</dd></div></dl>
           {doc.status === 'rejected' && <p className="mb-3 whitespace-pre-wrap break-words text-sm text-destructive"><strong>เหตุผลที่ไม่อนุมัติ: </strong>{doc.reversal_reason || 'ไม่อนุมัติคำขอ'}</p>}
           <TransactionItemsTable document={doc} userRole={userRole} />

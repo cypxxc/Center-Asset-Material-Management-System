@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeForStorage } from '@/lib/unicode'
+import { borrowDueDateError } from './borrow-dates'
 
 const stringTrimmed = (max: number, msg: string) =>
   z
@@ -13,7 +14,7 @@ export const disbursementDraftSchema = z.object({
   transaction_type: z.enum(['material_issue', 'asset_handover', 'asset_borrow'], {
     message: 'กรุณาเลือกประเภทการทำรายการ',
   }),
-  recipient_name: stringTrimmed(150, 'กรุณาระบุชื่อผู้รับพัสดุ'),
+  recipient_name: stringTrimmed(150, 'กรุณาระบุชื่อผู้รับวัสดุ'),
   department_name: stringTrimmed(150, 'กรุณาระบุกลุ่มงาน'),
   purpose: stringTrimmed(500, 'กรุณาระบุวัตถุประสงค์'),
   due_date: calendarDate.or(z.literal('')).optional().nullable(),
@@ -21,7 +22,7 @@ export const disbursementDraftSchema = z.object({
     .array(
       z.object({
         item_id: z.string().uuid('รหัสสิ่งของไม่ถูกต้อง').toLowerCase(),
-        requested_qty: z.coerce.number().int().min(1, 'จำนวนต้องมากกว่า 0'),
+        requested_qty: z.coerce.number().int().min(1, 'จำนวนต้องมากกว่า 0').max(2147483647),
       })
     )
     .min(1, 'ต้องมีรายการสิ่งของอย่างน้อย 1 รายการ'),
@@ -33,13 +34,15 @@ export const disbursementDraftSchema = z.object({
     ctx.addIssue({
       code: 'custom',
       path: ['due_date'],
-      message: 'กรุณาระบุกำหนดส่งคืนสำหรับรายการยืมครุภัณฑ์',
+      message: 'กรุณาระบุกำหนดส่งคืนสำหรับรายการยืมสิ่งของ',
     })
   }
   if (data.transaction_type === 'asset_borrow') {
     data.items.forEach((item, index) => {
       if (item.requested_qty !== 1) ctx.addIssue({ code: 'custom', path: ['items', index, 'requested_qty'], message: 'ครุภัณฑ์แต่ละชิ้นต้องมีจำนวนยืมเท่ากับ 1' })
     })
+    const dateError = borrowDueDateError(data.due_date)
+    if (dateError) ctx.addIssue({ code: 'custom', path: ['due_date'], message: dateError })
   }
 })
 
@@ -68,18 +71,28 @@ export const disbursementListParamsSchema = z.object({
 })
 
 export const submitBorrowRequestSchema = z.object({
+  item_actions: z.record(z.string().uuid(), z.enum(['issue', 'borrow'])).default({}),
+  quantities: z.record(z.string().uuid(), z.coerce.number().int().min(1).max(2147483647)).default({}),
   item_ids: z.array(z.string().uuid('รหัสสิ่งของไม่ถูกต้อง').toLowerCase()).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ').max(20),
   request_type: z.enum(['issue', 'borrow']).default('borrow'),
   due_date: calendarDate.optional().nullable(),
   purpose: stringTrimmed(500, 'กรุณาระบุวัตถุประสงค์ในการยืม'),
 }).superRefine((data, ctx) => {
+  if (Object.keys(data.quantities).some(id => !data.item_ids.includes(id))) {
+    ctx.addIssue({ code: 'custom', path: ['quantities'], message: 'จำนวนขอเบิกต้องตรงกับรายการที่เลือก' })
+  }
+  if (Object.keys(data.item_actions).some(id => !data.item_ids.includes(id))) {
+    ctx.addIssue({ code: 'custom', path: ['item_actions'], message: 'การทำรายการต้องตรงกับสิ่งของที่เลือก' })
+  }
   if (new Set(data.item_ids).size !== data.item_ids.length) {
     ctx.addIssue({ code: 'custom', path: ['item_ids'], message: 'ไม่สามารถเลือกรายการสิ่งของซ้ำได้' })
   }
-  if (data.request_type === 'borrow' && !data.due_date) {
+  // Partial maps need inventory types before a missing legacy action can be
+  // classified: materials always issue. The server checks that final case.
+  if ((Object.values(data.item_actions).includes('borrow') || (Object.keys(data.item_actions).length === 0 && data.request_type === 'borrow')) && !data.due_date) {
     ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'กรุณาระบุกำหนดส่งคืน' })
   }
-}).transform((data) => ({ ...data, due_date: data.request_type === 'issue' ? null : data.due_date! }))
+}).transform((data) => ({ ...data, due_date: data.item_ids.some(id => (data.item_actions[id] ?? data.request_type) === 'borrow') ? data.due_date ?? null : null }))
 
 export const rejectDisbursementSchema = z.object({
   disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
@@ -98,7 +111,7 @@ export const returnItemSchema = z.object({
   line_id: z.string().uuid('รหัสรายการไม่ถูกต้อง'),
   return_qty: z.coerce.number().int().min(1, 'จำนวนต้องมากกว่า 0'),
   condition: z.enum(['normal', 'damaged', 'lost'], {
-    message: 'กรุณาระบุสภาพพัสดุ',
+    message: 'กรุณาระบุสภาพวัสดุ',
   }),
   note: z.string().transform(normalizeForStorage).pipe(z.string().max(500)).optional().nullable(),
 })

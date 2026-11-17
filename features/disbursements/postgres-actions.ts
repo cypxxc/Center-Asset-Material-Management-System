@@ -1,5 +1,10 @@
 import 'server-only'
+import { randomUUID } from 'node:crypto'
+import { requestFingerprint } from './request-batch'
+import { approvalBorrowDueDate, borrowDueDateError } from './borrow-dates'
+import { inventoryTableForId } from '@/features/items/inventory-table'
 import { sql } from 'drizzle-orm'
+import type { PostgresTransaction } from '@/lib/postgres/db'
 import { z } from 'zod'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
@@ -20,12 +25,20 @@ import type {
 import { computeThaiFiscalYear } from './fiscal-year'
 import { assertCentralDisbursementItem } from './central-items'
 import { syncCentralNote } from '@/features/items/central-note'
-import { assertItemUnreserved, lockDisbursementItems } from './reservations'
+import { assertItemUnreserved, assertMaterialAvailable, lockDisbursementItems } from './reservations'
+
+async function restoreBorrowedMaterial(tx: PostgresTransaction, itemId: string, lineId: string, quantity: number, userId: string) {
+  if (quantity === 0) return
+  const result = await tx.execute<{ quantity: number }>(sql`UPDATE public.materials SET quantity=quantity+${quantity}, updated_at=now() WHERE id=${itemId} RETURNING quantity`)
+  if (!result.rows[0]) throw new Error('ไม่พบวัสดุสำหรับรับคืน')
+  await tx.execute(sql`INSERT INTO public.stock_movements(item_id,disbursement_item_id,delta,balance_after,movement_type,created_by)
+    VALUES(${itemId},${lineId},${quantity},${result.rows[0].quantity},'material_return',${userId})`)
+}
 
 async function requireDisbursementWriter() {
   const profile = await getCurrentProfile()
   if (!profile?.is_active || !['admin', 'user'].includes(profile.role)) {
-    throw new Error('คุณไม่มีสิทธิ์ทำรายการเบิก-จ่ายพัสดุ')
+    throw new Error('คุณไม่มีสิทธิ์ทำรายการเบิก-จ่ายวัสดุ')
   }
   return profile
 }
@@ -41,36 +54,39 @@ async function requireDisbursementAdmin() {
 /**
  * Create a new draft disbursement document with line items
  */
-export async function createPostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
+export async function createPostgresDisbursementDraft(rawInput: unknown, transaction?: PostgresTransaction): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = disbursementDraftSchema.parse(rawInput)
-  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User สร้างได้เฉพาะเอกสารเบิกพัสดุ')
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User สร้างได้เฉพาะเอกสารเบิกวัสดุ')
 
-  return withUserDatabase(async (tx) => {
+  const execute = transaction ? async <T>(callback: (tx: PostgresTransaction) => Promise<T>) => callback(transaction) : withUserDatabase
+  return execute(async (tx) => {
     await lockDisbursementItems(tx, data.items.map((item) => item.item_id))
     // 1. Verify item types and unique borrowing constraints
     for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
-        sql`SELECT id, item_type, asset_no, note, is_central, quantity, status FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL ${user.role === 'admin' ? sql`FOR UPDATE` : sql``}`
+      const itemRes = await tx.execute<{ id: string; item_name: string; unit_name: string | null; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
+        sql`SELECT id, item_name, (SELECT name FROM public.units u WHERE u.id=unit_id) AS unit_name, item_type, asset_no, note, is_central, quantity, status FROM ${await inventoryTableForId(tx, item.item_id)} WHERE id = ${item.item_id} AND deleted_at IS NULL ${user.role === 'admin' ? sql`FOR UPDATE` : sql``}`
       )
       const found = itemRes.rows[0]
-      if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
-      assertCentralDisbursementItem(found)
+      if (!found) throw new Error('ไม่พบข้อมูลวัสดุหรือวัสดุถูกลบแล้ว')
+      if (data.transaction_type !== 'material_issue') assertCentralDisbursementItem(found)
       if (found.status && !['active', 'spare'].includes(found.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
-      if (Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
+      if (data.transaction_type !== 'material_issue' && Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
 
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
-        throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
+        throw new Error('เอกสารเบิกจ่ายวัสดุ รองรับเฉพาะรายการประเภทวัสดุเท่านั้น')
       }
       if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
-      await assertItemUnreserved(tx, item.item_id)
+      if (data.transaction_type === 'material_issue') {
+        if (user.role !== 'admin') await assertMaterialAvailable(tx, found, item.requested_qty)
+      } else if (found.item_type === 'asset') await assertItemUnreserved(tx, item.item_id)
       if (data.transaction_type === 'asset_borrow') {
-        if (item.requested_qty !== 1) {
+        if (found.item_type === 'asset' && item.requested_qty !== 1) {
           throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
-        if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
+        if (found.item_type !== 'material' && !found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
           throw new Error('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
@@ -79,9 +95,9 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
     // 2. Insert header draft
     const docRes = await tx.execute<{ id: string }>(
       sql`INSERT INTO public.disbursements (
-        transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
+        transaction_type, recipient_name, department_name, purpose, status, due_date, created_by, submitted_at
       ) VALUES (
-        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, ${user.role === 'user' ? 'pending_approval' : 'draft'}, ${data.due_date || null}, ${user.id}
+        ${data.transaction_type}, ${data.recipient_name}, ${data.department_name}, ${data.purpose}, ${user.role === 'user' ? 'pending_approval' : 'draft'}, ${data.due_date || null}, ${user.id}, ${user.role === 'user' ? sql`now()` : sql`null`}
       ) RETURNING id`
     )
     const docId = docRes.rows[0].id
@@ -110,7 +126,7 @@ export async function createPostgresDisbursementDraft(rawInput: unknown): Promis
 export async function updatePostgresDisbursementDraft(rawInput: unknown): Promise<{ id: string }> {
   const user = await requireDisbursementWriter()
   const data = updateDisbursementDraftSchema.parse(rawInput)
-  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User แก้ไขได้เฉพาะเอกสารเบิกพัสดุ')
+  if (user.role !== 'admin' && data.transaction_type !== 'material_issue') throw new Error('User แก้ไขได้เฉพาะเอกสารเบิกวัสดุ')
 
   return withUserDatabase(async (tx) => {
     // 1. Lock document header and assert draft status
@@ -120,31 +136,35 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
     if (doc.status !== 'draft') throw new Error(`สามารถแก้ไขได้เฉพาะเอกสารฉบับร่างเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
+    if (data.transaction_type === 'asset_borrow') {
+      const dateError = borrowDueDateError(data.due_date, doc.created_at)
+      if (dateError) throw new Error(dateError)
+    }
     await lockDisbursementItems(tx, data.items.map((item) => item.item_id))
 
     // 2. Validate items match transaction type
     for (const item of [...data.items].sort((a, b) => a.item_id.localeCompare(b.item_id))) {
-      const itemRes = await tx.execute<{ id: string; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
-        sql`SELECT id, item_type, asset_no, note, is_central, quantity, status FROM public.items WHERE id = ${item.item_id} AND deleted_at IS NULL FOR UPDATE`
+      const itemRes = await tx.execute<{ id: string; item_name: string; unit_name: string | null; item_type: string; asset_no: string | null; note: string | null; is_central: boolean; quantity: number; status: string | null }>(
+        sql`SELECT id, item_name, (SELECT name FROM public.units u WHERE u.id=unit_id) AS unit_name, item_type, asset_no, note, is_central, quantity, status FROM ${await inventoryTableForId(tx, item.item_id)} WHERE id = ${item.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const found = itemRes.rows[0]
-      if (!found) throw new Error('ไม่พบข้อมูลพัสดุหรือพัสดุถูกลบแล้ว')
-      assertCentralDisbursementItem(found)
+      if (!found) throw new Error('ไม่พบข้อมูลวัสดุหรือวัสดุถูกลบแล้ว')
+      if (data.transaction_type !== 'material_issue') assertCentralDisbursementItem(found)
       if (found.status && !['active', 'spare'].includes(found.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
-      if (Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
+      if (data.transaction_type !== 'material_issue' && Number(found.quantity) < item.requested_qty) throw new Error('จำนวนพร้อมใช้งานไม่เพียงพอ')
 
       if (data.transaction_type === 'material_issue' && found.item_type !== 'material') {
-        throw new Error('เอกสารเบิกจ่ายพัสดุ รองรับเฉพาะรายการประเภทพัสดุเท่านั้น')
+        throw new Error('เอกสารเบิกจ่ายวัสดุ รองรับเฉพาะรายการประเภทวัสดุเท่านั้น')
       }
       if (data.transaction_type === 'asset_handover' && found.item_type !== 'asset') {
         throw new Error('เอกสารส่งมอบครุภัณฑ์ รองรับเฉพาะรายการประเภทครุภัณฑ์เท่านั้น')
       }
-      await assertItemUnreserved(tx, item.item_id)
+      if (found.item_type !== 'material') await assertItemUnreserved(tx, item.item_id)
       if (data.transaction_type === 'asset_borrow') {
-        if (item.requested_qty !== 1) {
+        if (found.item_type === 'asset' && item.requested_qty !== 1) {
           throw new Error('การยืมของส่วนกลาง สามารถยืมได้ครั้งละ 1 หน่วยต่อรายการ')
         }
-        if (!found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
+        if (found.item_type !== 'material' && !found.is_central && (!found.note || !found.note.includes('ส่วนกลาง'))) {
           throw new Error('การยืมอนุญาตเฉพาะรายการที่เป็น "ของส่วนกลาง" เท่านั้น')
         }
       }
@@ -228,11 +248,12 @@ export async function cancelPostgresDisbursementDraft(rawInput: unknown): Promis
 /**
  * Confirm disbursement draft: locks inventory, allocates Thai fiscal year sequence, snapshots items, updates custody/stock, writes audit log
  */
-export async function confirmPostgresDisbursement(disbursementId: string): Promise<{ document_no: string }> {
+export async function confirmPostgresDisbursement(disbursementId: string, replacementDueDate?: string, transaction?: PostgresTransaction): Promise<{ document_no: string }> {
   const user = await requireDisbursementAdmin()
   z.string().uuid().parse(disbursementId)
 
-  return withUserDatabase(async (tx) => {
+  const execute = transaction ? async <T>(callback: (tx: PostgresTransaction) => Promise<T>) => callback(transaction) : withUserDatabase
+  return execute(async (tx) => {
     // 1. Lock document header
     const docRes = await tx.execute<DisbursementRow>(
       sql`SELECT * FROM public.disbursements WHERE id = ${disbursementId} FOR UPDATE`
@@ -242,6 +263,9 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
     if (!['draft', 'pending_approval'].includes(doc.status)) {
       throw new Error(`ไม่สามารถยืนยันหรืออนุมัติเอกสารในสถานะ ${doc.status} ได้`)
     }
+    const approvedDueDate = doc.transaction_type === 'asset_borrow'
+      ? approvalBorrowDueDate(doc.due_date, replacementDueDate, doc.created_at)
+      : doc.due_date
 
     // 2. Lock and fetch lines with current item metadata (deterministic order by item_id to prevent lock cycle)
     const linesRes = await tx.execute<DisbursementItemRow>(
@@ -266,6 +290,10 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
 
     // 4. Process each line with row locking on public.items
     for (const line of lines) {
+      const stockLedger = await tx.execute<{ net: number }>(sql`select coalesce(sum(delta),0)::int as net from public.stock_movements where disbursement_item_id=${line.id} and movement_type in ('issue','reversal')`)
+      const materialNet = Number(stockLedger?.rows[0]?.net ?? 0)
+      if (materialNet !== 0 && materialNet !== -line.requested_qty) throw new Error('ยอดตัดสต็อกคำขอไม่ตรงกับจำนวนที่ขอเบิก กรุณาตรวจสอบรายการ')
+      const materialAlreadyDebited = materialNet < 0
       // Row lock on inventory item
       const itemLock = await tx.execute<{
         id: string; quantity: number; item_type: string; item_name: string;
@@ -273,27 +301,30 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
         responsible_person: string | null; is_central: boolean; note: string | null; status: string | null;
         unit_name: string | null; unit_price: number | null; category_name: string | null; location_name: string | null;
       }>(sql`SELECT i.*, u.name AS unit_name, c.name AS category_name, l.name AS location_name
-        FROM public.items i
+        FROM ${await inventoryTableForId(tx, line.item_id)} i
         LEFT JOIN public.units u ON u.id = i.unit_id
         LEFT JOIN public.categories c ON c.id = i.category_id
         LEFT JOIN public.locations l ON l.id = i.location_id
         WHERE i.id = ${line.item_id} AND i.deleted_at IS NULL FOR UPDATE OF i`)
       const currentItem = itemLock.rows[0]
-      if (!currentItem) throw new Error(`พัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
-      assertCentralDisbursementItem(currentItem)
+      if (!currentItem) throw new Error(`วัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
+      if (doc.transaction_type !== 'material_issue') assertCentralDisbursementItem(currentItem)
       if (currentItem.status && !['active', 'spare'].includes(currentItem.status)) throw new Error('รายการนี้ไม่อยู่ในสถานะพร้อมใช้งาน')
-      if (currentItem.quantity < line.requested_qty) throw new Error('จำนวนคงเหลือไม่เพียงพอสำหรับการอนุมัติ')
-      if (doc.transaction_type === 'material_issue' ? currentItem.item_type !== 'material' : currentItem.item_type !== 'asset') {
+      if (!materialAlreadyDebited && currentItem.quantity < line.requested_qty) throw new Error('จำนวนคงเหลือไม่เพียงพอสำหรับการอนุมัติ')
+      if (doc.transaction_type === 'material_issue' ? currentItem.item_type !== 'material' : doc.transaction_type === 'asset_handover' && currentItem.item_type !== 'asset') {
         throw new Error('ประเภทสิ่งของเปลี่ยนแปลง ไม่ตรงกับคำขอ')
       }
 
-      await assertItemUnreserved(tx, line.item_id, disbursementId)
+      if (currentItem.item_type === 'material') {
+        if (!materialAlreadyDebited) await assertMaterialAvailable(tx, currentItem, line.requested_qty)
+      } else await assertItemUnreserved(tx, line.item_id, disbursementId)
 
-      if (doc.transaction_type === 'material_issue') {
+      if (currentItem.item_type === 'material' && !materialAlreadyDebited) {
         // Deduct inventory
-        await tx.execute(
-          sql`UPDATE public.items SET quantity = quantity - ${line.requested_qty}, updated_at = now() WHERE id = ${line.item_id}`
+        const deducted = await tx.execute(
+          sql`UPDATE public.materials SET quantity = quantity - ${line.requested_qty}, updated_at = now() WHERE id = ${line.item_id} AND quantity >= ${line.requested_qty} RETURNING id`
         )
+        if (deducted.rows.length !== 1) throw new Error('จำนวนคงเหลือไม่เพียงพอสำหรับการอนุมัติ')
 
         // Ledger entry
         await tx.execute(
@@ -303,7 +334,7 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
             ${line.item_id}, ${line.id}, ${-line.requested_qty}, ${currentItem.quantity - line.requested_qty}, 'issue', ${user.id}
           )`
         )
-      } else if (['asset_handover', 'asset_borrow'].includes(doc.transaction_type)) {
+      } else if (currentItem.item_type === 'asset' && ['asset_handover', 'asset_borrow'].includes(doc.transaction_type)) {
         // Record custody log
         await tx.execute(
           sql`INSERT INTO public.asset_custody_logs (
@@ -349,6 +380,7 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
               status = ${targetStatus},
               confirmed_at = now(),
               confirmed_by = ${user.id},
+              due_date = ${approvedDueDate},
               updated_at = now()
           WHERE id = ${disbursementId}`
     )
@@ -358,8 +390,8 @@ export async function confirmPostgresDisbursement(disbursementId: string): Promi
       sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
           VALUES (
             ${user.id}, 'CONFIRM_DISBURSEMENT', 'disbursements', ${disbursementId},
-            ${JSON.stringify({ status: doc.status })}::jsonb,
-            ${JSON.stringify({ status: targetStatus, document_no: docNo })}::jsonb
+            ${JSON.stringify({ status: doc.status, due_date: doc.due_date })}::jsonb,
+            ${JSON.stringify({ status: targetStatus, document_no: docNo, due_date: approvedDueDate })}::jsonb
           )`
     )
 
@@ -380,7 +412,7 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
       sql`SELECT disbursement_id FROM public.disbursement_items WHERE id = ${data.line_id}`
     )
     const ref = refRes.rows[0]
-    if (!ref) throw new Error('ไม่พบรายการพัสดุในเอกสาร')
+    if (!ref) throw new Error('ไม่พบรายการวัสดุในเอกสาร')
 
     // 2. Lock parent document FIRST (Standard lock hierarchy: Header -> Lines -> Items)
     const docRes = await tx.execute<DisbursementRow>(
@@ -388,21 +420,17 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
-    if (doc.transaction_type !== 'asset_borrow') throw new Error('สามารถบันทึกรับคืนได้เฉพาะรายการยืมครุภัณฑ์เท่านั้น')
+    if (doc.transaction_type !== 'asset_borrow') throw new Error('สามารถบันทึกรับคืนได้เฉพาะรายการยืมสิ่งของเท่านั้น')
     if (!['active_borrow', 'partially_returned'].includes(doc.status)) {
       throw new Error(`ไม่สามารถบันทึกรับคืนเอกสารในสถานะ ${doc.status} ได้`)
     }
-    const dueCheck = await tx.execute<{ is_due: boolean }>(
-      sql`SELECT ${doc.due_date}::date <= (current_timestamp AT TIME ZONE 'Asia/Bangkok')::date AS is_due`
-    )
-    if (dueCheck.rows[0]?.is_due !== true) throw new Error('ยังไม่ถึงกำหนดคืนพัสดุ')
 
     // 3. Lock target line item SECOND (under acquired parent lock)
     const lineRes = await tx.execute<DisbursementItemRow>(
       sql`SELECT * FROM public.disbursement_items WHERE id = ${data.line_id} FOR UPDATE`
     )
     const line = lineRes.rows[0]
-    if (!line) throw new Error('ไม่พบรายการพัสดุในเอกสาร')
+    if (!line) throw new Error('ไม่พบรายการวัสดุในเอกสาร')
     if (!['issued', 'partially_returned'].includes(line.status)) throw new Error('รายการนี้ไม่ได้อยู่ระหว่างการยืมหรือรับคืนครบแล้ว')
 
     const newReturned = line.returned_qty + data.return_qty
@@ -412,12 +440,15 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
 
     // 4. Lock asset item THIRD
     await lockDisbursementItems(tx, [line.item_id])
-    const itemRes = await tx.execute<{ id: string; responsible_person: string | null; note: string | null }>(
-      sql`SELECT id, responsible_person, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+    const itemRes = await tx.execute<{ id: string; item_type: string; quantity: number; responsible_person: string | null; note: string | null }>(
+      sql`SELECT id, item_type, quantity, responsible_person, note FROM ${await inventoryTableForId(tx, line.item_id)} WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
     )
     const item = itemRes.rows[0]
     if (!item) throw new Error('ไม่พบครุภัณฑ์หรือครุภัณฑ์ถูกลบแล้ว')
 
+    if (item.item_type === 'material') {
+      await restoreBorrowedMaterial(tx, item.id, line.id, data.condition === 'normal' ? data.return_qty : 0, user.id)
+    } else {
     // 4. Record custody return event
     await tx.execute(
       sql`INSERT INTO public.asset_custody_logs (
@@ -462,6 +493,8 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
       )
     }
 
+    }
+
     // 6. Update line status
     const lineStatus = newReturned === line.issued_qty ? 'returned' : 'partially_returned'
     await tx.execute(
@@ -495,7 +528,7 @@ export async function returnPostgresDisbursementItem(rawInput: unknown): Promise
   })
 }
 
-/** Return every outstanding item in a due borrowed-asset document as normal. */
+/** Return every outstanding item in a borrowed-asset document as normal. */
 export async function returnPostgresDisbursement(disbursementIdInput: unknown): Promise<{ ok: boolean }> {
   const user = await requireDisbursementAdmin()
   const { disbursement_id: disbursementId } = z.object({ disbursement_id: z.string().uuid() }).parse({ disbursement_id: disbursementIdInput })
@@ -506,13 +539,9 @@ export async function returnPostgresDisbursement(disbursementIdInput: unknown): 
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
-    if (doc.transaction_type !== 'asset_borrow') throw new Error('สามารถคืนได้เฉพาะเอกสารยืมครุภัณฑ์')
+    if (doc.transaction_type !== 'asset_borrow') throw new Error('สามารถคืนได้เฉพาะเอกสารยืมสิ่งของ')
     if (!['active_borrow', 'partially_returned'].includes(doc.status)) throw new Error('เอกสารนี้ไม่ได้อยู่ระหว่างการยืม')
 
-    const dueCheck = await tx.execute<{ is_due: boolean }>(
-      sql`SELECT ${doc.due_date}::date <= (current_timestamp AT TIME ZONE 'Asia/Bangkok')::date AS is_due`
-    )
-    if (dueCheck.rows[0]?.is_due !== true) throw new Error('ยังไม่ถึงกำหนดคืนพัสดุ')
 
     const linesRes = await tx.execute<DisbursementItemRow>(
       sql`SELECT * FROM public.disbursement_items WHERE disbursement_id = ${doc.id} ORDER BY item_id ASC FOR UPDATE`
@@ -524,13 +553,16 @@ export async function returnPostgresDisbursement(disbursementIdInput: unknown): 
 
     await lockDisbursementItems(tx, outstandingLines.map(line => line.item_id))
     for (const line of outstandingLines) {
-      const itemRes = await tx.execute<{ id: string; note: string | null }>(
-        sql`SELECT id, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+      const itemRes = await tx.execute<{ id: string; item_type: string; note: string | null }>(
+        sql`SELECT id, item_type, note FROM ${await inventoryTableForId(tx, line.item_id)} WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const item = itemRes.rows[0]
       if (!item) throw new Error('ไม่พบครุภัณฑ์หรือครุภัณฑ์ถูกลบแล้ว')
 
       const returnedQty = line.issued_qty - line.returned_qty
+      if (item.item_type === 'material') {
+        await restoreBorrowedMaterial(tx, item.id, line.id, returnedQty, user.id)
+      } else {
       const centralNote = syncCentralNote(item.note || '', true) || null
       await tx.execute(sql`
         INSERT INTO public.asset_custody_logs (
@@ -543,6 +575,7 @@ export async function returnPostgresDisbursement(disbursementIdInput: unknown): 
         UPDATE public.items SET responsible_person = NULL, is_central = true, note = ${centralNote}, updated_at = now()
         WHERE id = ${item.id}
       `)
+      }
       await tx.execute(sql`
         UPDATE public.disbursement_items SET returned_qty = ${line.issued_qty}, status = 'returned' WHERE id = ${line.id}
       `)
@@ -581,7 +614,7 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
       sql`SELECT count(*)::int as count FROM public.disbursement_items WHERE disbursement_id = ${doc.id} AND returned_qty > 0`
     )
     if (returnedCheck.rows[0].count > 0) {
-      throw new Error('ไม่สามารถคืนสภาพเอกสารได้เนื่องจากมีการบันทึกคืนพัสดุบางส่วนไปแล้ว กรุณาใช้การรับคืนจนครบแทน')
+      throw new Error('ไม่สามารถคืนสภาพเอกสารได้เนื่องจากมีการบันทึกคืนวัสดุบางส่วนไปแล้ว กรุณาใช้การรับคืนจนครบแทน')
     }
 
     if (!['confirmed', 'active_borrow'].includes(doc.status)) {
@@ -595,16 +628,16 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
     await lockDisbursementItems(tx, linesRes.rows.map((line) => line.item_id))
 
     for (const line of linesRes.rows) {
-      const itemRes = await tx.execute<{ id: string; quantity: number; responsible_person: string | null; note: string | null }>(
-        sql`SELECT id, quantity, responsible_person, note FROM public.items WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
+      const itemRes = await tx.execute<{ id: string; item_type: string; quantity: number; responsible_person: string | null; note: string | null }>(
+        sql`SELECT id, item_type, quantity, responsible_person, note FROM ${await inventoryTableForId(tx, line.item_id)} WHERE id = ${line.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const item = itemRes.rows[0]
-      if (!item) throw new Error(`พัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
+      if (!item) throw new Error(`วัสดุ ${line.item_id} ถูกลบหรือไม่พร้อมใช้งาน`)
 
-      if (doc.transaction_type === 'material_issue') {
+      if (item.item_type === 'material') {
         // Refund stock
         await tx.execute(
-          sql`UPDATE public.items SET quantity = quantity + ${line.issued_qty}, updated_at = now() WHERE id = ${item.id}`
+          sql`UPDATE public.materials SET quantity = quantity + ${line.issued_qty}, updated_at = now() WHERE id = ${item.id}`
         )
 
         // Ledger entry
@@ -671,39 +704,54 @@ export async function reversePostgresDisbursement(rawInput: unknown): Promise<{ 
 
 export async function submitPostgresBorrowRequest(rawInput: unknown) {
   const input = submitBorrowRequestSchema.parse(rawInput)
+  const suppliedKey = (rawInput as { request_key?: unknown }).request_key
+  const requestKey = suppliedKey === undefined ? randomUUID() : z.string().uuid('รหัสชุดคำขอไม่ถูกต้อง').parse(suppliedKey)
+  const fingerprint = requestFingerprint(input)
   const profile = await getCurrentProfile()
   if (!profile?.is_active) {
     throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ')
   }
 
   if (!input.item_ids || !Array.isArray(input.item_ids) || input.item_ids.length === 0) {
-    throw new Error('กรุณาเลือกรายการพัสดุที่ต้องการยืมอย่างน้อย 1 รายการ')
+    throw new Error('กรุณาเลือกรายการวัสดุที่ต้องการยืมอย่างน้อย 1 รายการ')
   }
   if (input.item_ids.length > 20) {
     throw new Error('สามารถยืมได้สูงสุดครั้งละไม่เกิน 20 รายการ')
-  }
-  if (input.request_type === 'borrow' && !input.due_date) {
-    throw new Error('กรุณาระบุกำหนดวันส่งคืนพัสดุ')
   }
   if (!input.purpose || !input.purpose.trim()) {
     throw new Error('กรุณาระบุวัตถุประสงค์การใช้งาน')
   }
 
   return withUserDatabase(async (tx) => {
+    // Serialize retries before inventory checks, including requests whose stock is now zero.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`camms-request:${profile.id}:${requestKey}`}, 0))`)
+    const prior = await tx.execute<{ id: string; payload_hash: string }>(sql`SELECT id,payload_hash FROM public.request_batches WHERE created_by=${profile.id} AND request_key=${requestKey}`)
+    if (prior.rows[0]) {
+      if (prior.rows[0].payload_hash !== fingerprint) throw new Error('รหัสคำขอเดิมถูกใช้กับข้อมูลอื่นแล้ว กรุณาสร้างคำขอใหม่')
+      const children = await tx.execute<{ id: string }>(sql`SELECT id FROM public.disbursements WHERE request_batch_id=${prior.rows[0].id} AND created_by=${profile.id} ORDER BY created_at,id`)
+      if (!children.rows.length) throw new Error('ชุดคำขอเดิมไม่มีเอกสาร กรุณาติดต่อผู้ดูแลระบบ')
+      return { id: children.rows[0].id, ids: children.rows.map(row => row.id), batch_id: prior.rows[0].id }
+    }
+    const batch = await tx.execute<{ id: string }>(sql`INSERT INTO public.request_batches(created_by,request_key,payload_hash) VALUES (${profile.id},${requestKey},${fingerprint}) RETURNING id`)
+    const batchId = batch.rows[0].id
     await lockDisbursementItems(tx, input.item_ids)
     // 1. Verify items are central pool items and active
-    const itemTypes = new Set<string>()
+    const itemGroups = new Map<string, string[]>()
     for (const itemId of [...input.item_ids].sort()) {
-      const itemRes = await tx.execute<{ id: string; item_name: string; item_type: string; is_central: boolean; note: string | null; status: string; quantity: number }>(
-        sql`SELECT id, item_name, item_type, is_central, note, status, quantity FROM public.items WHERE id = ${itemId} AND deleted_at IS NULL ${profile.role === 'admin' ? sql`FOR UPDATE` : sql``}`
+      const itemRes = await tx.execute<{ id: string; item_name: string; unit_name: string | null; item_type: string; is_central: boolean; note: string | null; status: string; quantity: number }>(
+        sql`SELECT id, item_name, (SELECT name FROM public.units u WHERE u.id=unit_id) AS unit_name, item_type, is_central, note, status, quantity FROM public.inventory_items WHERE id = ${itemId} AND deleted_at IS NULL`
       )
       const it = itemRes.rows[0]
-      if (!it) throw new Error('ไม่พบข้อมูลพัสดุบางรายการ')
-      itemTypes.add(it.item_type)
-      if (input.request_type === 'borrow' && it.item_type !== 'asset') {
-        throw new Error('การยืมรองรับเฉพาะครุภัณฑ์ กรุณาใช้แท็บเบิกสำหรับวัสดุ')
+      if (!it) throw new Error('ไม่พบข้อมูลวัสดุบางรายการ')
+      const action = input.item_actions[itemId] ?? input.request_type
+      const documentType = action === 'borrow' ? 'asset_borrow' : it.item_type === 'material' ? 'material_issue' : 'asset_handover'
+      if (documentType === 'asset_borrow' && !input.due_date) throw new Error('กรุณาระบุกำหนดส่งคืนสำหรับรายการยืมสิ่งของ')
+      if (documentType === 'asset_borrow') {
+        const dateError = borrowDueDateError(input.due_date)
+        if (dateError) throw new Error(dateError)
       }
-      if (!it.is_central && (!it.note || !it.note.includes('ส่วนกลาง'))) {
+      itemGroups.set(documentType, [...(itemGroups.get(documentType) ?? []), itemId])
+      if (it.item_type !== 'material' && !it.is_central && (!it.note || !it.note.includes('ส่วนกลาง'))) {
         throw new Error(`รายการ "${it.item_name}" ไม่ใช่ของส่วนกลาง`)
       }
       if (it.status !== 'active' && it.status !== 'spare') {
@@ -713,41 +761,45 @@ export async function submitPostgresBorrowRequest(rawInput: unknown) {
       // The inventory lock serializes concurrent requests before checking reservations.
       if (Number(it.quantity) < 1) throw new Error(`รายการ "${it.item_name}" ไม่มีจำนวนพร้อมใช้งาน`)
 
-      await assertItemUnreserved(tx, itemId)
+      const requested = input.quantities[itemId] ?? 1
+      if (it.item_type === 'material') await assertMaterialAvailable(tx, it, requested)
+      else {
+        if (requested !== 1) throw new Error('ครุภัณฑ์แต่ละชิ้นต้องมีจำนวนเท่ากับ 1')
+        await assertItemUnreserved(tx, itemId)
+      }
     }
 
-    if (itemTypes.size > 1) {
-      throw new Error('กรุณาแยกคำขอเบิกวัสดุและครุภัณฑ์คนละเอกสาร')
-    }
-    const transactionType = input.request_type === 'borrow'
-      ? 'asset_borrow'
-      : itemTypes.has('material') ? 'material_issue' : 'asset_handover'
     const recipientName = profile.full_name || 'ผู้ใช้งาน'
     const departmentName = profile.department || 'สำนักงานเขตสุขภาพที่ 7'
+    const documentIds: string[] = []
+    // Split documents by type and commit the entire cart in this transaction.
+    for (const [transactionType, itemIds] of itemGroups) {
+    const dueDate = transactionType === 'asset_borrow' ? input.due_date : null
 
     // 2. Insert disbursement header
     const docRes = await tx.execute<{ id: string }>(
       sql`INSERT INTO public.disbursements (
-        transaction_type, recipient_name, department_name, purpose, status, due_date, created_by
+        transaction_type, recipient_name, department_name, purpose, status, due_date, created_by, request_batch_id, submitted_at
       ) VALUES (
         ${transactionType},
         ${recipientName},
         ${departmentName},
         ${input.purpose.trim()},
         'pending_approval',
-        ${input.due_date},
-        ${profile.id}
+        ${dueDate},
+        ${profile.id}, ${batchId}, now()
       ) RETURNING id`
     )
     const docId = docRes.rows[0].id
+    documentIds.push(docId)
 
     // 3. Insert line items
-    for (const itemId of [...input.item_ids].sort()) {
+    for (const itemId of itemIds) {
       await tx.execute(
         sql`INSERT INTO public.disbursement_items (
           disbursement_id, item_id, requested_qty, status
         ) VALUES (
-          ${docId}, ${itemId}, 1, 'pending'
+          ${docId}, ${itemId}, ${input.quantities[itemId] ?? 1}, 'pending'
         )`
       )
     }
@@ -756,18 +808,20 @@ export async function submitPostgresBorrowRequest(rawInput: unknown) {
     await tx.execute(
       sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
           VALUES (
-            ${profile.id}, ${input.request_type === 'borrow' ? 'REQUEST_BORROW' : 'REQUEST_ISSUE'}, 'disbursements', ${docId},
+            ${profile.id}, ${transactionType === 'asset_borrow' ? 'REQUEST_BORROW' : 'REQUEST_ISSUE'}, 'disbursements', ${docId},
             null,
             ${JSON.stringify({
-              items_count: input.item_ids.length,
-              request_type: input.request_type,
-              due_date: input.due_date,
+              items_count: itemIds.length,
+              request_type: transactionType === 'asset_borrow' ? 'borrow' : 'issue',
+              due_date: dueDate,
               purpose: input.purpose.trim(),
             })}::jsonb
           )`
     )
 
-    return { id: docId }
+    }
+    documentIds.sort()
+    return { id: documentIds[0], ids: documentIds, batch_id: batchId }
   })
 }
 

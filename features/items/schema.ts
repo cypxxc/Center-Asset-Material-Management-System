@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ITEM_STATUSES } from './status'
 import { normalizeForStorage, getGraphemeLength } from '@/lib/unicode'
 import { stripCommas } from '@/lib/number-format'
+import { assetRegisterSchema } from './asset-register'
 
 const optionalUuid = z.preprocess(
   (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
@@ -69,6 +70,7 @@ const itemQualificationSchema = z.preprocess(
 const itemStatusSchema = z.enum(ITEM_STATUSES)
 
 export const itemFormSchema = z.object({
+  ...assetRegisterSchema.shape,
   item_name: z.preprocess(
     (val) => typeof val === 'string' ? normalizeForStorage(val) : val,
     z
@@ -80,8 +82,8 @@ export const itemFormSchema = z.object({
   qualification_status: itemQualificationSchema,
   category_id: optionalUuid,
   quantity: z.preprocess(
-    (val) => typeof val === 'string' ? stripCommas(val) : val,
-    z.coerce.number().int('จำนวนต้องเป็นจำนวนเต็ม').min(1, 'จำนวนต้องมากกว่า 0')
+    (val) => typeof val === 'string' ? (val.trim() ? stripCommas(val) : NaN) : (val ?? NaN),
+    z.coerce.number().int('จำนวนต้องเป็นจำนวนเต็ม').min(0, 'จำนวนต้องไม่ติดลบ').max(2147483647, 'จำนวนเกินขอบเขตที่ระบบรองรับ')
   ),
   unit_price: optionalUnitPrice,
   unit_id: optionalUuid,
@@ -110,6 +112,7 @@ export const itemFormSchema = z.object({
   ),
   depreciation_start_date: optionalDate,
 }).superRefine((data, ctx) => {
+  if (data.item_type === 'asset' && data.quantity < 1) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'จำนวนครุภัณฑ์ต้องมากกว่า 0' })
   if (!data.depreciation_enabled) return
   if (data.item_type !== 'asset') ctx.addIssue({ code: 'custom', path: ['depreciation_enabled'], message: 'คิดค่าเสื่อมได้เฉพาะครุภัณฑ์' })
   if (!data.depreciation_cost || data.depreciation_cost <= 1) ctx.addIssue({ code: 'custom', path: ['depreciation_cost'], message: 'มูลค่าพร้อมใช้งานต้องมากกว่า 1 บาท' })

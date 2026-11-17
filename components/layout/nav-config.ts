@@ -5,7 +5,8 @@ export const ROLE_LABELS: Record<string, string> = {
 
 export const PATH_LABELS: Record<string, string> = {
   'central-items': 'ส่วนกลาง',
-  items: 'รายการพัสดุ',
+  items: 'ครุภัณฑ์',
+  materials: 'วัสดุ',
   locations: 'สถานที่ตั้ง',
   reports: 'สรุปรายงาน',
   settings: 'ตั้งค่าระบบ',

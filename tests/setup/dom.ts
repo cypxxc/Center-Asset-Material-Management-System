@@ -16,9 +16,17 @@ Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
   localStorage: dom.window.localStorage,
+  sessionStorage: dom.window.sessionStorage,
   confirm: dom.window.confirm,
   alert: dom.window.alert,
   prompt: dom.window.prompt,
+  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+  MutationObserver: dom.window.MutationObserver,
+  Element: dom.window.Element,
+  Event: dom.window.Event,
+  CustomEvent: dom.window.CustomEvent,
+  Node: dom.window.Node,
+  NodeFilter: dom.window.NodeFilter,
 });
 
 // Use defineProperty with enumerable: true for navigator to avoid read-only collisions

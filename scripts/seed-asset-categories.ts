@@ -53,9 +53,9 @@ async function seed() {
       const color = item.color
 
       const res = await client.query(
-        `INSERT INTO public.categories (name, description, color, is_active)
-         VALUES ($1, $2, $3, true)
-         ON CONFLICT (name) DO UPDATE
+        `INSERT INTO public.categories (name, item_type, description, color, is_active)
+         VALUES ($1, 'asset', $2, $3, true)
+         ON CONFLICT (name, item_type) DO UPDATE
          SET description = EXCLUDED.description, color = EXCLUDED.color, is_active = true, updated_at = now()
          RETURNING id, name, description, color, is_active`,
         [cleanName, cleanDesc, color]

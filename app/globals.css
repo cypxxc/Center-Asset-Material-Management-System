@@ -49,6 +49,7 @@
 
 
 :root {
+  color-scheme: light;
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -116,7 +117,6 @@
   --sidebar-border: #334155;
   --sidebar-ring: #3b82f6;
 }
-
 
 @layer base {
   * {

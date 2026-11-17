@@ -3,7 +3,7 @@ import packageJson from '../package.json'
 /** Centralized runtime configuration — validated at read time, no magic numbers in features. */
 export const config = {
   app: {
-    name: 'CAMMS',
+    name: 'Portal',
     version: packageJson.version,
     buildId: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.BUILD_ID ?? 'local',
   },

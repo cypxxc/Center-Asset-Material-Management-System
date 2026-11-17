@@ -1,275 +1,187 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { signOut } from '@/features/auth/actions'
+import { createPortal } from 'react-dom'
+import { Clock, ShieldAlert } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface IdleSessionTimeoutProps {
   timeoutSeconds?: number
   warningSeconds?: number
+  sessionExpiresAt?: string
 }
 
 const STORAGE_KEY = 'camms_last_activity'
 const CHANNEL_NAME = 'camms_idle_sync'
 
-export function IdleSessionTimeout({
-  timeoutSeconds = 1800,
-  warningSeconds = 60,
-}: IdleSessionTimeoutProps) {
+export function IdleSessionTimeout({ timeoutSeconds = 8 * 60 * 60, warningSeconds = 60, sessionExpiresAt }: IdleSessionTimeoutProps) {
+  const sessionDeadline = sessionExpiresAt ? Date.parse(sessionExpiresAt) : Infinity
   const [isWarningOpen, setIsWarningOpen] = useState(false)
+  const [isExpired, setIsExpired] = useState(false)
   const [secondsRemaining, setSecondsRemaining] = useState(warningSeconds)
-
+  const [isSessionWarning, setIsSessionWarning] = useState(false)
   const isWarningOpenRef = useRef(false)
   const hasLoggedOutRef = useRef(false)
-  const lastActivityRef = useRef<number>(0)
+  const lastActivityRef = useRef(0)
+  const dialogRef = useRef<HTMLDialogElement>(null)
 
-  const handleLogout = useCallback(async () => {
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    // Native modal dialogs share the browser top layer with the item form.
+    // A body portal with z-index alone would remain behind that form.
+    if (!dialog.open) dialog.showModal()
+    if (isExpired) dialog.focus()
+  }, [isWarningOpen, isExpired])
+
+  const handleLogout = useCallback(() => {
     if (hasLoggedOutRef.current) return
     hasLoggedOutRef.current = true
-
-    setIsWarningOpen(false)
     isWarningOpenRef.current = false
-
-    // Sync logout to other open tabs
+    setIsWarningOpen(false)
+    setIsExpired(true)
     try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        const bc = new BroadcastChannel(CHANNEL_NAME)
-        bc.postMessage({ type: 'LOGOUT' })
-        bc.close()
+      localStorage.removeItem(STORAGE_KEY)
+    } catch { /* Storage may be unavailable. */ }
+    try {
+      if ('BroadcastChannel' in window) {
+        const channel = new BroadcastChannel(CHANNEL_NAME)
+        channel.postMessage({ type: 'LOGOUT' })
+        channel.close()
       }
-    } catch {
-      // ignore
-    }
-
-    // Clear client-side state
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY)
-        sessionStorage.clear()
-        document.cookie = 'camms_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-      }
-    } catch {
-      // ignore
-    }
-
-    // Call server logout (both dedicated route and server action with timeout fallback)
-    try {
-      await Promise.race([
-        fetch('/api/auth/logout', { method: 'POST', keepalive: true }),
-        signOut(),
-        new Promise((resolve) => setTimeout(resolve, 1200)),
-      ]).catch(() => {})
-    } catch {
-      // ignore
-    }
-
-    // Navigate to login page with idle_timeout reason
-    if (typeof window !== 'undefined') {
-      window.location.replace('/login?reason=idle_timeout')
-    }
+    } catch { /* Storage events also synchronize logout. */ }
   }, [])
 
+  useEffect(() => {
+    if (!isExpired) return
+    // Use the server route to revoke the session and delete its HttpOnly cookie.
+    // A brief delay lets users read why they are being redirected.
+    const timer = setTimeout(() => window.location.replace('/api/auth/logout'), 1500)
+    return () => clearTimeout(timer)
+  }, [isExpired])
+
   const stayLoggedIn = useCallback(() => {
-    const now = Date.now()
-    lastActivityRef.current = now
+    if (hasLoggedOutRef.current) return
+    if (Date.now() >= sessionDeadline || Date.now() - lastActivityRef.current >= timeoutSeconds * 1000) {
+      handleLogout()
+      return
+    }
+    lastActivityRef.current = Date.now()
     isWarningOpenRef.current = false
-    hasLoggedOutRef.current = false
     setIsWarningOpen(false)
     setSecondsRemaining(warningSeconds)
-
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, String(now))
-        if ('BroadcastChannel' in window) {
-          const bc = new BroadcastChannel(CHANNEL_NAME)
-          bc.postMessage({ type: 'ACTIVITY', timestamp: now })
-          bc.close()
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, [warningSeconds])
+      localStorage.setItem(STORAGE_KEY, String(lastActivityRef.current))
+    } catch { /* Keep the in-memory timer working. */ }
+  }, [handleLogout, sessionDeadline, timeoutSeconds, warningSeconds])
 
   useEffect(() => {
     const now = Date.now()
     lastActivityRef.current = now
-    hasLoggedOutRef.current = false
-
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          const storedTime = parseInt(stored, 10)
-          if (!isNaN(storedTime) && storedTime > 0 && storedTime <= now) {
-            lastActivityRef.current = Math.max(lastActivityRef.current, storedTime)
-          }
-        }
-        localStorage.setItem(STORAGE_KEY, String(now))
-      }
-    } catch {
-      // ignore
-    }
-
-    const onActivity = () => {
-      if (!isWarningOpenRef.current && !hasLoggedOutRef.current) {
-        const currentNow = Date.now()
-        lastActivityRef.current = currentNow
-        try {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, String(currentNow))
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
-
-    const activityEvents = ['keydown', 'click', 'scroll', 'pointerdown', 'mousemove', 'touchstart'] as const
-    for (const ev of activityEvents) {
-      window.addEventListener(ev, onActivity, { passive: true })
-    }
-
-    // Multi-tab sync via BroadcastChannel and storage event
-    let channel: BroadcastChannel | null = null
-    try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        channel = new BroadcastChannel(CHANNEL_NAME)
-        channel.onmessage = (event) => {
-          if (event.data?.type === 'LOGOUT') {
-            hasLoggedOutRef.current = true
-            window.location.replace('/login?reason=idle_timeout')
-          } else if (event.data?.type === 'ACTIVITY' && typeof event.data.timestamp === 'number') {
-            lastActivityRef.current = Math.max(lastActivityRef.current, event.data.timestamp)
-            if (isWarningOpenRef.current) {
-              isWarningOpenRef.current = false
-              setIsWarningOpen(false)
-            }
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    const onStorageChange = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        const remoteTime = parseInt(e.newValue, 10)
-        if (!isNaN(remoteTime)) {
-          lastActivityRef.current = Math.max(lastActivityRef.current, remoteTime)
-          if (isWarningOpenRef.current) {
-            isWarningOpenRef.current = false
-            setIsWarningOpen(false)
-          }
-        }
-      }
-    }
-    window.addEventListener('storage', onStorageChange)
+      const stored = Number(localStorage.getItem(STORAGE_KEY))
+      if (Number.isFinite(stored) && stored > 0 && stored <= now) lastActivityRef.current = stored
+      else localStorage.setItem(STORAGE_KEY, String(now))
+    } catch { /* Keep the in-memory timer working. */ }
 
     const checkTimeout = () => {
       if (hasLoggedOutRef.current) return
-
-      const currentNow = Date.now()
-      const elapsed = Math.floor((currentNow - lastActivityRef.current) / 1000)
-      const remaining = timeoutSeconds - elapsed
-
+      const idleRemaining = timeoutSeconds - Math.floor((Date.now() - lastActivityRef.current) / 1000)
+      const sessionRemaining = Math.ceil((sessionDeadline - Date.now()) / 1000)
+      const remaining = Math.min(idleRemaining, sessionRemaining)
       if (remaining <= 0) {
-        hasLoggedOutRef.current = true
         handleLogout()
-      } else if (remaining <= warningSeconds) {
-        if (!isWarningOpenRef.current) {
-          isWarningOpenRef.current = true
-          setIsWarningOpen(true)
-        }
-        setSecondsRemaining(remaining)
       } else {
-        if (isWarningOpenRef.current) {
-          isWarningOpenRef.current = false
-          setIsWarningOpen(false)
-        }
+        isWarningOpenRef.current = remaining <= warningSeconds
+        setIsWarningOpen(isWarningOpenRef.current)
+        setIsSessionWarning(sessionRemaining <= warningSeconds)
+        if (isWarningOpenRef.current) setSecondsRemaining(remaining)
       }
     }
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkTimeout()
+    const onActivity = () => {
+      if (hasLoggedOutRef.current) return
+      // A click after browser sleep must not revive an already expired timer.
+      if (Date.now() >= sessionDeadline || Date.now() - lastActivityRef.current >= timeoutSeconds * 1000) {
+        handleLogout()
+        return
       }
+      if (isWarningOpenRef.current) return
+      lastActivityRef.current = Date.now()
+      try {
+        localStorage.setItem(STORAGE_KEY, String(lastActivityRef.current))
+      } catch { /* Keep the in-memory timer working. */ }
+    }
+
+    const acceptRemoteActivity = (timestamp: number) => {
+      if (hasLoggedOutRef.current || !Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now()) return
+      lastActivityRef.current = Math.max(lastActivityRef.current, timestamp)
+      checkTimeout()
+    }
+    const onStorageChange = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY) return
+      if (event.newValue === null) handleLogout()
+      else acceptRemoteActivity(Number(event.newValue))
+    }
+    let channel: BroadcastChannel | null = null
+    try {
+      if ('BroadcastChannel' in window) {
+        channel = new BroadcastChannel(CHANNEL_NAME)
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'LOGOUT') handleLogout()
+          else if (event.data?.type === 'ACTIVITY' && typeof event.data.timestamp === 'number') acceptRemoteActivity(event.data.timestamp)
+        }
+      }
+    } catch { /* Storage events remain available. */ }
+
+    const activityEvents = ['keydown', 'click', 'scroll', 'pointerdown', 'mousemove', 'touchstart'] as const
+    for (const event of activityEvents) window.addEventListener(event, onActivity, { passive: true })
+    window.addEventListener('storage', onStorageChange)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') checkTimeout()
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
-
     const interval = setInterval(checkTimeout, 1000)
-
+    checkTimeout()
     return () => {
-      for (const ev of activityEvents) {
-        window.removeEventListener(ev, onActivity)
-      }
+      for (const event of activityEvents) window.removeEventListener(event, onActivity)
       window.removeEventListener('storage', onStorageChange)
       document.removeEventListener('visibilitychange', onVisibilityChange)
-      if (channel) {
-        try {
-          channel.close()
-        } catch {}
-      }
+      channel?.close()
       clearInterval(interval)
     }
-  }, [handleLogout, timeoutSeconds, warningSeconds])
+  }, [handleLogout, sessionDeadline, timeoutSeconds, warningSeconds])
 
-  if (!isWarningOpen) return null
+  if (!isWarningOpen && !isExpired) return null
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="idle-timeout-title"
-      aria-describedby="idle-timeout-desc"
-      className="fixed inset-0 z-[99998] flex items-center justify-center p-4"
-    >
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-        onClick={stayLoggedIn}
-      />
-      <div className="relative w-full max-w-md bg-card border border-border p-6 rounded-xl shadow-2xl z-[99999] space-y-5 animate-in zoom-in-95 duration-200 focus:outline-hidden">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-          </div>
-          <div>
-            <h2 id="idle-timeout-title" className="text-base font-bold text-foreground">
-              แจ้งเตือนการหมดเวลาเซสชัน (Idle Timeout)
+  return createPortal(
+        <dialog ref={dialogRef} role="alertdialog" aria-modal="true" aria-labelledby="idle-timeout-title" aria-describedby="idle-timeout-description" tabIndex={-1} onCancel={(event) => event.preventDefault()} style={{ pointerEvents: 'auto' }} className="fixed inset-0 z-[99999] m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md space-y-5 overflow-y-auto rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-xs focus:outline-none">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="size-8 shrink-0 text-amber-600" aria-hidden="true" />
+            <h2 id="idle-timeout-title" className="text-base font-semibold">
+              {isExpired ? 'เซสชันหมดอายุ' : 'แจ้งเตือนการหมดเวลาเซสชัน (Idle Timeout)'}
             </h2>
-            <p id="idle-timeout-desc" className="text-xs text-muted-foreground mt-0.5">
-              เพื่อความปลอดภัยของข้อมูลในระบบ
-            </p>
           </div>
-        </div>
-
-        <p className="text-sm text-foreground/80 leading-relaxed">
-          คุณไม่ได้ใช้งานระบบมาระยะหนึ่ง เพื่อความปลอดภัย ระบบจะออกจากระบบโดยอัตโนมัติในอีก:
-        </p>
-
-        <div className="flex items-center justify-center gap-2 py-3 px-4 bg-muted/60 border border-border rounded-lg text-foreground font-mono text-xl font-bold">
-          <svg className="w-5 h-5 text-amber-500 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>{secondsRemaining} วินาที</span>
-        </div>
-
-        <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border border-border bg-secondary hover:bg-secondary/80 text-secondary-foreground transition-colors cursor-pointer"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-            <span>ออกจากระบบทันที</span>
-          </button>
-          <button
-            type="button"
-            onClick={stayLoggedIn}
-            autoFocus
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-colors cursor-pointer"
-          >
-            <span>คงอยู่ในระบบต่อไป</span>
-          </button>
-        </div>
-      </div>
-    </div>
+          <p id="idle-timeout-description" className="text-sm leading-relaxed text-muted-foreground">
+            {isExpired ? 'หมดเวลาใช้งานระบบ กำลังออกจากระบบและพาไปหน้าเข้าสู่ระบบใหม่โดยอัตโนมัติ' : isSessionWarning ? 'เซสชันกำลังครบกำหนด 8 ชั่วโมง กรุณาบันทึกงานและเข้าสู่ระบบใหม่เมื่อหมดเวลา' : 'คุณไม่ได้ใช้งานระบบมาระยะหนึ่ง ระบบจะออกจากระบบอัตโนมัติเมื่อหมดเวลา กรุณายืนยันหากต้องการใช้งานต่อ'}
+          </p>
+          {isExpired ? (
+            <p role="status" className="text-center text-sm text-muted-foreground">กำลังไปหน้าเข้าสู่ระบบ...</p>
+          ) : (
+            <>
+              <div role="timer" className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/60 p-3 font-mono text-xl font-semibold">
+                <Clock className="size-5 text-amber-600" aria-hidden="true" />
+                <span>{secondsRemaining} วินาที</span>
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button type="button" variant="outline" onClick={handleLogout} className="flex-1">ออกจากระบบทันที</Button>
+                {!isSessionWarning &&
+                  <Button type="button" onClick={stayLoggedIn} className="flex-1">คงอยู่ในระบบต่อไป</Button>
+                }
+              </div>
+            </>
+          )}
+        </dialog>,
+    document.body
   )
 }

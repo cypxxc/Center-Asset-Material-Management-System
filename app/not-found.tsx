@@ -34,7 +34,7 @@ export default function NotFound() {
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>ทะเบียนพัสดุ</span>
+            <span>ทะเบียนวัสดุ</span>
           </Link>
         </div>
       </div>

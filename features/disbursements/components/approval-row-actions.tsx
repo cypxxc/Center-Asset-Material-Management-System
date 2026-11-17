@@ -1,12 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { confirmDisbursement } from '../actions'
 import type { DisbursementRow } from '../types'
+import { bangkokCalendarDate, borrowDueDateError } from '../borrow-dates'
 
 const ApprovalRowMenu = dynamic(() => import('./approval-row-menu').then(module => module.ApprovalRowMenu), {
   ssr: false,
@@ -14,7 +15,7 @@ const ApprovalRowMenu = dynamic(() => import('./approval-row-menu').then(module 
 })
 
 export function ApprovalRowActions({ doc, className }: {
-  doc: Pick<DisbursementRow, 'id' | 'status' | 'recipient_name' | 'transaction_type' | 'purpose'>
+  doc: Pick<DisbursementRow, 'id' | 'status' | 'recipient_name' | 'transaction_type' | 'purpose'> & { due_date?: string | null }
   className?: string
 }) {
   const router = useRouter()
@@ -23,6 +24,8 @@ export function ApprovalRowActions({ doc, className }: {
   const [menuRequested, setMenuRequested] = useState(false)
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState('')
+  const [replacementDueDate, setReplacementDueDate] = useState('')
+  const dueInputId = useId()
   const submitting = useRef(false)
   const [previousStatus, setPreviousStatus] = useState(doc.status)
   if (previousStatus !== doc.status) {
@@ -33,7 +36,8 @@ export function ApprovalRowActions({ doc, className }: {
   }
   const actionable = doc.status === 'pending_approval' || doc.status === 'draft'
   const cancellable = actionable || doc.status === 'confirmed' || doc.status === 'active_borrow'
-  const disabled = !actionable || busy || menuBusy || completed
+  const needsDueDate = actionable && doc.transaction_type === 'asset_borrow' && (!doc.due_date || doc.due_date < bangkokCalendarDate())
+  const disabled = !actionable || busy || menuBusy || completed || (needsDueDate && !!borrowDueDateError(replacementDueDate))
 
   async function confirm() {
     if (disabled || submitting.current) return
@@ -41,7 +45,7 @@ export function ApprovalRowActions({ doc, className }: {
     setBusy(true)
     setError('')
     try {
-      const result = await confirmDisbursement(doc.id)
+      const result = await confirmDisbursement(doc.id, needsDueDate ? replacementDueDate : undefined)
       if (!result.ok) { setError(result.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่'); return }
       setCompleted(true)
       router.refresh()
@@ -50,6 +54,11 @@ export function ApprovalRowActions({ doc, className }: {
   }
 
   return <>
+    {needsDueDate && <div className="mb-2 whitespace-normal text-xs">
+      <p>กำหนดส่งคืนเดิมพ้นกำหนดแล้ว กรุณายืนยันวันใหม่ก่อนอนุมัติ</p>
+      <label htmlFor={dueInputId}>กำหนดส่งคืนใหม่</label>
+      <input id={dueInputId} type="date" min={bangkokCalendarDate()} value={replacementDueDate} disabled={busy || completed} onChange={event => setReplacementDueDate(event.target.value)} className="mt-1 block rounded border border-border bg-background px-2 py-1 text-foreground" />
+    </div>}
     <div className={cn('flex items-center justify-end gap-2', className)}>
       {actionable && <Button size="sm" disabled={disabled} onClick={confirm}>{busy ? 'กำลังยืนยัน...' : 'ยืนยัน'}</Button>}
       {menuRequested

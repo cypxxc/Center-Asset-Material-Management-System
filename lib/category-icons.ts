@@ -53,8 +53,8 @@ export const CATEGORY_ICONS: CategoryIconOption[] = [
   { name: 'FileText', label: 'เอกสารและแบบฟอร์ม', category: 'ทั่วไป', component: FileText },
   { name: 'Briefcase', label: 'กระเป๋าเอกสาร/สำนักงาน', category: 'ทั่วไป', component: Briefcase },
   { name: 'Book', label: 'หนังสือและตำรา', category: 'ทั่วไป', component: Book },
-  { name: 'Boxes', label: 'กล่องพัสดุ', category: 'ทั่วไป', component: Boxes },
-  { name: 'Package', label: 'หีบห่อพัสดุ', category: 'ทั่วไป', component: Package },
+  { name: 'Boxes', label: 'กล่องวัสดุ', category: 'ทั่วไป', component: Boxes },
+  { name: 'Package', label: 'หีบห่อวัสดุ', category: 'ทั่วไป', component: Package },
   { name: 'Layers', label: 'หมวดหมู่ซ้อน', category: 'ทั่วไป', component: Layers },
 
   // IT & Electronics

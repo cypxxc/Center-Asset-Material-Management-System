@@ -54,7 +54,7 @@ interface ReportsListProps {
  sort_dir?: string
  page?: string
  }
- categories: { id: string; name: string }[]
+ categories: { id: string; name: string; item_type?: 'asset' | 'material' }[]
  locations: { id: string; name: string }[]
  stats?: ReportStats
  view?: 'all' | 'header-and-kpis' | 'table-and-filters'
@@ -99,8 +99,8 @@ export function ReportsList({
  )
 
  const categoryOptions: FilterOption[] = useMemo(
- () => categories.map((cat) => ({ value: cat.id, label: cat.name })),
- [categories]
+ () => categories.filter(cat => !searchParams.type || cat.item_type === searchParams.type).map((cat) => ({ value: cat.id, label: searchParams.type ? cat.name : `${cat.name} (${cat.item_type === 'material' ? 'วัสดุ' : 'ครุภัณฑ์'})` })),
+ [categories, searchParams.type]
  )
 
  const locationOptions: FilterOption[] = useMemo(
@@ -161,7 +161,7 @@ export function ReportsList({
  const newQ = updates.q !== undefined ? updates.q : searchVal
  const newType = updates.type !== undefined ? updates.type : (searchParams.type ?? '')
  const newStatus = updates.status !== undefined ? updates.status : (searchParams.status ?? '')
- const newCategory = updates.category_id !== undefined ? updates.category_id : (searchParams.category_id ?? '')
+ const newCategory = updates.category_id !== undefined ? updates.category_id : updates.type !== undefined ? '' : (searchParams.category_id ?? '')
  const newLocation = updates.location_id !== undefined ? updates.location_id : (searchParams.location_id ?? '')
  const newPage = updates.page !== undefined ? updates.page : '1'
  
@@ -286,7 +286,7 @@ export function ReportsList({
  <div className="hidden print:block p-8 border-b-2 border-border print:border-slate-900 mb-6">
  <div className="flex justify-between items-start">
  <div>
- <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนครุภัณฑ์และพัสดุ</h1>
+ <h1 className="text-2xl font-bold text-foreground print:text-slate-900">รายงานทะเบียนครุภัณฑ์และวัสดุ</h1>
  <p className="text-xs text-muted-foreground print:text-slate-500" suppressHydrationWarning>วันที่พิมพ์รายงาน: {formatDate()}{preparedBy ? ` | จัดเตรียมโดย: ${preparedBy}` : ''}</p>
  <p className="mt-2 text-xs text-foreground">
  เงื่อนไข: {[
@@ -300,7 +300,7 @@ export function ReportsList({
  <p className="mt-1 text-xs text-muted-foreground">หน้าที่ {currentPage} จาก {Math.max(1, totalPages)} · แสดง {items.length} จาก {totalCount} รายการที่ตรงเงื่อนไข</p>
  </div>
  <div className="text-right">
- <h2 className="text-xl font-bold text-primary print:text-blue-600">CAMMS Portal</h2>
+ <h2 className="text-xl font-bold text-primary print:text-blue-600">Portal</h2>
  <p className="text-xs text-muted-foreground print:text-slate-500">
  Center Asset & Material Management System
  </p>
@@ -316,7 +316,7 @@ export function ReportsList({
  <FileText className="w-4.5 h-4.5" />
  </div>
  <div className="flex items-center gap-2.5">
- <span className="font-bold tracking-tight">รายงานทะเบียนครุภัณฑ์และพัสดุ</span>
+ <span className="font-bold tracking-tight">รายงานทะเบียนครุภัณฑ์และวัสดุ</span>
  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
  ระบบเรียลไทม์
@@ -390,7 +390,7 @@ export function ReportsList({
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
  <div className="flex items-center gap-2">
  <Filter className="w-3.5 h-3.5 text-muted-foreground" />
- <span className="text-xs font-semibold text-card-foreground">ตัวกรองและค้นหารายการพัสดุ</span>
+ <span className="text-xs font-semibold text-card-foreground">ตัวกรองและค้นหารายการวัสดุ</span>
  {hasActiveFilters && (
  <span className="text-[11px] font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
  มีตัวกรองที่เลือก

@@ -1,0 +1,9 @@
+# Per-item cart actions
+
+Approved request: each asset in one cart may independently be borrowed or issued/handed over; materials always issue. Preserve cart across catalog type changes. One confirmation submits all documents atomically.
+
+Implementation: add optional validated item_actions map to the existing request API with legacy request_type fallback; require the shared return date only when at least one effective action borrows. Server resolves item types and rejects material borrowing, groups by material_issue / asset_handover / asset_borrow, and retains shared sorted locks + one transaction. UI replaces whole-cart tabs with a per-asset selector, indicates materials are issue-only, and labels the common date as applying to borrowed items. No migrations, permission changes, or committed test approvals.
+
+Verification: schema tests for per-item actions/unknown IDs/date requirements; rollback database test for all three document types and all-or-nothing errors; cart DOM tests for mixed actions and retained choices; existing material concurrency tests; typecheck/lint/build/full suite; independent review.
+
+Completed: 3 schema tests + 3 DOM tests pass. Two PostgreSQL tests pass, including all three document types from one cart, partial action-map compatibility, missing-date/material-borrow rejection, atomic insert rollback, and existing stock concurrency. TypeScript unused checks, lint and production build pass; bundle budget passes. Independent review clean after fixing partial-map date inference: final due-date requirement is enforced after server-side inventory classification. Shared JSDOM getSelection recursion is corrected locally in the cart test to exercise the real Radix dropdown. Full npm test still stops at the preexisting image-crop-dialog.test.tsx React-is-not-defined failures. No application server started and no migrations required.

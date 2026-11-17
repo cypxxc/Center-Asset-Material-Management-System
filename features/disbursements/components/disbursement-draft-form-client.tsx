@@ -50,7 +50,7 @@ export function DisbursementDraftFormClient({
  onSubmittingChange,
 }: DraftFormClientProps) {
  const router = useRouter()
- const availableItems = allAvailableItems.filter(isCentralDisbursementItem)
+ const availableItems = allAvailableItems.filter(item => item.item_type === 'material' || isCentralDisbursementItem(item))
  const isEditing = Boolean(initialDoc?.id)
 
  // Map for fast item lookup
@@ -125,7 +125,7 @@ export function DisbursementDraftFormClient({
  setErrorMsg('')
 
  if (!recipientName.trim()) {
- setErrorMsg('กรุณาระบุชื่อผู้รับพัสดุ / ผู้ยืม')
+ setErrorMsg('กรุณาระบุชื่อผู้รับวัสดุ / ผู้ยืม')
  return
  }
  if (!departmentName.trim()) {
@@ -146,7 +146,7 @@ export function DisbursementDraftFormClient({
  }
 
  // Check material stock
- if (transactionType === 'material_issue') {
+ if (transactionType === 'material_issue' && userRole !== 'admin') {
  for (const selected of selectedItems) {
  const item = itemsMap.get(selected.item_id)
  if (item && selected.requested_qty > item.quantity) {
@@ -162,7 +162,7 @@ export function DisbursementDraftFormClient({
  if (transactionType === 'asset_borrow') {
  for (const selected of selectedItems) {
  const item = itemsMap.get(selected.item_id)
- if (item && !item.is_central && (!item.note || !item.note.includes('ส่วนกลาง'))) {
+ if (item && item.item_type !== 'material' && !item.is_central && (!item.note || !item.note.includes('ส่วนกลาง'))) {
  setErrorMsg(
  `ไม่สามารถทำรายการได้: "${item.item_name}" ไม่ใช่ของส่วนกลาง (อนุญาตให้ยืมเฉพาะของส่วนกลางเท่านั้น)`
  )
@@ -333,7 +333,7 @@ export function DisbursementDraftFormClient({
  {/* Recipient */}
  <div>
  <FormLabel htmlFor="disbursement-recipient-name" className="mb-1.5 font-medium">
- ชื่อผู้รับพัสดุ / ผู้ยืม <span className="text-destructive">*</span>
+ ชื่อผู้รับวัสดุ / ผู้ยืม <span className="text-destructive">*</span>
  </FormLabel>
  <FormInput
  id="disbursement-recipient-name"
@@ -393,9 +393,9 @@ export function DisbursementDraftFormClient({
  )}
  </div>
  <p className="text-[11px] text-muted-foreground mt-0.5">
- {transactionType === 'material_issue' && 'เฉพาะพัสดุสิ้นเปลือง (สามารถเบิกตามยอดคงเหลือ)'}
+ {transactionType === 'material_issue' && 'เฉพาะวัสดุสิ้นเปลือง (สามารถเบิกตามยอดคงเหลือ)'}
  {transactionType === 'asset_handover' && 'เฉพาะครุภัณฑ์ (โอนเปลี่ยนผู้ถือครองถาวร)'}
- {transactionType === 'asset_borrow' && 'เฉพาะรายการของส่วนกลาง (ยืมครั้งละ 1 หน่วย)'}
+ {transactionType === 'asset_borrow' && 'วัสดุยืมได้ตามยอดคงเหลือ ครุภัณฑ์ยืมครั้งละ 1 หน่วย'}
  </p>
  </div>
 
@@ -421,11 +421,11 @@ export function DisbursementDraftFormClient({
  <div className="space-y-1">
  <p className="font-semibold text-foreground">
  {transactionType === 'material_issue'
- ? 'ยังไม่มีรายการพัสดุในเอกสารนี้'
+ ? 'ยังไม่มีรายการวัสดุในเอกสารนี้'
  : 'ยังไม่มีรายการครุภัณฑ์ในเอกสารนี้'}
  </p>
  <p className="text-[11px] text-muted-foreground">
- กดปุ่ม &quot;{transactionType === 'material_issue' ? 'ค้นหาและเลือกพัสดุจากคลัง' : 'ค้นหาและเลือกครุภัณฑ์จากคลัง'}&quot; เพื่อเปิดตารางค้นหาและเลือกสิ่งของ
+ กดปุ่ม &quot;{transactionType === 'material_issue' ? 'ค้นหาและเลือกวัสดุจากคลัง' : 'ค้นหาและเลือกครุภัณฑ์จากคลัง'}&quot; เพื่อเปิดตารางค้นหาและเลือกสิ่งของ
  </p>
  </div>
  <Button
@@ -437,7 +437,7 @@ export function DisbursementDraftFormClient({
  <Search className="h-3.5 w-3.5" />
  <span>
  {transactionType === 'material_issue'
- ? 'เปิดตารางเลือกพัสดุ'
+ ? 'เปิดตารางเลือกวัสดุ'
  : 'เปิดตารางเลือกครุภัณฑ์'}
  </span>
  </Button>
@@ -449,8 +449,8 @@ export function DisbursementDraftFormClient({
  <tr>
  <th className="py-2.5 px-3 w-10 text-center">ลำดับ</th>
  <th className="py-2.5 px-3 w-32">รหัส / ทะเบียน</th>
- <th className="py-2.5 px-3">รายการพัสดุ</th>
- <th className="py-2.5 px-3 w-28 text-right">คงเหลือในคลัง</th>
+ <th className="py-2.5 px-3">รายการวัสดุ</th>
+ <th className="py-2.5 px-3 w-28 text-right">พร้อมจ่าย</th>
  <th className="py-2.5 px-3 w-36 text-center">จำนวนที่ขอเบิก</th>
  <th className="py-2.5 px-3 w-12 text-center">ลบ</th>
  </tr>
@@ -458,7 +458,7 @@ export function DisbursementDraftFormClient({
  <tbody className="divide-y divide-border">
  {selectedItems.map((selected, idx) => {
  const currentItem = itemsMap.get(selected.item_id)
- const isAssetBorrow = transactionType === 'asset_borrow'
+ const isAssetBorrow = transactionType === 'asset_borrow' && currentItem?.item_type !== 'material'
  const isAssetHandover = transactionType === 'asset_handover'
  const isOverStock =
  transactionType === 'material_issue' &&
@@ -489,7 +489,7 @@ export function DisbursementDraftFormClient({
  ส่วนกลาง
  </span>
  )}
- {isAssetBorrow && currentItem && !currentItem.is_central && !currentItem.note?.includes('ส่วนกลาง') && (
+ {isAssetBorrow && currentItem && currentItem.item_type !== 'material' && !currentItem.is_central && !currentItem.note?.includes('ส่วนกลาง') && (
  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
  ไม่ใช่ของส่วนกลาง
  </span>
@@ -557,7 +557,7 @@ export function DisbursementDraftFormClient({
  <input
  type="number"
  min="1"
- max={currentItem?.quantity ?? 9999}
+ max={userRole === 'admin' && transactionType === 'material_issue' ? 2147483647 : currentItem?.quantity ?? 9999}
  value={selected.requested_qty}
  onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
  aria-label={`จำนวนขอเบิก ${currentItem?.item_name || 'รายการ'}`}
@@ -569,7 +569,7 @@ export function DisbursementDraftFormClient({
  size="icon-xs"
  onClick={() => handleQtyChange(idx, selected.requested_qty + 1)}
  disabled={
- Boolean(currentItem && selected.requested_qty >= currentItem.quantity)
+ Boolean(currentItem && selected.requested_qty >= currentItem.quantity && !(userRole === 'admin' && transactionType === 'material_issue'))
  }
  title="เพิ่มจำนวน"
  aria-label={`เพิ่มจำนวน ${currentItem?.item_name || 'รายการ'}`}

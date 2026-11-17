@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { Dialog, DropdownMenu } from 'radix-ui'
 import {
   ShoppingCart,
   Check,
@@ -11,18 +12,21 @@ import {
   AlertCircle,
   X,
   PackageCheck,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import type { CentralAvailableItem } from '@/features/disbursements/types'
-import { submitBorrowRequest } from '@/features/disbursements/actions'
+import { submitBorrowRequest, recoverCartRequest } from '@/features/disbursements/actions'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { getPageNumbers } from '../pagination'
 import { BorrowCartButton } from './borrow-cart-button'
 import { useCartFlight } from './cart-flight-engine'
-import { isReducedMotionPreferred } from './cart-flight-calc'
+import { cartRetryPayload, parseCartRetry } from '../cart-retry'
 
 interface BorrowCatalogViewProps {
+  catalogType?: 'asset' | 'material'
   cartContainer?: HTMLElement | null
   items: CentralAvailableItem[]
   searchQuery: string
@@ -31,6 +35,7 @@ interface BorrowCatalogViewProps {
 }
 
 export function BorrowCatalogView({
+  catalogType,
   cartContainer,
   items,
   searchQuery: q,
@@ -38,15 +43,27 @@ export function BorrowCatalogView({
   onSwitchToDocs,
 }: BorrowCatalogViewProps) {
   const { toast } = useToast()
+  const router = useRouter()
+  const [pendingRecovery, setPendingRecovery] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return null
+      const saved = sessionStorage.getItem('camms-pending-cart-request')
+      return saved ? parseCartRetry(saved) : null
+    } catch {
+      return null
+    }
+  })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedSnapshots, setSelectedSnapshots] = useState<Record<string, CentralAvailableItem>>({})
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [itemActions, setItemActions] = useState<Record<string, 'issue' | 'borrow'>>({})
   const [pagination, setPagination] = useState({ query: q, page: 1 })
   if (pagination.query !== q) setPagination({ query: q, page: 1 })
   const cardsViewport = useRef<HTMLDivElement>(null)
   const cartButtonRef = useRef<HTMLButtonElement>(null)
   const { triggerFlight, cartFlightOverlay } = useCartFlight()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [requestType, setRequestType] = useState<'issue' | 'borrow'>('borrow')
-  const isBorrow = requestType === 'borrow'
+  const isBorrow = items.some(item => selectedIds.has(item.id) && item.item_type !== 'material' && (itemActions[item.id] ?? 'borrow') === 'borrow')
 
 
   // Default due date: 7 days ahead
@@ -61,11 +78,13 @@ export function BorrowCatalogView({
   const [isPending, startTransition] = useTransition()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const submitting = useRef(false)
+  const retryRequest = useRef<{ payload: string; key: string } | null>(null)
 
   // Filtered items
   const filteredItems = useMemo(() => {
     const query = q.trim().toLowerCase()
     return items.filter((item) => {
+      if (catalogType && item.item_type !== catalogType) return false
       if (selectedIds.has(item.id)) return false
       if (!query) return true
 
@@ -78,7 +97,7 @@ export function BorrowCatalogView({
 
       return Boolean(nameMatch || assetMatch || serialMatch || brandMatch || modelMatch || locMatch)
     })
-  }, [items, q, selectedIds])
+  }, [items, q, selectedIds, catalogType])
 
   const pageSize = 20
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
@@ -90,9 +109,19 @@ export function BorrowCatalogView({
     cardsViewport.current?.scrollTo?.({ top: 0 })
   }
 
+  const handleRecover = async () => {
+    if (!pendingRecovery?.key) return
+    const res = await recoverCartRequest(pendingRecovery.key)
+    if (res.success && res.data?.id) {
+      try { sessionStorage.removeItem('camms-pending-cart-request') } catch {}
+      setPendingRecovery(null)
+      router.push(`/disbursements/batches/${res.data.id}`)
+    }
+  }
+
   // Toggle cart selection
   const handleToggleSelect = (item: CentralAvailableItem, source: HTMLElement) => {
-    if (item.unavailable_reason || isPending) return
+    if (item.unavailable_reason || isPending || !cartButtonRef.current) return
 
     const id = item.id
     const isCurrentlySelected = selectedIds.has(id)
@@ -105,12 +134,15 @@ export function BorrowCatalogView({
         return next
       })
     } else {
+      setQuantities(previous => ({ ...previous, [id]: 1 }))
       if (selectedIds.size >= 20) {
         toast('เลือกได้สูงสุดไม่เกิน 20 รายการต่อคำขอ', 'warning')
         return
       }
 
       // Optimistic synchronous add
+      setSelectedSnapshots(previous => ({ ...previous, [id]: item }))
+      setItemActions(previous => ({ ...previous, [id]: items.find(item => item.id === id)?.item_type === 'material' ? 'issue' : 'borrow' }))
       setSelectedIds((prev) => {
         const next = new Set(prev)
         next.add(id)
@@ -118,9 +150,12 @@ export function BorrowCatalogView({
       })
       if (cartButtonRef.current) {
         const cart = cartButtonRef.current
-        triggerFlight(source, cart, {
+        const preview = source.closest('[data-cart-card]')?.querySelector<HTMLElement>('[data-cart-preview]')
+        triggerFlight(preview ?? source, cart, {
+          motion: 'full',
+          imageUrl: item.image_url,
           onArrive: () => {
-            if (!cart.isConnected || isReducedMotionPreferred()) return
+            if (!cart.isConnected) return
             cart.getAnimations?.().forEach(animation => animation.cancel())
             cart.animate?.([
               { transform: 'translateY(0) scale(1)' },
@@ -135,12 +170,18 @@ export function BorrowCatalogView({
 
   // Selected items detail array
   const selectedItemsList = useMemo(() => {
-    return items.filter((item) => selectedIds.has(item.id) && !item.unavailable_reason)
-  }, [items, selectedIds])
+    return [...selectedIds].map(id => items.find(item => item.id === id) ?? (selectedSnapshots[id] ? {
+      ...selectedSnapshots[id], quantity: 0, unavailable_reason: 'รายการนี้ไม่พร้อมใช้งานแล้ว กรุณานำออกจากตะกร้า',
+    } : null)).filter((item): item is CentralAvailableItem => item !== null)
+  }, [items, selectedIds, selectedSnapshots])
 
   // Handle submit
   const handleSubmitBorrow = () => {
     if (submitting.current) return
+    if (selectedItemsList.length !== selectedIds.size || selectedItemsList.some(item => item.unavailable_reason)) {
+      setSubmitError('รายการในตะกร้ามีข้อมูลเปลี่ยนแปลง กรุณาตรวจสอบสถานะและจำนวนพร้อมจ่ายอีกครั้ง')
+      return
+    }
     if (selectedItemsList.length === 0) {
       toast('กรุณาเลือกรายการที่ต้องการยืมอย่างน้อย 1 รายการ', 'warning')
       return
@@ -155,15 +196,31 @@ export function BorrowCatalogView({
     }
 
     setSubmitError(null)
+    for (const item of selectedItemsList) {
+      const quantity = quantities[item.id] ?? 1
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > item.quantity) {
+        setSubmitError(`${item.item_name} พร้อมจ่าย ${item.quantity} ${item.unit_name || 'หน่วย'} กรุณาตรวจสอบจำนวนที่ขอ`)
+        return
+      }
+    }
     submitting.current = true
     startTransition(async () => {
       try {
-        const res = await submitBorrowRequest({
-          item_ids: selectedItemsList.map((item) => item.id),
-          request_type: requestType,
+        const payload = {
+          item_ids: selectedItemsList.map((item) => item.id).sort(),
+          quantities: Object.fromEntries(selectedItemsList.map(item => [item.id, quantities[item.id] ?? 1])),
+          item_actions: Object.fromEntries(selectedItemsList.map(item => [item.id, item.item_type === 'material' ? 'issue' : itemActions[item.id] ?? 'borrow'])),
+          request_type: isBorrow ? 'borrow' as const : 'issue' as const,
           due_date: isBorrow ? dueDate : null,
           purpose: purpose.trim(),
-        })
+        }
+        const serialized = cartRetryPayload(payload)
+        if (!retryRequest.current) {
+          try { retryRequest.current = parseCartRetry(sessionStorage.getItem('camms-pending-cart-request')) } catch { /* Storage may be unavailable. */ }
+        }
+        if (retryRequest.current?.payload !== serialized) retryRequest.current = { payload: serialized, key: crypto.randomUUID() }
+        try { sessionStorage.setItem('camms-pending-cart-request', JSON.stringify(retryRequest.current)) } catch { /* In-memory retry remains available. */ }
+        const res = await submitBorrowRequest({ ...payload, request_key: retryRequest.current.key })
 
         if (!res.success) {
           setSubmitError(res.error || 'เกิดข้อผิดพลาดในการส่งคำขอ')
@@ -171,10 +228,15 @@ export function BorrowCatalogView({
           return
         }
 
-        toast(res.message || 'ส่งคำขอยืมเรียบร้อยแล้ว รอผู้ดูแลระบบอนุมัติ', 'success')
+        toast(res.data?.ids && res.data.ids.length > 1 ? `ส่งคำขอสำเร็จ ${res.data.ids.length} เอกสาร แยกตามการทำรายการแล้ว รอผู้ดูแลอนุมัติ` : res.message || 'ส่งคำขอเรียบร้อยแล้ว รอผู้ดูแลระบบอนุมัติ', 'success')
         setIsModalOpen(false)
         setSelectedIds(new Set())
+        setSelectedSnapshots({})
+        setItemActions({})
+        setQuantities({})
         setPurpose('')
+        retryRequest.current = null
+        try { sessionStorage.removeItem('camms-pending-cart-request') } catch { /* Storage may be unavailable. */ }
 
         if (res.data?.id && onSuccess) {
           onSuccess(res.data.id)
@@ -191,6 +253,20 @@ export function BorrowCatalogView({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden relative">
+      {pendingRecovery && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs">
+          <span className="text-muted-foreground">มีรายการคำขอที่รอดำเนินการหรือตรวจสอบ</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleRecover}
+            className="h-7 text-xs font-semibold"
+          >
+            ตรวจสอบคำขอที่ส่งล่าสุด
+          </Button>
+        </div>
+      )}
       {/* Ghost Animation Layer */}
 
       <div ref={cardsViewport} className="min-h-0 flex-1 overflow-auto bg-background p-4 sm:p-6">
@@ -200,9 +276,9 @@ export function BorrowCatalogView({
             <div className="mb-3 rounded-full bg-muted p-4 text-muted-foreground">
               <PackageCheck className="h-8 w-8 stroke-1" />
             </div>
-            <h3 className="text-base font-semibold text-foreground">{selectedIds.size > 0 && !q ? 'เลือกรายการที่พร้อมใช้งานครบแล้ว' : 'ไม่พบพัสดุส่วนกลาง'}</h3>
+            <h3 className="text-base font-semibold text-foreground">{selectedIds.size > 0 && !q ? 'เลือกรายการที่พร้อมใช้งานครบแล้ว' : 'ไม่พบวัสดุส่วนกลาง'}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {q ? 'ลองเปลี่ยนคำค้นหา' : selectedIds.size > 0 ? 'เปิดตะกร้าเพื่อตรวจสอบรายการและดำเนินการต่อ' : 'ขณะนี้ยังไม่มีพัสดุหรือครุภัณฑ์ส่วนกลางในระบบ'}
+              {q ? 'ลองเปลี่ยนคำค้นหา' : selectedIds.size > 0 ? 'เปิดตะกร้าเพื่อตรวจสอบรายการและดำเนินการต่อ' : 'ขณะนี้ยังไม่มีวัสดุหรือครุภัณฑ์ส่วนกลางในระบบ'}
             </p>
           </div>
         ) : (
@@ -249,7 +325,7 @@ export function BorrowCatalogView({
                     </div>
 
                     {/* Item Image Preview or Icon */}
-                    <div className="mb-3 flex h-36 w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    <div data-cart-preview className="mb-3 flex h-36 w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
                       {item.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -270,6 +346,11 @@ export function BorrowCatalogView({
                     <h4 className="font-medium text-foreground group-hover:text-primary line-clamp-2 text-sm leading-snug">
                       {item.item_name}
                     </h4>
+                    {item.item_type === 'material' && (
+                      <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                        ขนาดหรือลักษณะ: {item.specification?.trim() || 'ไม่ระบุ'}
+                      </p>
+                    )}
 
                     {/* Asset Code / Monospace pill */}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -279,12 +360,13 @@ export function BorrowCatalogView({
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                          พัสดุคงทน (ต.)
+                          {item.item_type === 'material' ? 'วัสดุ' : 'ครุภัณฑ์'}
                         </span>
                       )}
                     </div>
 
                     {/* Details metadata */}
+                    {item.item_type === 'material' && <p className="mt-2 text-xs text-muted-foreground">คงเหลือ {item.quantity} {item.unit_name || 'หน่วย'}</p>}
                     <div className="mt-2.5 space-y-1 text-xs text-muted-foreground">
                       {item.brand && (
                         <div className="whitespace-normal [overflow-wrap:anywhere]">
@@ -317,6 +399,7 @@ export function BorrowCatalogView({
                       }
                       aria-pressed={isSelected}
                       disabled={
+                        !cartContainer ||
                         isPending ||
                         Boolean(item.unavailable_reason) ||
                         (!isSelected && selectedIds.size >= 20)
@@ -378,7 +461,7 @@ export function BorrowCatalogView({
               : 'แสดง 0 จาก 0 รายการ'}
           </span>
         </div>
-        <nav aria-label="แบ่งหน้าพัสดุเบิกยืม" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <nav aria-label="แบ่งหน้าวัสดุเบิกยืม" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -434,71 +517,25 @@ export function BorrowCatalogView({
         </nav>
       </footer>
 
-      {/* Borrow Request Modal */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
-          onClick={() => !isPending && setIsModalOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="แบบฟอร์มเบิกหรือยืมพัสดุ"
-            onClick={(event) => event.stopPropagation()}
-            className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl animate-in zoom-in-95 duration-200"
+      {/* Both panels share one focus and dismissal scope. */}
+      <Dialog.Root open={isModalOpen} onOpenChange={(open) => { if (!isPending) setIsModalOpen(open) }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs" />
+          <Dialog.Content
+            aria-describedby={undefined}
+            onCloseAutoFocus={(event) => { event.preventDefault(); cartButtonRef.current?.focus() }}
+            className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 gap-3 overflow-y-auto rounded-2xl focus:outline-none lg:h-[min(36rem,calc(100dvh-2rem))] lg:max-w-5xl lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:overflow-visible"
           >
-            {/* Modal Header */}
-            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
-              <div
-                role="tablist"
-                aria-label="ประเภทคำขอ"
-                className="flex min-w-0 flex-1 gap-1 rounded-xl border border-border bg-muted/60 p-1"
-              >
-                {(['issue', 'borrow'] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    role="tab"
-                    aria-selected={requestType === type}
-                    disabled={isPending}
-                    onClick={() => {
-                      setRequestType(type)
-                      setSubmitError(null)
-                    }}
-                    className={cn(
-                      'min-h-10 min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
-                      requestType === type
-                        ? 'border-primary/40 bg-primary/10 text-primary shadow-xs'
-                        : 'border-transparent text-muted-foreground hover:bg-background/70 hover:text-foreground'
-                    )}
-                  >
-                    {type === 'issue' ? 'เบิกสิ่งของ' : 'ยืมสิ่งของ'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="min-h-0 overflow-y-auto px-4 pb-4 pt-2 space-y-5 sm:px-6 sm:pb-6">
-              {submitError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive"
-                >
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div>{submitError}</div>
-                </div>
-              )}
-
+            <Dialog.Title className="sr-only">แบบฟอร์มเบิกหรือยืมวัสดุ</Dialog.Title>
               {/* Selected Items List */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground">รายการที่เลือก</span>
+              <section aria-labelledby="cart-selected-heading" className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-4 text-sm sm:px-5">
+                  <h2 id="cart-selected-heading" className="font-semibold text-foreground">รายการที่เลือก</h2>
                   <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
                     {selectedItemsList.length} รายการ
                   </span>
                 </div>
-                <div className="max-h-44 overflow-y-auto divide-y divide-border rounded-xl border border-border bg-background">
+                <div className="max-h-52 min-h-0 overflow-y-auto overscroll-contain divide-y divide-border lg:max-h-none lg:flex-1">
                   {selectedItemsList.length === 0 && (
                     <p className="px-4 py-6 text-center text-xs text-muted-foreground">ยังไม่มีรายการในตะกร้า ปิดหน้าต่างเพื่อเลือกสิ่งของก่อนส่งคำขอ</p>
                   )}
@@ -511,9 +548,38 @@ export function BorrowCatalogView({
                         <div className="font-medium leading-relaxed text-foreground break-words">
                           {item.item_name}
                         </div>
+                        {item.unavailable_reason && <p className="mt-1 text-xs text-destructive">{item.unavailable_reason}</p>}
                         <div className="mt-0.5 text-[11px] text-muted-foreground break-words">
-                          {item.asset_no || 'พัสดุคงทน (ต.)'} {item.brand ? `• ${item.brand}` : ''}
+                          {item.item_type === 'material' ? 'วัสดุ' : item.asset_no || 'ครุภัณฑ์'} {item.brand ? `• ${item.brand}` : ''}
                         </div>
+                        {item.item_type === 'material' && <div className="mt-2 space-y-1">
+                          <p className="text-muted-foreground">การทำรายการ: เบิกวัสดุ</p>
+                          <p>คงเหลือ {item.quantity} {item.unit_name || 'หน่วย'}</p>
+                          <label className="flex items-center gap-2">จำนวนขอเบิก
+                            <input aria-label={`จำนวนขอเบิก ${item.item_name}`} type="number" min={1} max={item.quantity} step={1} disabled={isPending || !!item.unavailable_reason}
+                              value={quantities[item.id] ?? 1} onChange={event => setQuantities(previous => ({ ...previous, [item.id]: Number(event.target.value) }))}
+                              className="h-9 w-24 rounded-md border border-input bg-background px-2 text-right tabular-nums" />
+                          </label>
+                        </div>}
+                        {item.item_type !== 'material' && <div className="mt-2">
+                          <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                              <button type="button" aria-label={`การทำรายการ ${item.item_name}`} disabled={isPending || !!item.unavailable_reason}
+                                className="group inline-flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3 text-xs font-semibold outline-none hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
+                                {(itemActions[item.id] ?? 'borrow') === 'borrow' ? 'ยืม' : 'เบิก'}<ChevronDown className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
+                              </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                              <DropdownMenu.Content align="start" sideOffset={6} className="z-[70] min-w-[200px] rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none">
+                                <DropdownMenu.RadioGroup value={itemActions[item.id] ?? 'borrow'} onValueChange={value => { setItemActions(previous => ({ ...previous, [item.id]: value as 'issue' | 'borrow' })); setSubmitError(null) }}>
+                                  {([{ value: 'borrow', label: 'ยืม' }, { value: 'issue', label: 'เบิก' }] as const).map(action => <DropdownMenu.RadioItem key={action.value} value={action.value} className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none data-[highlighted]:bg-muted data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary">
+                                    <span>{action.label}</span><DropdownMenu.ItemIndicator><Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></DropdownMenu.ItemIndicator>
+                                  </DropdownMenu.RadioItem>)}
+                                </DropdownMenu.RadioGroup>
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                          </DropdownMenu.Root>
+                        </div>}
                       </div>
                       <button
                         type="button"
@@ -534,7 +600,29 @@ export function BorrowCatalogView({
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
+
+            <section aria-label="ข้อมูลคำขอ" className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl lg:max-h-[calc(100dvh-2rem)]">
+            {/* Modal Header */}
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+              <h3 className="min-w-0 flex-1 text-sm font-semibold">ข้อมูลคำขอ</h3>
+              <Dialog.Close asChild>
+                <Button type="button" variant="ghost" size="icon" disabled={isPending} aria-label="ปิดตะกร้า"><X className="size-4" /></Button>
+              </Dialog.Close>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+              <p className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">วัสดุทำรายการเบิก ส่วนครุภัณฑ์เลือกเบิกหรือยืมได้แต่ละรายการ ระบบจะแยกเอกสารให้เมื่อยืนยัน</p>
+              {selectedItemsList.some(item => item.item_type === 'material') && <p className="text-xs text-muted-foreground">วัสดุจะตัดสต็อกทันทีเมื่อส่งคำขอ หากยกเลิกหรือไม่อนุมัติ ระบบจะคืนสต็อกให้</p>}
+              {submitError && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>{submitError}</div>
+                </div>
+              )}
 
               {/* Due Date Input */}
               {isBorrow && (
@@ -544,7 +632,7 @@ export function BorrowCatalogView({
                     className="text-xs font-semibold text-foreground flex items-center gap-1.5"
                   >
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                    กำหนดส่งคืน <span className="text-destructive">*</span>
+                    กำหนดส่งคืนรายการที่ยืม <span className="text-destructive">*</span>
                   </label>
                   <input
                     id="central-request-due-date"
@@ -602,12 +690,13 @@ export function BorrowCatalogView({
                 disabled={isPending || selectedItemsList.length === 0}
                 className="h-9 flex-1 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 sm:flex-none sm:px-5"
               >
-                {isPending ? 'กำลังส่งคำขอ...' : isBorrow ? 'ยืนยันคำขอยืม' : 'ยืนยันคำขอเบิก'}
+                {isPending ? 'กำลังส่งคำขอ...' : 'ยืนยันคำขอ'}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+            </section>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }

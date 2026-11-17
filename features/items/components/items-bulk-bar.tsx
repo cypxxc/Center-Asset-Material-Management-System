@@ -11,6 +11,7 @@ export interface ItemsBulkBarProps {
   userCanWrite: boolean
   userCanDelete: boolean
   canPrintBatch: boolean
+  showPrintButton: boolean
   onBatchPrint: () => void
   onBulkDelete: () => void
   onClearSelection: () => void
@@ -22,6 +23,7 @@ export function ItemsBulkBar({
   userCanWrite,
   userCanDelete,
   canPrintBatch,
+  showPrintButton,
   onBatchPrint,
   onBulkDelete,
   onClearSelection,
@@ -37,7 +39,7 @@ export function ItemsBulkBar({
       <div className="h-4 w-px bg-border" />
 
       {/* Bulk Print Asset Tag */}
-      {userCanWrite && (
+      {userCanWrite && showPrintButton && (
         <Button
           disabled={!canPrintBatch}
           title={!canPrintBatch ? 'ต้องโหลดข้อมูลรายการที่เลือกให้ครบก่อนพิมพ์ลาเบล' : undefined}

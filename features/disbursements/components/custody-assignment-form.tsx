@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog } from 'radix-ui'
-import { Check, Layers, MapPin, Plus, X } from 'lucide-react'
+import { Dialog, DropdownMenu } from 'radix-ui'
+import { Check, ChevronDown, Layers, MapPin, Plus, X } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -27,10 +27,12 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
   const [pickerOpen, setPickerOpen] = useState(false)
   const [draftSelected, setDraftSelected] = useState<string[]>([])
   const [query, setQuery] = useState('')
+  const [itemType, setItemType] = useState<'all' | 'material' | 'asset'>('all')
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const selectedItems = items.filter((item) => selected.includes(item.id))
-  const selectableItems = items.filter((item) => !query.trim() || [item.item_name, item.asset_no, item.responsible_person].some((value) => value?.toLowerCase().includes(query.trim().toLowerCase())))
+  const selectableItems = items.filter((item) => (itemType === 'all' || item.item_type === itemType) && (!query.trim() || [item.item_name, item.asset_no, item.responsible_person].some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()))))
 
   function changePickerOpen(open: boolean) {
     if (open) { setDraftSelected(selected); setQuery('') }
@@ -44,7 +46,7 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
     if (!recipient) { setError('กรุณาเลือกผู้ถือครอง'); return }
     setError(''); setPending(true); onPendingChange(true)
     try {
-      const result = await assignCustody({ item_ids: selected, recipient_id: recipient })
+      const result = await assignCustody({ item_ids: selected, recipient_id: recipient, quantities: Object.fromEntries(selectedItems.filter(item => item.item_type === 'material').map(item => [item.id, quantities[item.id] ?? 1])) })
       if (!result.ok) { setError(result.error || 'บันทึกไม่สำเร็จ'); return }
       onSuccess()
     } catch { setError('บันทึกไม่สำเร็จ กรุณาลองใหม่') }
@@ -66,21 +68,22 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
                 <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0 space-y-1">
                     <p className="break-words text-xs font-medium">{item.item_name}</p>
-                    <p className="break-words text-[11px] text-muted-foreground">{item.asset_no || 'ไม่ระบุเลขครุภัณฑ์'} · ผู้ถือครองเดิม: {item.responsible_person || 'ยังไม่กำหนด'}</p>
+                    <p className="break-words text-[11px] text-muted-foreground">{item.item_type === 'material' ? 'วัสดุ' : item.asset_no || 'ไม่ระบุเลขครุภัณฑ์'} · ผู้ถือครองเดิม: {item.responsible_person || 'ยังไม่กำหนด'}</p>
+                    {item.item_type === 'material' && <label className="flex items-center gap-2 text-xs">จำนวนที่จ่าย<input aria-label={`จำนวนที่จ่าย ${item.item_name}`} type="number" min={1} max={item.quantity} step={1} required disabled={pending} value={quantities[item.id] ?? 1} onChange={event => setQuantities(previous => ({ ...previous, [item.id]: Number(event.target.value) }))} className="h-8 w-24 rounded-md border border-input bg-background px-2" /><span className="text-muted-foreground">คงเหลือ {item.quantity} {item.unit?.name}</span></label>}
                   </div>
                   <Button type="button" variant="ghost" size="icon-sm" disabled={pending} aria-label={`นำ ${item.item_name} ออก`} onClick={() => setSelected((ids) => ids.filter((id) => id !== item.id))}><X className="size-3.5" /></Button>
                 </li>
               ))}
             </ul>
-          ) : <p className="px-4 py-9 text-center text-xs text-muted-foreground">เลือกครุภัณฑ์ส่วนกลางที่ต้องการมอบหมาย</p>}
+          ) : <p className="px-4 py-9 text-center text-xs text-muted-foreground">เลือกวัสดุหรือครุภัณฑ์ส่วนกลางที่ต้องการสั่งจ่าย</p>}
         </section>
         <div className="space-y-1.5">
-          <FormLabel htmlFor="custody-recipient" required>ผู้ถือครอง</FormLabel>
+          <FormLabel htmlFor="custody-recipient" required>ผู้รับ / ผู้ถือครอง</FormLabel>
           <CustodyRecipientCombobox users={users} value={recipient} onChange={setRecipient} disabled={pending} />
         </div>
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" disabled={pending} onClick={onCancel} className="font-normal">ยกเลิก</Button>
-          <Button type="submit" disabled={pending || !users.length} className="border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">{pending ? 'กำลังบันทึก...' : 'ยืนยันผู้ถือครอง'}</Button>
+          <Button type="submit" disabled={pending || !users.length} className="border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">{pending ? 'กำลังบันทึก...' : 'ยืนยันสั่งจ่าย'}</Button>
         </div>
       </form>
       <Dialog.Root open={pickerOpen} onOpenChange={changePickerOpen}>
@@ -92,6 +95,30 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
               <Dialog.Close asChild><Button type="button" variant="ghost" size="icon-sm" aria-label="ปิดหน้าต่างเลือกสิ่งของ"><X className="size-4" /></Button></Dialog.Close>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-3 bg-muted/10 p-4">
+              <div className="flex shrink-0 items-center gap-2 text-xs">
+                <span>ประเภทสิ่งของ</span>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button type="button" aria-label="ประเภทสิ่งของส่วนกลาง" className="group inline-flex h-9 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground/80 shadow-2xs outline-none transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20">
+                      <Layers className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                      {itemType === 'material' ? 'วัสดุ' : itemType === 'asset' ? 'ครุภัณฑ์' : 'ทั้งหมด'}
+                      <ChevronDown className="size-3.5 opacity-50" aria-hidden="true" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content align="start" sideOffset={6} className="z-[70] min-w-[200px] rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none">
+                      <DropdownMenu.RadioGroup value={itemType} onValueChange={value => setItemType(value as typeof itemType)}>
+                        {([{ value: 'all', label: 'ทั้งหมด' }, { value: 'material', label: 'วัสดุ' }, { value: 'asset', label: 'ครุภัณฑ์' }] as const).map(option => (
+                          <DropdownMenu.RadioItem key={option.value} value={option.value} className={cn('flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors data-[highlighted]:bg-muted', itemType === option.value && 'bg-primary/10 font-bold text-primary')}>
+                            <span>{option.label}</span>
+                            <DropdownMenu.ItemIndicator><Check className="size-3.5 text-primary" aria-hidden="true" /></DropdownMenu.ItemIndicator>
+                          </DropdownMenu.RadioItem>
+                        ))}
+                      </DropdownMenu.RadioGroup>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
               <div className="h-8 shrink-0">
                 <SearchInput value={query} onChange={setQuery} aria-label="ค้นหาสิ่งของส่วนกลาง" placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, ผู้ถือครองเดิม..." className="h-8 text-xs" />
               </div>
@@ -104,7 +131,7 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
                       {item.image_url ? <Image src={item.image_url} alt="" fill sizes="(max-width: 640px) 40vw, 200px" className="object-cover" unoptimized /> : <Layers className="size-7 text-muted-foreground/50" />}
                     </span>
                     <span className="block break-words text-xs font-medium leading-relaxed">{item.item_name}</span>
-                    <span className="mt-1 block break-words font-mono text-[10px] text-muted-foreground">{item.asset_no || 'ไม่ระบุเลขครุภัณฑ์'}</span>
+                    <span className="mt-1 block break-words font-mono text-[10px] text-muted-foreground">{item.item_type === 'material' ? `วัสดุ · คงเหลือ ${item.quantity} ${item.unit?.name || ''}` : item.asset_no || 'ไม่ระบุเลขครุภัณฑ์'}</span>
                     {item.location_name && <span className="mt-1.5 flex items-start gap-1 text-[10px] text-muted-foreground"><MapPin className="mt-0.5 size-3 shrink-0" /><span className="break-words">{item.location_name}</span></span>}
                     <span className="mt-1 block break-words text-[10px] text-muted-foreground">ผู้ถือครอง: {item.responsible_person || 'ยังไม่กำหนด'}</span>
                     <span className={cn('mt-auto pt-2 text-center text-[11px]', draftSelected.includes(item.id) ? 'text-primary' : 'text-muted-foreground')}>{draftSelected.includes(item.id) ? 'เลือกแล้ว' : 'เลือกรายการนี้'}</span>

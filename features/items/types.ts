@@ -1,3 +1,6 @@
+import type { MaterialLedgerData } from './material-fields'
+import type { AssetRegisterData } from './asset-register'
+
 export type ItemType = 'material' | 'asset'
 export type ItemQualificationStatus = 'qualified' | 'below_threshold'
 export type ItemQualificationFilter = ItemQualificationStatus | 'unclassified'
@@ -13,11 +16,13 @@ export type ItemStatus =
 export interface ReferenceOption {
   id: string
   name: string
+  item_type?: ItemType
   color?: string
   icon?: string | null
 }
 
-export interface ItemListRow {
+export interface ItemListRow extends Partial<AssetRegisterData> {
+  material?: MaterialLedgerData
   id: string
   item_name: string
   item_type: ItemType
@@ -52,6 +57,8 @@ export interface ItemListRow {
 
 
 export interface ItemDetail extends ItemListRow {
+  metadata_version?: number
+  stock_version?: number
   brand: string | null
   model: string | null
   note: string | null
@@ -106,7 +113,7 @@ export interface ItemBatchResult {
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  material: 'พัสดุ',
+  material: 'วัสดุ',
   asset: 'ครุภัณฑ์',
 }
 

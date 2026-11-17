@@ -4,11 +4,13 @@ import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { assignCustodySchema, custodyHistoryParamsSchema } from './custody-schema'
 import { normalizeForSearch } from '@/lib/unicode'
-import { assertCentralDisbursementItem } from './central-items'
+import { assertCentralDisbursementItem, isCentralDisbursementItem } from './central-items'
+import { createPostgresDisbursementDraft, confirmPostgresDisbursement } from './postgres-actions'
 import { getDisbursementSelectableItems } from './queries'
 import { syncCentralNote } from '@/features/items/central-note'
 import { findPoolMismatch, type PoolAuditEvidence } from './pool-audit'
 import { assertItemUnreserved, lockDisbursementItems } from './reservations'
+import { inventoryTableForId } from '@/features/items/inventory-table'
 
 async function requireAdmin() {
   const profile = await getCurrentProfile()
@@ -80,7 +82,7 @@ export async function loadCustodyData() {
       return { users: users.rows, history: history.rows }
     }),
   ])
-  return { items: items.filter((item) => item.item_type === 'asset'), ...data }
+  return { items: items.filter(isCentralDisbursementItem), ...data }
 }
 
 export async function inspectHistoricalPool() {
@@ -131,16 +133,21 @@ export async function assignPostgresCustody(rawInput: unknown) {
     if (!recipient?.full_name?.trim()) throw new Error('ไม่พบผู้ถือครองที่ใช้งานอยู่')
     await lockDisbursementItems(tx, data.item_ids)
     let assigned = 0
+    const materials: { item_id: string; requested_qty: number }[] = []
     for (const itemId of [...data.item_ids].sort()) {
       const result = await tx.execute<{
         id: string; item_type: string; item_name: string; asset_no: string | null;
         is_central: boolean; note: string | null; responsible_person: string | null; status: string | null
       }>(sql`SELECT id, item_type, item_name, asset_no, is_central, note, responsible_person, status
-        FROM public.items WHERE id = ${itemId} AND deleted_at IS NULL FOR UPDATE`)
+        FROM ${await inventoryTableForId(tx, itemId)} WHERE id = ${itemId} AND deleted_at IS NULL FOR UPDATE`)
       const item = result.rows[0]
       if (!item) throw new Error('ไม่พบสิ่งของที่เลือก')
       assertCentralDisbursementItem(item)
-      if (item.item_type !== 'asset') throw new Error('มอบหมายผู้ถือครองได้เฉพาะครุภัณฑ์ วัสดุสิ้นเปลืองต้องใช้การเบิกวัสดุ')
+      if (item.item_type === 'material') {
+        materials.push({ item_id: item.id, requested_qty: data.quantities[item.id] ?? 1 })
+        continue
+      }
+      if ((data.quantities[item.id] ?? 1) !== 1) throw new Error('ครุภัณฑ์สั่งจ่ายได้ครั้งละ 1 หน่วยต่อรายการ')
       if (item.status && !['active', 'spare'].includes(item.status)) throw new Error(`"${item.item_name}" ไม่อยู่ในสถานะพร้อมใช้งาน`)
       await assertItemUnreserved(tx, item.id)
       const newNote = syncCentralNote(item.note || '', false) || null
@@ -150,6 +157,14 @@ export async function assignPostgresCustody(rawInput: unknown) {
           ${JSON.stringify({ responsible_person: item.responsible_person, is_central: item.is_central, note: item.note })}::jsonb,
           ${JSON.stringify({ responsible_person: recipient.full_name, recipient_id: recipient.id, item_name: item.item_name, asset_no: item.asset_no, is_central: false, note: newNote })}::jsonb)`)
       assigned++
+    }
+    if (materials.length) {
+      const doc = await createPostgresDisbursementDraft({
+        transaction_type: 'material_issue', recipient_name: recipient.full_name,
+        department_name: 'ส่วนกลาง', purpose: 'สั่งจ่ายวัสดุส่วนกลาง', items: materials,
+      }, tx)
+      await confirmPostgresDisbursement(doc.id, undefined, tx)
+      assigned += materials.length
     }
     return { assigned }
   })

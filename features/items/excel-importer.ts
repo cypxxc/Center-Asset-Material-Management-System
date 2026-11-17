@@ -1,9 +1,19 @@
 import type { Workbook } from 'exceljs'
 import { getSheetQualificationStatus } from './qualification-mapping-core'
+import { MATERIAL_LEDGER_FIELDS } from './material-fields'
+import { ASSET_REGISTER_FIELDS } from './asset-register'
 
 export const HEADER_KEYWORD_MAP: Record<string, string> = {
+  ...Object.fromEntries(ASSET_REGISTER_FIELDS.map(key => [key, key])),
+  'ลำดับ': 'register_sequence',
+  'ลำดับในทะเบียน': 'register_sequence',
+  'ค่าเสื่อมราคาสะสม': 'register_accumulated_depreciation',
+  'มูลค่าตามบัญชี': 'register_book_value',
+  'วันที่อ้างอิงยอดบัญชี': 'register_as_of',
+  'ส่วนต้นเลขครุภัณฑ์ / หน่วยงาน': 'asset_prefix',
   'item_name': 'item_name',
   'ชื่อสิ่งของ': 'item_name',
+  'ชื่อวัสดุ': 'item_name',
   'ชื่อพัสดุ': 'item_name',
   'รายการ': 'item_name',
   'รายการครุภัณฑ์': 'item_name',
@@ -75,6 +85,7 @@ export const HEADER_KEYWORD_MAP: Record<string, string> = {
   'หมวดครุภัณฑ์': 'category_name',
   'status': 'status',
   'สถานะ': 'status',
+  'สภาพวัสดุ': 'status',
   'สภาพพัสดุ': 'status',
   'ใช้งานได้': 'condition_usable',
   'ชำรุด': 'condition_damaged',
@@ -102,6 +113,8 @@ export const STANDARD_CSV_HEADERS = [
   'budget_source',
   'acquired_date',
   'note',
+  ...MATERIAL_LEDGER_FIELDS,
+  ...ASSET_REGISTER_FIELDS,
 ] as const
 
 export function convertExcelToStandardCSV(workbook: Workbook): string {
@@ -210,9 +223,9 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
             cellStr = `${yr}-${mo}-${dy}`
           } else if (cell.value && typeof cell.value === 'object') {
             // @ts-expect-error - ExcelJS formula object handling
-            cellStr = String(cell.value.result || cell.value.text || '').trim()
+            cellStr = String(cell.value.result ?? cell.value.text ?? '').trim()
           } else {
-            cellStr = String(cell.value || '').trim()
+            cellStr = String(cell.value ?? '').trim()
           }
           if (!valuesByAlias.has(alias)) valuesByAlias.set(alias, [])
           valuesByAlias.get(alias)!.push(cellStr)
@@ -310,6 +323,13 @@ export function convertExcelToStandardCSV(workbook: Workbook): string {
         esc(getSingle('budget_source')),
         esc(rawDate),
         esc(getSingle('note')),
+        ...MATERIAL_LEDGER_FIELDS.map(() => esc('')),
+        ...ASSET_REGISTER_FIELDS.map(key => {
+          // Preserve the existing combined identifier and also expose its source prefix.
+          const parts = [...new Set(assetVals.filter(Boolean))]
+          const value = key === 'asset_prefix' ? getSingle(key) || (parts.length > 1 ? parts[0] : '') : getSingle(key)
+          return esc(value === '-' && key.startsWith('register_') ? '' : value)
+        }),
       ]
       csvLines.push(rowData.join(','))
     }

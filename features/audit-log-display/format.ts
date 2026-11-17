@@ -11,7 +11,7 @@ const ACTION_LABELS: Record<string, string> = {
   CANCEL_DISBURSEMENT_DRAFT: 'ยกเลิกเอกสารเบิก–ยืม',
   WITHDRAW_DISBURSEMENT_REQUEST: 'ถอนคำขอเบิก–ยืม',
   REVERSE_DISBURSEMENT: 'คืนสภาพรายการเบิก–ยืม',
-  RETURN_DISBURSEMENT_ITEM: 'รับคืนพัสดุ',
+  RETURN_DISBURSEMENT_ITEM: 'รับคืนวัสดุ',
   create: 'สร้างข้อมูล',
   update: 'แก้ไขข้อมูล',
   delete: 'ลบข้อมูล',
@@ -42,8 +42,8 @@ const ACTION_LABELS: Record<string, string> = {
 
 const TABLE_LABELS: Record<string, string> = {
   disbursements: 'เอกสารเบิก–ยืม',
-  disbursement_items: 'รายการพัสดุเบิก–ยืม',
-  items: 'รายการพัสดุ',
+  disbursement_items: 'รายการวัสดุเบิก–ยืม',
+  items: 'รายการวัสดุ',
   profiles: 'บัญชีผู้ใช้',
   categories: 'หมวดหมู่',
   locations: 'สถานที่',
@@ -59,7 +59,7 @@ const FIELD_LABELS: Record<string, string> = {
   due_date: 'กำหนดคืน',
   reason: 'เหตุผล',
   returned_qty: 'จำนวนที่คืนแล้ว',
-  condition: 'สภาพพัสดุ',
+  condition: 'สภาพวัสดุ',
   doc_status: 'สถานะเอกสาร',
   id: 'รหัสแถว',
   user_id: 'ผู้ใช้ที่ทำรายการ',
@@ -71,7 +71,7 @@ const FIELD_LABELS: Record<string, string> = {
   created_at: 'วันที่สร้าง',
   updated_at: 'วันที่อัปเดต',
   deleted_at: 'วันที่ลบ',
-  item_name: 'ชื่อพัสดุครุภัณฑ์',
+  item_name: 'ชื่อวัสดุครุภัณฑ์',
   item_type: 'ประเภทสิ่งของ',
   category_id: 'หมวดหมู่',
   unit_id: 'หน่วยนับ',
@@ -82,7 +82,7 @@ const FIELD_LABELS: Record<string, string> = {
   model: 'รุ่นสินค้า',
   quantity: 'จำนวน',
   unit_price: 'ราคาต่อหน่วย',
-  status: 'สถานะพัสดุ',
+  status: 'สถานะวัสดุ',
   responsible_person: 'ผู้รับผิดชอบ',
   note: 'หมายเหตุ',
   image_url: 'รูปภาพ',
@@ -120,7 +120,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const TYPE_LABELS: Record<string, string> = {
   asset: 'ครุภัณฑ์',
-  material: 'พัสดุ',
+  material: 'วัสดุ',
 }
 
 const ROLE_LABELS: Record<string, string> = {

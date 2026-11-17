@@ -53,8 +53,8 @@ interface AuditLogsClientProps {
 
 const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
  { value: 'disbursements', label: 'เอกสารเบิก–ยืม (disbursements)' },
- { value: 'disbursement_items', label: 'รายการพัสดุเบิก–ยืม (disbursement_items)' },
- { value: 'items', label: 'พัสดุครุภัณฑ์ (items)' },
+ { value: 'disbursement_items', label: 'รายการวัสดุเบิก–ยืม (disbursement_items)' },
+ { value: 'items', label: 'วัสดุครุภัณฑ์ (items)' },
  { value: 'categories', label: 'หมวดหมู่ (categories)' },
  { value: 'locations', label: 'สถานที่ (locations)' },
  { value: 'units', label: 'หน่วยนับ (units)' },
@@ -69,7 +69,7 @@ function getActionBadge(action: string) {
  if (['CONFIRM_DISBURSEMENT', 'REJECT_BORROW_REQUEST', 'CANCEL_DISBURSEMENT_DRAFT', 'WITHDRAW_DISBURSEMENT_REQUEST', 'REVERSE_DISBURSEMENT', 'RETURN_DISBURSEMENT_ITEM'].includes(upper)) {
  return {
  label: getAuditActionLabel(action),
- className: 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20',
+ className: 'bg-violet-500/10 text-violet-700 border-violet-500/20',
  dotClass: 'bg-violet-500',
  }
  }

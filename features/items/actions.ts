@@ -15,9 +15,10 @@ import { applyQualificationMapping as applyQualificationMappingCore, previewQual
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { writeAuditLog } from '@/lib/audit'
 import { syncCentralNote } from './central-note'
+import { ASSET_REGISTER_FIELDS } from './asset-register'
 
 export type ItemActionState = ActionResponse
-export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> { return importItemsBulkCore(csvContent) }
+export async function importItemsBulk(csvContent: string, expectedType?: 'asset' | 'material'): Promise<ActionResponse<{ count: number }>> { return importItemsBulkCore(csvContent, expectedType) }
 export async function getItemsForExport(params: ItemListSearchParams) { return getItemsForExportCore(params) }
 export async function previewQualificationMapping() { return previewQualificationMappingCore() }
 export async function applyQualificationMapping(expected: { eligible: number; qualified: number; belowThreshold: number }) {
@@ -30,6 +31,7 @@ function refreshItems() { revalidatePath('/items'); revalidatePath('/', 'layout'
 function parseFormData(formData: FormData) {
   const isCentral = ['true', 'on', '1'].includes(String(formData.get('is_central')))
   return itemFormSchema.safeParse({
+    ...Object.fromEntries(ASSET_REGISTER_FIELDS.map(key => [key, formData.get(key)])),
     item_name: formData.get('item_name'), item_type: formData.get('item_type'), qualification_status: formData.get('qualification_status'),
     category_id: formData.get('category_id'), quantity: formData.get('quantity'), unit_price: formData.get('unit_price'), unit_id: formData.get('unit_id'),
     asset_no: formData.get('asset_no'), serial_no: formData.get('serial_no'), brand: formData.get('brand'), model: formData.get('model'),
@@ -53,20 +55,26 @@ async function saveItem(formData: FormData, id?: string): Promise<ActionResponse
   const auth = await requireEditor()
   if (auth.error || !auth.profile) return errorResponse(auth.error ?? 'Unauthorized')
   const previousResult = id ? await getPostgresItemForUpdate(id) : null
-  if (previousResult?.error || (id && !previousResult?.data)) return errorResponse('ไม่พบรายการพัสดุ')
+  if (previousResult?.error || (id && !previousResult?.data)) return errorResponse('ไม่พบรายการวัสดุ')
   const previousImage = previousResult?.data?.image_url ?? null
   let uploadedImage: string | null = null
   let persisted = false
   try {
     // Validate ordinary fields before creating a file on disk.
     formData.set('image_url', previousImage ?? '')
+    // Older open forms omit new register inputs; preserve stored values in that case.
+    if (previousResult?.data) {
+      for (const key of ASSET_REGISTER_FIELDS) {
+        if (!formData.has(key)) formData.set(key, String(previousResult.data[key] ?? ''))
+      }
+    }
     const parsed = parseFormData(formData)
     if (!parsed.success) return errorResponse('กรุณาตรวจสอบข้อมูลในฟอร์ม', parsed.error.flatten().fieldErrors)
     const imageUrl = await imageForForm(formData, previousImage)
     if (imageUrl && imageUrl !== previousImage) uploadedImage = imageUrl
     parsed.data.image_url = imageUrl
     if (id) {
-      const { error } = await updatePostgresItem(id, parsed.data)
+      const { error } = await updatePostgresItem(id, parsed.data, undefined, Number(formData.get('metadata_version')))
       if (error) return errorResponse(error.message)
       persisted = true
       if (previousImage && previousImage !== imageUrl) await deleteLocalItemImage(previousImage, auth.profile)
@@ -76,7 +84,7 @@ async function saveItem(formData: FormData, id?: string): Promise<ActionResponse
       persisted = true
       const itemId = String((result.data as { id: string }).id)
       refreshItems()
-      return successResponse('สร้างพัสดุสำเร็จ', { itemId, intent: String(formData.get('intent') || 'save_and_close') })
+      return successResponse('สร้างวัสดุสำเร็จ', { itemId, intent: String(formData.get('intent') || 'save_and_close') })
     }
     await writeAuditLog({ operation: 'update', feature: 'items', userId: auth.profile.id, targetType: 'items', targetId: id, oldValues: previousResult?.data, newValues: parsed.data })
     refreshItems(); revalidatePath(`/items/${id}`)

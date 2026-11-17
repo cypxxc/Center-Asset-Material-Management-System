@@ -44,6 +44,9 @@ export async function backupPostgres(destinationRoot: string | undefined, overri
     await client.query("SET LOCAL lock_timeout='15s'")
     // Keep immutable image files and their committed references consistent while dumping.
     await client.query('LOCK TABLE public.items,public.profiles,public.categories,public.locations,public.units,public.audit_logs,private_auth.credentials,private_auth.sessions,private_auth.login_attempts IN SHARE MODE')
+    if ((await client.query("select to_regclass('public.materials') as name")).rows[0].name) {
+      await client.query('LOCK TABLE public.materials IN SHARE MODE')
+    }
     await mkdir(destinationRoot,{recursive:true})
     await mkdir(backupDir)
     const dumpPath=path.join(backupDir,'database.dump')

@@ -37,6 +37,11 @@ export function createPostgresMcp(env: NodeJS.ProcessEnv) {
           const actor = await tx.execute(sql`select role from public.profiles where id = ${profileId.data}::uuid and is_active for share`)
           if (!actor.rows.length) throw new McpInputError('The configured MCP profile is missing or inactive.')
           if (writing && String(actor.rows[0].role) !== 'admin') throw new McpInputError('The configured MCP profile cannot modify items.')
+          const physicalTable = async (id: string) => {
+            const result = await tx.execute<{ item_type: string }>(sql`select item_type from public.inventory_registry where id=${id}::uuid`)
+            if (!result.rows[0]) throw new McpInputError('Item not found')
+            return result.rows[0].item_type === 'material' ? sql`public.materials` : sql`public.items`
+          }
           if (name === 'list_categories' || name === 'list_locations') {
             z.strictObject({}).parse(args)
             const table = name === 'list_categories' ? sql`public.categories` : sql`public.locations`
@@ -60,13 +65,13 @@ export function createPostgresMcp(env: NodeJS.ProcessEnv) {
                 filters.push(sql`(i.item_name ilike ${term} or i.asset_no ilike ${term} or i.serial_no ilike ${term})`)
               }
             }
-            const result = await tx.execute(sql`select i.*, case when c.id is null then null else jsonb_build_object('name',c.name) end as category, case when l.id is null then null else jsonb_build_object('name',l.name) end as location from public.items i left join public.categories c on c.id=i.category_id left join public.locations l on l.id=i.location_id where ${sql.join(filters, sql` and `)} order by i.created_at desc,i.id limit ${limit}`)
+            const result = await tx.execute(sql`select i.*, case when c.id is null then null else jsonb_build_object('name',c.name) end as category, case when l.id is null then null else jsonb_build_object('name',l.name) end as location from public.inventory_items i left join public.categories c on c.id=i.category_id left join public.locations l on l.id=i.location_id where ${sql.join(filters, sql` and `)} order by i.created_at desc,i.id limit ${limit}`)
             if (name === 'get_item' && !result.rows[0]) throw new McpInputError('Item not found')
             return json(name === 'get_item' ? result.rows[0] : result.rows)
           }
           if (name === 'delete_item') {
             const { id } = parseMcpDeleteItem(args)
-            const result = await tx.execute(sql`update public.items set deleted_at=now(),deleted_by=${profileId.data}::uuid,updated_by=${profileId.data}::uuid where id=${id}::uuid and deleted_at is null returning *`)
+            const result = await tx.execute(sql`update ${await physicalTable(id)} set deleted_at=now(),deleted_by=${profileId.data}::uuid,updated_by=${profileId.data}::uuid where id=${id}::uuid and deleted_at is null returning *`)
             if (!result.rows[0]) throw new McpInputError('Item not found')
             return `Item deleted successfully:\n${json(result.rows[0])}`
           }
@@ -77,9 +82,10 @@ export function createPostgresMcp(env: NodeJS.ProcessEnv) {
           if (typeof payload.unit_price === 'number' && payload.unit_price < 0) throw new McpInputError('Unit price cannot be negative')
           if (name === 'create_item') payload.created_by = profileId.data
           const entries = Object.entries(payload).filter(([, value]) => value !== undefined)
+          const table = parsed.id ? await physicalTable(parsed.id) : payload.item_type === 'material' ? sql`public.materials` : sql`public.items`
           const result = name === 'create_item'
-            ? await tx.execute(sql`insert into public.items (${sql.join(entries.map(([key]) => sql.identifier(key)), sql`, `)}) values (${sql.join(entries.map(([, value]) => sql`${value}`), sql`, `)}) returning *`)
-            : await tx.execute(sql`update public.items set ${sql.join(entries.map(([key, value]) => sql`${sql.identifier(key)}=${value}`), sql`, `)} where id=${parsed.id}::uuid and deleted_at is null returning *`)
+            ? await tx.execute(sql`insert into ${table} (${sql.join(entries.map(([key]) => sql.identifier(key)), sql`, `)}) values (${sql.join(entries.map(([, value]) => sql`${value}`), sql`, `)}) returning *`)
+            : await tx.execute(sql`update ${table} set ${sql.join(entries.map(([key, value]) => sql`${sql.identifier(key)}=${value}`), sql`, `)} where id=${parsed.id}::uuid and deleted_at is null returning *`)
           if (!result.rows[0]) throw new McpInputError('Item not found')
           return `Item ${name === 'create_item' ? 'created' : 'updated'} successfully:\n${json(result.rows[0])}`
         })

@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { ZoomIn, ZoomOut, RotateCw, Check, X } from 'lucide-react'
 import { Button } from './button'
+import { renderImageCrop } from '@/lib/image-crop'
 
 export interface ImageCropDialogProps {
   isOpen: boolean
@@ -18,6 +19,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
   const imageRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -29,6 +31,7 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
     setRotation(0)
     setOffset({ x: 0, y: 0 })
     setIsProcessing(false)
+    setError(null)
   }
 
   const handleRotate = () => {
@@ -56,89 +59,44 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
   const handleConfirm = useCallback(async () => {
     if (!imageSrc || isProcessing) return
     setIsProcessing(true)
+    setError(null)
 
     try {
       const img = new Image()
       img.crossOrigin = 'anonymous'
-      img.src = imageSrc
       await new Promise((resolve, reject) => {
         img.onload = resolve
         img.onerror = reject
+        img.src = imageSrc
       })
 
-      const targetWidth = 1200
-      const targetHeight = 900
-
-      const canvas = document.createElement('canvas')
-      canvas.width = targetWidth
-      canvas.height = targetHeight
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas context not available')
-
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fillRect(0, 0, targetWidth, targetHeight)
-
-      // Calculate scale ratio between container preview and target export canvas
       const container = containerRef.current
-      const containerWidth = container?.clientWidth || 400
-      const containerHeight = container?.clientHeight || 300
-      const scaleX = targetWidth / containerWidth
-      const scaleY = targetHeight / containerHeight
-      const canvasOffsetX = offset.x * scaleX
-      const canvasOffsetY = offset.y * scaleY
-
-      ctx.save()
-      // Move to canvas center and apply user drag translation in screen (unrotated) space
-      ctx.translate(targetWidth / 2 + canvasOffsetX, targetHeight / 2 + canvasOffsetY)
-      // Apply scale (zoom) and rotation around the translated center
-      ctx.scale(zoom, zoom)
-      ctx.rotate((rotation * Math.PI) / 180)
-
-      const scale = Math.max(targetWidth / img.width, targetHeight / img.height)
-      const drawWidth = img.width * scale
-      const drawHeight = img.height * scale
-
-      ctx.drawImage(
-        img,
-        -drawWidth / 2,
-        -drawHeight / 2,
-        drawWidth,
-        drawHeight
-      )
-      ctx.restore()
-
-      if (typeof canvas.toBlob !== 'function') {
-        const dummyBlob = new Blob([], { type: 'image/webp' })
-        const croppedFile = new File([dummyBlob], 'cropped-item.webp', { type: 'image/webp' })
-        onConfirm(croppedFile)
-        return
-      }
-
-      const blob: Blob = await new Promise((resolve) => {
-        canvas.toBlob(
-          (b) => {
-            if (b) {
-              resolve(b)
-            } else {
-              canvas.toBlob(
-                (fallbackBlob) => resolve(fallbackBlob || new Blob([], { type: 'image/jpeg' })),
-                'image/jpeg',
-                0.85
-              )
-            }
-          },
-          'image/webp',
-          0.85
-        )
+      const canvas = renderImageCrop(img, {
+        previewWidth: container?.clientWidth || 400,
+        previewHeight: container?.clientHeight || 300,
+        zoom,
+        rotation,
+        offset,
       })
-
-      const croppedFile = new File([blob], 'cropped-item.webp', { type: blob.type || 'image/webp' })
+      const encode = (type: string, quality: number) => new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob && blob.size > 0) resolve(blob)
+          else reject(new Error('Unable to encode image'))
+        }, type, quality)
+      })
+      // Prefer high quality; reduce compression quality only to respect the
+      // existing upload limit, rather than discarding resolution up front.
+      let blob = await encode('image/webp', 0.95).catch(() => encode('image/jpeg', 0.95))
+      for (const quality of [0.9, 0.85]) {
+        if (blob.size <= 5 * 1024 * 1024) break
+        blob = await encode(blob.type, quality)
+      }
+      if (blob.size > 5 * 1024 * 1024) throw new Error('Image exceeds upload limit')
+      const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/png' ? 'png' : 'webp'
+      const croppedFile = new File([blob], `cropped-item.${extension}`, { type: blob.type })
       onConfirm(croppedFile)
     } catch {
-      // Fallback: Create minimal fallback webp file
-      const fallbackBlob = new Blob([], { type: 'image/webp' })
-      onConfirm(new File([fallbackBlob], 'cropped-item.webp', { type: 'image/webp' }))
+      setError('ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่หรือเลือกรูปอื่น')
     } finally {
       setIsProcessing(false)
     }
@@ -227,6 +185,8 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
             <span>หมุน 90°</span>
           </Button>
         </div>
+
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2">

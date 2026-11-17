@@ -1,23 +1,17 @@
 import type { ItemListSearchParams } from '@/features/items/types'
 import { ItemsPageContent } from './items-page-content'
+import { redirect } from 'next/navigation'
 
 interface ItemsPageProps {
   searchParams: Promise<ItemListSearchParams & { deleted?: string }>
 }
 
-export async function generateMetadata({ searchParams }: ItemsPageProps) {
-  const params = await searchParams
-  return {
-    title: params.is_central === 'true' || params.is_central === '1'
-      ? 'ส่วนกลาง'
-      : params.type === 'material'
-      ? 'ทะเบียนพัสดุ'
-      : params.type === 'asset'
-        ? 'ทะเบียนครุภัณฑ์'
-        : 'ทะเบียนรายการ',
-  }
-}
+export const metadata = { title: 'ทะเบียนครุภัณฑ์' }
 
 export default function ItemsPage({ searchParams }: ItemsPageProps) {
-  return <ItemsPageContent searchParams={searchParams} />
+  const assetParams = searchParams.then(params => {
+    if (params.type === 'material') redirect('/materials')
+    return { ...params, type: 'asset' }
+  })
+  return <ItemsPageContent searchParams={assetParams} />
 }

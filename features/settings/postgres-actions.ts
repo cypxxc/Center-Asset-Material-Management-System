@@ -12,7 +12,7 @@ import { pgUpdateUserProfile } from '@/features/admin/postgres-admin'
 import { writeAuditLog } from '@/lib/audit'
 
 const definitions = {
-  categories: { schema: categorySchema, reference: 'category_id', columns: ['name', 'description', 'color', 'icon', 'is_active'] },
+  categories: { schema: categorySchema, reference: 'category_id', columns: ['name', 'item_type', 'description', 'color', 'icon', 'is_active'] },
   locations: { schema: locationSchema, reference: 'location_id', columns: ['name', 'building', 'floor', 'room', 'department', 'description', 'is_active'] },
   units: { schema: unitSchema, reference: 'unit_id', columns: ['name', 'is_active'] },
 } as const
@@ -20,7 +20,7 @@ type MetadataTable = keyof typeof definitions
 
 function finish(tab: string, error?: string): never {
   if (!error) {
-    for (const path of ['/settings','/items/new','/items']) revalidatePath(path)
+    for (const path of ['/settings','/items/new','/items','/materials','/materials/new']) revalidatePath(path)
     revalidatePath('/', 'layout')
     revalidateTag(CACHE_TAGS.ITEM_REFERENCES, 'max')
     revalidateTag(CACHE_TAGS.SIDEBAR_DATA, 'max')
@@ -31,33 +31,38 @@ function finish(tab: string, error?: string): never {
 function friendlyError(error: unknown) {
   const record = error as { code?: string; cause?: {code?: string} }
   const code = record.code || record.cause?.code
-  if (code === '23503') return 'ไม่สามารถลบข้อมูลนี้ได้เนื่องจากกำลังถูกใช้งานโดยพัสดุในระบบ'
+  if (code === '23503') return 'ไม่สามารถลบข้อมูลนี้ได้เนื่องจากกำลังถูกใช้งานโดยวัสดุในระบบ'
   if (code === '23505') return 'มีข้อมูลชื่อนี้อยู่ในระบบแล้ว'
   return 'ไม่สามารถบันทึกการตั้งค่าได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง'
 }
 
 export async function mutatePostgresMetadata(table: MetadataTable, operation: 'create' | 'update' | 'delete', formData?: FormData, id?: string): Promise<never> {
+  let tab = table === 'categories' && formData?.get('item_type') === 'material' ? 'material-categories' : table
   const profile = await getCurrentProfile()
-  if (!profile?.is_active || profile.role !== 'admin') finish(table, 'คุณไม่มีสิทธิ์จัดการตั้งค่า')
+  if (!profile?.is_active || profile.role !== 'admin') finish(tab, 'คุณไม่มีสิทธิ์จัดการตั้งค่า')
   const rate = await checkRateLimit(`${operation}-${table}`, 30, 60000)
-  if (!rate.success) finish(table, rate.error!)
+  if (!rate.success) finish(tab, rate.error!)
   if (!Object.hasOwn(definitions, table)) finish('categories', 'ข้อมูลไม่ถูกต้อง')
-  if (operation !== 'create' && !z.string().uuid().safeParse(id).success) finish(table, 'รหัสข้อมูลไม่ถูกต้อง')
+  if (operation !== 'create' && !z.string().uuid().safeParse(id).success) finish(tab, 'รหัสข้อมูลไม่ถูกต้อง')
   const config = definitions[table]
   const parsed = operation === 'delete' ? null : config.schema.safeParse(Object.fromEntries(config.columns.map(key => [key, formData?.get(key)])))
-  if (parsed && !parsed.success) finish(table, 'กรุณาตรวจสอบข้อมูลในฟอร์ม')
+  if (parsed && !parsed.success) finish(tab, 'กรุณาตรวจสอบข้อมูลในฟอร์ม')
   const values = parsed?.success ? parsed.data as Record<string, unknown> : null
   let message: string | undefined
   try {
     message = await withUserDatabase(async tx => {
       if (operation !== 'create') {
-        const target = await tx.execute(sql`select id from public.${sql.identifier(table)} where id=${id!} for update`)
+        const target = await tx.execute<{ id: string; item_type?: string }>(sql`select id ${table === 'categories' ? sql`, item_type` : sql``} from public.${sql.identifier(table)} where id=${id!} for update`)
         if (!target.rows.length) return 'ไม่พบข้อมูลที่ต้องการเปลี่ยนแปลง'
+        if (table === 'categories') {
+          tab = target.rows[0].item_type === 'material' ? 'material-categories' : 'categories'
+          if (values && values.item_type !== target.rows[0].item_type) return 'ไม่สามารถเปลี่ยนประเภทหมวดหมู่ได้ กรุณาสร้างหมวดหมู่ในประเภทที่ต้องการ'
+        }
       }
       if (operation !== 'create' && (operation === 'delete' || values?.is_active === false)) {
         // The row lock pairs with item mutation reference locks, preventing a concurrent attachment.
-        const usage = await tx.execute(sql`select id from public.items where ${sql.identifier(config.reference)}=${id!} ${operation === 'delete' ? sql`` : sql`and deleted_at is null`} limit 1`)
-        if (usage.rows.length) return 'ข้อมูลนี้กำลังถูกใช้งานโดยพัสดุในระบบ และไม่สามารถลบหรือปิดการใช้งานได้'
+        const usage = await tx.execute(sql`select id from public.inventory_items where ${sql.identifier(config.reference)}=${id!} ${operation === 'delete' ? sql`` : sql`and deleted_at is null`} limit 1`)
+        if (usage.rows.length) return 'ข้อมูลนี้กำลังถูกใช้งานโดยวัสดุในระบบ และไม่สามารถลบหรือปิดการใช้งานได้'
       }
       if (operation === 'delete') {
         const deleted = await tx.execute(sql`delete from public.${sql.identifier(table)} where id=${id!} returning id`)
@@ -79,7 +84,7 @@ export async function mutatePostgresMetadata(table: MetadataTable, operation: 'c
       await writeAuditLog({ operation: 'delete', feature: 'settings', userId: profile.id, targetType: table, targetId: id })
     }
   }
-  finish(table, message)
+  finish(tab, message)
 }
 
 export async function updatePostgresSettingsProfile(id: string, formData: FormData): Promise<never> {

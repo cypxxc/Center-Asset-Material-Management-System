@@ -82,6 +82,7 @@ export function NewItemDialogProvider({
       {children}
       {isOpen && (
         <NewItemSheet
+          itemType={pathname === '/materials' || pathname.startsWith('/materials/') ? 'material' : 'asset'}
           open={isOpen}
           item={null}
           onClose={closeNewItemSheet}

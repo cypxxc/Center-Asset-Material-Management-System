@@ -44,7 +44,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
           viewBox="0 0 120 120"
           className="w-32 h-32 sm:w-36 sm:h-36 drop-shadow-2xs"
           role="img"
-          aria-label="กราฟแสดงสัดส่วนพัสดุตามสภาพการใช้งาน"
+          aria-label="กราฟแสดงสัดส่วนวัสดุตามสภาพการใช้งาน"
           onMouseLeave={() => setHoveredKey(null)}
         >
           {/* Background Track */}
@@ -117,8 +117,8 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
           <Link
             key={item.key}
             href={`/items?status=${item.key}`}
-            title={`ดูรายการพัสดุสถานะ ${item.label}`}
-            aria-label={`ดูรายการพัสดุสถานะ ${item.label} จำนวน ${item.qty.toLocaleString()} ชิ้น คิดเป็น ${Math.round(item.pct)}%`}
+            title={`ดูรายการวัสดุสถานะ ${item.label}`}
+            aria-label={`ดูรายการวัสดุสถานะ ${item.label} จำนวน ${item.qty.toLocaleString()} ชิ้น คิดเป็น ${Math.round(item.pct)}%`}
             onMouseEnter={() => setHoveredKey(item.key)}
             onMouseLeave={() => setHoveredKey((prev) => (prev === item.key ? null : prev))}
             onFocus={() => setHoveredKey(item.key)}

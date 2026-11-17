@@ -1,0 +1,226 @@
+import '../setup/dom'
+import test, { afterEach, after } from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { PgDialect } from 'drizzle-orm/pg-core'
+import type { SQL } from 'drizzle-orm'
+
+import { AuthorizationError } from '../../lib/errors'
+
+const actor = '11111111-1111-4111-8111-111111111111'
+const itemId = '22222222-2222-4222-8222-222222222222'
+let profile: { id: string; role: string; is_active: boolean } | null = { id: actor, role: 'admin', is_active: true }
+let rows: Record<string, unknown>[] = []
+let responseRows: Record<string, unknown>[][] = []
+const queries: { sql: string; params: unknown[] }[] = []
+function mockModule(path: string, exports: unknown) {
+  const filename = require.resolve(path)
+  require.cache[filename] = { id: filename, filename, loaded: true, exports } as NodeJS.Module
+}
+mockModule('../../features/auth/queries', { getCurrentProfile: async () => profile })
+mockModule('../../lib/postgres/request', { withUserDatabase: async (callback: (tx: unknown) => unknown) => {
+  if (!profile?.is_active) throw new AuthorizationError('กรุณาเข้าสู่ระบบ')
+  return callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  })
+} })
+mockModule('../../lib/postgres/db', {
+  getDatabase: () => ({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+  withIdentity: async (_userId: string, callback: (tx: unknown) => unknown) => callback({
+    execute: async (query: SQL) => {
+      queries.push(new PgDialect().sqlToQuery(query))
+      return { rows: responseRows.shift() ?? rows }
+    },
+  }),
+})
+mockModule('../../lib/rate-limit', { checkRateLimit: async () => ({ success: true }) })
+mockModule('../../features/admin/postgres-admin', { pgUpdateUserProfile: async () => ({ success: true }) })
+
+const storage = import('../../lib/postgres/storage')
+const actions = import('../../features/items/postgres-actions')
+const settings = import('../../features/settings/postgres-actions')
+const oldStorage = process.env.LOCAL_STORAGE_PATH
+const oldBackend = process.env.DATA_BACKEND
+process.env.DATA_BACKEND = 'postgres'
+const prefix = join(tmpdir(), 'camms-storage-test-')
+const directory = mkdtemp(prefix)
+afterEach(() => { queries.length = 0; rows = []; responseRows = []; profile = { id: actor, role: 'staff', is_active: true } })
+after(async () => {
+  const path = await directory
+  assert.ok(resolve(path).startsWith(resolve(prefix)))
+  await rm(path, { recursive: true, force: true })
+  if (oldStorage === undefined) delete process.env.LOCAL_STORAGE_PATH
+  else process.env.LOCAL_STORAGE_PATH = oldStorage
+  if (oldBackend === undefined) delete process.env.DATA_BACKEND
+  else process.env.DATA_BACKEND = oldBackend
+})
+
+test('private image paths reject traversal, foreign origins, and unsupported formats', async () => {
+  const { resolveLocalItemImageUrl } = await storage
+  const good = `/api/files/item-images/${actor}/${itemId}.png`
+  assert.equal(resolveLocalItemImageUrl(good), good)
+  for (const value of [`https://evil.example${good}`, `${good}?x=1`, '/api/files/../../secret', good.replace('.png', '.svg'), good.replace(actor, '..')]) {
+    assert.equal(resolveLocalItemImageUrl(value), null)
+  }
+})
+
+test('viewer and inactive users cannot mutate items or write image files', async () => {
+  const { mutatePostgresItems } = await actions
+  const { uploadLocalItemImage } = await storage
+  for (const denied of [{ id: actor, role: 'viewer', is_active: true }, { id: actor, role: 'admin', is_active: false }, null]) {
+    profile = denied
+    assert.equal((await mutatePostgresItems([itemId], 'delete')).success, false)
+    await assert.rejects(uploadLocalItemImage(new File(['bad'], 'photo.png', { type: 'image/png' })), /Unauthorized/)
+  }
+  assert.equal(queries.length, 0)
+})
+
+test('bulk updates reject invalid ids and unrecognized status before querying', async () => {
+  const { mutatePostgresItems } = await actions
+  assert.equal((await mutatePostgresItems(["'); delete from items;--"], 'delete')).success, false)
+  assert.equal((await mutatePostgresItems([itemId], 'update', { status: "active'; delete from items;--" })).success, false)
+  assert.equal(queries.length, 0)
+})
+
+test('image content, size, authenticated attachment, and cleanup are enforced', async () => {
+  process.env.LOCAL_STORAGE_PATH = await directory
+  const { uploadLocalItemImage, readLocalItemImage, deleteLocalItemImage } = await storage
+  await assert.rejects(uploadLocalItemImage(new File(['<svg>'], 'photo.png', { type: 'image/png' })))
+  await assert.rejects(uploadLocalItemImage(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'photo.png', { type: 'image/png' })))
+  const bytes = new Uint8Array([137,80,78,71,13,10,26,10])
+  const url = await uploadLocalItemImage(new File([bytes], 'unsafe../photo.png', { type: 'image/png' }))
+  assert.ok(url.startsWith(`/api/files/item-images/${actor}/`))
+  assert.equal(await readLocalItemImage(url), null)
+  rows = [{ id: itemId }]
+  assert.equal((await readLocalItemImage(url))?.contentType, 'image/png')
+  assert.equal((await deleteLocalItemImage(url)).success, true)
+  assert.ok(await readLocalItemImage(url), 'referenced images must not be removed')
+  profile = null
+  assert.equal((await readLocalItemImage(url))?.contentType, 'image/png', 'unauthenticated user can read active item image')
+  rows = [{ id: itemId, item_name: 'กล้องจุลทรรศน์', item_type: 'asset', quantity: 1, status: 'active', image_url: null }]
+  const { getPostgresItemById } = await import('../../features/items/postgres-queries')
+  const publicItem = await getPostgresItemById(itemId)
+  assert.equal(publicItem?.item_name, 'กล้องจุลทรรศน์', 'unauthenticated user can query public active item via getPostgresItemById fallback')
+  rows = []
+  assert.equal(await readLocalItemImage(url), null, 'unauthenticated user cannot read unreferenced image')
+  profile = { id: actor, role: 'admin', is_active: true }
+  assert.equal((await deleteLocalItemImage(url)).success, true)
+  rows = [{ id: itemId }]
+  assert.equal(await readLocalItemImage(url), null)
+})
+
+test('metadata rejects deactivation while a live item refers to the locked row', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  queries.length = 0
+  const form = new FormData()
+  form.set('name', 'Category')
+  form.set('item_type', 'asset')
+  rows = [{ id: itemId, item_type: 'asset' }]
+  await assert.rejects(mutatePostgresMetadata('categories', 'update', form, itemId), error => {
+    assert.ok((error as { digest: string }).digest.includes('error='))
+    return true
+  })
+  assert.equal(queries.length, 2)
+  assert.match(queries[0].sql, /for update/)
+  assert.match(queries[1].sql, /deleted_at is null/)
+  assert.ok(queries.every(query => !/update public|delete from|insert into/.test(query.sql)))
+})
+
+test('viewers cannot delete metadata and are denied before database access', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'viewer', is_active: true }
+  for (const table of ['categories', 'locations', 'units'] as const) {
+    await assert.rejects(mutatePostgresMetadata(table, 'delete', undefined, itemId), error => {
+      const digest = decodeURIComponent((error as { digest: string }).digest)
+      assert.ok(digest.includes('error='))
+      assert.ok(digest.includes('คุณไม่มีสิทธิ์จัดการตั้งค่า'))
+      return true
+    })
+  }
+  assert.equal(queries.length, 0)
+})
+
+test('metadata deletion reports failure when no row was deleted', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  responseRows = [[{ id: itemId }], [], []]
+  await assert.rejects(mutatePostgresMetadata('units', 'delete', undefined, itemId), error => {
+    assert.ok((error as { digest: string }).digest.includes('error='))
+    return true
+  })
+  assert.equal(queries.length, 3)
+  assert.match(queries[2].sql, /delete from.*returning id/)
+})
+
+test('admin metadata deletion reports success only after a row was deleted', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  responseRows = [[{ id: itemId }], [], [{ id: itemId }]]
+  await assert.rejects(mutatePostgresMetadata('units', 'delete', undefined, itemId), error => {
+    assert.ok((error as { digest: string }).digest.includes('message='))
+    return true
+  })
+})
+
+test('material category saves retain the material settings tab and explicit category type', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  const form = new FormData()
+  form.set('name', 'วัสดุสำนักงาน')
+  form.set('item_type', 'material')
+  form.set('is_active', 'true')
+  await assert.rejects(mutatePostgresMetadata('categories', 'create', form), error => {
+    assert.ok((error as { digest: string }).digest.includes('tab=material-categories&message='))
+    return true
+  })
+  assert.match(queries[0].sql, /insert into public\."categories"/)
+  assert.ok(queries[0].params.includes('material'))
+})
+
+test('category edits cannot silently change their inventory type', async () => {
+  const { mutatePostgresMetadata } = await settings
+  profile = { id: actor, role: 'admin', is_active: true }
+  const form = new FormData()
+  form.set('name', 'สำนักงาน')
+  form.set('item_type', 'asset')
+  form.set('is_active', 'true')
+  responseRows = [[{ id: itemId, item_type: 'material' }]]
+  await assert.rejects(mutatePostgresMetadata('categories', 'update', form, itemId), error => {
+    const digest = decodeURIComponent((error as { digest: string }).digest)
+    assert.ok(digest.includes('tab=material-categories&error='))
+    assert.ok(digest.includes('ไม่สามารถเปลี่ยนประเภทหมวดหมู่ได้'))
+    return true
+  })
+  assert.equal(queries.length, 1)
+})
+
+test('bulk material category updates ignore empty asset selections and lock the material type', async () => {
+  const { mutatePostgresItems } = await actions
+  profile = { id: actor, role: 'admin', is_active: true }
+  responseRows = [[], [{ id: itemId }], [{ id: itemId }], [{ id: itemId, image_url: null }]]
+  const result = await mutatePostgresItems([itemId], 'update', { category_id: itemId })
+  assert.equal(result.success, true)
+  assert.match(queries[2].sql, /item_type=.*for share/)
+  assert.ok(queries[2].params.includes('material'))
+  assert.match(queries[3].sql, /update public\."materials"/)
+})
+
+test('bulk category updates reject a mismatched type before writing rows', async () => {
+  const { mutatePostgresItems } = await actions
+  profile = { id: actor, role: 'admin', is_active: true }
+  responseRows = [[{ id: itemId }], []]
+  assert.equal((await mutatePostgresItems([itemId], 'update', { category_id: itemId })).success, false)
+  assert.ok(queries[1].params.includes('asset'))
+  assert.ok(queries.every(query => !/^update/.test(query.sql)))
+})

@@ -5,7 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
+  ArrowLeftRight,
   Boxes,
+  Warehouse,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -117,7 +119,8 @@ export function Sidebar({ profile }: SidebarProps) {
   const isOverviewActive = currentPath === '/dashboard'
 
   const isCentralActive = currentPath === '/central-items'
-  const isInventoryActive = currentPath === '/items'
+  const isInventoryActive = currentPath.startsWith('/items')
+  const isMaterialsActive = currentPath.startsWith('/materials')
 
   const isDisbursementsActive = currentPath.startsWith('/disbursements')
 
@@ -147,7 +150,7 @@ export function Sidebar({ profile }: SidebarProps) {
       aria-label="เมนูหลัก"
       className={cn(
         'relative z-30 hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-card md:flex select-none transition-all duration-200 ease-in-out',
-        isCollapsed ? 'w-16' : 'w-64'
+        isCollapsed ? 'w-16' : 'w-50'
       )}
     >
         {/* Brand Header */}
@@ -180,7 +183,7 @@ export function Sidebar({ profile }: SidebarProps) {
             </div>
             {!isCollapsed && (
               <div className="min-w-0 leading-tight">
-                <div className="truncate text-sm font-bold tracking-tight text-foreground">Protal</div>
+                <div className="truncate text-sm font-bold tracking-tight text-foreground">Portal</div>
                 <div className="truncate text-[10px] font-medium text-muted-foreground">สำนักงานเขตสุขภาพที่ 7</div>
               </div>
             )}
@@ -232,18 +235,18 @@ export function Sidebar({ profile }: SidebarProps) {
             </NavItemTooltip>
           </div>
 
-          {/* Group 1: งานทะเบียนพัสดุ */}
+          {/* Group 1: งานทะเบียนวัสดุ */}
           <div className="space-y-1">
             {!isCollapsed ? (
               <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-                งานทะเบียนพัสดุ
+                งานทะเบียน
               </p>
             ) : (
               <div className="my-1 border-t border-sidebar-border" />
             )}
 
             {/* ครุภัณฑ์ */}
-            <NavItemTooltip label="คลัง" enabled={isCollapsed}>
+            <NavItemTooltip label="ครุภัณฑ์" enabled={isCollapsed}>
               <Link
                 href="/items"
                 onPointerDown={() => handleOptimisticNavigate('/items')}
@@ -256,8 +259,16 @@ export function Sidebar({ profile }: SidebarProps) {
               >
                 <div className="flex items-center min-w-0 flex-1">
                   <Package className={navIconClass('text-blue-500', isInventoryActive)} />
-                  {!isCollapsed && <span className="truncate">คลัง</span>}
+                  {!isCollapsed && <span className="truncate">ครุภัณฑ์</span>}
                 </div>
+              </Link>
+            </NavItemTooltip>
+
+            <NavItemTooltip label="วัสดุ" enabled={isCollapsed}>
+              <Link href="/materials" onPointerDown={() => handleOptimisticNavigate('/materials')} onClick={() => handleOptimisticNavigate('/materials')}
+                aria-current={isMaterialsActive ? 'page' : undefined} className={navItemClass(isMaterialsActive)}>
+                <Boxes className={navIconClass('text-emerald-500', isMaterialsActive)} />
+                {!isCollapsed && <span className="truncate">วัสดุ</span>}
               </Link>
             </NavItemTooltip>
 
@@ -269,7 +280,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 aria-current={isCentralActive ? 'page' : undefined}
                 className={navItemClass(isCentralActive)}
               >
-                <Boxes className={navIconClass('text-emerald-500', isCentralActive)} />
+                <Warehouse className={navIconClass('text-emerald-500', isCentralActive)} />
                 {!isCollapsed && <span className="truncate">ส่วนกลาง</span>}
               </Link>
             </NavItemTooltip>
@@ -282,7 +293,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 aria-current={isDisbursementsActive ? 'page' : undefined}
                 className={navItemClass(isDisbursementsActive)}
               >
-                <Boxes className={navIconClass('text-orange-500', isDisbursementsActive)} />
+                <ArrowLeftRight className={navIconClass('text-orange-500', isDisbursementsActive)} />
                 {!isCollapsed && <span className="truncate">{disbursementsLabel}</span>}
               </Link>
             </NavItemTooltip>
@@ -375,7 +386,7 @@ export function Sidebar({ profile }: SidebarProps) {
         </nav>
 
         {/* Footer Area: Profile & Logout */}
-        <div data-footer className="border-t border-sidebar-border bg-sidebar/40 p-2 shrink-0">
+        <div data-footer className={cn('flex items-center gap-1.5 border-t border-sidebar-border bg-sidebar/40 p-2 shrink-0', isCollapsed && 'flex-col')}>
           {profile && (
             <NavItemTooltip
               label={profile.display_name?.trim() || profile.full_name}
@@ -387,8 +398,8 @@ export function Sidebar({ profile }: SidebarProps) {
                 onClick={() => handleOptimisticNavigate('/profile')}
                 aria-current={currentPath === '/profile' ? 'page' : undefined}
                 className={cn(
-                  'mb-1.5 flex items-center rounded-lg border border-sidebar-border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group',
-                  isCollapsed ? 'justify-center h-9 w-9 mx-auto p-0' : 'p-2 gap-2 bg-card/60 hover:bg-sidebar-accent',
+                  'flex items-center rounded-lg border border-sidebar-border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group',
+                  isCollapsed ? 'justify-center h-9 w-9 mx-auto p-0' : 'min-w-0 flex-1 p-2 gap-2 bg-card/60 hover:bg-sidebar-accent',
                   currentPath === '/profile'
                     ? 'bg-primary/10 border-primary/20 shadow-xs'
                     : 'hover:border-sidebar-border'
@@ -423,19 +434,19 @@ export function Sidebar({ profile }: SidebarProps) {
             </NavItemTooltip>
           )}
 
-          <div className={cn('flex items-center gap-1.5', isCollapsed && 'flex-col')}>
-            <NavItemTooltip label="ออกจากระบบ" enabled={isCollapsed}>
-              <form action={signOut} className={isCollapsed ? 'flex justify-center' : 'flex-1 min-w-0'}>
+          <div className="shrink-0">
+            <NavItemTooltip label="ออกจากระบบ" enabled>
+              <form action={signOut} className="flex justify-center">
                 <button
                   type="submit"
                   aria-label="ออกจากระบบ"
+                  title="ออกจากระบบ"
                   className={cn(
                     'flex items-center rounded-lg text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive',
-                    isCollapsed ? 'h-9 w-9 justify-center p-0' : 'w-full px-2.5 py-1.5 gap-2'
+                    'h-9 w-9 justify-center p-0'
                   )}
                 >
                   <LogOut className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span>ออกจากระบบ</span>}
                 </button>
               </form>
             </NavItemTooltip>

@@ -62,7 +62,7 @@ export async function DashboardCategoryList() {
  สัดส่วนตามสภาพการใช้งาน
  </h2>
  <p className="text-[11px] text-muted-foreground mt-0.5">
- ปริมาณพัสดุแบ่งตามสถานะการครอบครอง
+ ปริมาณวัสดุแบ่งตามสถานะการครอบครอง
  </p>
  </div>
  <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
@@ -83,7 +83,7 @@ export async function DashboardCategoryList() {
  สถิติตามหมวดหมู่ครุภัณฑ์
  </h2>
  <p className="text-[11px] text-muted-foreground mt-0.5">
- จำแนกปริมาณพัสดุแยกตามหมวดหมู่ครุภัณฑ์หลัก
+ จำแนกปริมาณวัสดุแยกตามหมวดหมู่ครุภัณฑ์หลัก
  </p>
  </div>
  <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
@@ -106,7 +106,7 @@ export async function DashboardCategoryList() {
  <Link
  key={cat}
  href={href}
- title={`ดูรายการพัสดุหมวดหมู่ ${cat}`}
+ title={`ดูรายการวัสดุหมวดหมู่ ${cat}`}
  className="group block space-y-1 p-1 -mx-1 rounded-md hover:bg-muted/40 transition-colors"
  >
  <div className="flex justify-between items-center text-xs">

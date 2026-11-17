@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "camms_session",
+      "value": "e17a1470b410525828ca8db45e76d464350b2e152cdf2f754fb9369d3cbfd531",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1793178689.110297,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

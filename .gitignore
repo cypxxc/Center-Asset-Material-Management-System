@@ -10,33 +10,22 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing artifacts
 /coverage
 /test-results/
 /playwright-report/
 /blob-report/
-tests/
-*.test.*
-*.spec.*
-__tests__/
 .nyc_output/
 /playwright/.cache/
-scripts/ai-uat/
-
-# Un-ignore specific tests and support files required by GitHub Actions CI
-!features/items/postgres-queries-live.test.ts
-!tests/e2e/solo-smoke.smoke.test.ts
-!tests/integration/postgres-admin-live.test.ts
-!tests/integration/postgres-admin-restore-live.test.ts
-!tests/setup/dom.ts
-!README.md
-!AGENTS.md
-!AGENT_SETUP.md
-!CLAUDE.md
 
 # database migrations
-db/migrations/
-db/postgres/migrations/
+# Only track SQL files and meta json/journal required by Drizzle
+/db/postgres/migrations/*
+!/db/postgres/migrations/*.sql
+!/db/postgres/migrations/meta/
+/db/postgres/migrations/meta/*
+!/db/postgres/migrations/meta/_journal.json
+!/db/postgres/migrations/meta/*.json
 
 # next.js
 /.next/
@@ -88,12 +77,8 @@ skills-lock.json
 /.turbo/
 desktop.ini
 
-# temporary scratch & markdown documentation
+# temporary scratch
 scratch/
-docs/
-*.md
-*.mdx
-
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -108,15 +93,6 @@ docs/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Migration SQL and its journal are required to reproduce the repaired schema.
-!/db/postgres/migrations/
-/db/postgres/migrations/*
-!/db/postgres/migrations/*.sql
-!/db/postgres/migrations/meta/
-/db/postgres/migrations/meta/*
-!/db/postgres/migrations/meta/_journal.json
-!/db/postgres/migrations/meta/*.json
 
 # documents & spreadsheets
 *.xlsx

@@ -44,7 +44,7 @@ export async function uploadLocalItemImage(file: File): Promise<string> {
 
 export async function readLocalItemImage(url: string) {
   if (!resolveLocalItemImageUrl(url)) return null
-  const query = sql`select id from public.items where image_url = ${url} and deleted_at is null limit 1`
+  const query = sql`select id from public.inventory_items where image_url = ${url} and deleted_at is null limit 1`
 
   // A file is visible if referenced by an active (non-deleted) item in the registry
   // This allows scanning public QR codes while preserving access restrictions.
@@ -82,7 +82,7 @@ export async function deleteLocalItemImage(
   try {
     const profile = callerProfile ?? await getCurrentProfile()
     if (!profile?.is_active || !['admin', 'staff'].includes(profile.role)) return { success: false, error: 'Unauthorized' }
-    const query = sql`select id from public.items where image_url = ${url!} limit 1`
+    const query = sql`select id from public.inventory_items where image_url = ${url!} limit 1`
     const referenced = callerProfile
       ? await withIdentity(callerProfile.id, tx => tx.execute(query))
       : await withUserDatabase(tx => tx.execute(query))

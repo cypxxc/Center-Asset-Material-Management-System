@@ -4,6 +4,8 @@ import { AuditLogsPageSearchParams } from '@/features/admin/types'
 import { redirect } from 'next/navigation'
 import AuditLogsClient from './audit-logs-client'
 
+export const metadata = { title: 'Logs' }
+
 interface AuditLogsPageProps {
   searchParams: Promise<AuditLogsPageSearchParams & { tab?: string; status?: string; type?: string }>
 }

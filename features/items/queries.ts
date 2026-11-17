@@ -4,6 +4,7 @@ import { getPostgresItemReferences, getPostgresItems, getPostgresItemBatch, getP
 import type { ItemAuditLog, ItemDetail, ItemListResult, ItemBatchResult, ItemListSearchParams, ReferenceOption, ItemEditPageData, ItemsExplorerPageData, DashboardLayoutData, UrgentDamagedItem } from './types'
 import { ITEMS_PAGE_SIZE, normalizeItemListSearchParams } from './list-params'
 import { decodeItemCursor } from './cursor'
+import { categoriesForType } from './category-types'
 
 export type { UrgentDamagedItem } from './types'
 const PAGE_SIZE = 10
@@ -19,12 +20,15 @@ export async function getItemAuditLogs(itemId: string): Promise<ItemAuditLog[]> 
 
 export async function getItemEditPageData(id: string): Promise<ItemEditPageData> {
   const [item, references] = await Promise.all([getItemById(id), getItemReferences()])
-  return { item, references }
+  return { item, references: { ...references, categories: item ? categoriesForType(references.categories, item.item_type) : [] } }
 }
 
 export async function getItemsExplorerPageData(params: ItemListSearchParams): Promise<ItemsExplorerPageData> {
   const [references, result] = await Promise.all([getItemReferences(), getItems(params, ITEMS_PAGE_SIZE)])
-  return { ...result, references }
+  const categories = params.type === 'asset' || params.type === 'material'
+    ? categoriesForType(references.categories, params.type)
+    : references.categories
+  return { ...result, references: { ...references, categories } }
 }
 
 const getSidebarData = cache(async () => getPostgresSidebarData())

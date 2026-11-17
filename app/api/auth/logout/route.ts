@@ -14,15 +14,19 @@ export async function POST() {
   return response
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     await deleteSession()
   } catch (error) {
     console.error('Error during logout:', error)
   }
 
-  const url = new URL('/login?reason=idle_timeout', request.url)
-  const response = NextResponse.redirect(url)
+  // Preserve the browser's IP/port, even when standalone resolves request.url
+  // against its bind address (0.0.0.0) behind a proxy.
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { Location: '/login?reason=idle_timeout' },
+  })
   response.cookies.delete(SESSION_COOKIE)
   response.headers.set('Cache-Control', 'no-store, max-age=0')
   return response

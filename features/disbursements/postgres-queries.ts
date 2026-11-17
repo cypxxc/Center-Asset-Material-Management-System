@@ -1,5 +1,6 @@
 import 'server-only'
 import { centralItemUnavailableReason } from './catalog-availability'
+import { materialAvailability } from './material-availability'
 import { sql, type SQL } from 'drizzle-orm'
 import { withUserDatabase } from '@/lib/postgres/request'
 import { normalizeForSearch } from '@/lib/unicode'
@@ -96,7 +97,7 @@ export async function getPostgresDisbursements(
             'returned_qty', di.returned_qty,
             'status', di.status
           ) ORDER BY di.id)
-          FROM public.disbursement_items di LEFT JOIN public.items i ON i.id = di.item_id
+          FROM public.disbursement_items di LEFT JOIN public.inventory_items i ON i.id = di.item_id
           WHERE di.disbursement_id = d.id ${params.hideCompleted ? sql`AND di.status <> 'returned'` : sql``}
         ), '[]'::jsonb) AS requested_items
         FROM (
@@ -143,7 +144,7 @@ export async function getPostgresDisbursementById(id: string) {
           coalesce(di.item_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.item_name END) AS item_name_snapshot,
           coalesce(di.asset_no_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.asset_no END) AS asset_no_snapshot
         FROM public.disbursement_items di
-        LEFT JOIN public.items i ON i.id = di.item_id
+        LEFT JOIN public.inventory_items i ON i.id = di.item_id
         WHERE di.disbursement_id = ${id} ORDER BY di.id ASC`
       )
 
@@ -179,6 +180,7 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
         responsible_person: string | null
         note: string | null
         is_central: boolean
+        reserved_quantity: number
       }>(
         sql`SELECT
           i.id,
@@ -194,21 +196,22 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
           l.name as location_name,
           i.responsible_person,
           i.note,
-          i.is_central
-        FROM public.items i
+          i.is_central,
+          0::int AS reserved_quantity
+        FROM public.inventory_items i
         LEFT JOIN public.categories c ON c.id = i.category_id
         LEFT JOIN public.units u ON u.id = i.unit_id
         LEFT JOIN public.locations l ON l.id = i.location_id
         WHERE i.deleted_at IS NULL AND i.quantity > 0
-          AND (i.is_central = true OR i.note LIKE '%ส่วนกลาง%')
+          AND (i.item_type='material' OR i.is_central = true OR i.note LIKE '%ส่วนกลาง%')
           AND (i.status IN ('active', 'spare') OR i.status IS NULL)
-          AND NOT EXISTS (
+          AND (i.item_type='material' OR NOT EXISTS (
             SELECT 1 FROM public.disbursement_items di
             JOIN public.disbursements d ON d.id = di.disbursement_id
             WHERE di.item_id = i.id
               AND d.status IN ('pending_approval', 'active_borrow', 'partially_returned')
               AND di.status NOT IN ('returned', 'reversed')
-          )
+          ))
         ORDER BY i.item_type ASC, i.item_name ASC`
       )
       return res.rows.map((row) => ({
@@ -217,14 +220,15 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
         item_type: row.item_type,
         asset_no: row.asset_no ?? null,
         serial_no: row.serial_no ?? null,
-        quantity: Number(row.quantity) || 0,
+        quantity: row.item_type === 'material' ? materialAvailability(Number(row.quantity)).available_quantity : Number(row.quantity) || 0,
+        ...materialAvailability(Number(row.quantity)),
         image_url: row.image_url ?? null,
         category: row.category_id ? { id: row.category_id, name: row.category_name ?? '' } : null,
         unit: row.unit_name ? { name: row.unit_name } : null,
         location_name: row.location_name ?? null,
         responsible_person: row.responsible_person ?? null,
         note: row.note ?? null,
-        is_central: Boolean(row.is_central),
+        is_central: row.item_type === 'material' || Boolean(row.is_central),
       }))
     } catch (error: unknown) {
       const pgCode = (error as { code?: string })?.code || (error as { cause?: { code?: string } })?.cause?.code
@@ -237,6 +241,10 @@ export async function getPostgresDisbursementSelectableItems(): Promise<Disburse
 }
 
 export interface CentralAvailableItem {
+  specification?: string | null
+  stock_quantity?: number
+  reserved_quantity?: number
+  available_quantity?: number
   unavailable_reason?: string | null
   id: string
   item_name: string
@@ -258,6 +266,7 @@ export async function getPostgresCentralAvailableItems(): Promise<CentralAvailab
       const res = await tx.execute<{
         status: string | null
         reserved: boolean
+        reserved_quantity: number
         id: string
         item_name: string
         item_type: 'material' | 'asset'
@@ -271,6 +280,7 @@ export async function getPostgresCentralAvailableItems(): Promise<CentralAvailab
         category_name: string | null
         unit_name: string | null
         location_name: string | null
+        specification: string | null
       }>(
         sql`SELECT
           i.id,
@@ -286,6 +296,7 @@ export async function getPostgresCentralAvailableItems(): Promise<CentralAvailab
           c.name as category_name,
           u.name as unit_name,
           l.name as location_name,
+          m.specification,
           i.status,
           EXISTS (
             SELECT 1 FROM public.disbursement_items di
@@ -293,26 +304,28 @@ export async function getPostgresCentralAvailableItems(): Promise<CentralAvailab
             WHERE di.item_id = i.id
               AND d.status IN ('pending_approval', 'active_borrow', 'partially_returned')
               AND di.status NOT IN ('returned', 'reversed')
-          ) AS reserved
-        FROM public.items i
+          ) AS reserved,
+          0::int AS reserved_quantity
+        FROM public.inventory_items i
+        LEFT JOIN public.materials m ON m.id = i.id AND i.item_type = 'material'
         LEFT JOIN public.categories c ON c.id = i.category_id
         LEFT JOIN public.units u ON u.id = i.unit_id
         LEFT JOIN public.locations l ON l.id = i.location_id
         WHERE i.deleted_at IS NULL AND i.quantity > 0
-          AND (i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')
+          AND (i.item_type='material' OR i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')
           AND (i.status IN ('active', 'spare') OR i.status IS NULL)
-          AND NOT EXISTS (
+          AND (i.item_type='material' OR NOT EXISTS (
             SELECT 1 FROM public.disbursement_items di
             JOIN public.disbursements d ON d.id = di.disbursement_id
             WHERE di.item_id = i.id
               AND d.status IN ('pending_approval', 'active_borrow', 'partially_returned')
               AND di.status NOT IN ('returned', 'reversed')
-          )
+          ))
         ORDER BY i.item_name ASC`
       )
 
       return res.rows.map((row) => ({
-        unavailable_reason: centralItemUnavailableReason({ quantity: Number(row.quantity), status: row.status, reserved: row.reserved }),
+        unavailable_reason: centralItemUnavailableReason({ quantity: row.item_type === 'material' ? materialAvailability(Number(row.quantity)).available_quantity : Number(row.quantity), status: row.status, reserved: row.item_type === 'material' ? false : row.reserved }),
         id: row.id,
         item_name: row.item_name,
         item_type: row.item_type,
@@ -320,11 +333,13 @@ export async function getPostgresCentralAvailableItems(): Promise<CentralAvailab
         serial_no: row.serial_no ?? null,
         brand: row.brand ?? null,
         model: row.model ?? null,
-        quantity: Number(row.quantity) || 0,
+        quantity: row.item_type === 'material' ? materialAvailability(Number(row.quantity)).available_quantity : Number(row.quantity) || 0,
+        ...materialAvailability(Number(row.quantity)),
         image_url: row.image_url ?? null,
         category: row.category_id ? { id: row.category_id, name: row.category_name ?? '' } : null,
         unit_name: row.unit_name ?? null,
         location_name: row.location_name ?? null,
+        specification: row.specification ?? null,
       }))
     } catch (error: unknown) {
       const pgCode = (error as { code?: string })?.code || (error as { cause?: { code?: string } })?.cause?.code

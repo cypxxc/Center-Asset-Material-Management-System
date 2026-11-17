@@ -1,0 +1,5 @@
+# FY2570 material import
+
+Authorized by user after analysis of four workbooks. Prepare all 76 named summary entries as material records using cached balances at 2026-10-31, not current stock. Preserve category, original name with specification stored separately, unit, location, price, source commodity code and min/max in notes. Never invent unit conversions, receipts, stock values or acquisition dates. Preserve zero quantities; reject invalid or fractional quantities. Keep asset quantity validation unchanged. Reject repeated source keys and duplicate material identities within a batch and against active inventory, under existing import transaction lock. Use existing import service and RLS in staging; no direct production mutations or automatic schema migration. Preserve original workbooks.
+
+Chosen approach: snapshot plus provenance and a review workbook/CSV. Historical ledger migration and receipt module are separate work, because no cutover updates or unit-conversion decisions have been supplied. Source flags block live import until reviewed. Test staging in an outer transaction rolled back, including repeat import and final totals. No new RBAC rules.

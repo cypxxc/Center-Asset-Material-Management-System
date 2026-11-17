@@ -4,6 +4,7 @@ import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { DropdownMenu } from 'radix-ui'
 import {
  Activity,
  Boxes,
@@ -12,6 +13,8 @@ import {
  Clock,
  FileEdit,
  CheckCircle2,
+ ChevronDown,
+ Check,
 } from 'lucide-react'
 import { AuditActionFilter } from '@/features/admin/components/audit-action-filter'
 import { cn } from '@/lib/utils'
@@ -44,6 +47,7 @@ const HISTORY_STATUS_OPTIONS: FilterOption[] = [
 ]
 
 interface DisbursementListClientProps {
+ materialApprovalSlaHours?: number | null
  initialItems: DisbursementRow[]
  total: number
  currentPage: number
@@ -66,6 +70,7 @@ interface DisbursementListClientProps {
 }
 
 export function DisbursementListClient({
+ materialApprovalSlaHours = null,
  initialItems,
  total,
  currentPage,
@@ -89,6 +94,8 @@ export function DisbursementListClient({
  )
  const [q, setQ] = useState(currentQ)
  const [catalogQuery, setCatalogQuery] = useState('')
+ const [catalogType, setCatalogType] = useState<'asset' | 'material'>('asset')
+ const catalogItems = centralItems.filter(item => item.item_type === catalogType)
  const [cartContainer, setCartContainer] = useState<HTMLDivElement | null>(null)
  const [status, setStatus] = useState(currentStatus)
  const [type, setType] = useState(currentType)
@@ -157,7 +164,7 @@ export function DisbursementListClient({
  </h1>
  <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
  {activeTab === 'catalog'
- ? `${centralItems.length} รายการพร้อมเบิก/ยืม`
+ ? `${catalogItems.length} รายการ${catalogType === 'material' ? 'พร้อมเบิก' : 'พร้อมเบิก/ยืม'}`
  : userRole === 'admin' && activeTab === 'documents' ? 'ผู้ถือครอง' : `${total.toLocaleString()} รายการเอกสาร`}
  </span>
  </div>
@@ -186,19 +193,38 @@ export function DisbursementListClient({
  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
  {activeTab !== 'history' && <>
  <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="เบิกและยืม">
+ <DropdownMenu.Root>
+ <DropdownMenu.Trigger asChild>
  <button
  type="button"
- onClick={() => { setActiveTab('catalog'); router.push('/disbursements?tab=catalog', { scroll: false }) }}
- aria-pressed={activeTab === 'catalog'}
+ aria-current={activeTab === 'catalog' ? 'page' : undefined}
  className={cn(
- 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
+ 'group inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
  activeTab === 'catalog'
  ? 'bg-background text-primary shadow-xs'
  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
  )}
  >
- เบิก / ยืม
+ <span>เบิก / ยืม</span>
+ <ChevronDown className="ml-0.5 h-3.5 w-3.5 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" aria-hidden="true" />
  </button>
+ </DropdownMenu.Trigger>
+ <DropdownMenu.Portal>
+ <DropdownMenu.Content align="start" sideOffset={6} className="z-50 min-w-[200px] max-w-[280px] max-h-[320px] overflow-y-auto rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none">
+ <DropdownMenu.RadioGroup value={catalogType} onValueChange={value => {
+   setCatalogType(value as 'asset' | 'material')
+   setCatalogQuery('')
+   setActiveTab('catalog')
+   router.push('/disbursements?tab=catalog', { scroll: false })
+ }}>
+ {([{ value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }] as const).map(option => <DropdownMenu.RadioItem key={option.value} value={option.value} className={cn('flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors', catalogType === option.value ? 'bg-primary/10 text-primary font-bold' : 'text-foreground hover:bg-muted data-[highlighted]:bg-muted')}>
+ <span className="truncate">{option.label}</span>
+ <DropdownMenu.ItemIndicator><Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" /></DropdownMenu.ItemIndicator>
+ </DropdownMenu.RadioItem>)}
+ </DropdownMenu.RadioGroup>
+ </DropdownMenu.Content>
+ </DropdownMenu.Portal>
+ </DropdownMenu.Root>
 
  </div>
  <div className="ml-1 flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="จ่ายและอนุมัติ">
@@ -245,8 +271,8 @@ export function DisbursementListClient({
  onChange={activeTab === 'catalog' ? setCatalogQuery : handleSearchChange}
  onClear={activeTab === 'catalog' ? () => setCatalogQuery('') : handleSearchClear}
  debounceMs={activeTab === 'catalog' ? 300 : 500}
- placeholder={activeTab === 'catalog' ? 'ค้นหาชื่อ, หมายเลขครุภัณฑ์, ยี่ห้อ, รุ่น, สถานที่...' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาสิ่งของ, ผู้ถือครอง, ผู้ทำรายการ...' : 'ค้นหาเลขที่เอกสาร, ผู้รับ/ยืม, กลุ่มงาน...'}
- aria-label={activeTab === 'catalog' ? 'ค้นหาพัสดุส่วนกลาง' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาประวัติผู้ถือครอง' : 'ค้นหาเอกสารเบิกจ่าย'}
+ placeholder={activeTab === 'catalog' ? catalogType === 'material' ? 'ค้นหาชื่อวัสดุ, สถานที่จัดเก็บ...' : 'ค้นหาชื่อ, หมายเลขครุภัณฑ์, ยี่ห้อ, รุ่น, สถานที่...' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาสิ่งของ, ผู้ถือครอง, ผู้ทำรายการ...' : 'ค้นหาเลขที่เอกสาร, ผู้รับ/ยืม, กลุ่มงาน...'}
+ aria-label={activeTab === 'catalog' ? catalogType === 'material' ? 'ค้นหาวัสดุ' : 'ค้นหาครุภัณฑ์' : userRole === 'admin' && activeTab === 'documents' ? 'ค้นหาประวัติผู้ถือครอง' : 'ค้นหาเอกสารเบิกจ่าย'}
  className="h-9 text-xs"
  />
  </div>
@@ -296,6 +322,7 @@ export function DisbursementListClient({
  {activeTab === 'catalog' ? (
  <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
  <BorrowCatalogView
+ catalogType={catalogType}
  cartContainer={cartContainer}
  items={centralItems}
  searchQuery={catalogQuery}
@@ -322,7 +349,7 @@ export function DisbursementListClient({
  description={
  hasActiveFilters
  ? 'ลองปรับคำค้นหา หรือล้างตัวกรองเพื่อเรียกดูเอกสารทั้งหมด'
- : 'เริ่มต้นบันทึกการเบิกจ่ายพัสดุสิ้นเปลือง ส่งมอบ หรือยืม-คืนครุภัณฑ์เพื่อติดตามสถานะ'
+ : 'เริ่มต้นบันทึกการเบิกจ่ายวัสดุสิ้นเปลือง ส่งมอบ หรือยืม-คืนครุภัณฑ์เพื่อติดตามสถานะ'
  }
  action={
  hasActiveFilters ? (
@@ -349,7 +376,7 @@ export function DisbursementListClient({
  </div>
  )
  ) : (
- <GroupedTransactionsTable documents={initialItems} userRole={userRole} historyMode={activeTab === 'history'} />
+ <GroupedTransactionsTable documents={initialItems} userRole={userRole} historyMode={activeTab === 'history'} materialApprovalSlaHours={materialApprovalSlaHours} />
  )}
  </div>
 

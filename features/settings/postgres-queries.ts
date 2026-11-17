@@ -9,7 +9,7 @@ export async function getPostgresSettingsData(section: SettingsDataSection = 'al
   return withUserDatabase(async (tx) => {
     const result: SettingsData = { categories: [], locations: [], units: [] }
     if (section === 'all' || section === 'categories') {
-      result.categories = (await tx.execute<CategoryRow & Record<string, unknown>>(sql`select id, name, description, color, icon, is_active, updated_at from public.categories order by name`)).rows
+      result.categories = (await tx.execute<CategoryRow & Record<string, unknown>>(sql`select id, name, item_type, description, color, icon, is_active, updated_at from public.categories order by name`)).rows
     }
     if (section === 'all' || section === 'locations') {
       result.locations = (await tx.execute<LocationRow & Record<string, unknown>>(sql`select id, name, building, floor, room, department, description, is_active, updated_at from public.locations order by name`)).rows
@@ -31,7 +31,7 @@ export async function getPostgresLocationsOverview() {
       coalesce(nullif(c.name, ''), 'ทั่วไป') as "categoryName", l.id as "locationId",
       coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName", i.status,
       coalesce(nullif(i.serial_no, ''), nullif(i.asset_no, ''), '-') as "serialNumber"
-      from public.items i left join public.categories c on c.id = i.category_id
+      from public.inventory_items i left join public.categories c on c.id = i.category_id
       left join public.locations l on l.id = i.location_id where i.deleted_at is null`)
     return { locations: locations.rows, items: items.rows }
   })

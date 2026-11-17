@@ -55,17 +55,17 @@ export async function buildReportExcelWorkbook(
     items.reduce((sum, item) => sum + ((item.unit_price ?? 0) * (item.quantity || 0)), 0)
 
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'CAMMS'
-  workbook.lastModifiedBy = 'CAMMS'
+  workbook.creator = 'Portal'
+  workbook.lastModifiedBy = 'Portal'
   workbook.created = new Date()
   workbook.modified = new Date()
 
-  const worksheet = workbook.addWorksheet('รายงานครุภัณฑ์และพัสดุ', {
+  const worksheet = workbook.addWorksheet('รายงานครุภัณฑ์และวัสดุ', {
     views: [{ showGridLines: true }],
   })
 
   // Title Row (Row 1)
-  const titleRow = worksheet.addRow(['รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS)'])
+  const titleRow = worksheet.addRow(['รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (Portal)'])
   titleRow.font = { name: 'Sarabun', bold: true, size: 16, color: { argb: 'FF0F172A' } }
   worksheet.addRow([]) // Row 2 (Blank spacer)
 
@@ -285,7 +285,7 @@ export async function buildGovernmentLedgerExcelWorkbook(
   filterSummary = 'ครุภัณฑ์ทั้งหมด'
 ): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'CAMMS'
+  workbook.creator = 'Portal'
   workbook.created = new Date()
 
   const worksheet = workbook.addWorksheet('ทะเบียนคุมสินทรัพย์', {
@@ -295,9 +295,9 @@ export async function buildGovernmentLedgerExcelWorkbook(
   // Title block
   const titleRow1 = worksheet.addRow(['ทะเบียนคุมสินทรัพย์'])
   titleRow1.font = { name: 'Sarabun', bold: true, size: 14 }
-  const subTitle = filterSummary.includes('ต่ำกว่าเกณฑ์') || filterSummary.includes('พัสดุ')
-    ? 'บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์)'
-    : 'บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'
+  const subTitle = filterSummary.includes('ต่ำกว่าเกณฑ์') || filterSummary.includes('วัสดุ')
+    ? 'บัญชีแสดงรายการวัสดุคงเหลือ (ครุภัณฑ์มูลค่าต่ำกว่าเกณฑ์)'
+    : 'บัญชีแสดงรายการวัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'
   const titleRow2 = worksheet.addRow([subTitle])
   titleRow2.font = { name: 'Sarabun', bold: true, size: 12 }
   const titleRow3 = worksheet.addRow([

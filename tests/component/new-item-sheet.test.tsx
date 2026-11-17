@@ -1,0 +1,219 @@
+import '../setup/dom';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { ItemForm } from '../../features/items/components/item-form';
+import { NewItemSheet } from '../../features/items/components/new-item-sheet';
+
+const noopAction = async () => ({ success: true });
+globalThis.getComputedStyle = window.getComputedStyle.bind(window);
+Object.assign(globalThis, { Element: window.Element, Node: window.Node, NodeFilter: window.NodeFilter,
+  MutationObserver: window.MutationObserver, CustomEvent: window.CustomEvent, Event: window.Event });
+
+function mockDialogMethods() {
+  const htmlDialogProto = window.HTMLDialogElement?.prototype as HTMLDialogElement | undefined;
+  if (htmlDialogProto) {
+    htmlDialogProto.showModal = function showModal() {
+      this.open = true;
+    };
+    htmlDialogProto.close = function close() {
+      this.open = false;
+    };
+  }
+}
+
+test('NewItemSheet does not warn about unsaved changes when untouched', () => {
+  mockDialogMethods();
+
+  let confirmCalls = 0;
+  const originalConfirm = window.confirm;
+  window.confirm = () => {
+    confirmCalls += 1;
+    return true;
+  };
+
+  try {
+    render(
+      React.createElement(NewItemSheet, {
+        open: true,
+        onClose: () => {},
+        onSuccess: () => {},
+        categories: [],
+        locations: [],
+        units: [],
+      })
+    );
+
+    fireEvent.click(screen.getByLabelText('ปิด'));
+
+    assert.equal(confirmCalls, 0);
+  } finally {
+    window.confirm = originalConfirm;
+  }
+});
+
+test('NewItemSheet uses a standard centered dialog without sheet animation CSS', () => {
+  mockDialogMethods();
+
+  render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const styleText = Array.from(document.querySelectorAll('style'))
+    .map((style) => style.textContent ?? '')
+    .join('\n');
+
+  assert.match(styleText, /align-items:\s*center/);
+  assert.match(styleText, /justify-content:\s*center/);
+  assert.doesNotMatch(styleText, /translateX/);
+  assert.doesNotMatch(styleText, /transition:/);
+  assert.doesNotMatch(styleText, /will-change/);
+});
+
+test('NewItemSheet restores a saved draft when opened', () => {
+  mockDialogMethods();
+  window.localStorage.setItem('center-asset-material-management-system:new-item-draft', JSON.stringify({ item_name: 'Draft Chair' }));
+
+  render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const input = document.querySelector('input[name="item_name"]') as HTMLInputElement | null;
+  assert.equal(input?.value, 'Draft Chair');
+});
+
+test('NewItemSheet restores a legacy saved draft when opened', () => {
+  mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
+  window.localStorage.setItem('omni-asset:new-item-draft', JSON.stringify({ item_name: 'Legacy Draft Chair' }));
+
+  render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const input = document.querySelector('input[name="item_name"]') as HTMLInputElement | null;
+  assert.equal(input?.value, 'Legacy Draft Chair');
+});
+
+test('NewItemSheet saves draft field changes', () => {
+  mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
+  window.localStorage.removeItem('omni-asset:new-item-draft');
+
+  render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const input = document.querySelector('input[name="item_name"]') as HTMLInputElement;
+  fireEvent.change(input, { target: { value: 'Draft Desk' } });
+
+  const draft = JSON.parse(window.localStorage.getItem('center-asset-material-management-system:new-item-draft') ?? '{}') as { item_name?: string };
+  assert.equal(draft.item_name, 'Draft Desk');
+});
+
+test('NewItemSheet shows all entry sections together and submits from its footer', () => {
+  mockDialogMethods();
+  window.localStorage.removeItem('center-asset-material-management-system:new-item-draft');
+  window.localStorage.removeItem('omni-asset:new-item-draft');
+  const view = render(React.createElement(NewItemSheet, {
+    open: true, onClose: () => {}, onSuccess: () => {},
+    categories: [], locations: [{ id: 'location-1', name: 'สำนักงาน' }],
+    units: [{ id: 'unit-1', name: 'ชิ้น' }],
+  }));
+  const dialog = within(view.container).getByRole('dialog', { name: 'ขึ้นทะเบียนครุภัณฑ์ใหม่' });
+  for (const label of ['ชื่อสิ่งของ', 'Serial Number', 'สถานที่', 'ผู้รับผิดชอบ', 'หมายเหตุ']) {
+    const control = within(dialog).getByLabelText(new RegExp(`^${label}(?:\\s*\\*)?$`));
+    assert.equal(control.closest('[hidden]'), null);
+  }
+  assert.equal(within(dialog).queryByRole('button', { name: 'ถัดไป' }), null);
+  assert.equal(within(dialog).queryByRole('button', { name: 'ย้อนกลับ' }), null);
+  for (const name of ['ข้อมูลหลัก', 'รายละเอียดสิ่งของ', 'สถานที่และผู้รับผิดชอบ', 'รูปภาพและหมายเหตุ']) {
+    assert.ok(within(dialog).getByRole('heading', { name }));
+  }
+  const submit = within(dialog).getByRole('button', { name: 'บันทึกรายการ' }) as HTMLButtonElement;
+  assert.equal(submit.form, view.container.querySelector('form'));
+  assert.equal(submit.form?.checkValidity(), false);
+  fireEvent.change(within(dialog).getByLabelText(/^ชื่อสิ่งของ/), { target: { value: 'Desk' } });
+  fireEvent.click(within(dialog).getByLabelText(/^หน่วยนับ/));
+  fireEvent.click(screen.getByRole('option', { name: 'ชิ้น' }));
+  assert.equal(submit.form?.checkValidity(), true);
+});
+
+test('asset registration has no type tabs and submits the asset type', () => {
+  const view = render(React.createElement(ItemForm, {
+    action: noopAction, categories: [], locations: [], units: [],
+  }));
+  fireEvent.change(within(view.container).getByLabelText(/^ชื่อสิ่งของ/), { target: { value: 'Paper' } });
+  assert.equal((within(view.container).getByLabelText(/^ชื่อสิ่งของ/) as HTMLInputElement).value, 'Paper');
+  assert.equal(within(view.container).queryByRole('tablist'), null);
+  assert.equal(within(view.container).queryByRole('tab'), null);
+  assert.equal((view.container.querySelector('[name="item_type"]') as HTMLInputElement).value, 'asset');
+  assert.ok(within(view.container).getByLabelText('สถานที่'));
+  assert.ok(within(view.container).getByLabelText('Serial Number'));
+  assert.ok(within(view.container).getByLabelText(/เลขครุภัณฑ์/));
+});
+
+test('NewItemSheet adapts to theme using CSS variables and semantic tokens', () => {
+  mockDialogMethods();
+
+  const view = render(
+    React.createElement(NewItemSheet, {
+      open: true,
+      onClose: () => {},
+      onSuccess: () => {},
+      categories: [],
+      locations: [],
+      units: [],
+    })
+  );
+
+  const styleText = Array.from(document.querySelectorAll('style'))
+    .map((style) => style.textContent ?? '')
+    .join('\n');
+
+  // Verify CSS variables are used for modal background and borders instead of hardcoded hex colors
+  assert.match(styleText, /\.new-item-sheet-panel\s*\{[^}]*background:\s*var\(--card\)/);
+  assert.match(styleText, /\.new-item-sheet-panel\s*\{[^}]*border:\s*1px solid var\(--border\)/);
+  assert.match(styleText, /\.new-item-sheet-body\s*\{[^}]*background:\s*var\(--background\)/);
+  assert.match(styleText, /\.new-item-sheet-header\s*\{[^}]*background:\s*var\(--card\)/);
+  assert.match(styleText, /\.new-item-sheet-footer\s*\{[^}]*background:\s*var\(--card\)/);
+
+  // Verify panel element has semantic theme classes
+  const panel = view.container.querySelector('.new-item-sheet-panel');
+  assert.ok(panel?.classList.contains('bg-card'));
+  assert.ok(panel?.classList.contains('text-card-foreground'));
+
+  const body = view.container.querySelector('.new-item-sheet-body');
+  assert.ok(body?.classList.contains('bg-background'));
+  assert.ok(body?.classList.contains('text-foreground'));
+});
+

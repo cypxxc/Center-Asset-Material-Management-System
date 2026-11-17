@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { ItemThumbnail } from './item-thumbnail'
 import { CategoryBadge } from './category-badge'
 import { formatDateThaiBE } from '@/lib/date'
+import { MaterialsList } from '@/features/materials/materials-list'
 
 export interface ItemsListProps {
  items: (ItemListRow | null | undefined)[]
@@ -38,7 +39,7 @@ export interface ItemsListProps {
  onCopy?: (value: string | null | undefined) => void
  onPrint?: (item: ItemListRow) => void
  onEdit?: (item: ItemListRow) => void
- mode?: 'standard' | 'ledger'
+ mode?: 'standard' | 'ledger' | 'material'
  onUpdateStatus?: (itemId: string, status: ItemListRow['status']) => Promise<void> | void
 }
 
@@ -69,6 +70,13 @@ export function ItemsList({
  masterCheckboxRef.current.indeterminate = selectedItemIds.length > 0 && !allLoadedSelected
  }
  }, [selectedItemIds.length, allLoadedSelected])
+
+ if (mode === 'material') {
+ return <MaterialsList items={items} startIndex={startIndex} selectedItemId={selectedItemId}
+ selectedItemIds={selectedItemIds} onSelect={onSelect} onToggleSelectItem={onToggleSelectItem}
+ onToggleSelectAll={onToggleSelectAll} allLoadedSelected={allLoadedSelected}
+ params={params} onToggleSort={onToggleSort} userCanWrite={userCanWrite} />
+ }
 
  const renderSortHeader = (field: string, label: string, align: 'left' | 'center' | 'right' = 'left') => {
  const isSorted = Boolean(params.sort_by && params.sort_by === field)
@@ -136,7 +144,7 @@ export function ItemsList({
  <h3 className="font-bold text-sm text-foreground">
  ทะเบียนคุมสินทรัพย์
  </h3>
- <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
+ <p className="text-muted-foreground text-[11px] mt-0.5">บัญชีแสดงรายการวัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
  </div>
  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px] mt-1">
  <span><strong className="text-foreground">หน่วยงาน:</strong> สำนักงานเขตสุขภาพที่ 7</span>
@@ -159,7 +167,7 @@ export function ItemsList({
  : "w-full min-w-[480px] sm:min-w-[640px] md:min-w-[768px] xl:min-w-[960px]"
  )}
  >
- <caption className="sr-only">รายการทะเบียนพัสดุและครุภัณฑ์</caption>
+ <caption className="sr-only">รายการทะเบียนวัสดุและครุภัณฑ์</caption>
  {isLedger && (
  <colgroup>
  {userCanWrite && <col style={{ width: '40px' }} />}
@@ -210,7 +218,7 @@ export function ItemsList({
  {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
  </DataTableHead>
  <DataTableHead className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
- <DataTableHead className="w-32 px-2.5 text-center font-bold text-muted-foreground">สภาพพัสดุ</DataTableHead>
+ <DataTableHead className="w-32 px-2.5 text-center font-bold text-muted-foreground">สภาพวัสดุ</DataTableHead>
  </tr>
  </>
  ) : (
@@ -458,7 +466,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  {item.location?.name || '-'}
  </DataTableCell>
 
- {/* สภาพพัสดุ */}
+ {/* สภาพวัสดุ */}
  <DataTableCell className="w-32 px-2.5 text-center text-xs">
  <span className="inline-flex items-center gap-1.5 text-card-foreground">
  <span

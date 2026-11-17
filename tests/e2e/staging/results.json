@@ -1,0 +1,461 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "D:\\Center-Asset-Material-Management-System-main\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "tests/e2e/staging/gap-closure-ui.spec.ts",
+      "--config=playwright.staging.config.ts"
+    ],
+    "configFile": "D:\\Center-Asset-Material-Management-System-main\\playwright.staging.config.ts",
+    "rootDir": "D:/Center-Asset-Material-Management-System-main/tests/e2e/staging",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "D:/Center-Asset-Material-Management-System-main/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "D:/Center-Asset-Material-Management-System-main/tests/e2e/staging",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/e2e/staging/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "gap-closure-ui.spec.ts",
+      "file": "gap-closure-ui.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "CAMMS Final Gap Closure E2E (Staging Port 3001)",
+          "file": "gap-closure-ui.spec.ts",
+          "line": 9,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Suite 1: Items Validation & Management",
+              "file": "gap-closure-ui.spec.ts",
+              "line": 25,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "TC-UI-ITEM-01: Duplicate asset_no rejection",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1657,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:22.793Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-d7384-uplicate-asset-no-rejection-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-8e8f4c37e97c6bf1a882",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 36,
+                  "column": 9
+                },
+                {
+                  "title": "TC-UI-ITEM-02: Invalid input validation (empty required name)",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1903,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:24.651Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-7ff81-dation-empty-required-name--chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-6f2570738139090c4f95",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 59,
+                  "column": 9
+                },
+                {
+                  "title": "TC-UI-ITEM-03: Create new asset and verify in Staging DB",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 2100,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:26.576Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-c43c5-et-and-verify-in-Staging-DB-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-bb13f27be53844d5e2e5",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 80,
+                  "column": 9
+                },
+                {
+                  "title": "TC-UI-ITEM-04: Edit existing item and verify update",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3503,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:28.723Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-8e5fa-ting-item-and-verify-update-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-606b40c4c20dc2c1d164",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 109,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Suite 2: Admin Item Deletion & Soft-Delete Check",
+              "file": "gap-closure-ui.spec.ts",
+              "line": 140,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "TC-UI-ITEM-05: Admin deletes item and verifies DB removal/trash state",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1685,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:32.252Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-7ea32-fies-DB-removal-trash-state-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-fc488a20bc7b6cb8ae9f",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 143,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Suite 3: Reports Excel Download & Parsing",
+              "file": "gap-closure-ui.spec.ts",
+              "line": 179,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "TC-UI-REP-01: Download actual Excel and verify sheets, headers, and data rows",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1925,
+                          "errors": [],
+                          "stdout": [
+                            {
+                              "text": "[EXCEL VERIFIED] Downloaded size: 8480 bytes, Rows: 15, Columns: 15\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:33.954Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-bbe91-heets-headers-and-data-rows-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-dbbd8b0747e2647a0a01",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 182,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Suite 4: Print Voucher Layout & Snapshot",
+              "file": "gap-closure-ui.spec.ts",
+              "line": 231,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "TC-UI-PRINT-01: Print voucher retains snapshot data & A4 Sarabun styling",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 784,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:35.908Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-09a5b-hot-data-A4-Sarabun-styling-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-f0bba2cc393f1459ee78",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 234,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Suite 5: Modal Loading State Robustness",
+              "file": "gap-closure-ui.spec.ts",
+              "line": 255,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "TC-UI-MODAL-01: Modal resets loading state and remains responsive on failure and success",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1504,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-28T01:41:36.711Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "screenshot",
+                              "contentType": "image/png",
+                              "path": "D:\\Center-Asset-Material-Management-System-main\\test-results\\gap-closure-ui-CAMMS-Final-e752a-sive-on-failure-and-success-chromium\\test-finished-1.png"
+                            }
+                          ]
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "4d24d4dec5a83291c47c-7f9f71f787cf228cee9d",
+                  "file": "gap-closure-ui.spec.ts",
+                  "line": 258,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-28T01:41:21.348Z",
+    "duration": 17340.983,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

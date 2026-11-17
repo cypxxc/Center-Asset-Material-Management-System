@@ -9,12 +9,13 @@ import { hashPassword, verifyPassword } from './password'
 export const SESSION_COOKIE = 'camms_session'
 export type LocalProfile = { id: string; full_name: string; display_name?: string | null; email: string | null; department?: string | null; role: 'admin' | 'staff' | 'user'; is_active: boolean; sidebar_order: string[] | null; created_at: string; updated_at: string }
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex') }
-export async function profileForToken(token: string | undefined): Promise<LocalProfile | null> {
+export async function profileForToken(token: string | undefined): Promise<(LocalProfile & { session_expires_at: string }) | null> {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null
-  const result = await getAuthDatabase().execute<LocalProfile>(sql`
-    select p.* from private_auth.sessions s join public.profiles p on p.id=s.user_id
+  const result = await getAuthDatabase().execute<LocalProfile & { session_expires_at: Date }>(sql`
+    select p.*, s.expires_at as session_expires_at from private_auth.sessions s join public.profiles p on p.id=s.user_id
     where s.token_hash=${tokenHash(token)} and s.expires_at>now() and p.is_active=true limit 1`)
-  return result.rows[0] ?? null
+  const profile = result.rows[0]
+  return profile ? { ...profile, session_expires_at: new Date(profile.session_expires_at).toISOString() } : null
 }
 export const getPostgresProfile = cache(async function getPostgresProfile() { return profileForToken((await cookies()).get(SESSION_COOKIE)?.value) })
 async function insertSession(tx: PostgresTransaction, userId: string) {

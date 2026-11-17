@@ -144,7 +144,7 @@ export function CategoryComboChart({
  <div>
  <div className="flex items-center justify-between">
  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
- สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
+ สัดส่วนวัสดุพร้อมใช้งาน (Active Rate)
  </p>
  <span className="text-xs font-mono font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40">
  {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
@@ -168,7 +168,7 @@ export function CategoryComboChart({
  </div>
  <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
- พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
+ วัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
  </p>
  </div>
  </div>
@@ -320,7 +320,7 @@ export function CategoryComboChart({
  <div>
  <div className="flex items-center justify-between">
  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
- สัดส่วนพัสดุพร้อมใช้งาน (Active Rate)
+ สัดส่วนวัสดุพร้อมใช้งาน (Active Rate)
  </p>
  <span className="text-xs font-mono font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40">
  {safeActiveCount.toLocaleString('th-TH')} / {safeTotalCount.toLocaleString('th-TH')} รายการ
@@ -344,7 +344,7 @@ export function CategoryComboChart({
  </div>
  <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
- พัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
+ วัสดุที่อยู่ในสถานะใช้งานปกติพร้อมปฏิบัติงาน
  </p>
  </div>
  </div>
@@ -400,7 +400,7 @@ export function CategoryComboChart({
  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
  className="w-full max-w-full h-auto overflow-visible select-none"
  role="img"
- aria-label="แผนภูมิแท่งและแนวโน้มเปรียบเทียบสัดส่วนพัสดุตามหมวดหมู่"
+ aria-label="แผนภูมิแท่งและแนวโน้มเปรียบเทียบสัดส่วนวัสดุตามหมวดหมู่"
  >
  {/* Horizontal Grid Lines and Y-Axis Ticks */}
  {gridLevels.map((level) => {

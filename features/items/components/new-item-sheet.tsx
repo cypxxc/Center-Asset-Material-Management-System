@@ -4,10 +4,12 @@ import { useEffect, useRef, useCallback, useId, useState } from 'react'
 import { X, Plus, Save } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
-import { ItemDetail, ReferenceOption } from '../types'
+import { ItemDetail, ReferenceOption, type ItemType } from '../types'
 import { Button } from '@/components/ui/button'
+import { MaterialForm } from '@/features/materials/material-form'
 
 const NEW_ITEM_DRAFT_KEY = 'center-asset-material-management-system:new-item-draft'
+const NEW_MATERIAL_DRAFT_KEY = 'center-asset-material-management-system:new-material-draft'
 const LEGACY_DRAFT_KEYS = ['omni-asset:new-item-draft', 'camms:new-item-draft']
 
 interface NewItemSheetProps {
@@ -19,6 +21,7 @@ interface NewItemSheetProps {
  units: ReferenceOption[]
  responsibleUsers?: ReferenceOption[]
  item?: ItemDetail | null
+ itemType?: ItemType
 }
 
 function getDraftControls(root: ParentNode) {
@@ -32,10 +35,10 @@ function getDraftControls(root: ParentNode) {
  })
 }
 
-function readDraft(): Record<string, string> {
+function readDraft(key = NEW_ITEM_DRAFT_KEY): Record<string, string> {
  try {
- let raw = window.localStorage.getItem(NEW_ITEM_DRAFT_KEY)
- if (!raw) {
+ let raw = window.localStorage.getItem(key)
+ if (!raw && key === NEW_ITEM_DRAFT_KEY) {
  for (const legacyKey of LEGACY_DRAFT_KEYS) {
  raw = window.localStorage.getItem(legacyKey)
  if (raw) break
@@ -49,8 +52,8 @@ function readDraft(): Record<string, string> {
  }
 }
 
-function restoreDraft(root: ParentNode) {
- const draft = readDraft()
+function restoreDraft(root: ParentNode, key: string) {
+ const draft = readDraft(key)
  for (const control of getDraftControls(root)) {
  const value = draft[control.name]
  if (value !== undefined) {
@@ -63,7 +66,7 @@ function restoreDraft(root: ParentNode) {
  }
 }
 
-function saveDraft(root: ParentNode) {
+function saveDraft(root: ParentNode, key: string) {
  const draft: Record<string, string> = {}
  for (const control of getDraftControls(root)) {
  if (control instanceof HTMLInputElement && control.type === 'checkbox') {
@@ -72,7 +75,7 @@ function saveDraft(root: ParentNode) {
  draft[control.name] = control.value
  }
  }
- window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
+ window.localStorage.setItem(key, JSON.stringify(draft))
 }
 
 export function NewItemSheet({
@@ -84,7 +87,10 @@ export function NewItemSheet({
  units,
  responsibleUsers,
  item = null,
+ itemType = 'asset',
 }: NewItemSheetProps) {
+ const isMaterial = itemType === 'material'
+ const draftKey = isMaterial ? NEW_MATERIAL_DRAFT_KEY : NEW_ITEM_DRAFT_KEY
  const dialogRef = useRef<HTMLDialogElement>(null)
  const [formVersion, setFormVersion] = useState(0)
  const [pending, setPending] = useState(false)
@@ -107,15 +113,15 @@ export function NewItemSheet({
  const dialog = dialogRef.current
  if (!open || !dialog) return
  if (!item) {
- restoreDraft(dialog)
+ restoreDraft(dialog, draftKey)
  }
- }, [open, formVersion, item])
+ }, [open, formVersion, item, draftKey])
 
  useEffect(() => {
  const dialog = dialogRef.current
  if (!open || !dialog || item) return
 
- const handleDraftChange = () => saveDraft(dialog)
+ const handleDraftChange = () => saveDraft(dialog, draftKey)
  dialog.addEventListener('input', handleDraftChange)
  dialog.addEventListener('change', handleDraftChange)
 
@@ -123,12 +129,12 @@ export function NewItemSheet({
  dialog.removeEventListener('input', handleDraftChange)
  dialog.removeEventListener('change', handleDraftChange)
  }
- }, [open, formVersion, item])
+ }, [open, formVersion, item, draftKey])
 
  const handleSuccess = useCallback((data?: { itemId?: string; intent?: string }) => {
  const isSaveAndAnother = data?.intent === 'save_and_another'
  if (isSaveAndAnother) {
- const draft = readDraft()
+ const draft = readDraft(draftKey)
  delete draft.item_name
  delete draft.asset_no
  delete draft.serial_no
@@ -136,18 +142,22 @@ export function NewItemSheet({
  delete draft.image_file
  delete draft.note
  delete draft.gfmis_number
- window.localStorage.setItem(NEW_ITEM_DRAFT_KEY, JSON.stringify(draft))
+ if (isMaterial) {
+ for (const key of ['quantity', 'specification', 'commodity_code', 'minimum_quantity', 'maximum_quantity',
+ 'opening_quantity', 'opening_amount', 'received_quantity', 'received_amount', 'issued_quantity', 'issued_amount', 'balance_amount']) delete draft[key]
+ }
+ window.localStorage.setItem(draftKey, JSON.stringify(draft))
  setFormVersion((v) => v + 1)
  onSuccess(true)
  } else {
- window.localStorage.removeItem(NEW_ITEM_DRAFT_KEY)
- for (const legacyKey of LEGACY_DRAFT_KEYS) {
+ window.localStorage.removeItem(draftKey)
+ for (const legacyKey of isMaterial ? [] : LEGACY_DRAFT_KEYS) {
  window.localStorage.removeItem(legacyKey)
  }
  setFormVersion((version) => version + 1)
  onSuccess(false)
  }
- }, [onSuccess])
+ }, [onSuccess, draftKey, isMaterial])
 
  const handleCloseAttempt = useCallback(() => {
  if (pending) return
@@ -200,7 +210,7 @@ export function NewItemSheet({
  </div>
  <div>
  <h2 id={`${formId}-title`} className="text-lg font-bold tracking-tight text-slate-900 ">
- {item ? 'แก้ไขรายการสิ่งของ' : 'เพิ่มรายการสิ่งของใหม่'}
+ {isMaterial ? item ? 'แก้ไขรายการวัสดุ' : 'ขึ้นทะเบียนวัสดุใหม่' : item ? 'แก้ไขรายการครุภัณฑ์' : 'ขึ้นทะเบียนครุภัณฑ์ใหม่'}
  </h2>
  </div>
  </div>
@@ -216,7 +226,20 @@ export function NewItemSheet({
 
  {/* Scrollable form body */}
  <div className="new-item-sheet-body bg-background text-foreground">
- <ItemForm
+ {isMaterial ? <MaterialForm
+ key={formVersion}
+ material={item ? { ...item.material, id: item.id, item_name: item.item_name, quantity: item.quantity,
+ metadata_version: item.metadata_version, stock_version: item.stock_version,
+ unit_price: item.unit_price, category_id: item.category?.id ?? null, unit_id: item.unit?.id ?? null,
+ location_id: item.location?.id ?? null, status: item.status, is_central: item.is_central,
+ note: item.note } : undefined}
+ references={{ categories, locations, units }}
+ inline
+ onSuccess={handleSuccess}
+ onPendingChange={setPending}
+ formId={formId}
+ showActions={false}
+ /> : <ItemForm
  key={formVersion}
  action={item ? updateItem.bind(null, item.id) : createItemInline}
  categories={categories}
@@ -230,7 +253,7 @@ export function NewItemSheet({
  onPendingChange={setPending}
  formId={formId}
  showActions={false}
- />
+ />}
  </div>
 
  <div className="new-item-sheet-footer bg-card text-card-foreground border-border">

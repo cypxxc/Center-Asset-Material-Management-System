@@ -132,9 +132,9 @@ async function runImport() {
       if (!categoryMap.has(cfg.categoryName)) {
         const meta = categoryMeta[cfg.categoryName] || { color: '#64748B', icon: 'Tag' }
         const catRes = await client.query(`
-          INSERT INTO public.categories (name, description, color, icon, is_active)
-          VALUES ($1, $2, $3, $4, true)
-          ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color, icon = EXCLUDED.icon
+          INSERT INTO public.categories (name, item_type, description, color, icon, is_active)
+          VALUES ($1, 'asset', $2, $3, $4, true)
+          ON CONFLICT (name, item_type) DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color, icon = EXCLUDED.icon
           RETURNING id;
         `, [cfg.categoryName, cfg.categoryCode, meta.color, meta.icon])
         categoryMap.set(cfg.categoryName, catRes.rows[0].id)

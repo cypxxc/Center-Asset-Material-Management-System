@@ -20,12 +20,12 @@ export function DueBorrowReturnAction({ disbursementId }: { disbursementId: stri
     try {
       const result = await returnDisbursement(disbursementId)
       if (!result.ok) {
-        setError(result.error || 'คืนพัสดุไม่สำเร็จ กรุณาลองใหม่')
+        setError(result.error || 'คืนวัสดุไม่สำเร็จ กรุณาลองใหม่')
         return
       }
       router.refresh()
     } catch {
-      setError('คืนพัสดุไม่สำเร็จ กรุณาลองใหม่')
+      setError('คืนวัสดุไม่สำเร็จ กรุณาลองใหม่')
     } finally {
       submitting.current = false
       setPending(false)

@@ -2,9 +2,9 @@ import type { DisbursementRow, DisbursementItemRow } from './types'
 import { formatDate } from '@/lib/date'
 
 export const DISBURSEMENT_TYPE_LABELS: Record<string, string> = {
-  material_issue: 'เบิกจ่ายพัสดุ',
+  material_issue: 'เบิกจ่ายวัสดุ',
   asset_handover: 'ส่งมอบครุภัณฑ์',
-  asset_borrow: 'ยืมครุภัณฑ์',
+  asset_borrow: 'ยืมสิ่งของ',
 }
 
 export const DISBURSEMENT_STATUS_LABELS: Record<string, string> = {
@@ -74,7 +74,7 @@ export function generateDisbursementVoucherHtml(
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ใบเบิก-จ่ายพัสดุและครุภัณฑ์ (${escapeHtml(doc.document_no || 'DRAFT')})</title>
+  <title>ใบเบิก-จ่ายวัสดุและครุภัณฑ์ (${escapeHtml(doc.document_no || 'DRAFT')})</title>
   <style>
     @page {
       size: A4 portrait;
@@ -86,7 +86,7 @@ export function generateDisbursementVoucherHtml(
         color: #64748b;
       }
       @bottom-left {
-        content: "CAMMS Portal — ศูนย์บริหารจัดการทรัพย์สินและพัสดุ";
+        content: "Portal — ศูนย์บริหารจัดการทรัพย์สินและวัสดุ";
         font-family: 'IBM Plex Sans Thai', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
@@ -169,8 +169,8 @@ export function generateDisbursementVoucherHtml(
 </head>
 <body>
   <div class="header">
-    <h1>ใบเบิก-จ่ายพัสดุและครุภัณฑ์</h1>
-    <p>CAMMS Portal (Center Asset & Material Management System)</p>
+    <h1>ใบเบิก-จ่ายวัสดุและครุภัณฑ์</h1>
+    <p>Portal (Center Asset & Material Management System)</p>
   </div>
 
   <div class="meta-box">
@@ -179,7 +179,7 @@ export function generateDisbursementVoucherHtml(
       <div><strong>วันที่ทำรายการ:</strong> ${escapeHtml(docDate)}</div>
       <div><strong>ประเภทรายการ:</strong> ${escapeHtml(typeLabel)}</div>
       <div><strong>สถานะเอกสาร:</strong> ${escapeHtml(statusLabel)}</div>
-      <div><strong>ผู้รับพัสดุ / ผู้ยืม:</strong> ${escapeHtml(doc.recipient_name)}</div>
+      <div><strong>ผู้รับวัสดุ / ผู้ยืม:</strong> ${escapeHtml(doc.recipient_name)}</div>
       <div><strong>กลุ่มงาน:</strong> ${escapeHtml(doc.department_name)}</div>
       <div style="grid-column: span 2;"><strong>วัตถุประสงค์:</strong> ${escapeHtml(doc.purpose)}</div>
       ${doc.due_date ? `<div><strong>กำหนดส่งคืน:</strong> ${escapeHtml(formatDate(doc.due_date))}</div>` : ''}
@@ -190,7 +190,7 @@ export function generateDisbursementVoucherHtml(
     <thead>
       <tr>
         <th style="width: 5%;">ลำดับ</th>
-        <th style="width: 35%;">รายการพัสดุ / เลขทะเบียน</th>
+        <th style="width: 35%;">รายการวัสดุ / เลขทะเบียน</th>
         <th style="width: 15%;">หมวดหมู่</th>
         <th style="width: 10%;">จำนวน</th>
         <th style="width: 10%;">หน่วยนับ</th>
@@ -222,12 +222,12 @@ export function generateDisbursementVoucherHtml(
       <div style="margin-top: 4px; color: #64748b;">วันที่ ......../......../............</div>
     </div>
     <div class="sig-block">
-      <div>ลงชื่อ..........................................................ผู้จ่ายพัสดุ</div>
+      <div>ลงชื่อ..........................................................ผู้จ่ายวัสดุ</div>
       <div style="margin-top: 4px;">(..........................................................)</div>
       <div style="margin-top: 4px; color: #64748b;">วันที่ ......../......../............</div>
     </div>
     <div class="sig-block">
-      <div>ลงชื่อ..........................................................ผู้รับพัสดุ</div>
+      <div>ลงชื่อ..........................................................ผู้รับวัสดุ</div>
       <div style="margin-top: 4px;">(..........................................................)</div>
       <div style="margin-top: 4px; color: #64748b;">วันที่ ......../......../............</div>
     </div>

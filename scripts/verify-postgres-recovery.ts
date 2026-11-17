@@ -8,7 +8,7 @@ import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
-import { chromium } from '@playwright/test'
+import { chromium, expect } from '@playwright/test'
 import { backupPostgres, storageInventory } from './backup-postgres'
 import { hashPassword, verifyPassword } from '../lib/postgres/password'
 import { isolatedEnvironment } from './postgres-local-config'
@@ -116,7 +116,7 @@ async function main() {
       assert.ok([401,403,404].includes((await anonymous.request.get(base+imageUrl)).status()))
       await anonymous.close()
       await page.goto(`${base}/items?q=${encodeURIComponent('Recovery drill item')}`)
-      assert.match(await page.locator('#main-content').innerText(),/Recovery drill item/)
+      await expect(page.locator('#main-content')).toContainText('Recovery drill item')
       console.log('PASS: restored production web login creates a new session, restored item renders, private image bytes match, anonymous image denied')
     } finally { await browser.close() }
   } finally {

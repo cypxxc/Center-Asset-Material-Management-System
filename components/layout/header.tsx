@@ -41,7 +41,7 @@ export function Header({ profile }: HeaderProps) {
  if (segment === 'items') {
  const itemType = searchParams?.get('type')
  const isCentral = ['true', '1'].includes(searchParams.get('is_central') ?? '')
- const itemLabel = isCentral ? 'ส่วนกลาง' : itemType === 'material' ? 'ทะเบียนพัสดุ' : 'ทะเบียนครุภัณฑ์'
+ const itemLabel = isCentral ? 'ส่วนกลาง' : itemType === 'material' ? 'ทะเบียนวัสดุ' : 'ทะเบียนครุภัณฑ์'
  content = isLast ? (
  <span className="text-xs font-bold text-foreground shrink-0" aria-current="page">
  {itemLabel}
@@ -70,14 +70,14 @@ export function Header({ profile }: HeaderProps) {
  // segment is ID
  content = isLast ? (
  <span className="text-xs font-semibold text-foreground shrink-0" aria-current="page">
- รายละเอียดพัสดุ
+ รายละเอียดวัสดุ
  </span>
  ) : (
  <Link
  href="/items"
  className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors shrink-0"
  >
- รายละเอียดพัสดุ
+ รายละเอียดวัสดุ
  </Link>
  )
  } else {

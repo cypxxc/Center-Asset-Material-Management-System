@@ -8,7 +8,8 @@ import { getSettingsPageData } from '@/features/settings/queries'
 import { canManageSettings } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 import { getCurrentProfile } from '@/features/auth/queries'
-import { Tag, Box, Upload, AlertCircle, MapPin } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { SettingsNavigation } from '@/features/settings/components/settings-navigation'
 import Link from 'next/link'
 
 import { PageHeader } from '@/components/ui/page-header'
@@ -18,6 +19,7 @@ interface SettingsPageProps {
  message?: string
  error?: string
  tab?: string
+ type?: string
  }>
 }
 
@@ -35,26 +37,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
  const { activeTab, data } = await getSettingsPageData(params.tab)
 
- const tabs = [
- { id: 'categories', label: 'หมวดหมู่ครุภัณฑ์', icon: <Tag className="h-4 w-4" /> },
- { id: 'units', label: 'หน่วยนับ', icon: <Box className="h-4 w-4" /> },
- { id: 'locations', label: 'สถานที่', icon: <MapPin className="h-4 w-4" /> },
- { id: 'import', label: 'นำเข้าพัสดุ CSV/Excel', icon: <Upload className="h-4 w-4" /> },
- ]
-
- const navigation = (
- <nav aria-label="หมวดการตั้งค่าระบบ" className="min-w-0 max-w-full overflow-x-auto">
- <div className="flex w-max min-w-full gap-1 rounded-lg bg-muted p-0.5 sm:min-w-0">
- {tabs.map(tab => (
- <Link key={tab.id} href={`/settings?tab=${tab.id}`} scroll={false}
- aria-current={activeTab === tab.id ? 'page' : undefined}
- className={`flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? 'bg-background text-primary shadow-xs' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}>
- {tab.icon}<span>{tab.label}</span>
- </Link>
- ))}
- </div>
- </nav>
- )
+ const navigation = <SettingsNavigation activeTab={activeTab} />
 
  return (
  <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
@@ -91,8 +74,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
  {/* Tab Contents */}
  <div className="flex min-h-0 flex-1 flex-col overflow-hidden animate-in fade-in duration-200">
- {activeTab === 'categories' && (
- <CategorySection categories={data.categories} navigation={navigation} />
+ {(activeTab === 'categories' || activeTab === 'material-categories') && (
+ <CategorySection key={activeTab} categories={data.categories} itemType={activeTab === 'material-categories' ? 'material' : 'asset'} navigation={navigation} />
  )}
  {activeTab === 'units' && (
  <UnitSection units={data.units} navigation={navigation} />
@@ -101,7 +84,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
  <LocationSection locations={data.locations} navigation={navigation} />
  )}
  {activeTab === 'import' && (
- <ImportSection navigation={navigation} />
+ <ImportSection navigation={navigation} initialFormat={params.type === 'material' ? 'material' : 'asset'} />
  )}
  </div>
  </div>

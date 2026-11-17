@@ -18,7 +18,8 @@ export const itemRelations = sql`left join public.categories c on c.id = i.categ
 
 export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.qualification_status, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at,
-  i.brand, i.model, i.note, i.is_central,
+  i.brand, i.model, i.note, (i.item_type='material' OR i.is_central) AS is_central,
+  i.register_sequence, i.asset_prefix, i.register_accumulated_depreciation, i.register_book_value, i.register_as_of::text as register_as_of,
   EXISTS (
     SELECT 1 FROM public.disbursement_items di
     JOIN public.disbursements d ON d.id = di.disbursement_id
@@ -33,7 +34,8 @@ export const itemListColumns = sql`i.id, i.item_name, i.item_type, i.qualificati
 
 const itemBatchColumns = sql`i.id, i.item_name, i.item_type, i.qualification_status, i.quantity, i.unit_price,
   i.asset_no, i.serial_no, i.responsible_person, i.status, i.updated_at::text as updated_at,
-  i.brand, i.model, i.note, i.is_central,
+  i.brand, i.model, i.note, (i.item_type='material' OR i.is_central) AS is_central,
+  i.register_sequence, i.asset_prefix, i.register_accumulated_depreciation, i.register_book_value, i.register_as_of::text as register_as_of,
   EXISTS (
     SELECT 1 FROM public.disbursement_items di
     JOIN public.disbursements d ON d.id = di.disbursement_id
@@ -69,6 +71,11 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
       sql`exists (select 1 from public.units u where u.id = i.unit_id and u.name ilike ${pattern})`,
       sql`exists (select 1 from public.locations l where l.id = i.location_id and (l.name ilike ${pattern} or l.building ilike ${pattern} or l.floor ilike ${pattern} or l.room ilike ${pattern} or l.department ilike ${pattern}))`,
     ]
+
+    if (params.type !== 'asset') {
+      searchConditions.push(sql`exists (select 1 from public.materials m where m.id = i.id
+        and (m.specification ilike ${pattern} or m.commodity_code ilike ${pattern}))`)
+    }
 
     // Thai status label and synonym mapping
     const matchingStatuses: string[] = []
@@ -125,13 +132,16 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
   if (params.location_id) clauses.push(sql`i.location_id = ${params.location_id}::uuid`)
   // Match the central-pool definition used by borrowing and the item form,
   // including older items identified through their notes.
-  if (params.is_central === 'true' || params.is_central === '1' || params.is_central === true) clauses.push(sql`(i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')`)
+  if (params.is_central === 'true' || params.is_central === '1' || params.is_central === true) {
+    clauses.push(sql`(i.item_type='material' OR i.is_central = true OR i.note ILIKE '%ส่วนกลาง%')`)
+    clauses.push(sql`i.quantity >= 1`)
+  }
   return sql.join(clauses, sql` and `)
 }
 
 export async function getPostgresItemReferences() {
   return withUserDatabase(async (tx) => {
-    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color, icon from public.categories where is_active order by name`)
+    const categories = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name, color, icon, item_type from public.categories where is_active order by name`)
     const locations = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.locations where is_active order by name`)
     const units = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, name from public.units where is_active order by name`)
     const responsibleUsers = await tx.execute<ReferenceOption & Record<string, unknown>>(sql`select id, full_name as name from public.profiles where is_active order by full_name, id`)
@@ -182,9 +192,9 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
       count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status = 'qualified')::int as qualified,
       count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status = 'below_threshold')::int as below_threshold,
       count(*) filter (where ${selectedType ? sql`item_type = ${selectedType} and ` : sql``} qualification_status is null)::int as unclassified
-      from public.items i where ${classificationWhere}`)
+      from public.inventory_items i where ${classificationWhere}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url
-      from public.items i ${itemRelations} where ${where}
+      from public.inventory_items i ${itemRelations} where ${where}
       order by ${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`} limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
     const total = totals.rows[0]?.total ?? 0
     const assets = totals.rows[0]?.assets ?? 0
@@ -232,9 +242,9 @@ export async function getPostgresItemBatch(
         ? sql` and (${order} is null and i.id ${comparison} ${cursor.id}::uuid)`
         : sql` and (${order} ${comparison} ${cursor.key} or ${order} is null or (${order} = ${cursor.key} and i.id ${comparison} ${cursor.id}::uuid))`
       : sql``
-    const totals = cursor ? null : await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.items i where ${where}`)
+    const totals = cursor ? null : await tx.execute<{ total: number }>(sql`select count(*)::int as total from public.inventory_items i where ${where}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemBatchColumns}, i.note, i.image_url
-      from public.items i ${itemRelations} where ${where}${cursorWhere}
+      from public.inventory_items i ${itemRelations} where ${where}${cursorWhere}
       order by ${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`} limit ${BATCH_SIZE + 1}`)
     const hasMore = rows.rows.length > BATCH_SIZE
     const items = rows.rows.slice(0, BATCH_SIZE).map((item) => ({ ...item, image_url: resolveLocalItemImageUrl(item.image_url ?? null) }))
@@ -259,9 +269,11 @@ export async function getPostgresItemById(id: string): Promise<ItemDetail | null
     : sql`(i.asset_no = ${id} or i.serial_no = ${id}) and i.deleted_at is null`
 
   const query = sql`select ${itemListColumns}, i.note, i.image_url,
+    (SELECT m.metadata_version FROM public.materials m WHERE m.id=i.id) AS metadata_version,
+    (SELECT m.stock_version FROM public.materials m WHERE m.id=i.id) AS stock_version,
     i.depreciation_enabled, i.depreciation_method, i.depreciation_cost, i.depreciation_useful_life_years,
     i.depreciation_start_basis, i.depreciation_start_date, i.depreciation_residual_value, i.created_at
-    from public.items i ${itemRelations} where ${whereClause} limit 1`
+    from public.inventory_items i ${itemRelations} where ${whereClause} limit 1`
 
   try {
     return await withUserDatabase(async (tx) => {
@@ -285,15 +297,15 @@ export async function getPostgresSidebarData() {
     type CategoryBucket = { id: string; name: string; icon?: string | null; count: number }
     type Bucket = { id: string; name: string; count: number }
     const categories = await tx.execute<CategoryBucket>(sql`select c.id, c.name, c.icon, count(i.id)::int as count
-      from public.categories c left join public.items i on i.category_id = c.id and i.deleted_at is null and i.item_type = 'asset'
-      where c.is_active group by c.id, c.name, c.icon order by c.name`)
+      from public.categories c left join public.inventory_items i on i.category_id = c.id and i.deleted_at is null and i.item_type = 'asset'
+      where c.is_active and c.item_type = 'asset' group by c.id, c.name, c.icon order by c.name`)
     const locations = await tx.execute<Bucket>(sql`select l.id, l.name, count(i.id)::int as count
-      from public.locations l left join public.items i on i.location_id = l.id and i.deleted_at is null
+      from public.locations l left join public.inventory_items i on i.location_id = l.id and i.deleted_at is null
       where l.is_active group by l.id, l.name order by l.name`)
     const counts = await tx.execute<{ total_assets: number; total_supplies: number; archive_count: number; trash_count: number }>(sql`select
       count(*) filter (where item_type = 'asset' and deleted_at is null)::int as total_assets,
       count(*) filter (where item_type = 'material' and deleted_at is null)::int as total_supplies,
-      0 as archive_count, count(*) filter (where deleted_at is not null)::int as trash_count from public.items`)
+      0 as archive_count, count(*) filter (where deleted_at is not null)::int as trash_count from public.inventory_items`)
     return { categories: categories.rows, locations: locations.rows, counts: counts.rows[0] }
   })
 }
@@ -305,7 +317,7 @@ export async function getPostgresItemAuditLogs(itemId: string): Promise<ItemAudi
     const rows = await tx.execute<ItemAuditLog & Record<string, unknown>>(sql`select a.id, a.action, a.created_at,
       coalesce(nullif(p.full_name, ''), 'ระบบอัตโนมัติ') as user_name, a.old_data, a.new_data
       from public.audit_logs a left join public.profiles p on p.id = a.user_id
-      where a.target_table = 'items' and a.target_id = ${itemId} order by a.created_at desc`)
+      where a.target_table in ('items','materials') and a.target_id = ${itemId} order by a.created_at desc`)
     return rows.rows
   })
 }
@@ -314,7 +326,7 @@ export async function getPostgresLowStockItems(limit = 5): Promise<LowStockDashb
   return withUserDatabase(async (tx) => {
     const rows = await tx.execute<LowStockDashboardItem & Record<string, unknown>>(sql`select i.id, i.item_name, i.quantity,
       coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName"
-      from public.items i left join public.locations l on l.id = i.location_id
+      from public.inventory_items i left join public.locations l on l.id = i.location_id
       where i.item_type = 'material' and i.quantity <= 5 and i.deleted_at is null
       order by i.quantity asc, i.id limit ${(Number.isFinite(limit) && limit > 0) ? Math.min(Math.floor(limit), 100) : 5}`)
     return rows.rows
@@ -327,7 +339,7 @@ export async function getPostgresUrgentDamagedItems(limit = 5): Promise<UrgentDa
     const rows = await tx.execute<UrgentDamagedItem & { updated_at: string | Date } & Record<string, unknown>>(sql`select i.id, i.item_name, i.asset_no,
       coalesce(nullif(l.name, ''), 'ไม่มีระบุสถานที่') as "locationName",
       i.status, i.updated_at, i.image_url
-      from public.items i left join public.locations l on l.id = i.location_id
+      from public.inventory_items i left join public.locations l on l.id = i.location_id
       where i.status in ('damaged', 'waiting_repair') and i.deleted_at is null
       order by i.updated_at desc limit ${parsedLimit}`)
     return rows.rows.map((row) => ({

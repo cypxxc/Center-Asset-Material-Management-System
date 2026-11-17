@@ -66,7 +66,7 @@ export function generateReportPdf(
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>รายงานทะเบียนครุภัณฑ์และพัสดุสำนักงาน (CAMMS Portal)</title>
+  <title>รายงานทะเบียนครุภัณฑ์และวัสดุสำนักงาน (Portal)</title>
   <style>
     @page {
       size: A4 landscape;
@@ -78,7 +78,7 @@ export function generateReportPdf(
         color: #64748b;
       }
       @bottom-left {
-        content: "CAMMS Portal — Center Asset & Material Management System";
+        content: "Portal — Center Asset & Material Management System";
         font-family: 'IBM Plex Sans Thai', 'TH Sarabun New', sans-serif;
         font-size: 9pt;
         color: #64748b;
@@ -254,12 +254,12 @@ export function generateReportPdf(
       <img src="/images/moph-r7-logo.png" alt="เขตสุขภาพที่ 7" class="header-logo" />
       <div>
         <h1 class="title">ทะเบียนคุมสินทรัพย์</h1>
-        <p class="subtitle" style="font-size: 13px; font-weight: 500; color: #1e293b;">บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
+        <p class="subtitle" style="font-size: 13px; font-weight: 500; color: #1e293b;">บัญชีแสดงรายการวัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)</p>
         <p class="subtitle">หน่วยงาน: สำนักงานเขตสุขภาพที่ 7 | หมวดครุภัณฑ์: ${escapeHtml(filterSummary)} | วันที่พิมพ์รายงาน: ${currentDate}</p>
       </div>
     </div>
     <div class="logo-text">
-      <h2>CAMMS Portal</h2>
+      <h2>Portal</h2>
       <p>Center Asset & Material Management System</p>
     </div>
   </div>
@@ -278,7 +278,7 @@ export function generateReportPdf(
         <th rowspan="2" style="width: 8%; text-align: center;">เลขสินทรัพย์</th>
         <th rowspan="2" style="width: 8%;">ผู้ครอบครอง</th>
         <th rowspan="2" style="width: 7%;">ใช้งานที่</th>
-        <th colspan="3" style="text-align: center; border-bottom: none;">สภาพพัสดุ</th>
+        <th colspan="3" style="text-align: center; border-bottom: none;">สภาพวัสดุ</th>
         <th rowspan="2" style="width: 5%;">หมายเหตุ</th>
       </tr>
       <tr>

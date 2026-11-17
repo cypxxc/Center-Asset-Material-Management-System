@@ -2,14 +2,17 @@
 
 import React, { useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
-import { Upload, FileText, CheckCircle2, AlertCircle, Trash2, Download, FileSpreadsheet } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { getPageNumbers } from '@/features/disbursements/pagination'
 import { cn } from '@/lib/utils'
 import { DataTable, DataTableHeader, DataTableHead, DataTableBody, DataTableRow, DataTableCell } from '@/components/ui/data-table'
 import dynamic from 'next/dynamic'
-import { importItemsBulk } from '@/features/items/actions'
+import { AssetImportForm } from './asset-import-form'
+import { MaterialImportForm } from './material-import-form'
+import { SettingsNavigation } from './settings-navigation'
+import { ImportModeContext, type ImportMode } from './import-mode-context'
 
 const ConfirmDialog = dynamic(
  () => import('@/components/ui/confirm-dialog').then((mod) => mod.ConfirmDialog),
@@ -183,9 +186,9 @@ function ActiveCheckbox({ defaultChecked }: { defaultChecked?: boolean }) {
  )
 }
 
-export function CategorySection({ categories, canDelete = true, navigation }: { categories: CategoryRow[]; canDelete?: boolean; navigation?: React.ReactNode }) {
+export function CategorySection({ categories, itemType = 'asset', canDelete = true, navigation }: { categories: CategoryRow[]; itemType?: 'asset' | 'material'; canDelete?: boolean; navigation?: React.ReactNode }) {
  const [query, setQuery] = useState('')
- const filteredCategories = categories.filter(category => category.name.toLocaleLowerCase('th-TH').includes(query.trim().toLocaleLowerCase('th-TH')))
+ const filteredCategories = categories.filter(category => category.item_type === itemType && category.name.toLocaleLowerCase('th-TH').includes(query.trim().toLocaleLowerCase('th-TH')))
  const pagination = useMetadataPage(filteredCategories, query)
  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
  const [isPending, startTransition] = useTransition()
@@ -205,6 +208,7 @@ export function CategorySection({ categories, canDelete = true, navigation }: { 
  <div className="grid shrink-0 grid-cols-1 items-end gap-4 border-b border-border bg-card p-4 sm:px-6 lg:grid-cols-2 xl:grid-cols-[max-content_minmax(8rem,0.6fr)_minmax(16rem,1fr)]">
  <div className="order-first min-w-0 lg:col-span-2 xl:col-span-1">{navigation}</div>
  <form action={createCategory} className="order-2 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+ <input type="hidden" name="item_type" value={itemType} />
  <TextInput name="name" label="เพิ่มชื่อหมวดหมู่" required />
  <input type="hidden" name="icon" value="Tag" />
  <input type="hidden" name="color" value="#64748B" />
@@ -217,7 +221,7 @@ export function CategorySection({ categories, canDelete = true, navigation }: { 
  <MetadataSearch label="หมวดหมู่" value={query} onChange={setQuery} />
  </div>
  <DataTable wrapperClassName="min-h-0 flex-1 overflow-auto rounded-none border-0 bg-muted/10 shadow-none" className="table-fixed min-w-[680px] text-card-foreground">
- <caption className="sr-only">รายการหมวดหมู่ครุภัณฑ์</caption>
+ <caption className="sr-only">รายการหมวดหมู่{itemType === 'material' ? 'วัสดุ' : 'ครุภัณฑ์'}</caption>
  <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10">
  <tr>
  <DataTableHead className="w-12 px-2 text-center">ลำดับ</DataTableHead>
@@ -228,7 +232,7 @@ export function CategorySection({ categories, canDelete = true, navigation }: { 
  </DataTableHeader>
  <DataTableBody>
  {filteredCategories.length === 0 && (
- <DataTableRow><DataTableCell colSpan={4} className="py-12 text-center text-muted-foreground">{query.trim() ? 'ไม่พบหมวดหมู่ที่ตรงกับคำค้นหา' : 'ยังไม่มีหมวดหมู่ครุภัณฑ์'}</DataTableCell></DataTableRow>
+ <DataTableRow><DataTableCell colSpan={4} className="py-12 text-center text-muted-foreground">{query.trim() ? 'ไม่พบหมวดหมู่ที่ตรงกับคำค้นหา' : `ยังไม่มีหมวดหมู่${itemType === 'material' ? 'วัสดุ' : 'ครุภัณฑ์'}`}</DataTableCell></DataTableRow>
  )}
  {pagination.rows.map((category, index) => {
  const formId = `category-${category.id}`
@@ -245,6 +249,7 @@ export function CategorySection({ categories, canDelete = true, navigation }: { 
  </DataTableCell>
  <DataTableCell isActions className="pr-6! sm:pr-8!">
  <form id={formId} action={updateCategory.bind(null, category.id)} className="flex justify-end gap-2"><AutoSaveStatus />
+ <input type="hidden" name="item_type" value={category.item_type} />
  <input type="hidden" name="description" value={category.description ?? ''} />
  <input type="hidden" name="icon" value={category.icon || 'Tag'} />
  <input type="hidden" name="color" value={category.color ?? '#64748B'} />
@@ -463,307 +468,19 @@ export function UnitSection({ units, canDelete = true, navigation }: { units: Un
  )
 }
 
-export function ImportSection({ navigation }: { navigation?: React.ReactNode }) {
- const [isUploading, setIsUploading] = useState(false)
- const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-
- const downloadTemplate = async () => {
- try {
- const ExcelJS = (await import('exceljs')).default
- const workbook = new ExcelJS.Workbook()
- const worksheet = workbook.addWorksheet('ทะเบียนคุมสินทรัพย์')
-
- worksheet.columns = [
- { header: 'ลำดับ', key: 'index', width: 8 },
- { header: 'วัน เดือน ปีที่รับ', key: 'acquired_date', width: 16 },
- { header: 'รับจาก (งปม.)', key: 'budget_source', width: 24 },
- { header: 'รายการครุภัณฑ์', key: 'item_name', width: 35 },
- { header: 'สถานะตามเกณฑ์', key: 'qualification_status', width: 20 },
- { header: 'ยี่ห้อ/รุ่น', key: 'brand_model', width: 35 },
- { header: 'ราคา', key: 'unit_price', width: 14 },
- { header: 'หน่วย', key: 'unit_name', width: 10 },
- { header: 'เลขครุภัณฑ์', key: 'asset_no', width: 26 },
- { header: 'เลขสินทรัพย์', key: 'gfmis_number', width: 18 },
- { header: 'ผู้ครอบครอง', key: 'responsible_person', width: 22 },
- { header: 'ใช้งานที่', key: 'location_name', width: 22 },
- { header: 'ใช้งานได้', key: 'condition_usable', width: 12 },
- { header: 'ชำรุด', key: 'condition_damaged', width: 10 },
- { header: 'เสื่อมสภาพ', key: 'condition_deteriorated', width: 12 },
- { header: 'หมายเหตุ', key: 'note', width: 20 },
- ]
-
- // Add a styled header row matching official government ledger styling
- worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
- worksheet.getRow(1).fill = {
- type: 'pattern',
- pattern: 'solid',
- fgColor: { argb: 'FF1E293B' }, // Slate 800
- }
-
- // Add official example rows
- worksheet.addRow({
- index: 1,
- acquired_date: '22-ก.ค.-64',
- budget_source: 'เงินบำรุง สสจ.ขก.',
- item_name: 'เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล (ตัวอย่าง)',
- qualification_status: 'ตามเกณฑ์',
- brand_model: 'Notebook Acer TravelMate TMP214-53-53XD/T01C (Black) s/n : NXVPNST01C1210D4027600',
- unit_price: 21800,
- unit_name: 'เครื่อง',
- asset_no: 'สนง.7 7440-002-0005-2/2564',
- gfmis_number: '110000069558',
- responsible_person: 'กลุ่มงานสุขภาพดิจิทัล',
- location_name: 'กลุ่มงานสุขภาพดิจิทัล',
- condition_usable: '/',
- condition_damaged: '',
- condition_deteriorated: '',
- note: 'ส่วนกลาง',
- })
-
- worksheet.addRow({
- index: 2,
- acquired_date: '19-พ.ย.-64',
- budget_source: 'เงินกู้ (ไวรัสโคโรนา 2019)',
- item_name: 'เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล (ตัวอย่าง)',
- qualification_status: 'ตามเกณฑ์',
- brand_model: 'Lenovo/ThinkPad L13 Gen2 20VH002F TA',
- unit_price: 22000,
- unit_name: 'ชุด',
- asset_no: 'สนง.7 7440-002-0005-1/2565',
- gfmis_number: '110000105470',
- responsible_person: 'กลุ่มงานสุขภาพดิจิทัล',
- location_name: 'ห้องประชุม EOC (ชั้น 4)',
- condition_usable: '/',
- condition_damaged: '',
- condition_deteriorated: '',
- note: '',
- })
-
- const buffer = await workbook.xlsx.writeBuffer()
- const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
- const url = window.URL.createObjectURL(blob)
- const a = document.createElement('a')
- a.href = url
- a.download = `camms_import_template.xlsx`
- document.body.appendChild(a)
- a.click()
- document.body.removeChild(a)
- window.URL.revokeObjectURL(url)
- } catch {
- alert('ไม่สามารถดาวน์โหลดเทมเพลตได้')
- }
- }
-
- const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
- const file = e.target.files?.[0]
- if (!file) return
-
- setIsUploading(true)
- setResult(null)
-
- try {
- const isXlsx = file.name.endsWith('.xlsx')
-
- if (isXlsx) {
- const ExcelJS = (await import('exceljs')).default
- const { convertExcelToStandardCSV } = await import('@/features/items/excel-importer')
- const workbook = new ExcelJS.Workbook()
- const arrayBuffer = await file.arrayBuffer()
- await workbook.xlsx.load(arrayBuffer)
-
- if (!workbook.worksheets || workbook.worksheets.length === 0) {
- setIsUploading(false)
- setResult({ type: 'error', message: 'ไม่พบตารางข้อมูลในไฟล์ Excel' })
- return
- }
-
- const csvContent = convertExcelToStandardCSV(workbook)
- const res = await importItemsBulk(csvContent)
- setIsUploading(false)
- if (res.success) {
- setResult({ type: 'success', message: res.message || 'นำเข้าข้อมูลพัสดุครุภัณฑ์สำเร็จเรียบร้อยแล้ว' })
- } else {
- setResult({ type: 'error', message: res.message || 'เกิดข้อผิดพลาดในการนำเข้าข้อมูล' })
- }
- } else {
- // Handle normal CSV import
- const reader = new FileReader()
- reader.onload = async (event) => {
- const csvText = event.target?.result as string
- if (!csvText) {
- setIsUploading(false)
- setResult({ type: 'error', message: 'ไม่สามารถอ่านข้อมูลในไฟล์ได้' })
- return
- }
-
- const res = await importItemsBulk(csvText)
- setIsUploading(false)
- if (res.success) {
- setResult({ type: 'success', message: res.message || 'นำเข้าข้อมูลพัสดุครุภัณฑ์สำเร็จเรียบร้อยแล้ว' })
- } else {
- setResult({ type: 'error', message: res.message || 'เกิดข้อผิดพลาดในการนำเข้าข้อมูล' })
- }
- }
- reader.onerror = () => {
- setIsUploading(false)
- setResult({ type: 'error', message: 'การอ่านไฟล์ล้มเหลว' })
- }
- reader.readAsText(file, 'UTF-8')
- }
- } catch (err) {
- const errMsg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการนำเข้า'
- setIsUploading(false)
- setResult({ type: 'error', message: errMsg })
- } finally {
- e.target.value = ''
- }
- }
-
+export function ImportSection({ navigation, initialFormat = 'asset' }: { navigation?: React.ReactNode; initialFormat?: ImportMode }) {
+ const [format, setFormat] = useState<ImportMode>(initialFormat)
+ const [busy, setBusy] = useState(false)
  return (
- <section aria-label="นำเข้าพัสดุ CSV/Excel" className="flex min-h-0 flex-1 flex-col overflow-hidden text-card-foreground">
- <div className="grid shrink-0 grid-cols-1 items-end gap-4 border-b border-border bg-card p-4 sm:px-6 lg:grid-cols-2 xl:grid-cols-[max-content_minmax(8rem,0.6fr)_minmax(16rem,1fr)]">
- <div className="min-w-0 lg:col-span-2 xl:col-span-1">{navigation}</div>
- </div>
- <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
- {/* Upload Zone */}
- <div className="relative border-2 border-dashed border-border rounded-2xl p-8 bg-muted/30 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center text-center space-y-4">
- {isUploading ? (
- <div className="flex flex-col items-center space-y-2 animate-pulse">
- <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
- <span className="text-xs font-bold text-muted-foreground">กำลังนำเข้าและบันทึกข้อมูลพัสดุ...</span>
- </div>
- ) : (
- <>
- <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shadow-2xs">
- <FileSpreadsheet className="h-6 w-6 text-primary" />
- </div>
- <div className="space-y-1">
- <h4 className="text-sm font-bold text-card-foreground">เลือกไฟล์ Excel (.xlsx) หรือ CSV เพื่อนำเข้าข้อมูล</h4>
- <p className="text-xs text-muted-foreground">ขนาดไฟล์ไม่เกิน 10MB และควรจัดรูปแบบคอลัมน์ให้ตรงตามรูปแบบเทมเพลต</p>
- </div>
- <div className="flex items-center gap-3">
- <button
- type="button"
- onClick={downloadTemplate}
- className="h-9 px-4 rounded-lg border border-input hover:bg-muted bg-card text-card-foreground text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
- >
- <Download className="h-4 w-4 text-muted-foreground" />
- <span>ดาวน์โหลดเทมเพลต (Excel)</span>
- </button>
- <label className="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
- <Upload className="h-3.5 w-3.5" />
- <span>เลือกไฟล์เพื่ออัปโหลด</span>
- <input
- type="file"
- accept=".csv, .xlsx"
- className="hidden"
- onChange={handleFileChange}
- />
- </label>
- </div>
- </>
- )}
- </div>
-
- {/* Results Banner */}
- {result && (
- <div className={`rounded-xl border p-4 flex items-start gap-3 animate-in fade-in duration-200 ${
- result.type === 'success'
- ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 '
- : 'border-destructive/20 bg-destructive/10 text-destructive'
- }`}>
- {result.type === 'success' ? (
- <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
- ) : (
- <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
- )}
- <div className="space-y-1 w-full min-w-0">
- <h5 className="text-xs font-bold">{result.type === 'success' ? 'การนำเข้าสำเร็จ' : 'เกิดข้อผิดพลาดในการนำเข้า'}</h5>
- <div className="text-[11px] leading-relaxed opacity-90 whitespace-pre-line max-h-60 overflow-y-auto pr-2 font-mono font-normal">
- {result.message}
- </div>
- </div>
- </div>
- )}
-
- {/* CSV Format Guide */}
- <div className="rounded-xl border border-border p-6 bg-card space-y-3 shadow-2xs text-card-foreground">
- <div className="flex items-center gap-2 text-card-foreground">
- <FileText className="h-4 w-4 text-primary" />
- <h4 className="text-xs font-bold">โครงสร้างไฟล์ CSV ที่ระบบแนะนำ (CSV Column Schema)</h4>
- </div>
- <p className="text-[11px] text-muted-foreground leading-relaxed">
- แถวแรกของไฟล์ CSV (Header Row) จะต้องประกอบด้วยชื่อหัวข้อคอลัมน์ต่อไปนี้ (พิมพ์ภาษาอังกฤษพิมพ์เล็ก):
- </p>
- <p className="text-[11px] text-muted-foreground leading-relaxed">
- ไฟล์ Excel จะอ่านสถานะตามเกณฑ์จากหัวข้อของแต่ละแผ่นงานให้อัตโนมัติ ส่วน CSV ต้องมีคอลัมน์ qualification_status สำหรับครุภัณฑ์
- </p>
-
- <div className="overflow-x-auto rounded-lg border border-border mt-2">
- <table className="table-data-uniform w-full text-left text-[11px] border-collapse bg-card">
- <thead>
- <tr className="border-b border-border bg-muted/50 text-muted-foreground font-bold">
- <th className="p-2 border-r border-border">หัวข้อคอลัมน์ (Header)</th>
- <th className="p-2 border-r border-border">ข้อมูลที่รองรับ</th>
- <th className="p-2">ตัวอย่างข้อมูล</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-border text-card-foreground font-medium">
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_name</td>
- <td className="p-2 border-r border-border">ชื่อสิ่งของ/พัสดุครุภัณฑ์ (จำเป็น)</td>
- <td className="p-2">เครื่องคอมพิวเตอร์พกพา MacBook Air</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">item_type</td>
- <td className="p-2 border-r border-border">ประเภทสิ่งของ: asset (ครุภัณฑ์) / material (พัสดุ)</td>
- <td className="p-2">asset</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">qualification_status</td>
- <td className="p-2 border-r border-border">สถานะตามเกณฑ์ครุภัณฑ์ (จำเป็นสำหรับ asset)</td>
- <td className="p-2">qualified หรือ below_threshold</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">quantity</td>
- <td className="p-2 border-r border-border">จำนวนพัสดุครุภัณฑ์ (ตัวเลขจำนวนเต็ม)</td>
- <td className="p-2">1</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">unit_price</td>
- <td className="p-2 border-r border-border">ราคาต่อหน่วย ใช้คำนวณมูลค่าในรายงาน (ไม่บังคับ)</td>
- <td className="p-2">35900</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">brand</td>
- <td className="p-2 border-r border-border">ยี่ห้อ/แบรนด์</td>
- <td className="p-2">Apple</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">model</td>
- <td className="p-2 border-r border-border">รุ่นสินค้า</td>
- <td className="p-2">M2 (2022)</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">asset_no</td>
- <td className="p-2 border-r border-border">รหัสเลขครุภัณฑ์ (เฉพาะครุภัณฑ์)</td>
- <td className="p-2">CAMMS-AS-9872</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">serial_no</td>
- <td className="p-2 border-r border-border">รหัสซีเรียลนัมเบอร์สินค้า (SN)</td>
- <td className="p-2">C02H20YQ088G</td>
- </tr>
- <tr className="hover:bg-muted/40">
- <td className="p-2 border-r border-border font-mono text-[11px] text-primary font-semibold">status</td>
- <td className="p-2 border-r border-border">สถานะ: active (ใช้งานได้) / damaged (ชำรุด) / inactive (เสื่อมสภาพ)</td>
- <td className="p-2">active</td>
- </tr>
- </tbody>
- </table>
- </div>
- </div>
- </div>
+ <ImportModeContext.Provider value={{ mode: format, busy, setMode: setFormat }}>
+ <section aria-label="นำเข้าวัสดุ" className="flex min-h-0 flex-1 flex-col overflow-hidden text-card-foreground">
+  <div className="flex shrink-0 items-center gap-4 border-b border-border bg-card p-4 sm:px-6">
+   {navigation ?? <SettingsNavigation activeTab="import" />}
+  </div>
+  <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+   {format === 'asset' ? <AssetImportForm onBusyChange={setBusy} /> : <MaterialImportForm onBusyChange={setBusy} />}
+  </div>
  </section>
+ </ImportModeContext.Provider>
  )
 }

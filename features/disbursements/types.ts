@@ -38,6 +38,10 @@ export interface DisbursementRow extends Record<string, unknown> {
   id: string
   document_no: string | null
   request_number?: string
+  request_batch_id?: string | null
+  submitted_at?: string | null
+  handed_over_at?: string | null
+  handed_over_by?: string | null
   fiscal_year: number | null
   transaction_type: DisbursementTransactionType
   recipient_name: string
@@ -80,7 +84,7 @@ export interface StockMovementRow extends Record<string, unknown> {
   disbursement_item_id: string | null
   delta: number
   balance_after: number
-  movement_type: 'issue' | 'reversal' | 'adjust_audit'
+  movement_type: 'issue' | 'reversal' | 'adjust_audit' | 'receipt' | 'material_return'
   created_by: string | null
   created_at: string
 }
@@ -115,6 +119,9 @@ export interface DisbursementListResult {
 }
 
 export interface DisbursementSelectableItem {
+  stock_quantity?: number
+  reserved_quantity?: number
+  available_quantity?: number
   id: string
   item_name: string
   item_type: 'material' | 'asset'
@@ -131,6 +138,10 @@ export interface DisbursementSelectableItem {
 }
 
 export interface CentralAvailableItem {
+  specification?: string | null
+  stock_quantity?: number
+  reserved_quantity?: number
+  available_quantity?: number
   unavailable_reason?: string | null
   id: string
   item_name: string

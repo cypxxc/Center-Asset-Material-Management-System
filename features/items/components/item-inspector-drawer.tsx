@@ -6,6 +6,7 @@ import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { type ItemListRow } from '@/features/items/types'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { formatDateThaiBE } from '@/lib/date'
+import { AssetRegisterDetails } from './asset-register-details'
 
 export interface InspectorProps {
  isOpen: boolean
@@ -55,7 +56,7 @@ export function Inspector({
  {/* Header */}
  <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-4 py-3 sm:px-5 sm:py-4 min-w-0">
  <div className="flex flex-col min-w-0 pr-2">
- <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">รายละเอียดสิ่งของ</span>
+ <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.item_type === 'material' ? 'รายละเอียดวัสดุ' : 'รายละเอียดสิ่งของ'}</span>
  <h3 className="truncate text-sm sm:text-base font-extrabold text-card-foreground" title={item.item_name}>{item.item_name}</h3>
  </div>
  <button
@@ -100,11 +101,11 @@ export function Inspector({
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
  <InspectorBox tone="emerald" label="ประเภทสิ่งของ">
  <div className="rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs font-bold text-card-foreground truncate">
- {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'พัสดุ (Material)'}
+ {item.item_type === 'asset' ? 'ครุภัณฑ์ (Asset)' : 'วัสดุ (Material)'}
  </div>
  </InspectorBox>
 
- <InspectorBox
+ {item.item_type !== 'material' && <InspectorBox
  tone="emerald"
  label="สถานะเกณฑ์"
  >
@@ -115,12 +116,27 @@ export function Inspector({
  ? 'ต่ำกว่าเกณฑ์ (ต.)'
  : 'ยังไม่ระบุ'}
  </div>
- </InspectorBox>
+ </InspectorBox>}
  </div>
 
  {/* SECTION 2: ข้อมูลระบุตัวตน (Tone Blue) */}
+ {item.item_type === 'asset' && <AssetRegisterDetails item={item} />}
+ {item.material && <>
+ <InspectorBox tone="blue" label="รหัสวัสดุ"><p className="break-all font-mono text-xs">{item.material.commodity_code || '—'}</p></InspectorBox>
+ <InspectorBox tone="violet" label="ขนาดหรือลักษณะ"><p className="whitespace-pre-wrap break-words text-xs">{item.material.specification || '—'}</p></InspectorBox>
+ <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+ {([
+ ['จำนวนอย่างต่ำ', item.material.minimum_quantity], ['จำนวนอย่างสูง', item.material.maximum_quantity],
+ ['ยอดยกมา — จำนวน', item.material.opening_quantity], ['ยอดยกมา — บาท', item.material.opening_amount],
+ ['รับ — จำนวน', item.material.received_quantity], ['รับ — บาท', item.material.received_amount],
+ ['จ่าย — จำนวน', item.material.issued_quantity], ['จ่าย — บาท', item.material.issued_amount],
+ ['จำนวนเงินตามบัญชี (บาท)', item.material.balance_amount], ['ปีงบประมาณ พ.ศ.', item.material.fiscal_year],
+ ] as const).map(([label, value]) => <InspectorBox key={label} tone="teal" label={label}><p className="text-xs tabular-nums">{value == null ? '—' : Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })}</p></InspectorBox>)}
+ </div>
+ <InspectorBox tone="teal" label="วันที่ยอดตามบัญชี"><p className="text-xs">{item.material.balance_as_of ? formatDateThaiBE(item.material.balance_as_of) : '—'}</p></InspectorBox>
+ </>}
  {item.asset_no && (
- <InspectorBox tone="blue" label={item.item_type === 'material' ? 'เลขทะเบียนพัสดุ' : 'เลขครุภัณฑ์'}>
+ <InspectorBox tone="blue" label={item.item_type === 'material' ? 'เลขทะเบียนวัสดุ' : 'เลขครุภัณฑ์'}>
  <div className="flex items-center justify-between gap-2 min-w-0">
  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-bold text-card-foreground min-w-0 flex-1" title={item.asset_no}>
  {item.asset_no}
@@ -157,7 +173,7 @@ export function Inspector({
  </InspectorBox>
  )}
 
- {!item.asset_no && !item.serial_no && (
+ {!item.material && !item.asset_no && !item.serial_no && (
  <InspectorBox tone="blue" label="เลขอ้างอิง">
  <p className="truncate rounded border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs text-muted-foreground min-w-0">
  - ไม่มีเลขอ้างอิง -
@@ -236,9 +252,9 @@ export function Inspector({
  </div>
 
  {/* SECTION 6: หมายเหตุ (Tone Slate) */}
- <InspectorBox tone="slate" label="รายละเอียดเพิ่มเติม">
- <p className="max-h-24 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs leading-relaxed text-muted-foreground break-words min-w-0">
- {item.note || '- ไม่มีหมายเหตุ -'}
+ <InspectorBox tone="slate" label={item.item_type === 'material' ? 'หมายเหตุ' : 'รายละเอียดเพิ่มเติม'}>
+ <p className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-2 sm:p-2.5 text-xs leading-relaxed text-muted-foreground break-words min-w-0">
+ {item.item_type === 'material' ? 'ส่วนกลาง' : item.note || '- ไม่มีหมายเหตุ -'}
  </p>
  </InspectorBox>
  </div>

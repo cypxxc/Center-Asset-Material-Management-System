@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { ASSET_REGISTER_FIELDS, ASSET_REGISTER_LABELS, assetRegisterSchema } from './asset-register'
 import { getReportItemsList } from '@/features/reports/queries'
 import { ItemListSearchParams } from './types'
 import { stripBom, normalizeForStorage, normalizeForSearch } from '@/lib/unicode'
@@ -14,12 +15,20 @@ import { getRequestContext, withTraceContext } from '@/lib/tracing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { importPostgresItems } from './postgres-actions'
 import { requireEditor } from './auth-guard'
+import { parseImportQuantity } from './import-validation'
+import { parseImportCSV } from '@/lib/import-csv'
 import { parseDateThaiBEToISO } from '@/lib/date'
+import { MATERIAL_LEDGER_FIELDS, materialLedgerSchema } from './material-fields'
 
 const HEADER_ALIASES: Record<string, string> = {
+  ...Object.fromEntries(ASSET_REGISTER_FIELDS.map(key => [normalizeForSearch(ASSET_REGISTER_LABELS[key]), key])),
+  'ลำดับ': 'register_sequence',
+  'ค่าเสื่อมราคาสะสม': 'register_accumulated_depreciation',
+  'มูลค่าตามบัญชี': 'register_book_value',
   // item_name
   'item_name': 'item_name',
   'ชื่อสิ่งของ': 'item_name',
+  'ชื่อวัสดุ': 'item_name',
   'ชื่อพัสดุ': 'item_name',
   'รายการ': 'item_name',
   'รายการครุภัณฑ์': 'item_name',
@@ -124,6 +133,7 @@ const HEADER_ALIASES: Record<string, string> = {
   // status
   'status': 'status',
   'สถานะ': 'status',
+  'สภาพวัสดุ': 'status',
   'สภาพพัสดุ': 'status',
 
   // Condition columns (from 3-check column layout in ledger)
@@ -181,34 +191,7 @@ function revalidateSidebarCache() {
   revalidatePath('/', 'layout')
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"'
-        i++ // Skip the escaped quote
-      } else {
-        inQuotes = !inQuotes
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  result.push(current.trim())
-
-  return result
-}
-
-export async function importItemsBulk(csvContent: string): Promise<ActionResponse<{ count: number }>> {
+export async function importItemsBulk(csvContent: string, expectedType?: 'asset' | 'material'): Promise<ActionResponse<{ count: number }>> {
   const timer = startTimer()
   const auth = await requireEditor()
   if (auth.error || !auth.profile) {
@@ -229,7 +212,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
   // Strip UTF-8 BOM if present
   const cleanContent = stripBom(csvContent)
-  const lines = cleanContent.split(/\r?\n/).filter((line) => line.trim())
+  let lines: string[][]
+  try { lines = parseImportCSV(cleanContent) } catch (error) { return errorResponse(error instanceof Error ? error.message : 'Invalid CSV') }
   if (lines.length <= 1) {
     return errorResponse('ไม่พบข้อมูลในไฟล์ CSV')
   }
@@ -245,7 +229,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
     let mappedHeaders: string[] = []
 
     for (let i = 0; i < Math.min(lines.length, 10); i++) {
-      const rawCols = parseCSVLine(lines[i]).map((h) => normalizeForSearch(h))
+      const rawCols = lines[i].map((h) => normalizeForSearch(h))
       const aliases = rawCols.map(col => HEADER_ALIASES[col] || col)
       if (aliases.includes('item_name')) {
         headerLineIdx = i
@@ -265,7 +249,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
     for (const row of rows) {
       lineNum++
-      const cols = parseCSVLine(row)
+      const cols = row
 
       // Skip completely empty lines
       if (cols.every((c) => !c.trim())) {
@@ -330,6 +314,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       if (itemType !== 'asset' && itemType !== 'material') {
         return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทสิ่งของ (item_type) ต้องเป็น asset หรือ material`)
       }
+      if (expectedType && itemType !== expectedType) return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทข้อมูลไม่ตรงกับฟอร์มนำเข้าที่เลือก`)
 
       const rawQualification = getVal('qualification_status').trim().toLowerCase()
       const qualificationStatus: 'qualified' | 'below_threshold' | null = ['qualified', 'ตามเกณฑ์', 'ครุภัณฑ์ตามเกณฑ์'].includes(rawQualification)
@@ -345,13 +330,9 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       }
 
       const rawQuantity = getVal('quantity')
-      let quantity = 1
-      if (rawQuantity && rawQuantity !== '-' && rawQuantity !== 'ไม่มี') {
-        const parsedQ = parseInt(rawQuantity.replace(/,/g, ''), 10)
-        if (Number.isFinite(parsedQ) && parsedQ > 0) {
-          quantity = parsedQ
-        }
-      }
+      let quantity: number
+      try { quantity = parseImportQuantity(rawQuantity, itemType === 'asset') }
+      catch { return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป และไม่เกินขอบเขตที่ระบบรองรับ`) }
 
       let unitPrice: number | null = null
       if (rawUnitPrice && rawUnitPrice !== '-' && rawUnitPrice !== 'ไม่มี' && rawUnitPrice !== 'ไม่ระบุ' && rawUnitPrice.toLowerCase() !== 'n/a') {
@@ -401,6 +382,8 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
       const acquiredDate = rawAcquiredDate ? parseDateThaiBEToISO(rawAcquiredDate) : null
 
       itemsToInsert.push({
+        ...(itemType === 'asset' ? assetRegisterSchema.parse(Object.fromEntries(ASSET_REGISTER_FIELDS.map(key => [key, getVal(key)]))) : {}),
+        ledger: itemType === 'material' ? materialLedgerSchema.parse(Object.fromEntries(MATERIAL_LEDGER_FIELDS.map(key => [key, getVal(key)]))) : undefined,
         item_name: itemName,
         item_type: itemType,
         qualification_status: qualificationStatus,
@@ -457,7 +440,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 
     revalidatePath('/items')
     revalidateSidebarCache()
-    return successResponse(`นำเข้าพัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
+    return successResponse(`นำเข้าวัสดุสำเร็จ ${res.count} รายการ`, { count: res.count ?? 0 })
   } catch (err) {
     return handleActionError<{ count: number }>(err, 'importItemsBulk', 'items', auth.profile.id)
   }
@@ -466,7 +449,7 @@ export async function importItemsBulk(csvContent: string): Promise<ActionRespons
 export async function getItemsForExport(params: ItemListSearchParams) {
   const auth = await requireEditor()
   if (auth.error || !auth.profile) {
-    throw new Error(auth.error ?? 'คุณไม่มีสิทธิ์ดาวน์โหลดข้อมูลพัสดุ')
+    throw new Error(auth.error ?? 'คุณไม่มีสิทธิ์ดาวน์โหลดข้อมูลวัสดุ')
   }
   const result = await getReportItemsList(params, true)
   return result.items

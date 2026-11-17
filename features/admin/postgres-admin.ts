@@ -254,10 +254,10 @@ export async function pgImportDatabaseData(source: string) {
   try {
     await adminIdentity()
     const backup = parseBusinessBackup(source)
-    const tables: BackupTable[] = ['categories', 'locations', 'units', 'items']
+    const tables: BackupTable[] = ['categories', 'locations', 'units', 'items', 'materials']
     await withAdmin(async tx => {
       // Lock all restored tables together to serialize against concurrent edits/number allocation.
-      await tx.execute(sql`lock table public.items, public.categories, public.locations, public.units in share row exclusive mode`)
+      await tx.execute(sql`lock table public.items, public.materials, public.categories, public.locations, public.units in share row exclusive mode`)
       for (const table of [...tables].reverse()) await tx.execute(sql`delete from ${tableSql(table)}`)
       for (const table of tables) {
         if (!backup[table].length) continue
@@ -266,7 +266,7 @@ export async function pgImportDatabaseData(source: string) {
         // Foreign keys for business records still fail and roll back the complete restore.
         const values = sql.join(tableColumns[table].map(key => {
           const source = sql`${sql.identifier('restored')}.${sql.identifier(key)}`
-          return table === 'items' && ['created_by', 'updated_by', 'deleted_by'].includes(key)
+          return (table === 'items' || table === 'materials') && ['created_by', 'updated_by', 'deleted_by'].includes(key)
             ? sql`(select id from public.profiles where id = ${source})`
             : source
         }), sql`, `)

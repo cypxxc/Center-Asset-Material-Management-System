@@ -1,6 +1,11 @@
 import 'server-only'
 import { sql } from 'drizzle-orm'
 import type { PostgresTransaction } from '@/lib/postgres/db'
+import { assertMaterialQuantity } from './material-availability'
+
+export async function assertMaterialAvailable(_tx: PostgresTransaction, item: { id: string; item_name?: string; quantity: number; unit_name?: string | null }, requested: number) {
+  assertMaterialQuantity(item.item_name || 'วัสดุ', requested, Math.max(0, Number(item.quantity)), item.unit_name || 'หน่วย')
+}
 
 // All disbursement/custody writers acquire this lock before reading availability.
 // Advisory locks let request-only users serialize reservations without UPDATE access to inventory.

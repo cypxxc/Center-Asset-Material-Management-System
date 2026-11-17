@@ -6,18 +6,18 @@ const DashboardAcquisitionChartClient = dynamic(
   { ssr: true }
 )
 
-export async function DashboardAcquisitionChart() {
-  const summary = await getAcquisitionSummary()
-  return <DashboardAcquisitionChartClient summary={summary} />
+export async function DashboardAcquisitionChart({ itemType = 'asset' }: { itemType?: 'asset' | 'material' }) {
+  const summary = await getAcquisitionSummary(itemType)
+  return <DashboardAcquisitionChartClient summary={summary} itemType={itemType} title={itemType === 'material' ? 'ทะเบียนวัสดุ' : 'ทะเบียนทรัพย์สิน'} />
 }
 
-export function AcquisitionChartSkeleton() {
+export function AcquisitionChartSkeleton({ title = 'ทะเบียนทรัพย์สิน' }: { title?: string }) {
   return (
-    <div role="status" aria-label="กำลังโหลดกราฟทะเบียนทรัพย์สิน" className="w-full min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:px-5">
-      <div className="h-5 w-56 max-w-full rounded bg-muted motion-safe:animate-pulse" />
-      <div className="h-8 w-40 rounded bg-muted motion-safe:animate-pulse" />
-      <div className="h-44 rounded-md bg-muted/50 motion-safe:animate-pulse" />
-      <div className="h-4 w-48 rounded bg-muted motion-safe:animate-pulse" />
+    <div role="status" aria-label={`กำลังโหลดกราฟ${title}`} className="w-full min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:px-5">
+      <div className="h-5 w-56 max-w-full rounded bg-muted animate-pulse motion-safe:animate-pulse" />
+      <div className="h-8 w-40 rounded bg-muted animate-pulse motion-safe:animate-pulse" />
+      <div className="h-44 rounded-md bg-muted/50 animate-pulse motion-safe:animate-pulse" />
+      <div className="h-4 w-48 rounded bg-muted animate-pulse motion-safe:animate-pulse" />
     </div>
   )
 }

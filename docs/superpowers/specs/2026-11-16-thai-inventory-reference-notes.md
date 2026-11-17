@@ -1,0 +1,24 @@
+# Thai public inventory references for CAMMS
+
+Research date: 2026-11-16. Engineering reference, not a legal opinion or certification of compliance. No application code or database data was changed.
+
+## Evidence and practical implications
+
+| Provision | Source-backed rule | CAMMS implication (engineering inference) |
+| --- | --- | --- |
+| 203 | Record received inventory by kind with supporting receipt evidence; keep stock safely and reconcile it with the register. [Department of Disease Control, provision 203](https://cpb.ddc.moph.go.th/ddc-pic/law/reg-2560/203) | Keep receipt/issue movement evidence and a reconcilable balance. |
+| 204–205 | Requisition comes from the head of the work unit needing the goods. The inventory-unit head or appropriately appointed person orders issue. The issuer checks requisition/supporting documents, records each issue, and retains the requisition. [Parliament official requisition form, including provisions 204–205](https://web.parliament.go.th/assets/portals/64/files/2_%E0%B9%81%E0%B8%9A%E0%B8%9A%E0%B8%9F%E0%B8%AD%E0%B8%A3%E0%B9%8C%E0%B8%A1%E0%B9%83%E0%B8%9A%E0%B9%80%E0%B8%9A%E0%B8%B4%E0%B8%81%E0%B8%A7%E0%B8%B1%E0%B8%AA%E0%B8%94%E0%B8%B8.pdf) | An application Admin role alone does not establish official appointment. Capture the responsible requester, authorizer and actual issuer with evidence. |
+| 206 | Alternative issuing procedures are at the agency head's discretion with reporting to the specified adjudication committee and State Audit Office. [DDC provision 206](https://cpb.ddc.moph.go.th/ddc-pic/law/reg-2560/206) | Verify the agency's adopted procedure before treating a custom workflow as the regulatory default. |
+| 207–209 | Lending must serve official purposes. Durable-item borrowing needs written evidence, reason and return date. Approval differs for inter-agency, internal premises, and off-premises use. Return must be serviceable; damage/loss invokes repair or compensation under applicable agency rules. [Department of Mental Health published regulation extract](https://finance.dmh.go.th/ITA/OO/O19.pdf) | Record purpose, return date, approval context and return condition. Approval authority must be checked against appointments, not inferred from software roles. |
+| 210 | Consumable borrowing is specifically inter-agency: urgent need, procurement cannot be timely, lender can spare stock without detriment, written evidence, normally replacement of the same category, kind and quantity. [DDC provision 210](https://cpb.ddc.moph.go.th/ddc-pic/law/reg-2560/210) | Ordinary internal consumable issue should not automatically become a durable-item loan. Nor should all consumable borrowing be declared universally prohibited. |
+| 211 | Lender or substitute must pursue return within seven days after the due date. [DMH extract, provision 211](https://finance.dmh.go.th/ITA/OO/O19.pdf) | Track due date and follow-up evidence; the seven-day period concerns the lender's follow-up duty, not a statutory borrower grace period or automatic closure. |
+
+## Local policy versus regulation
+
+The cited provisions do not specify an approval-request expiry timeout, automatic approval/rejection, reservation duration, reminder frequency, a maximum universal loan length, or prohibition on early return. Those are local workflow decisions requiring the agency's policy. A return before the due date is not prohibited in the inspected provisions; accepting it with quantity/condition evidence is an engineering recommendation, not a separately sourced legal mandate. Partial returns and approval expiry should have explicit local policy and auditable transitions. Do not equate cancelling an unissued request with returning goods already issued.
+
+## Version and currentness limitations
+
+The DDC's [base regulation page](https://cpb.ddc.moph.go.th/ddc-pic/law/reg-2560) explicitly says its 2560 text is the original and must be read with amendments No. 2 (2564) and No. 3 (2569). It is unsafe to call the unamended 2560 text the complete current law.
+
+The [Department of Science Service official catalogue](https://sciinfo.dss.go.th/public/index.php/products/detail/1320/4) identifies amendment No. 3 as Royal Gazette volume 143, special part 169 Ng, 9 July 2569, and links the [Gazette original PDF](https://ratchakitcha.soc.go.th/documents/121888.pdf). That original PDF opened, but browser text extraction is garbled. The [DDC amendment No. 3 entry](https://cpb.ddc.moph.go.th/ddc-pic/index.php?doc=227&view=doc-center) also warns its extracted text may be inaccurate. This research has not completed a reliable clause-by-clause comparison of both amendments or a comprehensive circular/delegation review. Therefore it does **not** certify that provisions 203–211 remain unchanged or exhaust applicable rules as of the research date. Before production sign-off, the agency's procurement/legal owner should confirm amendments, applicable circulars, delegated authority and local forms.

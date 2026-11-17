@@ -24,7 +24,7 @@ export function DepreciationFields({ item, fieldErrors }: { item?: ItemDetail; f
 
   return (
     <section aria-label="การคิดค่าเสื่อมราคา" className="space-y-4">
-      <h3 className="flex items-center gap-2 text-base font-semibold text-foreground"><Calculator aria-hidden="true" className="h-4 w-4 text-amber-700 dark:text-amber-400" />การคิดค่าเสื่อมราคา</h3>
+      <h3 className="flex items-center gap-2 text-base font-semibold text-foreground"><Calculator aria-hidden="true" className="h-4 w-4 text-amber-700" />การคิดค่าเสื่อมราคา</h3>
       <input type="hidden" name="depreciation_enabled" value={enabled ? 'true' : 'false'} />
       <label className="flex items-center justify-between gap-4">
         <span>

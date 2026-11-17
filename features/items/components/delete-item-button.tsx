@@ -55,7 +55,7 @@ export function DeleteItemButton({
 
       <ConfirmDialog
         open={showConfirm}
-        title="ยืนยันการลบพัสดุ"
+        title="ยืนยันการลบวัสดุ"
         description="รายการจะถูกนำออกจากทะเบียน โดยยังเก็บเอกสาร ประวัติ และรูปภาพเดิมไว้ ต้องปิดคำขอค้างหรือรับคืนให้เรียบร้อยก่อนลบ"
         confirmText="ลบรายการ"
         cancelText="ยกเลิก"

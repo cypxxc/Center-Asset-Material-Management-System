@@ -1,5 +1,5 @@
 const ADMIN_TABLES = [
-  'profiles', 'categories', 'locations', 'units', 'items', 'audit_logs',
+  'profiles', 'categories', 'locations', 'units', 'items', 'materials', 'audit_logs',
 ] as const
 
 export type AdminTable = (typeof ADMIN_TABLES)[number]

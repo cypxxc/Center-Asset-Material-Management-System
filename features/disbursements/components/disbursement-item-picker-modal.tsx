@@ -95,12 +95,12 @@ function DisbursementItemPickerModalContent({
  // Filter items matching the transaction type first
  const typeEligibleItems = useMemo(() => {
  return availableItems.filter((it) => {
- if (!isCentralDisbursementItem(it)) return false
  if (transactionType === 'material_issue') {
  return it.item_type === 'material'
  }
+ if (!isCentralDisbursementItem(it)) return false
  if (transactionType === 'asset_borrow') {
- return Boolean(it.is_central || (it.note && it.note.includes('ส่วนกลาง')))
+ return isCentralDisbursementItem(it) && it.quantity >= 1
  }
  return it.item_type === 'asset'
  })
@@ -136,7 +136,7 @@ function DisbursementItemPickerModalContent({
  // Eligible un-added items for "Select All"
  const selectableVisibleItems = useMemo(() => {
  const alreadySet = new Set(alreadySelectedIds)
- return filteredItems.filter((it) => !alreadySet.has(it.id))
+ return filteredItems.filter((it) => !alreadySet.has(it.id) && it.quantity > 0)
  }, [filteredItems, alreadySelectedIds])
 
  const allVisibleSelected =
@@ -144,6 +144,7 @@ function DisbursementItemPickerModalContent({
  selectableVisibleItems.every((it) => selectedIds.has(it.id))
 
  function handleToggleItem(id: string) {
+ if ((availableItems.find(item => item.id === id)?.quantity ?? 0) <= 0) return
  if (alreadySelectedIds.includes(id)) return
  setSelectedIds((prev) => {
  const next = new Set(prev)
@@ -202,17 +203,17 @@ function DisbursementItemPickerModalContent({
  <div>
  <div className="flex items-center gap-2">
  <h2 id="item-picker-title" className="text-sm font-bold text-foreground">
- {transactionType === 'material_issue' ? 'เลือกพัสดุจากคลัง' : 'เลือกครุภัณฑ์จากคลัง'}
+ {transactionType === 'material_issue' ? 'เลือกวัสดุจากคลัง' : 'เลือกครุภัณฑ์จากคลัง'}
  </h2>
  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">
- {transactionType === 'material_issue' && 'พัสดุสิ้นเปลือง'}
+ {transactionType === 'material_issue' && 'วัสดุสิ้นเปลือง'}
  {transactionType === 'asset_handover' && 'ครุภัณฑ์ (ส่งมอบ)'}
  {transactionType === 'asset_borrow' && 'ของส่วนกลาง (ยืมใช้งาน)'}
  </span>
  </div>
  <p className="text-[11px] text-muted-foreground">
  {transactionType === 'material_issue'
- ? 'ค้นหาและเลือกพัสดุที่ต้องการนำเข้าเอกสารเบิกจ่าย'
+ ? 'ค้นหาและเลือกวัสดุที่ต้องการนำเข้าเอกสารเบิกจ่าย'
  : transactionType === 'asset_borrow'
  ? 'แสดงเฉพาะรายการของส่วนกลางที่พร้อมให้ยืม'
  : 'ค้นหาและเลือกครุภัณฑ์ที่ต้องการนำเข้าเอกสาร'}
@@ -241,8 +242,8 @@ function DisbursementItemPickerModalContent({
  type="text"
  value={searchTerm}
  onChange={(e) => setSearchTerm(e.target.value)}
- placeholder="ค้นหาชื่อพัสดุ, รหัสครุภัณฑ์, Serial Number หรือหมวดหมู่..."
- aria-label="ค้นหาพัสดุหรือครุภัณฑ์"
+ placeholder="ค้นหาชื่อวัสดุ, รหัสครุภัณฑ์, Serial Number หรือหมวดหมู่..."
+ aria-label="ค้นหาวัสดุหรือครุภัณฑ์"
  className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
  />
  {searchTerm && (
@@ -323,7 +324,7 @@ function DisbursementItemPickerModalContent({
  {filteredItems.length === 0 ? (
  <div className="py-12 px-4 text-center space-y-2">
  <Package className="h-10 w-10 mx-auto text-muted-foreground/40" />
- <p className="text-xs font-semibold text-foreground">ไม่พบพัสดุที่ตรงกับเงื่อนไขการค้นหา</p>
+ <p className="text-xs font-semibold text-foreground">ไม่พบวัสดุที่ตรงกับเงื่อนไขการค้นหา</p>
  <p className="text-[11px] text-muted-foreground">
  ลองปรับคำค้นหา หรือปิดตัวกรอง &quot;ซ่อนรายการที่หมดสต็อก&quot;
  </p>
@@ -334,9 +335,9 @@ function DisbursementItemPickerModalContent({
  <tr>
  <th className="py-2 px-3 w-10 text-center">เลือก</th>
  <th className="py-2 px-3 w-32">รหัส / เลขครุภัณฑ์</th>
- <th className="py-2 px-3">ชื่อรายการพัสดุ</th>
+ <th className="py-2 px-3">ชื่อรายการวัสดุ</th>
  <th className="py-2 px-3 w-28">หมวดหมู่</th>
- <th className="py-2 px-3 w-28 text-right">คงเหลือในคลัง</th>
+ <th className="py-2 px-3 w-28 text-right">พร้อมจ่าย</th>
  <th className="py-2 px-3 w-20 text-center">สถานะ</th>
  </tr>
  </thead>
@@ -363,7 +364,7 @@ function DisbursementItemPickerModalContent({
  <input
  type="checkbox"
  checked={isAlreadyAdded || isSelected}
- disabled={isAlreadyAdded}
+ disabled={isAlreadyAdded || isOutOfStock}
  onChange={() => handleToggleItem(item.id)}
  aria-label={`เลือก ${item.item_name}`}
  className="rounded border-input text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"

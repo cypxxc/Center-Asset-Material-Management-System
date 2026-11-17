@@ -5,8 +5,9 @@ import { PageContainer } from '@/components/ui/page-container'
 import { AcquisitionChartSkeleton, DashboardAcquisitionChart } from '@/components/dashboard/dashboard-acquisition-chart'
 import { DashboardRealtimeBoundary } from '@/components/dashboard/dashboard-realtime-boundary'
 import { AdminDashboardWorkQueue, AdminWorkQueueSkeleton } from '@/components/dashboard/dashboard-admin-work-queue'
+import { DashboardDisbursementChart } from '@/components/dashboard/dashboard-disbursement-chart'
 
-export const metadata = { title: 'ภาพรวมระบบ' }
+export const metadata = { title: 'Dashboard' }
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile()
@@ -24,6 +25,12 @@ export default async function DashboardPage() {
       <DashboardRealtimeBoundary tables={profile.role === 'admin' ? ['items', 'audit_logs'] : ['items']} />
       <Suspense fallback={<AcquisitionChartSkeleton />}>
         <DashboardAcquisitionChart />
+      </Suspense>
+      <Suspense fallback={<AcquisitionChartSkeleton title="ทะเบียนวัสดุ" />}>
+        <DashboardAcquisitionChart itemType="material" />
+      </Suspense>
+      <Suspense fallback={<AcquisitionChartSkeleton title="ยอดรวมการยืมและเบิกที่สำเร็จ" />}>
+        <DashboardDisbursementChart />
       </Suspense>
       {profile.role === 'admin' && <Suspense fallback={<AdminWorkQueueSkeleton />}>
         <AdminDashboardWorkQueue />

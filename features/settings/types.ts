@@ -1,5 +1,6 @@
 export interface CategoryRow {
   id: string
+  item_type: 'asset' | 'material'
   name: string
   description: string | null
   color: string

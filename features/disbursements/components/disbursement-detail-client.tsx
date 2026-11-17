@@ -19,7 +19,8 @@ import {
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { formatDate, isDateReachedInBangkok } from '@/lib/date'
+import { formatDate } from '@/lib/date'
+import { bangkokCalendarDate, borrowDueDateError } from '../borrow-dates'
 import type { DisbursementRow, DisbursementItemRow, ItemCondition } from '@/features/disbursements/types'
 import {
  DisbursementStatusBadge,
@@ -33,20 +34,24 @@ import {
  rejectDisbursement,
 } from '@/features/disbursements/actions'
 import { generateDisbursementVoucherHtml } from '@/features/disbursements/print-generator'
+import { DisbursementTracking } from './tracking-details'
+import { MaterialReturnForm } from '@/features/materials/material-return-form'
 
 interface DetailClientProps {
  doc: DisbursementRow & { items: DisbursementItemRow[] }
  canMutate: boolean
  canRequest: boolean
  canWithdraw?: boolean
+ materialApprovalSlaHours?: number | null
 }
 
-export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdraw = false }: DetailClientProps) {
+export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdraw = false, materialApprovalSlaHours = null }: DetailClientProps) {
  const router = useRouter()
 
  const [isLoading, setIsLoading] = useState(false)
  const [errorMsg, setErrorMsg] = useState('')
  const [successMsg, setSuccessMsg] = useState('')
+ const [replacementDueDate, setReplacementDueDate] = useState('')
 
  // Modals state
  const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -69,10 +74,11 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  const isDraft = doc.status === 'draft'
  const isPendingApproval = doc.status === 'pending_approval'
  const isBorrow = doc.transaction_type === 'asset_borrow'
+ const needsDueDate = isBorrow && ['draft', 'pending_approval'].includes(doc.status) && (!doc.due_date || doc.due_date < bangkokCalendarDate())
  const isMaterialIssue = doc.transaction_type === 'material_issue'
  const canConfirm = canMutate || (canRequest && isDraft && isMaterialIssue)
  const isConfirmedOrActive = ['confirmed', 'active_borrow'].includes(doc.status)
- const canReturn = canMutate && isBorrow && ['active_borrow', 'partially_returned'].includes(doc.status) && isDateReachedInBangkok(doc.due_date)
+ const canReturn = canMutate && isBorrow && ['active_borrow', 'partially_returned'].includes(doc.status)
 
  // Reversal is only allowed if confirmed/active and no partial return has taken place
  const hasReturnedItems = doc.items.some((it) => it.returned_qty > 0)
@@ -94,10 +100,14 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  }
 
  async function handleConfirm() {
+ if (needsDueDate) {
+ const dateError = borrowDueDateError(replacementDueDate, doc.created_at)
+ if (dateError) { setErrorMsg(dateError); return }
+ }
  setIsLoading(true)
  setErrorMsg('')
  try {
- const res = await confirmDisbursement(doc.id)
+ const res = await confirmDisbursement(doc.id, needsDueDate ? replacementDueDate : undefined)
  if (!res.ok) {
  setErrorMsg(res.error || 'เกิดข้อผิดพลาดในการยืนยันเอกสาร')
  return
@@ -168,7 +178,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  }
  setReturnModalOpen(false)
  setActiveReturnLine(null)
- setSuccessMsg('บันทึกรับคืนพัสดุสำเร็จ')
+ setSuccessMsg('บันทึกรับคืนวัสดุสำเร็จ')
  router.refresh()
  } catch (err: unknown) {
  setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกรับคืน')
@@ -307,6 +317,12 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  }
  />
 
+ {canConfirm && needsDueDate && <div className="p-4 rounded border border-amber-300 bg-amber-50 text-sm text-foreground">
+ <p>กำหนดส่งคืนเดิมพ้นกำหนดแล้ว กรุณาระบุวันใหม่และกดอนุมัติเพื่อยืนยัน</p>
+ <label htmlFor="approval-due-date">กำหนดส่งคืนใหม่</label>
+ <input id="approval-due-date" type="date" min={bangkokCalendarDate()} value={replacementDueDate} onChange={event => setReplacementDueDate(event.target.value)} disabled={isLoading} className="mt-1 block rounded border border-border bg-background px-3 py-2" />
+ </div>}
+
  {errorMsg && (
  <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-center gap-2">
  <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -325,7 +341,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 flex items-start gap-3">
  <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
  <div className="text-xs space-y-1">
- <p className="font-bold text-sm">{isBorrow ? 'คำขอยืมพัสดุกองกลาง' : 'คำขอเบิกพัสดุกองกลาง'} (รอการอนุมัติ)</p>
+ <p className="font-bold text-sm">{isBorrow ? 'คำขอยืมวัสดุกองกลาง' : 'คำขอเบิกวัสดุกองกลาง'} (รอการอนุมัติ)</p>
  <p className="opacity-90">
  {isBorrow ? 'ผู้ขอยืม' : 'ผู้ขอเบิก'}: <strong className="font-semibold">{doc.recipient_name}</strong> ({doc.department_name}) {isBorrow && <>• วันที่ต้องการส่งคืน: <strong className="font-semibold">{doc.due_date ? formatDate(doc.due_date) : '-'}</strong></>}
  </p>
@@ -343,6 +359,8 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  </div>
  </div>
  )}
+
+ <DisbursementTracking doc={doc} canManage={canMutate} slaHours={materialApprovalSlaHours} />
 
  {/* Metadata Overview Card */}
  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
@@ -362,7 +380,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <div className="flex items-start gap-2">
  <User className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
  <div>
- <span className="text-muted-foreground block text-[11px]">ผู้รับพัสดุ / ผู้ยืม</span>
+ <span className="text-muted-foreground block text-[11px]">ผู้รับวัสดุ / ผู้ยืม</span>
  <span className="font-medium text-foreground">{doc.recipient_name}</span>
  </div>
  </div>
@@ -405,7 +423,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
  <div className="p-3 border-b border-border bg-muted/30">
  <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
- รายการพัสดุ ({doc.items.length} รายการ)
+ รายการวัสดุ ({doc.items.length} รายการ)
  </h2>
  </div>
 
@@ -414,13 +432,14 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
  <tr>
  <th className="py-2 px-3 text-center w-10">ลำดับ</th>
- <th className="py-2 px-3">รายการพัสดุ / เลขทะเบียน</th>
+ <th className="py-2 px-3">รายการวัสดุ / เลขทะเบียน</th>
  <th className="py-2 px-3">หมวดหมู่</th>
  <th className="py-2 px-3 text-right">จำนวนขอเบิก</th>
  <th className="py-2 px-3 text-right">จำนวนจ่ายจริง</th>
- {isBorrow && <th className="py-2 px-3 text-center">คืนแล้ว</th>}
+ {(isBorrow || doc.transaction_type === 'material_issue') && <th className="py-2 px-3 text-center">คืนแล้ว</th>}
  <th className="py-2 px-3 text-right">ราคา/หน่วย</th>
  {canReturn && <th className="py-2 px-3 text-right">คืน</th>}
+ {canMutate && doc.transaction_type === 'material_issue' && ['confirmed','partially_returned'].includes(doc.status) && <th className="py-2 px-3 text-right">รับคืนวัสดุ</th>}
  </tr>
  </thead>
  <tbody className="divide-y divide-border">
@@ -467,7 +486,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  </span>
  </div>
  </td>
- {isBorrow && (
+ {(isBorrow || doc.transaction_type === 'material_issue') && (
  <td className="py-2 px-3 text-center font-mono">
  <span className={item.returned_qty === item.issued_qty ? 'text-emerald-600 font-bold' : ''}>
  {item.returned_qty}
@@ -477,6 +496,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <td className="py-2 px-3 text-right font-mono text-muted-foreground">
  {item.unit_price_snapshot?.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
  </td>
+ {canMutate && doc.transaction_type === 'material_issue' && ['confirmed','partially_returned'].includes(doc.status) && <td className="py-2 px-3 text-right"><MaterialReturnForm lineId={item.id} remaining={unreturned} unit={item.unit_name_snapshot} /></td>}
  {canReturn && (
  <td className="py-2 px-3 text-right">
  {unreturned > 0 ? (
@@ -515,7 +535,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  isPending={isLoading}
  variant="destructive"
  title={isPendingApproval ? 'ถอนคำขอ' : 'ยกเลิกเอกสารฉบับร่าง'}
- description={isPendingApproval ? 'ต้องการถอนคำขอนี้ใช่หรือไม่? คำขอจะเปลี่ยนสถานะเป็นยกเลิกแล้ว โดยไม่มีการจ่ายพัสดุ' : "คุณต้องการยกเลิกเอกสารฉบับร่างนี้ใช่หรือไม่? เอกสารจะเปลี่ยนสถานะเป็น 'ยกเลิกแล้ว' และไม่สามารถนำกลับมาแก้ไขได้"}
+ description={isPendingApproval ? 'ต้องการถอนคำขอนี้ใช่หรือไม่? คำขอจะเปลี่ยนสถานะเป็นยกเลิกแล้ว โดยไม่มีการจ่ายวัสดุ' : "คุณต้องการยกเลิกเอกสารฉบับร่างนี้ใช่หรือไม่? เอกสารจะเปลี่ยนสถานะเป็น 'ยกเลิกแล้ว' และไม่สามารถนำกลับมาแก้ไขได้"}
  confirmText={isPendingApproval ? 'ยืนยันถอนคำขอ' : 'ยืนยันยกเลิกร่าง'}
  cancelText="ปิด"
  />
@@ -583,7 +603,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  type="text"
  value={returnNote}
  onChange={(e) => setReturnNote(e.target.value)}
- placeholder="เช่น ส่งคืนห้องพัสดุครบถ้วน"
+ placeholder="เช่น ส่งคืนห้องวัสดุครบถ้วน"
  className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
  />
  </div>
@@ -628,7 +648,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <span>คืนสภาพเอกสาร (Reversal)</span>
  </h3>
  <p className="text-muted-foreground text-[11px]">
- การคืนสภาพจะทำการคืนยอดสต็อกพัสดุ หรือคืนผู้รับผิดชอบครุภัณฑ์กลับสู่สถานะเดิมก่อนออกเอกสาร
+ การคืนสภาพจะทำการคืนยอดสต็อกวัสดุ หรือคืนผู้รับผิดชอบครุภัณฑ์กลับสู่สถานะเดิมก่อนออกเอกสาร
  รายการนี้จะไม่ถูกลบออกจากระบบ แต่จะถูกบันทึกประวัติการคืนสภาพ
  </p>
 
@@ -681,7 +701,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  >
  <div className="flex items-center gap-2 text-destructive border-b border-border pb-3">
  <XCircle className="h-5 w-5" />
- <h3 className="font-bold text-sm text-foreground">ปฏิเสธคำขอพัสดุ</h3>
+ <h3 className="font-bold text-sm text-foreground">ปฏิเสธคำขอวัสดุ</h3>
  </div>
 
  <div>
@@ -692,7 +712,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  id="reject-reason-textarea"
  value={rejectReason}
  onChange={(e) => setRejectReason(e.target.value)}
- placeholder="เช่น พัสดุติดภารกิจจัดนิทรรศการในวันดังกล่าว หรือต้องส่งซ่อมบำรุง"
+ placeholder="เช่น วัสดุติดภารกิจจัดนิทรรศการในวันดังกล่าว หรือต้องส่งซ่อมบำรุง"
  rows={3}
  required
  className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

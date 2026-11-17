@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, LayoutDashboard, Package, Boxes, Settings, History, LogOut, User } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Package, Boxes, Warehouse, ArrowLeftRight, Settings, History, LogOut, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ROLE_LABELS } from './nav-config'
@@ -16,7 +16,8 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
   const [mobileOpen, setMobileOpen] = useState(false)
   const isDashboardActive = pathname === '/dashboard'
   const isCentralActive = pathname === '/central-items'
-  const isInventoryActive = pathname === '/items'
+  const isInventoryActive = pathname.startsWith('/items')
+  const isMaterialsActive = pathname.startsWith('/materials')
 
   const isDisbursementsActive = pathname.startsWith('/disbursements')
   const isSettingsActive = pathname === '/settings'
@@ -93,7 +94,12 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
               )}
             >
               <Package className="h-4 w-4 text-blue-500 shrink-0" />
-              <span>คลัง</span>
+              <span>ครุภัณฑ์</span>
+            </Link>
+
+            <Link href="/materials" onClick={() => setMobileOpen(false)} aria-current={isMaterialsActive ? 'page' : undefined}
+              className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',isMaterialsActive ? activeLinkClass : inactiveLinkClass)}>
+              <Boxes className="h-4 w-4 shrink-0" /><span>วัสดุ</span>
             </Link>
 
             <Link
@@ -105,7 +111,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isCentralActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Boxes className="h-4 w-4 text-emerald-500 shrink-0" />
+              <Warehouse className="h-4 w-4 text-emerald-500 shrink-0" />
               <span>ส่วนกลาง</span>
             </Link>
 
@@ -118,7 +124,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
                 isDisbursementsActive ? activeLinkClass : inactiveLinkClass
               )}
             >
-              <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
+              <ArrowLeftRight className="h-4 w-4 text-amber-500 shrink-0" />
               <span>{disbursementsLabel}</span>
             </Link>
 

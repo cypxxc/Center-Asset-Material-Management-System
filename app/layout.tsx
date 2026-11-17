@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({
@@ -19,10 +18,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CAMMS Portal — เขตสุขภาพที่ 7",
-    template: "%s | CAMMS Portal",
+    default: "Portal — เขตสุขภาพที่ 7",
+    template: "%s | Portal",
   },
-  description: "CAMMS Portal — ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลาง เขตสุขภาพที่ 7 กระทรวงสาธารณสุข",
+  description: "Portal — ระบบบริหารจัดการวัสดุและสินทรัพย์ส่วนกลาง เขตสุขภาพที่ 7 กระทรวงสาธารณสุข",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -43,12 +42,9 @@ export default function RootLayout({
     <html
       lang="th"
       className={`${ibmPlexSansThai.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        {children}
         <SpeedInsights />
       </body>
     </html>

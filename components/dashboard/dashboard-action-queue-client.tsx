@@ -56,7 +56,7 @@ export function DashboardActionQueueClient({
  คิวงานและรายการที่ต้องดำเนินการ
  </h2>
  <p className="text-xs text-muted-foreground">
- รายการครุภัณฑ์ชำรุดรอส่งซ่อมและพัสดุที่ต้องเติมสต็อกเร่งด่วน
+ รายการครุภัณฑ์ชำรุดรอส่งซ่อมและวัสดุที่ต้องเติมสต็อกเร่งด่วน
  </p>
  </div>
 
@@ -123,7 +123,7 @@ export function DashboardActionQueueClient({
  }`}
  >
  <Package className="size-3.5" />
- <span>พัสดุใกล้หมดคลัง</span>
+ <span>วัสดุใกล้หมดคลัง</span>
  <span
  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
  lowStockItems.length > 0
@@ -248,7 +248,7 @@ export function DashboardActionQueueClient({
  <CheckCircle2 className="size-4" />
  </div>
  <p className="text-xs text-muted-foreground max-w-md">
- ระดับพัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ
+ ระดับวัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ
  </p>
  </div>
  ) : (
@@ -311,7 +311,7 @@ export function DashboardActionQueueClient({
  href={activeTab === 'damaged' ? '/items?status=damaged' : '/items'}
  className="font-medium text-primary hover:underline inline-flex items-center gap-1 shrink-0"
  >
- <span>{activeTab === 'damaged' ? 'ดูรายการครุภัณฑ์ชำรุดทั้งหมดในทะเบียน' : 'ดูทะเบียนพัสดุทั้งหมด'}</span>
+ <span>{activeTab === 'damaged' ? 'ดูรายการครุภัณฑ์ชำรุดทั้งหมดในทะเบียน' : 'ดูทะเบียนวัสดุทั้งหมด'}</span>
  <ChevronRight className="size-3.5" />
  </Link>
  </div>

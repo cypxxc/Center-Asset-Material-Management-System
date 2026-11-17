@@ -31,7 +31,7 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
   assert.ok(userId, 'A local administrator must be initialized first')
   const rollback = new Error('Rollback successful query fixtures')
   const fixture = randomUUID()
-  const categoryId = randomUUID(), locationId = randomUUID(), unitId = randomUUID()
+  const categoryId = randomUUID(), materialCategoryId = randomUUID(), locationId = randomUUID(), unitId = randomUUID()
   const assetId = randomUUID(), materialId = randomUUID(), deletedId = randomUUID()
   const imageUrl = `/api/files/item-images/${userId}/${randomUUID()}.png`
 
@@ -46,14 +46,15 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
       const { itemFormSchema } = await import('./schema')
       const before = await reports.getPostgresReportStats()
       await tx.execute(sql`insert into public.categories (id, name, is_active) values (${categoryId}::uuid, ${fixture}, true)`)
+      await tx.execute(sql`insert into public.categories (id, name, item_type, is_active) values (${materialCategoryId}::uuid, ${fixture}, 'material', true)`)
       await tx.execute(sql`insert into public.locations (id, name, is_active) values (${locationId}::uuid, ${fixture}, true)`)
       await tx.execute(sql`insert into public.units (id, name, is_active) values (${unitId}::uuid, ${fixture}, true)`)
       await tx.execute(sql`insert into public.items (id, item_name, item_type, quantity, unit_price, category_id, location_id, unit_id,
         depreciation_enabled, depreciation_method, depreciation_cost, depreciation_useful_life_years, depreciation_start_basis, depreciation_start_date, depreciation_residual_value, image_url, created_by, updated_by)
         values (${assetId}::uuid, ${fixture + ' asset'}, 'asset', 2, 125.50, ${categoryId}::uuid, ${locationId}::uuid, ${unitId}::uuid,
         true, 'straight_line', 1000, 5, 'manual', '2000-01-01', 1, ${imageUrl}, ${userId}::uuid, ${userId}::uuid)`)
-      await tx.execute(sql`insert into public.items (id, item_name, item_type, quantity, unit_price, category_id, location_id, unit_id, created_by, updated_by)
-        values (${materialId}::uuid, ${fixture + ' material'}, 'material', 3, 2.25, ${categoryId}::uuid, ${locationId}::uuid, ${unitId}::uuid, ${userId}::uuid, ${userId}::uuid)`)
+      await tx.execute(sql`insert into public.materials (id, item_name, item_type, quantity, unit_price, category_id, location_id, unit_id, created_by, updated_by)
+        values (${materialId}::uuid, ${fixture + ' material'}, 'material', 3, 2.25, ${materialCategoryId}::uuid, ${locationId}::uuid, ${unitId}::uuid, ${userId}::uuid, ${userId}::uuid)`)
       await tx.execute(sql`insert into public.items (id, item_name, item_type, quantity, category_id, deleted_at, created_by, updated_by)
         values (${deletedId}::uuid, ${fixture + ' deleted'}, 'asset', 99, ${categoryId}::uuid, now(), ${userId}::uuid, ${userId}::uuid)`)
 
@@ -122,9 +123,9 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
       assert.equal(imported.data?.count, 1)
       assert.equal((await items.getPostgresItems({ q: fixture + ' imported' })).total, 1)
       const generalBefore = (await reports.getPostgresReportStats()).categoryCounts['ทั่วไป'] ?? { count: 0, qty: 0 }
-      const general = await tx.execute<{ id: string }>(sql`insert into public.categories (name, is_active) values ('ทั่วไป', true)
-        on conflict (name) do update set name=excluded.name returning id`)
-      await tx.execute(sql`insert into public.items (item_name, item_type, quantity, category_id, created_by, updated_by)
+      const general = await tx.execute<{ id: string }>(sql`insert into public.categories (name, item_type, is_active) values ('ทั่วไป', 'material', true)
+        on conflict (name, item_type) do update set name=excluded.name returning id`)
+      await tx.execute(sql`insert into public.materials (item_name, item_type, quantity, category_id, created_by, updated_by)
         values (${fixture + ' general'}, 'material', 1, ${general.rows[0].id}::uuid, ${userId}::uuid, ${userId}::uuid),
           (${fixture + ' uncategorized'}, 'material', 1, null, ${userId}::uuid, ${userId}::uuid)`)
       assert.deepEqual((await reports.getPostgresReportStats()).categoryCounts['ทั่วไป'], {

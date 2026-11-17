@@ -31,7 +31,7 @@ export function NewItemPageClient({
               className="hover:text-foreground transition-colors font-medium truncate flex items-center gap-1.5"
             >
               <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-              <span>ทะเบียนครุภัณฑ์และพัสดุ</span>
+              <span>ทะเบียนครุภัณฑ์</span>
             </Link>
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
             <span className="font-semibold text-foreground truncate">ขึ้นทะเบียนใหม่</span>
@@ -54,7 +54,7 @@ export function NewItemPageClient({
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                ขึ้นทะเบียนครุภัณฑ์และพัสดุใหม่
+                ขึ้นทะเบียนครุภัณฑ์ใหม่
               </h1>
             </div>
           </div>

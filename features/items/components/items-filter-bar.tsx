@@ -13,6 +13,8 @@ import type { ItemsFilterUpdates } from '@/features/items/hooks/use-items-filter
 import { cn } from '@/lib/utils'
 
 export interface ItemsFilterBarProps {
+ assetOnly?: boolean
+ materialOnly?: boolean
  centralScope?: boolean
  searchVal: string
  onSearchChange: (value: string) => void
@@ -46,6 +48,8 @@ const STATUS_DOT_MAP: Record<string, string> = {
 }
 
 export function ItemsFilterBar({
+ assetOnly = false,
+ materialOnly = false,
  centralScope = false,
  searchVal,
  onSearchChange,
@@ -68,7 +72,7 @@ export function ItemsFilterBar({
  const activeChips = useMemo(() => {
  const chips: { id: string; label: string; value: string; onRemove: () => void }[] = []
 
- if (params.type) {
+ if (!assetOnly && !materialOnly && params.type) {
  chips.push({
  id: 'type',
  label: 'ประเภท',
@@ -137,7 +141,7 @@ export function ItemsFilterBar({
  }
 
  return chips
- }, [centralScope, params.type, params.qualification, params.category_id, params.status, params.location_id, params.is_central, params.q, categories, locations, onFilterChange, onSearchClear])
+ }, [assetOnly, materialOnly, centralScope, params.type, params.qualification, params.category_id, params.status, params.location_id, params.is_central, params.q, categories, locations, onFilterChange, onSearchClear])
 
  const typeOptions: FilterOption[] = useMemo(
  () => [
@@ -212,14 +216,14 @@ export function ItemsFilterBar({
  onSearchClear()
  onFilterChange({ q: '' })
  }}
- placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, Serial..."
+ placeholder={materialOnly ? 'ค้นหาชื่อวัสดุ ขนาด หรือรหัส...' : 'ค้นหาชื่อ, เลขครุภัณฑ์, Serial...'}
  className="w-full h-9 text-xs"
  />
  </div>
 
  {/* Classification Filters */}
  <div className="flex flex-wrap items-center gap-2" data-testid="classification-filters">
- <FilterDropdown
+ {!assetOnly && !materialOnly && <FilterDropdown
  label="ประเภท"
  ariaLabel="ประเภท"
  name="type"
@@ -228,9 +232,9 @@ export function ItemsFilterBar({
  onChange={(val) => onFilterChange({ type: val })}
  icon={<Layers className="h-3.5 w-3.5" />}
  allLabel={`ประเภท (${classificationCounts.all.toLocaleString('th-TH')})`}
- />
+ />}
 
- <FilterDropdown
+ {!materialOnly && <FilterDropdown
  label="เกณฑ์"
  ariaLabel="เกณฑ์"
  name="qualification"
@@ -239,7 +243,7 @@ export function ItemsFilterBar({
  onChange={(val) => onFilterChange({ qualification: val })}
  icon={<SlidersHorizontal className="h-3.5 w-3.5" />}
  allLabel={`เกณฑ์ (${(classificationCounts.qualified + classificationCounts.belowThreshold + classificationCounts.unclassified).toLocaleString('th-TH')})`}
- />
+ />}
  </div>
 
  {/* Dropdown Filters */}

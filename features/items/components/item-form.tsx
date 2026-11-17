@@ -6,7 +6,7 @@ import { normalizeItemStatus } from '../status'
 
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Save, Image as ImageIcon, Trash2, Upload, Package, ClipboardList, MapPin, Tag, Plus } from 'lucide-react'
+import { Save, Image as ImageIcon, Trash2, Upload, Package, MapPin, Tag, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ItemActionState } from '../actions'
@@ -23,7 +23,9 @@ import { FormattedNumberInput } from '@/components/ui/formatted-number-input'
 import { ItemDetail, ReferenceOption } from '../types'
 import { ImageCropDialog } from '@/components/ui/image-crop-dialog'
 import { DepreciationFields } from '@/features/depreciation/components/depreciation-fields'
+import { ASSET_REGISTER_LABELS } from '../asset-register'
 import { syncCentralNote } from '../central-note'
+import { categoriesForType } from '../category-types'
 
 interface ItemFormProps {
  action: (state: ItemActionState | null, formData: FormData) => Promise<ItemActionState>
@@ -91,23 +93,20 @@ function ItemFormFields({
  }
  }, [state])
 
- const [activeTab, setActiveTab] = useState<'asset' | 'material'>(
- item?.item_type === 'asset' || !item?.item_type ? 'asset' : 'material'
- )
 
- const [currentQty, setCurrentQty] = useState<number>(Number(item?.quantity) || 1)
+ const [currentQty, setCurrentQty] = useState<number>(Number(item?.quantity ?? 1))
  const [currentUnitPrice, setCurrentUnitPrice] = useState<number | null>(
  item?.unit_price !== null && item?.unit_price !== undefined ? Number(item.unit_price) : null
  )
 
  const liveTotal = useMemo(() => {
- if (currentQty > 0 && currentUnitPrice !== null && currentUnitPrice >= 0) {
+ if (currentQty >= 0 && currentUnitPrice !== null && currentUnitPrice >= 0) {
  return currentQty * currentUnitPrice
  }
  return null
  }, [currentQty, currentUnitPrice])
 
- const itemType = item?.item_type ?? activeTab
+ const itemType = item?.item_type ?? 'asset'
 
  return (
  <form
@@ -124,8 +123,9 @@ function ItemFormFields({
  className="flex flex-col gap-8 rounded-xl border border-border bg-card px-4 py-5 text-foreground sm:p-8 [&_label]:text-sm [&_label]:font-medium [&_input:not([type=checkbox])]:h-11 [&_input:not([type=checkbox])]:border-input [&_input:not([type=checkbox])]:bg-card [&_input:not([type=checkbox])]:text-sm [&_input:not([type=checkbox])]:text-foreground [&_input::placeholder]:text-muted-foreground [&_textarea]:border-input [&_textarea]:bg-card [&_textarea]:text-sm [&_textarea]:text-foreground [&_textarea::placeholder]:text-muted-foreground"
  >
  {inline && <input type="hidden" name="inline" value="true" />}
+ {itemType === 'material' && item && <input type="hidden" name="metadata_version" value={Number(item.metadata_version ?? 0)} />}
  {showMessage && (
- <div role={state.success ? 'status' : 'alert'} className={cn('rounded-lg border p-4 text-sm', state.success ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'border-destructive/30 bg-destructive/10 text-destructive')}>
+ <div role={state.success ? 'status' : 'alert'} className={cn('rounded-lg border p-4 text-sm', state.success ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800' : 'border-destructive/30 bg-destructive/10 text-destructive')}>
  <div className="flex items-center justify-between gap-3">
  <p>{state.message}</p>
  <button
@@ -136,74 +136,6 @@ function ItemFormFields({
  ปิด
  </button>
  </div>
- </div>
- )}
-
- {/* Type selector */}
- {!item && (
- <div role="tablist" aria-label="ประเภทสิ่งของ" className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
- <button
- type="button"
- role="tab"
- aria-label="ครุภัณฑ์"
- aria-selected={activeTab === 'asset'}
- aria-controls="asset-details"
- onClick={() => setActiveTab('asset')}
- className={cn(
- 'flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer relative select-none',
- activeTab === 'asset'
- ? 'border-blue-600/60 bg-blue-500/10 shadow-xs ring-1 ring-blue-500/30'
- : 'border-border bg-card/60 hover:bg-muted/50 hover:border-border/80'
- )}
- >
- <div className={cn(
- 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-xs transition-colors',
- activeTab === 'asset' ? 'bg-blue-600 text-white shadow-xs' : 'bg-muted text-muted-foreground'
- )}>
- <Package className="h-4 w-4" />
- </div>
- <div className="min-w-0 flex-1">
- <div className="flex items-center gap-1.5 flex-wrap">
- <span className="font-bold text-xs text-foreground">ครุภัณฑ์ (Asset)</span>
- </div>
- <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
- มีเลขครุภัณฑ์หลัก ทะเบียนสินทรัพย์ GFMIS และคำนวณค่าเสื่อมราคา
- </p>
- </div>
- </button>
-
- <button
- type="button"
- role="tab"
- aria-label="พัสดุ"
- aria-selected={activeTab === 'material'}
- aria-controls="material-details"
- onClick={() => setActiveTab('material')}
- className={cn(
- 'flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer relative select-none',
- activeTab === 'material'
- ? 'border-amber-500/60 bg-amber-500/10 shadow-xs ring-1 ring-amber-500/30'
- : 'border-border bg-card/60 hover:bg-muted/50 hover:border-border/80'
- )}
- >
- <div className={cn(
- 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-xs transition-colors',
- activeTab === 'material' ? 'bg-amber-600 text-white shadow-xs' : 'bg-muted text-muted-foreground'
- )}>
- <ClipboardList className="h-4 w-4" />
- </div>
- <div className="min-w-0 flex-1">
- <div className="flex items-center gap-1.5 flex-wrap">
- <span className="font-bold text-xs text-foreground">พัสดุ (Material)</span>
- <span className="inline-flex items-center rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-amber-500/15 text-amber-700 border border-amber-500/25">
- พัสดุคงทน
- </span>
- </div>
- <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
- ใช้ลงทะเบียนพัสดุและติดตามประวัติ/สถานที่ โดยไม่คิดค่าเสื่อมราคา
- </p>
- </div>
- </button>
  </div>
  )}
 
@@ -244,7 +176,7 @@ function ItemFormFields({
  aria-invalid={!!state?.fieldErrors?.category_id}
  >
  <option value="">ไม่ระบุ</option>
- {categories.map((category) => (
+ {categoriesForType(categories, itemType).map((category) => (
  <option key={category.id} value={category.id}>{category.name}</option>
  ))}
  </FormCombobox>
@@ -322,11 +254,28 @@ function ItemFormFields({
  </FormSection>
 
  {/* SECTION 2: รายละเอียดสิ่งของ */}
+ {itemType === 'asset' && <FormSection title="ข้อมูลทะเบียนและยอดบัญชี" tone="violet" icon={<Tag className="h-4 w-4" />}>
+ <p className="text-sm text-muted-foreground">กรอกยอดตามทะเบียนเดิม ณ วันที่อ้างอิง เว้นว่างหากยังไม่มีข้อมูล</p>
+ <FormGrid className="sm:grid-cols-2">
+ <TextInput name="register_sequence" label={ASSET_REGISTER_LABELS.register_sequence} defaultValue={item?.register_sequence} errors={state?.fieldErrors?.register_sequence} />
+ <TextInput name="asset_prefix" label={ASSET_REGISTER_LABELS.asset_prefix} defaultValue={item?.asset_prefix} errors={state?.fieldErrors?.asset_prefix} placeholder="เช่น สขส 7." />
+ {(['register_accumulated_depreciation', 'register_book_value'] as const).map(name => <FormField key={name}>
+ <FormLabel htmlFor={name}>{ASSET_REGISTER_LABELS[name]} (บาท)</FormLabel>
+ <FormInput id={name} name={name} inputMode="decimal" defaultValue={item?.[name]?.toString() ?? ''} aria-invalid={!!state?.fieldErrors?.[name]} />
+ <FieldError errors={state?.fieldErrors?.[name]} />
+ </FormField>)}
+ <FormField>
+ <FormLabel htmlFor="register_as_of">{ASSET_REGISTER_LABELS.register_as_of}</FormLabel>
+ <FormInput id="register_as_of" name="register_as_of" type="date" defaultValue={item?.register_as_of?.slice(0, 10) ?? ''} aria-invalid={!!state?.fieldErrors?.register_as_of} />
+ <FieldError errors={state?.fieldErrors?.register_as_of} />
+ </FormField>
+ </FormGrid>
+ </FormSection>}
  <FormSection title="รายละเอียดสิ่งของ" tone="violet" icon={<Tag className="h-4 w-4" />}>
  <FormGrid className="sm:grid-cols-2">
  <TextInput
  name="asset_no"
- label={itemType === 'asset' ? 'เลขครุภัณฑ์' : 'เลขทะเบียนพัสดุ'}
+ label={itemType === 'asset' ? 'เลขครุภัณฑ์' : 'เลขทะเบียนวัสดุ'}
  defaultValue={item?.asset_no}
  errors={state?.fieldErrors?.asset_no}
  placeholder={itemType === 'asset' ? 'เช่น 7110-001-0001/67' : 'เช่น ต.7110-001-0001/67'}
@@ -391,15 +340,12 @@ function ItemFormFields({
 
  <FormField>
  <FormLabel htmlFor="responsible_person">ผู้รับผิดชอบ</FormLabel>
- <FormCombobox id="responsible_person" name="responsible_person" defaultValue={item?.responsible_person ?? ''} aria-invalid={!!state?.fieldErrors?.responsible_person}>
- <option value="">ไม่ระบุ</option>
- {item?.responsible_person && !responsibleUsers.some(user => user.name === item.responsible_person) && (
- <option value={item.responsible_person}>{item.responsible_person} (ข้อมูลเดิม)</option>
- )}
+ <FormInput id="responsible_person" name="responsible_person" list="item-custodian-suggestions" defaultValue={item?.responsible_person ?? ''} aria-invalid={!!state?.fieldErrors?.responsible_person} placeholder="ชื่อบุคคลหรือกลุ่มงาน" />
+ <datalist id="item-custodian-suggestions">
  {Array.from(new Map(responsibleUsers.map(user => [user.name, user])).values()).map(user => (
  <option key={user.id} value={user.name}>{user.name}</option>
  ))}
- </FormCombobox>
+ </datalist>
  <FieldError errors={state?.fieldErrors?.responsible_person} />
  </FormField>
 
@@ -418,6 +364,7 @@ function ItemFormFields({
  <FieldError errors={state?.fieldErrors?.status} />
  </FormField>
 
+ {itemType === 'material' ? <input type="hidden" name="is_central" value="true" /> : <>
  {/* Checkbox: ทรัพย์สินส่วนกลาง (เปิดให้ยืมใช้งานได้) */}
  <div className="sm:col-span-2 rounded-lg bg-muted/40 p-4">
  <label className="flex items-start gap-3 cursor-pointer select-none">
@@ -436,18 +383,19 @@ function ItemFormFields({
  <div className="space-y-0.5">
  <div className="flex items-center gap-2">
  <span className="text-xs font-semibold text-foreground">
- {itemType === 'asset' ? 'ครุภัณฑ์ส่วนกลาง' : 'พัสดุส่วนกลาง'} (เปิดให้ยืมใช้งานได้)
+ {itemType === 'asset' ? 'ครุภัณฑ์ส่วนกลาง' : 'วัสดุส่วนกลาง'} (เปิดให้ยืมใช้งานได้)
  </span>
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-600/30">
+ <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-800 border border-emerald-600/30">
  กองกลาง
  </span>
  </div>
  <p className="text-sm text-muted-foreground leading-relaxed">
- บุคลากรทุกกลุ่มงานสามารถยืมรายการนี้ได้ตามระเบียบพัสดุ
+ บุคลากรทุกกลุ่มงานสามารถยืมรายการนี้ได้ตามระเบียบวัสดุ
  </p>
  </div>
  </label>
  </div>
+ </>}
  </FormGrid>
  </FormSection>
 
@@ -523,9 +471,9 @@ function ItemFormFields({
 }
 
 const sectionTones = {
- blue: 'text-blue-700 dark:text-blue-400',
- violet: 'text-violet-700 dark:text-violet-400',
- emerald: 'text-emerald-700 dark:text-emerald-400',
+ blue: 'text-blue-700',
+ violet: 'text-violet-700',
+ emerald: 'text-emerald-700',
  slate: 'text-muted-foreground',
 }
 

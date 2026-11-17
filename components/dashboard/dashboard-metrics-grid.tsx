@@ -46,7 +46,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  </div>
  </div>
  <p className="mt-4 pt-3 border-t border-border/40 text-xs text-muted-foreground truncate">
- รวมครุภัณฑ์และพัสดุทั้งหมดในระบบ
+ รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ
  </p>
  </div>
 
@@ -56,7 +56,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
  <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
  <Package className="size-3.5 text-muted-foreground/70 group-hover:text-primary transition-colors" />
- ครุภัณฑ์และพัสดุทั้งหมด
+ ครุภัณฑ์และวัสดุทั้งหมด
  </h2>
  <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/60">
  {stats.totalQuantity.toLocaleString('th-TH')} ชิ้น
@@ -71,7 +71,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  <div className="mt-4 pt-3 border-t border-border/40 space-y-1.5">
  <div
  role="progressbar"
- aria-label="สัดส่วนครุภัณฑ์และพัสดุ"
+ aria-label="สัดส่วนครุภัณฑ์และวัสดุ"
  aria-valuenow={Math.round(assetRatio)}
  aria-valuemin={0}
  aria-valuemax={100}
@@ -85,11 +85,11 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  <div
  className="bg-emerald-500 h-full transition-all duration-500"
  style={{ width: `${materialRatio}%` }}
- title={`พัสดุ ${materialRatio.toFixed(1)}%`}
+ title={`วัสดุ ${materialRatio.toFixed(1)}%`}
  />
  </div>
  <p className="text-xs text-muted-foreground truncate">
- ครุภัณฑ์ {assetCount.toLocaleString('th-TH')} | พัสดุ {materialCount.toLocaleString('th-TH')}
+ ครุภัณฑ์ {assetCount.toLocaleString('th-TH')} | วัสดุ {materialCount.toLocaleString('th-TH')}
  </p>
  </div>
  </div>
@@ -100,7 +100,7 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
  <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
  <CheckCircle2 className="size-3.5 text-emerald-500" />
- ความพร้อมใช้งานของพัสดุ
+ ความพร้อมใช้งานของวัสดุ
  </h2>
  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />

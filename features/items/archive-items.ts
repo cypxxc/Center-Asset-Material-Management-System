@@ -2,6 +2,7 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import type { PostgresTransaction } from '@/lib/postgres/db'
 import { lockDisbursementItems } from '@/features/disbursements/reservations'
+import { inventoryTable } from './inventory-table'
 
 export class ItemArchiveBlockedError extends Error {
   constructor() {
@@ -11,11 +12,11 @@ export class ItemArchiveBlockedError extends Error {
 }
 
 /** Caller authenticates an active admin and owns the transaction. History/FKs remain intact. */
-export async function archivePostgresItems(tx: PostgresTransaction, ids: string[], actorId: string) {
+export async function archivePostgresItems(tx: PostgresTransaction, ids: string[], actorId: string, type: 'asset' | 'material' = 'asset') {
   const uniqueIds = [...new Set(ids.map(id => id.toLowerCase()))].sort()
   await lockDisbursementItems(tx, uniqueIds)
   const selected = await tx.execute<{ id: string }>(sql`
-    select id from public.items
+    select id from ${inventoryTable(type)}
     where id in (${sql.join(uniqueIds.map(id => sql`${id}`), sql`, `)}) and deleted_at is null
     order by id for update
   `)
@@ -32,7 +33,7 @@ export async function archivePostgresItems(tx: PostgresTransaction, ids: string[
   `)
   if (blocked.rows.length) throw new ItemArchiveBlockedError()
   return (await tx.execute<{ id: string; image_url: string | null }>(sql`
-    update public.items set deleted_at = now(), deleted_by = ${actorId}, updated_by = ${actorId}, updated_at = now()
+    update ${inventoryTable(type)} set deleted_at = now(), deleted_by = ${actorId}, updated_by = ${actorId}, updated_at = now()
     where id ${match} and deleted_at is null returning id, image_url
   `)).rows
 }

@@ -74,7 +74,7 @@ export function ApprovalRowMenu({ doc, disabled, onBusyChange, onComplete }: {
               </div>
               <Dialog.Title className="text-lg font-semibold">ยกเลิกคำขอนี้?</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {approved ? 'ระบบจะย้อนการจ่าย คืนจำนวนพัสดุหรือผู้ครอบครองเดิม และบันทึกเหตุผลการยกเลิกไว้ในประวัติ' : doc.status === 'pending_approval' ? 'คำขอจะถูกนำออกจากรายการ และจะไม่มีการจ่ายพัสดุ' : 'ร่างนี้จะเปลี่ยนเป็น “ยกเลิกแล้ว” และไม่สามารถแก้ไขต่อได้'}
+                {approved ? 'ระบบจะย้อนการจ่าย คืนจำนวนวัสดุหรือผู้ครอบครองเดิม และบันทึกเหตุผลการยกเลิกไว้ในประวัติ' : doc.status === 'pending_approval' ? 'คำขอจะถูกนำออกจากรายการ และจะไม่มีการจ่ายวัสดุ' : 'ร่างนี้จะเปลี่ยนเป็น “ยกเลิกแล้ว” และไม่สามารถแก้ไขต่อได้'}
               </Dialog.Description>
               <dl className="my-5 space-y-3 rounded-lg bg-muted/50 p-4 text-sm">
                 <div className="flex gap-4"><dt className="w-20 shrink-0 text-muted-foreground">ผู้ขอ</dt><dd className="min-w-0 break-words font-medium">{doc.recipient_name || 'ไม่ระบุชื่อ'}</dd></div>

@@ -152,7 +152,7 @@ async function run() {
         const matCatId = randomUUID()
         const astCatId = randomUUID()
         await client.query(
-          "INSERT INTO public.categories (id, name, color, icon, is_active) VALUES ($1, 'วัสดุสำนักงาน', '#3B82F6', 'Package', true)",
+          "INSERT INTO public.categories (id, name, item_type, color, icon, is_active) VALUES ($1, 'วัสดุสำนักงาน', 'material', '#3B82F6', 'Package', true)",
           [matCatId]
         )
         await client.query(

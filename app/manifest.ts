@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CAMMS — ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลาง',
+    name: 'CAMMS — ระบบบริหารจัดการวัสดุและสินทรัพย์ส่วนกลาง',
     short_name: 'CAMMS',
-    description: 'ระบบบริหารจัดการพัสดุและสินทรัพย์ส่วนกลางสำหรับหน่วยงาน',
+    description: 'ระบบบริหารจัดการวัสดุและสินทรัพย์ส่วนกลางสำหรับหน่วยงาน',
     start_url: '/dashboard',
     display: 'standalone',
     background_color: '#0f172a',

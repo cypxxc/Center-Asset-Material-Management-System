@@ -27,6 +27,7 @@ export default async function EditItemPage({ params }: EditItemPageProps) {
   }
 
   if (!item) notFound()
+  if (item.item_type === 'material') redirect(`/materials/${item.id}/edit`)
 
   const action = updateItem.bind(null, item.id)
 
