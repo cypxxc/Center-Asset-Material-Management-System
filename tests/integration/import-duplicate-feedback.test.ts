@@ -63,6 +63,15 @@ test('importPostgresItems detects collisions against existing database records a
     t.skip('Skipping live database test when DATABASE_URL is not set')
     return
   }
+  const { Client } = await import('pg')
+  const client = new Client({ connectionString: process.env.DATABASE_MIGRATION_URL || process.env.DATABASE_URL, connectionTimeoutMillis: 5000 })
+  await client.connect()
+  try {
+    await client.query("INSERT INTO public.profiles(id, full_name, email, role, is_active) VALUES ($1, 'Admin Fixture', 'admin-fixture@test.invalid', 'admin', true) ON CONFLICT (id) DO NOTHING", [actor])
+    await client.query("INSERT INTO public.items(item_name, item_type, asset_no, quantity, status) SELECT 'ชุดโต๊ะไม้สีน้ำตาลผู้บริหาร', 'asset', 'สขส 7. 7110-007-0010-1/58', 1, 'active' WHERE NOT EXISTS (SELECT 1 FROM public.items WHERE asset_no = 'สขส 7. 7110-007-0010-1/58' AND deleted_at IS NULL)")
+  } finally {
+    await client.end()
+  }
   const { importPostgresItems } = await import('../../features/items/postgres-actions')
   const rows = [
     {

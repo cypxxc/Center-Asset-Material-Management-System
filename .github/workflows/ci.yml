@@ -38,6 +38,9 @@ jobs:
       - name: Audit production dependencies
         run: npm run audit:release
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Run tests
         run: npm test
 
@@ -46,9 +49,6 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
 
       - name: Run browser smoke tests
         run: npm run test:smoke
@@ -63,6 +63,14 @@ jobs:
       POSTGRES_QUERY_INTEGRATION: '1'
       POSTGRES_HTTP_INTEGRATION: '1'
       POSTGRES_RECOVERY_INTEGRATION: '1'
+      MATERIAL_BORROW_INTEGRATION: '1'
+      COMPLETED_CHART_SQL_TEST: '1'
+      POSTGRES_ACQUISITION_LIVE_TEST: '1'
+      POSTGRES_ADMIN_QUEUE_LIVE_TEST: '1'
+      POSTGRES_ITEM_ARCHIVE_LIVE_TEST: '1'
+      POSTGRES_LIVE_TEST: '1'
+      MATERIAL_MIGRATION_TEST: '1'
+      POSTGRES_NULL_EMAIL_LIVE_TEST: '1'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,7 +99,31 @@ jobs:
           npm run postgres:verify:security
 
       - name: Run live queries, administration and fresh restore integration
-        run: node --import tsx --test features/items/postgres-queries-live.test.ts tests/integration/postgres-admin-live.test.ts tests/integration/postgres-admin-restore-live.test.ts
+        run: |
+          node --test-concurrency=1 --import tsx --test \
+            features/items/postgres-queries-live.test.ts \
+            features/items/asset-register-live.test.ts \
+            features/materials/stock-postgres-live.test.ts \
+            features/reports/completed-disbursement-sql.test.ts \
+            features/disbursements/material-borrow-live.test.ts \
+            features/disbursements/material-concurrency-live.test.ts \
+            features/disbursements/material-issue-live.test.ts \
+            features/disbursements/material-stock-owner-live.test.ts \
+            features/disbursements/postgres-actions-live.test.ts \
+            tests/integration/acquisition-queries.test.ts \
+            tests/integration/admin-work-queue.test.ts \
+            tests/integration/item-archive-live.test.ts \
+            tests/integration/import-duplicate-feedback.test.ts \
+            tests/integration/material-separation.test.ts \
+            tests/integration/category-types-migration.test.ts \
+            tests/integration/navicat-password-live.test.ts \
+            tests/integration/postgres-admin-live.test.ts \
+            tests/integration/postgres-admin-restore-live.test.ts \
+            tests/integration/postgres-disbursement-actions-live.test.ts \
+            tests/integration/postgres-disbursement-flow-live.test.ts \
+            tests/integration/postgres-disbursement-migration-live.test.ts \
+            tests/integration/postgres-null-email-live.test.ts \
+            tests/integration/user-role-migration-live.test.ts
 
       - name: Check PostgreSQL production code
         run: |

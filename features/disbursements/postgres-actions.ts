@@ -743,7 +743,10 @@ export async function submitPostgresBorrowRequest(rawInput: unknown) {
       )
       const it = itemRes.rows[0]
       if (!it) throw new Error('ไม่พบข้อมูลวัสดุบางรายการ')
-      const action = input.item_actions[itemId] ?? input.request_type
+      if (it.item_type === 'material' && input.request_type === 'issue' && input.item_actions[itemId] === 'borrow') {
+        throw new Error('ไม่สามารถยืมวัสดุในคำขอเบิกได้')
+      }
+      const action = input.item_actions[itemId] ?? (it.item_type === 'material' ? 'issue' : input.request_type)
       const documentType = action === 'borrow' ? 'asset_borrow' : it.item_type === 'material' ? 'material_issue' : 'asset_handover'
       if (documentType === 'asset_borrow' && !input.due_date) throw new Error('กรุณาระบุกำหนดส่งคืนสำหรับรายการยืมสิ่งของ')
       if (documentType === 'asset_borrow') {

@@ -16,7 +16,7 @@ test('PostgreSQL acquisition aggregation handles missing/future dates, prices an
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    await client.query('CREATE TEMP TABLE acquisition_fixture(acquired_date date, quantity integer, unit_price numeric, deleted_at timestamptz, status text) ON COMMIT DROP')
+    await client.query("CREATE TEMP TABLE acquisition_fixture(acquired_date date, quantity integer, unit_price numeric, deleted_at timestamptz, status text, item_type text DEFAULT 'asset') ON COMMIT DROP")
     await client.query(`INSERT INTO acquisition_fixture VALUES
       ('2025-09-30', 4, 100, null, 'active'),
       ('2025-10-01', 1, null, null, 'disposed'),
@@ -25,7 +25,7 @@ test('PostgreSQL acquisition aggregation handles missing/future dates, prices an
       ('9999-01-01', 1, 900, null, 'active'),
       ('2025-09-01', 1, 999, now(), 'active')`)
     const compiled = new PgDialect().sqlToQuery(acquisitionSummarySql)
-    const fixtureSql = compiled.sql.replace('public.items', 'pg_temp.acquisition_fixture')
+    const fixtureSql = compiled.sql.replace(/public\.(inventory_)?items/, 'pg_temp.acquisition_fixture')
     const result = await client.query<{ summary: AcquisitionSummary }>(fixtureSql, compiled.params)
     assert.deepEqual(result.rows[0].summary.months, [
       { year: 2025, month: 9, recordCount: 1, knownValue: 400, missingPriceCount: 0 },

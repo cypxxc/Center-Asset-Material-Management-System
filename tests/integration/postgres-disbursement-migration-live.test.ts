@@ -113,7 +113,10 @@ test(
         assert.equal(selectRes.rows[0].status, 'draft')
 
         // Test immutability trigger: confirmed documents cannot be deleted
-        await client.query("UPDATE public.disbursements SET status = 'confirmed', confirmed_at = now() WHERE id = $1", [docId])
+        await client.query(
+          "UPDATE public.disbursements SET status = 'confirmed', confirmed_at = now(), confirmed_by = $1, document_no = 'DIS-TEST-0001', fiscal_year = 2570 WHERE id = $2",
+          [adminId, docId]
+        )
         await assert.rejects(
           client.query('DELETE FROM public.disbursements WHERE id = $1', [docId]),
           /Cannot delete non-draft disbursement document/

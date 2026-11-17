@@ -57,8 +57,9 @@ test('actual PostgreSQL actions preserve request, approval, return and concurren
     }
     const asUser = <T>(id: string, role: string, operation: () => Promise<T>) => identities.run({ id,role,is_active:true,full_name:'Fixture recipient',department:'Fixture department' }, operation)
     const material = randomUUID(), asset = randomUUID(), handed = randomUUID(), cancellable = randomUUID()
-    for (const [id,type] of [[material,'material'],[asset,'asset'],[handed,'asset'],[cancellable,'asset']]) {
-      await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no) VALUES($1,$2,$3,$4,true,$5)", [id,id,type,type === 'material' ? 10 : 1,type === 'asset' ? id : null])
+    await owner.query("INSERT INTO materials(id,item_name,item_type,quantity,is_central) VALUES($1,$2,'material',10,true)", [material, material])
+    for (const [id,type] of [[asset,'asset'],[handed,'asset'],[cancellable,'asset']]) {
+      await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no) VALUES($1,$2,$3,1,true,$4)", [id,id,type,id])
     }
     const request = (id: string, request_type: 'issue' | 'borrow') => actions.submitPostgresBorrowRequest({ item_ids:[id],request_type,due_date:request_type === 'borrow' ? '2099-01-01' : undefined,purpose:'Fixture purpose' })
     // Grouped borrowing: one parent, three children, independently returned assets.
@@ -108,7 +109,7 @@ test('actual PostgreSQL actions preserve request, approval, return and concurren
     await assert.rejects(asUser(user,'user',() => actions.confirmPostgresDisbursement(issue.id)))
     const approvals = await Promise.allSettled([asUser(admin,'admin',() => actions.confirmPostgresDisbursement(issue.id)),asUser(admin,'admin',() => actions.confirmPostgresDisbursement(issue.id))])
     assert.equal(approvals.filter(r => r.status === 'fulfilled').length,1)
-    assert.equal((await owner.query('SELECT quantity FROM items WHERE id=$1',[material])).rows[0].quantity,9)
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,9)
     assert.equal((await owner.query('SELECT count(*)::int AS n FROM stock_movements WHERE item_id=$1',[material])).rows[0].n,1)
     await asUser(admin,'admin',() => actions.confirmPostgresDisbursement(borrow.value.id))
     await asUser(admin,'admin',() => actions.confirmPostgresDisbursement(handover.id))
@@ -131,13 +132,15 @@ test('actual PostgreSQL actions preserve request, approval, return and concurren
     const rollback = await asUser(user,'user',() => request(material,'issue'))
     await owner.query("CREATE FUNCTION public.fixture_fail_approval() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='CONFIRM_DISBURSEMENT' THEN RAISE EXCEPTION 'fixture final audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fixture_fail_approval BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION public.fixture_fail_approval()")
     await assert.rejects(asUser(admin,'admin',() => actions.confirmPostgresDisbursement(rollback.id)),(error: Error) => error.cause instanceof Error && error.cause.message.includes('fixture final audit failure'))
-    assert.equal((await owner.query('SELECT quantity FROM items WHERE id=$1',[material])).rows[0].quantity,9)
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,8)
     assert.equal((await owner.query('SELECT status FROM disbursements WHERE id=$1',[rollback.id])).rows[0].status,'pending_approval')
     assert.equal((await owner.query('SELECT issued_qty FROM disbursement_items WHERE disbursement_id=$1',[rollback.id])).rows[0].issued_qty,0)
-    assert.equal((await owner.query('SELECT count(*)::int AS n FROM stock_movements WHERE item_id=$1',[material])).rows[0].n,1)
+    assert.equal((await owner.query('SELECT count(*)::int AS n FROM stock_movements WHERE item_id=$1',[material])).rows[0].n,2)
     await owner.query('DROP TRIGGER fixture_fail_approval ON audit_logs; DROP FUNCTION public.fixture_fail_approval()')
+    await asUser(user,'user',() => actions.cancelPostgresDisbursementDraft({id:rollback.id}))
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,9)
     await asUser(admin,'admin',() => actions.reversePostgresDisbursement({disbursement_id:issue.id,reason:'Fixture reversal'}))
-    assert.equal((await owner.query('SELECT quantity FROM items WHERE id=$1',[material])).rows[0].quantity,10)
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,10)
   } finally {
     await Promise.all(pools.map(pool => pool.end()))
     if (created) {

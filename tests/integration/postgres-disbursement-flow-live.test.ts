@@ -31,7 +31,8 @@ test('isolated PostgreSQL request RLS, approval immutability and rollback', {
       await owner.query('INSERT INTO profiles(id,full_name,email,role) VALUES($1,$2,$3,$4)', [id, role, `${id}@fixture.invalid`, role])
     }
     const material = randomUUID(), asset = randomUUID(), handAsset = randomUUID()
-    await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no) VALUES ($1,'Material','material',10,true,NULL),($2,'Asset','asset',1,true,'FIXTURE-1'),($3,'Handover','asset',1,true,'FIXTURE-2')", [material, asset, handAsset])
+    await owner.query("INSERT INTO materials(id,item_name,item_type,quantity,is_central) VALUES ($1,'Material','material',10,true)", [material])
+    await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no) VALUES ($1,'Asset','asset',1,true,'FIXTURE-1'),($2,'Handover','asset',1,true,'FIXTURE-2')", [asset, handAsset])
     const app = poolFor(env.DATABASE_URL)
     async function asUser<T>(id: string, operation: (client: import('pg').PoolClient) => Promise<T>) {
       const client = await app.connect()
@@ -71,10 +72,10 @@ test('isolated PostgreSQL request RLS, approval immutability and rollback', {
       await assert.rejects(asUser(admin, c => c.query("UPDATE disbursements SET purpose='changed' WHERE id=$1", [docs[index]])), /immutable/)
     }
     await assert.rejects(asUser(admin, async c => {
-      await c.query('UPDATE items SET quantity=quantity-1 WHERE id=$1', [material])
+      await c.query('UPDATE materials SET quantity=quantity-1 WHERE id=$1', [material])
       await c.query("UPDATE disbursements SET status='pending_approval' WHERE id=$1", [docs[1]])
     }), /Invalid disbursement transition/)
-    assert.equal((await owner.query('SELECT quantity FROM items WHERE id=$1', [material])).rows[0].quantity, 10)
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1', [material])).rows[0].quantity, 10)
     await assert.rejects(asUser(admin, c => c.query('INSERT INTO disbursement_items(disbursement_id,item_id,requested_qty) VALUES($1,$2,1)', [docs[1],handAsset])), /Cannot add lines/)
     const lockingHeader = randomUUID()
     await owner.query("INSERT INTO disbursements(id,transaction_type,recipient_name,department_name,purpose,status,created_by) VALUES($1,'material_issue','R','D','P','pending_approval',$2)", [lockingHeader,user])

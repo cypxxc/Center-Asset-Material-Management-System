@@ -23,7 +23,7 @@ test('archive keeps closed history/images and blocks all selected rows when one 
   const tx = { execute: async (statement: SQL) => {
     const query = new PgDialect().sqlToQuery(statement)
     const text = query.sql.replaceAll('public.disbursement_items', 'pg_temp.archive_lines')
-      .replaceAll('public.disbursements', 'pg_temp.archive_docs').replaceAll('public.items', 'pg_temp.archive_items')
+      .replaceAll('public.disbursements', 'pg_temp.archive_docs').replaceAll(/public\.("?items"?)/g, 'pg_temp.archive_items')
     return client.query(text, query.params)
   } } as unknown as PostgresTransaction
   try {

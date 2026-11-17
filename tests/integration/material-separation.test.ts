@@ -43,6 +43,9 @@ test('material separation preserves UUIDs, history, RLS and physical stock owner
     await client.query('commit')
     await assert.rejects(client.query('delete from public.materials where id=$1', [material]), /foreign key/)
     assert.equal((await client.query('select quantity from public.materials where id=$1',[material])).rows[0].quantity,12)
+    for (const file of migrations.filter(file => file > '0005_separate_materials.sql')) {
+      await client.query(readFileSync(`db/postgres/migrations/${file}`, 'utf8'))
+    }
     // Exercise the actual application issue/reversal paths on this disposable database.
     for (const moduleName of ['server-only','next/cache']) {
       const filename = require.resolve(moduleName)

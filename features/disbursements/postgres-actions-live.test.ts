@@ -37,7 +37,8 @@ test(
       },
     } as NodeJS.Module
 
-    const { getAuthDatabase, withIdentity } = await import('../../lib/postgres/db')
+    const db = await import('../../lib/postgres/db')
+    const { getAuthDatabase, withIdentity } = db
     const authDb = getAuthDatabase()
     const admin = await authDb.execute<{ id: string }>(
       sql`select id from public.profiles where role = 'admin' and is_active limit 1`
@@ -55,18 +56,19 @@ test(
       },
     } as NodeJS.Module
 
-    // Test scaffolding runs inside an intentional top-level rollback transaction
-    await assert.rejects(
-      withIdentity(userId, async (tx) => {
-        activeTx = tx
-        const {
-          createPostgresDisbursementDraft,
-          updatePostgresDisbursementDraft,
-          confirmPostgresDisbursement,
-          cancelPostgresDisbursementDraft,
-          returnPostgresDisbursementItem,
-          reversePostgresDisbursement,
-        } = await import('./postgres-actions')
+    try {
+      // Test scaffolding runs inside an intentional top-level rollback transaction
+      await assert.rejects(
+        withIdentity(userId, async (tx) => {
+          activeTx = tx
+          const {
+            createPostgresDisbursementDraft,
+            updatePostgresDisbursementDraft,
+            confirmPostgresDisbursement,
+            cancelPostgresDisbursementDraft,
+            returnPostgresDisbursementItem,
+            reversePostgresDisbursement,
+          } = await import('./postgres-actions')
 
         const fixture = randomUUID()
         const catId = randomUUID()
@@ -82,8 +84,8 @@ test(
         await tx.execute(sql`insert into public.units (id, name, is_active) values (${unitId}::uuid, ${fixture}, true)`)
         await tx.execute(sql`insert into public.materials (id, item_name, item_type, category_id, unit_id, quantity, status)
           values (${matId}::uuid, ${'Material-' + fixture}, 'material', ${materialCatId}::uuid, ${unitId}::uuid, 10, 'active')`)
-        await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status)
-          values (${assetHandoverId}::uuid, ${'Asset-HO-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-HO-' + fixture}, 'Original Keeper', 'active')`)
+        await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status, is_central)
+          values (${assetHandoverId}::uuid, ${'Asset-HO-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-HO-' + fixture}, 'Original Keeper', 'active', true)`)
         await tx.execute(sql`insert into public.items (id, item_name, item_type, category_id, unit_id, quantity, asset_no, responsible_person, status, note)
           values (${assetBorrowId}::uuid, ${'Asset-BR-' + fixture}, 'asset', ${catId}::uuid, ${unitId}::uuid, 1, ${'A-BR-' + fixture}, 'Office Lead', 'active', 'ของส่วนกลาง')`)
 
@@ -131,7 +133,7 @@ test(
         // Cancelling confirmed document must fail
         await assert.rejects(
           cancelPostgresDisbursementDraft({ id: matDraft.id }),
-          /สามารถยกเลิกได้เฉพาะเอกสารฉบับร่างเท่านั้น/
+          /ไม่สามารถยกเลิกรายการที่อนุมัติหรือจบแล้วได้/
         )
 
         // Verify stock movement record is typed and present
@@ -177,7 +179,7 @@ test(
           recipient_name: 'Borrower Name',
           department_name: 'Field Team',
           purpose: 'Temporary field equipment borrow',
-          due_date: '2026-11-15',
+          due_date: '2029-12-31',
           items: [{ item_id: assetBorrowId, requested_qty: 1 }],
         })
         await confirmPostgresDisbursement(brDraft.id)
@@ -208,7 +210,7 @@ test(
             disbursement_id: brDraft.id,
             reason: 'Attempt reverse after return',
           }),
-          /ไม่สามารถคืนสภาพเอกสารได้เนื่องจากมีการบันทึกคืนพัสดุบางส่วนไปแล้ว/
+          /ไม่สามารถคืนสภาพเอกสารได้เนื่องจากมีการบันทึกคืน(พัสดุ|วัสดุ)บางส่วนไปแล้ว/
         )
 
         // -------------------------------------------------------------
@@ -225,5 +227,7 @@ test(
       }),
       /INTENTIONAL_TEST_ROLLBACK/
     )
+  } finally {
+    await db.closePostgresPools()
   }
-)
+})

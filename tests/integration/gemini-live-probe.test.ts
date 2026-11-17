@@ -26,8 +26,16 @@ test('Gemini API Live Connection and Function Calling', async () => {
     console.log('Gemini Live Decision:', decision)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    if (message.includes('503') || message.includes('429') || message.includes('high demand') || message.includes('fetch failed')) {
-      console.warn('Skipping live probe: Gemini API temporarily unavailable (503/429/network):', message)
+    if (
+      message.includes('503') ||
+      message.includes('429') ||
+      message.includes('high demand') ||
+      message.includes('fetch failed') ||
+      message.includes('aborted') ||
+      message.includes('timeout') ||
+      (err instanceof Error && err.name === 'AbortError')
+    ) {
+      console.warn('Skipping live probe: Gemini API temporarily unavailable (503/429/network/timeout):', message)
       return
     }
     throw err
