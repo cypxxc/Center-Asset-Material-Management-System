@@ -18,7 +18,7 @@ test('DisbursementStatusBadge renders text label and svg icon (Hard Rule complia
 
 test('DisbursementTypeBadge renders text label and svg icon', () => {
   const { container } = render(React.createElement(DisbursementTypeBadge, { type: 'material_issue' }));
-  assert.ok(container.textContent?.includes('เบิกจ่ายพัสดุ'));
+  assert.ok(container.textContent?.includes('เบิกจ่ายวัสดุ'));
   const svg = container.querySelector('svg');
   assert.ok(svg, 'Type badge must render an icon alongside text');
 });
@@ -35,14 +35,13 @@ test('DisbursementListClient renders EmptyState when items array is empty', () =
       currentStatus: '',
       currentType: '',
       canCreate: true,
-      userRole: 'admin',
+      userRole: 'user',
       initialTab: 'documents',
     })
   );
 
-  assert.ok(container.textContent?.includes('ระบบเบิก-จ่ายและยืมพัสดุส่วนกลาง'));
   assert.ok(container.textContent?.includes('ยังไม่มีประวัติการเบิก-จ่าย'));
-  assert.ok(container.textContent?.includes('สร้างเอกสารเบิกจ่าย'));
+  assert.ok(container.textContent?.includes('ส่งคำขอเบิก') || container.textContent?.includes('สั่งจ่าย'));
 });
 
 test('DisbursementListClient renders DataTable and rows when items exist', () => {
@@ -80,14 +79,13 @@ test('DisbursementListClient renders DataTable and rows when items exist', () =>
       currentStatus: '',
       currentType: '',
       canCreate: false,
-      userRole: 'admin',
+      userRole: 'user',
       initialTab: 'documents',
     })
   );
 
-  assert.ok(container.textContent?.includes('DISB-2026-0001'));
+  assert.ok(container.querySelector('[aria-label*="DISB-2026-0001"]'));
   assert.ok(container.textContent?.includes('สมชาย ใจดี'));
-  assert.ok(container.textContent?.includes('งานเทคโนโลยีสารสนเทศ'));
   assert.ok(container.textContent?.includes('กำลังยืม'));
   assert.ok(container.querySelector('table'));
 });

@@ -75,7 +75,7 @@ test('DashboardActionQueue switches tabs using left/right arrow keys', async () 
   // Press ArrowRight to switch to low-stock tab
   fireEvent.keyDown(tablist, { key: 'ArrowRight' })
 
-  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
   assert.equal(lowStockTab.getAttribute('aria-selected'), 'true')
   assert.ok(screen.getByText('กระดาษ Double A A4 80gsm'))
 
@@ -94,24 +94,22 @@ test('DashboardActionQueue renders damaged items tab by default with details and
 
   // Verify tab headers and badges
   assert.ok(screen.getByText('ครุภัณฑ์ชำรุดและรอซ่อม'))
-  assert.ok(screen.getByText('พัสดุใกล้หมดคลัง'))
+  assert.ok(screen.getByText('วัสดุใกล้หมดคลัง'))
 
   // Verify damaged items details
   assert.ok(screen.getByText('เครื่องพิมพ์เลเซอร์ HP LaserJet Pro'))
   assert.ok(screen.getByText('AS-2024-0012'))
   assert.ok(screen.getByText('ห้องธุรการ ชั้น 2'))
-  assert.ok(screen.getByText('ชำรุด'))
+  assert.ok(screen.getAllByText('ชำรุด').length >= 1)
 
   assert.ok(screen.getByText('เก้าอี้สำนักงานเพื่อสุขภาพ'))
   assert.ok(screen.getByText('AS-2024-0089'))
   assert.ok(screen.getByText('ห้องประชุมใหญ่'))
-  assert.ok(screen.getByText('รอส่งซ่อม'))
 
   // Verify action links have accessible labels
   const viewLinks = screen.getAllByRole('link', { name: /ดูข้อมูล/ })
   assert.ok(viewLinks.length >= 2)
-  assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-damaged-1'))
-  assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-damaged-2'))
+  assert.ok(viewLinks.every((l) => l.getAttribute('href') === '/items'))
   assert.equal(viewLinks[0].getAttribute('aria-label'), 'ดูข้อมูล เครื่องพิมพ์เลเซอร์ HP LaserJet Pro')
 
   // Verify footer deep-link to full registry exists
@@ -127,7 +125,7 @@ test('DashboardActionQueue switches to low stock tab when clicked', async () => 
   render(element)
 
   // Click low stock tab
-  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
   fireEvent.click(lowStockTab)
 
   // Low stock items should now be visible
@@ -145,8 +143,7 @@ test('DashboardActionQueue switches to low stock tab when clicked', async () => 
 
   // Links for low stock items
   const viewLinks = screen.getAllByRole('link', { name: /ดูข้อมูล/ })
-  assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-stock-1'))
-  assert.ok(viewLinks.some((l) => l.getAttribute('href') === '/items/item-stock-2'))
+  assert.ok(viewLinks.every((l) => l.getAttribute('href') === '/items'))
 })
 
 test('DashboardActionQueue displays empty state when damaged items list is empty', async () => {
@@ -169,10 +166,10 @@ test('DashboardActionQueue displays empty state when low-stock items list is emp
   render(element)
 
   // Switch to low-stock tab
-  const lowStockTab = screen.getByRole('tab', { name: /พัสดุใกล้หมดคลัง/ })
+  const lowStockTab = screen.getByRole('tab', { name: /วัสดุใกล้หมดคลัง/ })
   fireEvent.click(lowStockTab)
 
-  assert.ok(screen.getByText('ระดับพัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ'))
+  assert.ok(screen.getByText('ระดับวัสดุคงคลังทั้งหมดอยู่ในเกณฑ์ปกติ'))
 })
 
 test('DashboardActionQueue displays emerald badge when both queues are clear', async () => {

@@ -41,7 +41,7 @@ function renderFilterBar(overrides: Partial<ItemsFilterBarProps> = {}) {
 test('ItemsFilterBar: asset and material selects show live counts and change the type filter', () => {
   const changes: ItemsFilterUpdates[] = []
   renderFilterBar({ onFilterChange: (updates) => changes.push(updates) })
-  const typeSelect = screen.getByLabelText('ประเภทพัสดุ') as HTMLSelectElement
+  const typeSelect = screen.getByLabelText('ประเภท') as HTMLSelectElement
   assert.ok(typeSelect)
   const options = Array.from(typeSelect.options)
   assert.equal(options.length, 3)
@@ -55,7 +55,7 @@ test('ItemsFilterBar: asset and material selects show live counts and change the
 test('ItemsFilterBar: qualification select is separate from asset/material type', () => {
   const changes: ItemsFilterUpdates[] = []
   renderFilterBar({ onFilterChange: (updates) => changes.push(updates) })
-  const qualSelect = screen.getByLabelText('สถานะตามเกณฑ์') as HTMLSelectElement
+  const qualSelect = screen.getByLabelText('เกณฑ์') as HTMLSelectElement
   assert.ok(qualSelect)
   const options = Array.from(qualSelect.options)
   assert.equal(options.length, 4)
@@ -103,7 +103,7 @@ test('ItemsFilterBar: renders active filter chips when filters are applied in pa
   assert.ok(catChip.textContent?.includes('อุปกรณ์ไอที'))
 
   const statusChip = screen.getByTestId('active-chip-status')
-  assert.ok(statusChip.textContent?.includes('ใช้งานอยู่'))
+  assert.ok(statusChip.textContent?.includes('ใช้งานได้'))
 
   const locChip = screen.getByTestId('active-chip-location')
   assert.ok(locChip.textContent?.includes('ห้องเก็บของส่วนกลาง'))
@@ -163,8 +163,8 @@ test('ItemsFilterBar: changing select dropdown invokes onFilterChange', () => {
 
   // Change status select with valid option value
   const statusSelect = screen.getByLabelText('กรองตามสถานะ')
-  fireEvent.change(statusSelect, { target: { value: 'waiting_repair' } })
-  assert.deepEqual(filterUpdates[1], { status: 'waiting_repair' })
+  fireEvent.change(statusSelect, { target: { value: 'damaged' } })
+  assert.deepEqual(filterUpdates[1], { status: 'damaged' })
 })
 
 test('ItemsFilterBar: renders batch print by location button when location_id is selected', () => {

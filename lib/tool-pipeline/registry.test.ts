@@ -56,7 +56,7 @@ test('ToolRegistry filters tools by category and by role access', () => {
     name: 'pub_tool',
     description: 'Public tool',
     category: 'metadata',
-    requiredRole: 'viewer',
+    requiredRole: 'user',
     inputSchema: z.object({}),
     outputSchema: z.object({ ok: z.boolean() }),
     handler: async () => ({ ok: true }),
@@ -107,11 +107,11 @@ test('ToolRegistry filters tools by category and by role access', () => {
   assert.equal(anonTools.length, 1)
   assert.equal(anonTools[0].name, 'anon_tool')
 
-  // Viewer role should see public + viewer tools
-  const viewerTools = registry.listForRole('viewer')
-  assert.equal(viewerTools.length, 2)
-  assert.ok(viewerTools.some((t) => t.name === 'pub_tool'))
-  assert.ok(viewerTools.some((t) => t.name === 'anon_tool'))
+  // User role should see public + user tools
+  const userTools = registry.listForRole('user')
+  assert.equal(userTools.length, 2)
+  assert.ok(userTools.some((t) => t.name === 'pub_tool'))
+  assert.ok(userTools.some((t) => t.name === 'anon_tool'))
 
   // Staff role should see public + viewer + staff tools
   const staffTools = registry.listForRole('staff')

@@ -164,9 +164,9 @@ test('AssetTagModal toggles field visibility (price, responsible person, organiz
   assert.ok(screen.getAllByText(/ราคา: 15,500 บาท/).length >= 1)
 
   // Toggle Org Header to OFF
-  const orgCheckbox = screen.getByLabelText('หัวเรื่อง CAMMS')
+  const orgCheckbox = screen.getByLabelText('หัวเรื่อง Portal')
   fireEvent.click(orgCheckbox)
-  assert.equal(screen.queryByText('CAMMS — ระบบบริหารจัดการทรัพย์สิน'), null)
+  assert.equal(screen.queryByText('Portal — ระบบบริหารจัดการทรัพย์สิน'), null)
 })
 
 test('AssetTagModal falls back to serial_no when asset_no is missing', () => {

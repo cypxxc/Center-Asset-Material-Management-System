@@ -83,6 +83,7 @@ test('ItemTableRow: clicking checkbox calls onToggleSelectItem and stops propaga
           item={mockItem}
           isSelected={false}
           isChecked={false}
+          userCanWrite={true}
           onSelect={() => { selectCalled = true }}
           onToggleSelectItem={() => { toggleCalled = true }}
         />
@@ -126,6 +127,7 @@ test('ItemTableRow: responsive column classes when isInspectorOpen is false', ()
           item={mockItem}
           isSelected={false}
           isChecked={false}
+          userCanWrite={true}
           onSelect={() => {}}
           onToggleSelectItem={() => {}}
           isInspectorOpen={false}
@@ -154,6 +156,7 @@ test('ItemTableRow: responsive column classes collapse when isInspectorOpen is t
           item={mockItem}
           isSelected={false}
           isChecked={false}
+          userCanWrite={true}
           onSelect={() => {}}
           onToggleSelectItem={() => {}}
           isInspectorOpen={true}

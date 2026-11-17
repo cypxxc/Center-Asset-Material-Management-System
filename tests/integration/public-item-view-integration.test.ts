@@ -9,7 +9,7 @@ function mockModule(path: string, exports: object) {
 }
 
 let mockProfile: { id: string; role: string; is_active: boolean } | null = null
-let mockItemData: { item: unknown; auditLogs: unknown[] } = {
+const mockItemData: { item: unknown; auditLogs: unknown[] } = {
   item: null,
   auditLogs: [],
 }
@@ -35,52 +35,13 @@ mockModule('next/navigation', {
   },
 })
 
-test('ItemDetailPage renders PublicItemView when unauthenticated and item exists', async () => {
-  mockProfile = null
-  mockItemData = {
-    item: {
-      id: 'test-item-1',
-      item_name: 'กล้องจุลทรรศน์',
-      item_type: 'asset',
-      status: 'active',
-      asset_no: 'AST-MIC-01',
-      serial_no: 'SN-999',
-      quantity: 1,
-      unit_price: 35000,
-      responsible_person: 'ดร.สมชาย',
-      category: { id: 'c1', name: 'วิทยาศาสตร์' },
-      location: { id: 'l1', name: 'ห้องแล็บ 402' },
-      unit: { id: 'u1', name: 'เครื่อง' },
-    },
-    auditLogs: [],
-  }
-
+test('ItemDetailPage redirects bookmark or scan requests to /items', async () => {
   const { default: ItemDetailPage } = await import('../../app/(dashboard)/items/[id]/page')
-  const result = await ItemDetailPage({
-    params: Promise.resolve({ id: 'test-item-1' }),
-  })
-
-  // Should render PublicItemView component, not throw redirect
-  assert.ok(result, 'Result element should be returned')
-  // PublicItemView should be returned when unauthenticated
-  assert.equal(typeof result, 'object')
-})
-
-test('ItemDetailPage calls notFound when unauthenticated and item does not exist', async () => {
-  mockProfile = null
-  mockItemData = {
-    item: null,
-    auditLogs: [],
-  }
-
-  const { default: ItemDetailPage } = await import('../../app/(dashboard)/items/[id]/page')
-  await assert.rejects(
-    async () => {
-      await ItemDetailPage({
-        params: Promise.resolve({ id: 'non-existent' }),
-      })
+  assert.throws(
+    () => {
+      ItemDetailPage()
     },
-    (err: unknown) => err instanceof Error && err.message === 'NEXT_NOT_FOUND',
+    (err: unknown) => err instanceof Error && err.message.includes('NEXT_REDIRECT:/items'),
   )
 })
 

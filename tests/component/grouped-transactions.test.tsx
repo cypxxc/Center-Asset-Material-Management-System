@@ -27,18 +27,18 @@ test('one parent expands to three independent asset rows and return progress', (
   const expand = view.getByRole('button', { name: /ขยายรายการ/ })
   fireEvent.click(expand)
   assert.equal(expand.getAttribute('aria-expanded'), 'true')
-  const table = view.getByRole('table', { name: 'รายการพัสดุในคำขอ' })
+  const table = view.getByRole('table', { name: 'รายการวัสดุในคำขอ' })
   assert.equal((table as HTMLTableElement).tBodies[0].rows.length, 3)
-  assert.equal(view.getAllByRole('button', { name: /รับคืน ASSET/ }).length, 2)
-  assert.equal(view.queryByRole('button', { name: 'รับคืน ASSET-1' }), null)
+  assert.equal(view.getAllByRole('button', { name: /^คืน ASSET/ }).length, 2)
+  assert.equal(view.queryByRole('button', { name: 'คืน ASSET-1' }), null)
   fireEvent.click(expand)
-  assert.equal(view.queryByRole('table', { name: 'รายการพัสดุในคำขอ' }), null)
+  assert.equal(view.queryByRole('table', { name: 'รายการวัสดุในคำขอ' }), null)
 })
 
 test('user can expand but cannot receive assets', () => {
   const view = render(<GroupedTransactionsTable documents={[document]} userRole="user" />)
   fireEvent.click(view.getByRole('button', { name: /ขยายรายการ/ }))
-  assert.equal(view.queryAllByRole('button', { name: /รับคืน ASSET/ }).length, 0)
+  assert.equal(view.queryAllByRole('button', { name: /^คืน ASSET/ }).length, 0)
 })
 
 test('approval reference shows the requester name without a redundant recipient column', () => {

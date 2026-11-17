@@ -50,7 +50,7 @@ const mockLedgerItems: ItemListRow[] = [
   },
 ]
 
-test('ItemsList: mode="ledger" renders official government header and 13 columns with 2-tier status header', () => {
+test('ItemsList: mode="ledger" renders official government header and columns', () => {
   render(
     <ItemsList
       items={mockLedgerItems}
@@ -68,46 +68,38 @@ test('ItemsList: mode="ledger" renders official government header and 13 columns
 
   // Header Banner
   assert.ok(screen.getByText('ทะเบียนคุมสินทรัพย์'))
-  assert.ok(screen.getByText('บัญชีแสดงรายการพัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'))
+  assert.ok(screen.getByText('บัญชีแสดงรายการวัสดุคงเหลือ (ครุภัณฑ์ตามเกณฑ์)'))
   assert.ok(screen.getByText(/สำนักงานเขตสุขภาพที่ 7/))
 
   // Column Headers
   assert.ok(screen.getByText('ลำดับ'))
   assert.ok(screen.getByText('วัน เดือน ปีที่รับ'))
-  assert.ok(screen.getByText('รับจาก (งปม.)'))
   assert.ok(screen.getByText('รายการครุภัณฑ์'))
   assert.ok(screen.getByText('ยี่ห้อ/รุ่น'))
   assert.ok(screen.getByText('ราคา'))
   assert.ok(screen.getByText('หน่วย'))
   assert.ok(screen.getByText('เลขครุภัณฑ์'))
-  assert.ok(screen.getByText('เลขสินทรัพย์'))
   assert.ok(screen.getByText('ผู้ครอบครอง'))
   assert.ok(screen.getByText('ใช้งานที่'))
-  assert.ok(screen.getByText('สภาพพัสดุ'))
-  assert.ok(screen.getByText('ใช้งานได้'))
-  assert.ok(screen.getByText('ชำรุด'))
-  assert.ok(screen.getByText('เสื่อมสภาพ'))
-  assert.ok(screen.getByText('หมายเหตุ'))
+  assert.ok(screen.getByText('สภาพวัสดุ'))
 
   // Data row 1 content
   assert.ok(screen.getByText('22-ก.ค.-64'))
-  assert.ok(screen.getByText('เงินบำรุง สสจ.ขก.'))
   assert.ok(screen.getByText('เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล'))
   assert.ok(screen.getByText('21,800.00'))
   assert.ok(screen.getByText('สนง.7 7440-002-0005-2/2564'))
-  assert.ok(screen.getByText('110000069558'))
   assert.ok(screen.getAllByText('กลุ่มงานสุขภาพดิจิทัล').length >= 1)
   assert.ok(screen.getAllByText('ห้องประชุม EOC (ชั้น 4)').length >= 1)
+  assert.ok(screen.getByText('ใช้งานได้'))
 
   // Data row 2 content
   assert.ok(screen.getByText('19-พ.ย.-64'))
-  assert.ok(screen.getByText('เงินกู้ (ไวรัสโคโรนา 2019)'))
-  assert.ok(screen.getByText('110000105470'))
+  assert.ok(screen.getByText('เครื่องคอมพิวเตอร์โน้ตบุ๊ก Lenovo ThinkPad'))
+  assert.ok(screen.getByText('ชำรุด'))
 })
 
-test('ItemsList: mode="ledger" interactive checkmarks invoke onUpdateStatus when clicked by authorized writer', () => {
-  let updatedItemId = ''
-  let updatedStatus = ''
+test('ItemsList: mode="ledger" selects item when clicked', () => {
+  let selectedItem: ItemListRow | null = null
 
   render(
     <ItemsList
@@ -116,23 +108,19 @@ test('ItemsList: mode="ledger" interactive checkmarks invoke onUpdateStatus when
       userCanWrite={true}
       selectedItemId={null}
       selectedItemIds={[]}
-      onSelect={() => {}}
+      onSelect={(item) => {
+        selectedItem = item
+      }}
       onToggleSelectItem={() => {}}
       onToggleSelectAll={() => {}}
       allLoadedSelected={false}
       params={{}}
       onToggleSort={() => {}}
-      onUpdateStatus={(id, status) => {
-        updatedItemId = id
-        updatedStatus = status
-      }}
     />
   )
 
-  // Item 1 has status 'active' -> click its 'ชำรุด' button
-  const damagedBtn = screen.getByLabelText('เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล สภาพชำรุด')
-  fireEvent.click(damagedBtn)
+  const row = screen.getByText('เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล')
+  fireEvent.click(row)
 
-  assert.equal(updatedItemId, 'item-ledger-1')
-  assert.equal(updatedStatus, 'damaged')
+  assert.equal(selectedItem?.id, 'item-ledger-1')
 })

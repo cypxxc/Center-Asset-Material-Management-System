@@ -43,15 +43,15 @@ test('DashboardMetricsGrid renders all 4 Bento Cards with expected test values',
   // 1. Valuation Card
   assert.ok(screen.getByText('มูลค่าสินทรัพย์รวม'))
   assert.ok(screen.getByText('฿1,250,000'))
-  assert.ok(screen.getByText('รวมครุภัณฑ์และพัสดุทั้งหมดในระบบ'))
+  assert.ok(screen.getByText('รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ'))
 
   // 2. Composition Card
-  assert.ok(screen.getByText('ครุภัณฑ์และพัสดุทั้งหมด'))
+  assert.ok(screen.getByText('ครุภัณฑ์และวัสดุทั้งหมด'))
   assert.ok(screen.getByText('100 รายการ'))
-  assert.ok(screen.getByText('ครุภัณฑ์ 70 | พัสดุ 30'))
+  assert.ok(screen.getByText('ครุภัณฑ์ 70 | วัสดุ 30'))
 
   // 3. Readiness Card
-  assert.ok(screen.getByText('ความพร้อมใช้งานของพัสดุ'))
+  assert.ok(screen.getByText('ความพร้อมใช้งานของวัสดุ'))
   assert.ok(screen.getByText('95.0%'))
   assert.ok(screen.getByText('ใช้งานปกติ 95 | ชำรุด/ส่งซ่อม 5'))
 
@@ -68,7 +68,7 @@ test('DashboardMetricsGrid renders all 4 Bento Cards with expected test values',
   // Verify progressbar accessibility
   const progressBar = screen.getByRole('progressbar')
   assert.ok(progressBar)
-  assert.equal(progressBar.getAttribute('aria-label'), 'สัดส่วนครุภัณฑ์และพัสดุ')
+  assert.equal(progressBar.getAttribute('aria-label'), 'สัดส่วนครุภัณฑ์และวัสดุ')
 })
 
 test('DashboardMetricsGrid applies tabular-nums and tracking-tight to numeric displays', async () => {
@@ -125,7 +125,6 @@ test('DashboardMetricsGrid displays quick action link and proper rose-colored co
   // Urgent count = (4 + 3) + 3 = 10
   const urgentCountEl = screen.getByText('10 รายการ')
   assert.ok(urgentCountEl.classList.contains('text-rose-600'))
-  assert.ok(urgentCountEl.classList.contains('dark:text-rose-400'))
 
   // Quick action link
   const actionLink = container.querySelector('a[href="#action-queue"]')

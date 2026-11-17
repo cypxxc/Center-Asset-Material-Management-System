@@ -99,6 +99,7 @@ const sampleDraftDoc = {
   status: 'draft' as const,
   confirmed_at: null,
   confirmed_by: null,
+  due_date: '2099-12-31',
 };
 
 test('DisbursementDetailClient confirms draft and cancels draft when triggered', async () => {
@@ -115,9 +116,6 @@ test('DisbursementDetailClient confirms draft and cancels draft when triggered',
 
   const confirmBtn = screen.getByRole('button', { name: /จ่ายและยืนยัน|ยืนยันการเบิก-จ่าย/ });
   fireEvent.click(confirmBtn);
-
-  const confirmModalAction = screen.getByRole('button', { name: 'ยืนยันทำรายการ' });
-  fireEvent.click(confirmModalAction);
 
   await waitFor(() => {
     assert.equal(confirmCallId, 'doc-draft-1');
@@ -178,7 +176,7 @@ test('DisbursementDetailClient opens return modal and submits item return', asyn
     })
   );
 
-  const returnBtn = screen.getByRole('button', { name: /บันทึกคืน/ });
+  const returnBtn = screen.getByRole('button', { name: /^คืน \(/ });
   fireEvent.click(returnBtn);
 
   // Return dialog opened
@@ -190,7 +188,7 @@ test('DisbursementDetailClient opens return modal and submits item return', asyn
   fireEvent.click(submitReturnBtn);
 
   await waitFor(() => {
-    assert.ok(container.textContent?.includes('บันทึกรับคืนพัสดุสำเร็จ'));
+    assert.ok(container.textContent?.includes('บันทึกรับคืนวัสดุสำเร็จ'));
   });
 
   assert.deepEqual(returnCallPayload, {

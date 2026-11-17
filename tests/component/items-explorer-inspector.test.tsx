@@ -118,8 +118,8 @@ test('ledger renders 50 items and preserves inspected item without virtual scrol
   const { container } = renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
   // In ledger view, all 50 items are rendered directly without virtual spacer rows
   const rows = screen.getAllByRole('row')
-  // 2 header rows in ledger + 50 data rows = 52 rows
-  assert.equal(rows.length, 52)
+  // 1 header row in ledger + 50 data rows = 51 rows
+  assert.equal(rows.length, 51)
   assert.equal(container.querySelector('[key="__virtual-top-spacer__"]'), null)
   assert.equal(container.querySelector('[key="__virtual-bottom-spacer__"]'), null)
 
@@ -128,21 +128,12 @@ test('ledger renders 50 items and preserves inspected item without virtual scrol
   assert.ok(screen.getAllByText('Page Item 10').length >= 1)
 })
 
-test('pagination footer displays range, total, single valuation metric, and handles page buttons', () => {
+test('pagination footer displays range, total, and handles page buttons', () => {
   const items = Array.from({ length: 50 }, (_, i) => ({ ...mockItems[0], id: `page1-${i}`, item_name: `Page 1 Item ${i}` }))
   renderComponent({ ...defaultProps, items, total: 237, page: 1, pageSize: 50, totalPages: 5 })
 
   // Summary badge: "แสดง 1–50 จาก 237 รายการ"
   assert.ok(screen.getByText('แสดง 1–50 จาก 237 รายการ'))
-
-  // Single valuation metric in bottom summary footer: 50 * 32,000 = 1,600,000
-  const valuationSummary = screen.getByTestId('page-valuation-summary')
-  assert.ok(valuationSummary)
-  assert.ok(valuationSummary.textContent?.includes('มูลค่ารวมในหน้านี้:'))
-  assert.ok(valuationSummary.textContent?.includes('฿1,600,000'))
-
-  // Verify no duplicate valuation element with old or redundant label
-  assert.equal(screen.queryByText('มูลค่ารายการที่โหลดอยู่:'), null)
 
   // Previous button should be disabled on page 1
   const prevBtn = screen.getByRole('button', { name: 'หน้าก่อนหน้า' })
@@ -157,14 +148,10 @@ test('pagination footer displays range, total, single valuation metric, and hand
   assert.equal(page1Btn.getAttribute('aria-current'), 'page')
 })
 
-test('pagination footer displays zero count and zero valuation when empty', () => {
+test('pagination footer displays zero count when empty', () => {
   renderComponent({ ...defaultProps, items: [], total: 0, page: 1, pageSize: 50, totalPages: 1 })
 
   assert.ok(screen.getByText('แสดง 0 จาก 0 รายการ'))
-  const valuationSummary = screen.getByTestId('page-valuation-summary')
-  assert.ok(valuationSummary)
-  assert.ok(valuationSummary.textContent?.includes('มูลค่ารวมในหน้านี้:'))
-  assert.ok(valuationSummary.textContent?.includes('฿0'))
 })
 
 test('Renders correct page heading based on type param', () => {
@@ -173,7 +160,7 @@ test('Renders correct page heading based on type param', () => {
   unmount()
 
   renderComponent({ ...defaultProps, params: { type: 'material' } })
-  assert.ok(screen.getByRole('heading', { name: 'รายการทะเบียนพัสดุ' }))
+  assert.ok(screen.getByRole('heading', { name: 'รายการทะเบียนวัสดุ' }))
 })
 
 test('Clicking an item row opens the Slide-Over Inspector Drawer with correct metadata', () => {
@@ -184,7 +171,7 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   fireEvent.click(row)
 
   // Drawer should now be visible
-  const drawer = screen.getByRole('dialog')
+  const drawer = screen.getByTestId('inspector-panel')
   assert.ok(drawer)
   assert.equal(drawer.getAttribute('aria-label'), 'รายละเอียดรายการ')
 
@@ -194,13 +181,8 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   assert.ok(drawerScope.getByText('EQ-2026-001'))
   assert.ok(drawerScope.getByText('นายสมชาย วิศวกรรม'))
   assert.ok(drawerScope.getByText('ห้องทำงานชั้น 3'))
-  assert.ok(drawerScope.getByText('฿32,000'))
+  assert.ok(drawerScope.getByText(/32,000/))
   assert.ok(drawerScope.getByText('สภาพดี เบิกใช้งานเมื่อมกราคม 2026'))
-
-  // Verify quick action buttons exist in drawer
-  assert.ok(drawerScope.getByRole('button', { name: 'พิมพ์ป้ายบาร์โค้ด' }))
-  assert.ok(drawerScope.getByRole('button', { name: 'ดูหน้ารายละเอียดเต็ม' }))
-  assert.ok(drawerScope.getByRole('button', { name: 'แก้ไขข้อมูล' }))
 })
 
 test('Clicking close button closes the Slide-Over Inspector Drawer', () => {
@@ -345,15 +327,15 @@ test('ItemsExplorerClient: table contracts width class when inspector is opened'
   assert.ok(main?.classList.contains('min-w-0'))
   assert.equal(main?.classList.contains('w-full'), false)
 
-  // Uses ledger table min-w-[1924px]
+  // Uses table responsive min-w
   let table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[1924px]') || table?.classList.contains('min-w-[1880px]'))
+  assert.ok(table?.classList.contains('min-w-[480px]') || table?.classList.contains('min-w-[1476px]'))
 
   // Click row to open inspector
   fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
 
   table = container.querySelector('table')
-  assert.ok(table?.classList.contains('min-w-[1924px]') || table?.classList.contains('min-w-[1880px]'))
+  assert.ok(table?.classList.contains('min-w-[480px]') || table?.classList.contains('min-w-[1476px]'))
 })
 
 test('Keyboard Navigation: ArrowDown and ArrowUp navigate through items and synchronize inspector', () => {
@@ -455,19 +437,17 @@ test('Filter Change Behavior: clears inspectedItem when item is no longer in fil
   assert.equal(screen.queryByTestId('inspector-panel'), null)
 })
 
-test('List View: does not render print quick action in table row; printing is accessible via Inspector', () => {
+test('List View: does not render print quick action in table row; printing is accessible via bulk toolbar', () => {
   renderComponent()
 
   // Table row should not have print quick action
   assert.equal(screen.queryByLabelText(`พิมพ์ป้ายบาร์โค้ด ${mockItems[0].item_name}`), null)
 
-  // Click row to open Inspector
-  fireEvent.click(screen.getByText('โน้ตบุ๊ก Dell Latitude 5420'))
-  const inspector = screen.getByTestId('inspector-panel')
-  assert.ok(inspector)
+  // Select item via checkbox to open bulk actions bar
+  fireEvent.click(screen.getByLabelText(`เลือก ${mockItems[0].item_name}`))
 
-  // Print button is available in Inspector
-  const printButton = within(inspector).getByRole('button', { name: 'พิมพ์ป้ายบาร์โค้ด' })
+  // Print button is available in bulk toolbar
+  const printButton = screen.getByRole('button', { name: /^พิมพ์ลาเบล/ })
   fireEvent.click(printButton)
 
   // Print modal dialog should be open

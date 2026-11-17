@@ -91,6 +91,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
   describe('Successful mutations record audit logs', () => {
     test('create category records audit log and redirects with success', async () => {
       const form = new FormData()
+      form.set('item_type', 'asset')
       form.set('name', 'IT Equipment')
       form.set('description', 'Office computing equipment')
       form.set('is_active', 'on')
@@ -113,6 +114,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
       assert.equal(details.targetType, 'categories')
       assert.equal(details.targetId, undefined)
       assert.deepEqual(details.newValues, {
+        item_type: 'asset',
         name: 'IT Equipment',
         description: 'Office computing equipment',
         color: '#64748B',
@@ -324,6 +326,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
       responseRows = [[]]
 
       const form = new FormData()
+      form.set('item_type', 'asset')
       form.set('name', 'Missing Category')
 
       const redirectDigest = await callMutatePostgresMetadata('categories', 'update', form, targetId)
@@ -341,7 +344,7 @@ describe('Settings Postgres Metadata Mutations Audit Logging', () => {
 
       const redirectDigest = await callMutatePostgresMetadata('locations', 'delete', undefined, targetId)
       assert.ok(redirectDigest.includes('error='))
-      assert.ok(redirectDigest.includes('ข้อมูลนี้กำลังถูกใช้งานโดยพัสดุในระบบ'))
+      assert.ok(redirectDigest.includes('ข้อมูลนี้กำลังถูกใช้งานโดยวัสดุในระบบ'))
       assert.equal(auditLogs.length, 0)
     })
 

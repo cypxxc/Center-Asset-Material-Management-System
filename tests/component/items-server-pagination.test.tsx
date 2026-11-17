@@ -115,9 +115,9 @@ test('buildItemsUrl supports page parameter and normalizes page 1', () => {
 test('first page displays exactly 50 items without virtual spacers', () => {
   const { container } = renderExplorer()
 
-  // 2 header rows in ledger + 50 items = 52 rows
+  // 1 header row in ledger + 50 items = 51 rows
   const rows = screen.getAllByRole('row')
-  assert.equal(rows.length, 52)
+  assert.equal(rows.length, 51)
   assert.ok(screen.getByText('พัสดุรายการที่ 1'))
   assert.ok(screen.getByText('พัสดุรายการที่ 50'))
   assert.equal(screen.queryByText('พัสดุรายการที่ 51'), null)
@@ -152,9 +152,9 @@ test('last page displays remaining items correctly with next button disabled', (
     params: { type: 'asset', page: '3' },
   })
 
-  // 2 header rows in ledger + 25 items = 27 rows
+  // 1 header row in ledger + 25 items = 26 rows
   const rows = screen.getAllByRole('row')
-  assert.equal(rows.length, 27)
+  assert.equal(rows.length, 26)
   assert.ok(screen.getByText('พัสดุรายการที่ 101'))
   assert.ok(screen.getByText('พัสดุรายการที่ 125'))
 

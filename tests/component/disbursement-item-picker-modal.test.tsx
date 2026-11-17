@@ -85,7 +85,7 @@ test('DisbursementItemPickerModal filters materials and respects out-of-stock to
     })
   );
 
-  assert.ok(container.textContent?.includes('เลือกพัสดุจากคลัง'));
+  assert.ok(container.textContent?.includes('เลือกวัสดุจากคลัง'));
   assert.ok(container.textContent?.includes('ปากกาลูกลื่นสีน้ำเงิน'));
 
   // Out-of-stock item is initially hidden because hideOutOfStock defaults to true for material_issue
@@ -117,12 +117,12 @@ test('DisbursementItemPickerModal filters by search query and category', () => {
   assert.ok(container.textContent?.includes('ส่วนกลาง'));
 
   // Search input
-  const searchInput = screen.getByLabelText('ค้นหาพัสดุหรือครุภัณฑ์');
+  const searchInput = screen.getByLabelText('ค้นหาวัสดุหรือครุภัณฑ์');
   fireEvent.change(searchInput, { target: { value: 'EPSON-999' } });
   assert.ok(container.textContent?.includes('โปรเจคเตอร์ Epson'));
 
   fireEvent.change(searchInput, { target: { value: 'NonExistingItem' } });
-  assert.ok(container.textContent?.includes('ไม่พบพัสดุที่ตรงกับเงื่อนไขการค้นหา'));
+  assert.ok(container.textContent?.includes('ไม่พบวัสดุที่ตรงกับเงื่อนไขการค้นหา'));
 });
 
 test('DisbursementItemPickerModal handles item selection and confirmation', () => {

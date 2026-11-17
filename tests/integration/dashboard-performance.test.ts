@@ -30,9 +30,8 @@ test('dashboard components and page are configured for React Suspense streaming'
   const pageContent = readFileSync('app/(dashboard)/dashboard/page.tsx', 'utf8')
 
   assert.match(pageContent, /import\s*\{\s*Suspense\s*\}\s*from\s*'react'/)
-  assert.match(pageContent, /fallback=\{<MetricsGridSkeleton \/>\}/)
-  assert.match(pageContent, /fallback=\{<CategoryListSkeleton \/>\}/)
-  assert.match(pageContent, /fallback=\{<ActionQueueSkeleton \/>\}/)
+  assert.match(pageContent, /fallback=\{<AcquisitionChartSkeleton \/>\}/)
+  assert.match(pageContent, /fallback=\{<AdminWorkQueueSkeleton \/>\}/)
 })
 
 test('dashboard defers the realtime subscription behind a client-only boundary', () => {

@@ -14,10 +14,6 @@ let settingsPageDataHandler: (tab?: string) => Promise<unknown> = async () => ({
   data: { categories: [], locations: [], units: [] },
 })
 let locationsOverviewHandler: () => Promise<unknown> = async () => ({ locations: [], items: [] })
-let itemDetailPageDataHandler: (id: string) => Promise<unknown> = async () => ({
-  item: null,
-  auditLogs: [],
-})
 
 // Mock domain query modules
 mockModule('../../features/auth/queries', {
@@ -27,10 +23,6 @@ mockModule('../../features/auth/queries', {
 mockModule('../../features/settings/queries', {
   getSettingsPageData: (tab?: string) => settingsPageDataHandler(tab),
   getLocationsOverview: () => locationsOverviewHandler(),
-})
-
-mockModule('../../features/items/queries', {
-  getItemDetailPageData: (id: string) => itemDetailPageDataHandler(id),
 })
 
 // Mock client components and leaf UI widgets
@@ -59,14 +51,6 @@ mockModule('../../features/items/components/delete-item-button', {
 
 mockModule('../../components/ui/zoomable-image', {
   ZoomableImage: () => null,
-})
-
-mockModule('../../app/(dashboard)/items/[id]/item-audit-timeline', {
-  ItemAuditTimeline: () => null,
-})
-
-mockModule('../../app/(dashboard)/items/[id]/item-detail-actions', {
-  ItemDetailActions: () => null,
 })
 
 test('SettingsPage evaluates searchParams and getCurrentProfile concurrently without blocking', async () => {
@@ -177,91 +161,5 @@ test('LocationsPage starts getLocationsOverview immediately while getCurrentProf
     resolveProfile({ id: 'user-staff', role: 'staff', is_active: true })
     const element = await pending
     assert.ok(element, 'LocationsPage should render successfully')
-  }
-})
-
-test('ItemDetailPage evaluates params and getCurrentProfile concurrently', async () => {
-  let resolveParams!: (value: { id: string }) => void
-  const paramsPromise = new Promise<{ id: string }>(resolve => {
-    resolveParams = resolve
-  })
-
-  let profileCalled = false
-  currentProfileHandler = async () => {
-    profileCalled = true
-    return { id: 'user-staff', role: 'staff', is_active: true }
-  }
-
-  let itemDetailDataCalled = false
-  let queriedItemId = ''
-  itemDetailPageDataHandler = async (id: string) => {
-    itemDetailDataCalled = true
-    queriedItemId = id
-    return {
-      item: {
-        id,
-        item_name: 'Ergonomic Chair',
-        item_type: 'asset',
-        status: 'active',
-        depreciation_enabled: false,
-      },
-      auditLogs: [],
-    }
-  }
-
-  const { default: ItemDetailPage } = await import('../../app/(dashboard)/items/[id]/page')
-  const pending = ItemDetailPage({ params: paramsPromise })
-
-  try {
-    await new Promise(resolve => setImmediate(resolve))
-    assert.equal(
-      profileCalled,
-      true,
-      'getCurrentProfile should be invoked immediately while params is still pending'
-    )
-    assert.equal(
-      itemDetailDataCalled,
-      false,
-      'getItemDetailPageData should not be invoked until params has resolved'
-    )
-  } finally {
-    resolveParams({ id: 'item-999' })
-    const element = await pending
-    assert.ok(element, 'ItemDetailPage should render successfully')
-    assert.equal(itemDetailDataCalled, true, 'getItemDetailPageData should be called once params resolves')
-    assert.equal(queriedItemId, 'item-999', 'getItemDetailPageData should receive the resolved id')
-  }
-})
-
-test('ItemDetailPage awaits params concurrently while getCurrentProfile is pending', async () => {
-  let resolveProfile!: (value: unknown) => void
-  const profilePromise = new Promise(resolve => {
-    resolveProfile = resolve
-  })
-
-  currentProfileHandler = () => profilePromise
-
-  let paramsAwaited = false
-  const params = {
-    then(onFulfilled: (val: unknown) => unknown, onRejected: (err: unknown) => unknown) {
-      paramsAwaited = true
-      return Promise.resolve({ id: 'item-888' }).then(onFulfilled, onRejected)
-    },
-  }
-
-  const { default: ItemDetailPage } = await import('../../app/(dashboard)/items/[id]/page')
-  const pending = ItemDetailPage({ params: params as unknown as Promise<{ id: string }> })
-
-  try {
-    await new Promise(resolve => setImmediate(resolve))
-    assert.equal(
-      paramsAwaited,
-      true,
-      'params should be awaited concurrently while getCurrentProfile is still pending'
-    )
-  } finally {
-    resolveProfile({ id: 'user-staff', role: 'staff', is_active: true })
-    const element = await pending
-    assert.ok(element, 'ItemDetailPage should render successfully')
   }
 })

@@ -2,7 +2,7 @@ import '../setup/dom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ItemForm } from '../../features/items/components/item-form';
 
 const noopAction = async () => ({ success: true });
@@ -73,20 +73,61 @@ test('ItemForm revokes old local image previews when replacing files', async () 
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
   const originalFileReader = global.FileReader;
+  const originalImage = global.Image;
+  const CanvasProto = (window as unknown as { HTMLCanvasElement: { prototype: HTMLCanvasElement } }).HTMLCanvasElement.prototype;
+  const originalGetContext = CanvasProto.getContext;
+  const originalToBlob = CanvasProto.toBlob;
   const revoked: string[] = [];
   let counter = 0;
 
   class MockFileReader {
     result: string | null = null;
     onload: (() => void) | null = null;
-    readAsDataURL() {
-      this.result = 'data:image/jpeg;base64,mock';
-      if (this.onload) {
-        this.onload();
-      }
+    readAsDataURL(file?: Blob | unknown) {
+      this.result = `data:image/jpeg;base64,mock-${(file as { name?: string })?.name || Math.random()}`;
+      setTimeout(() => {
+        if (this.onload) {
+          this.onload();
+        }
+      }, 0);
     }
   }
   global.FileReader = MockFileReader as unknown as typeof FileReader;
+  window.FileReader = MockFileReader as unknown as typeof FileReader;
+
+  class MockImage {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    crossOrigin = '';
+    naturalWidth = 800;
+    naturalHeight = 600;
+    private _src = '';
+    set src(val: string) {
+      this._src = val;
+      setTimeout(() => this.onload?.(), 0);
+    }
+    get src() {
+      return this._src;
+    }
+  }
+  global.Image = MockImage as unknown as typeof Image;
+  window.Image = MockImage as unknown as typeof Image;
+
+  CanvasProto.getContext = (() => ({
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+    fillStyle: '',
+    fillRect: () => {},
+    translate: () => {},
+    scale: () => {},
+    rotate: () => {},
+    drawImage: () => {},
+  })) as unknown as typeof CanvasProto.getContext;
+
+  CanvasProto.toBlob = function(callback: BlobCallback, type = 'image/jpeg') {
+    const blob = new Blob(['mock-data'], { type });
+    setTimeout(() => callback(blob), 0);
+  };
 
   URL.createObjectURL = () => {
     counter += 1;
@@ -113,8 +154,12 @@ test('ItemForm revokes old local image previews when replacing files', async () 
       },
     });
 
-    const confirmBtn1 = screen.getByText('ครอบรูปภาพ (4:3)');
+    const confirmBtn1 = await screen.findByText('ครอบรูปภาพ (4:3)');
     fireEvent.click(confirmBtn1);
+
+    await waitFor(() => {
+      assert.equal(screen.queryByText('ครอบรูปภาพ (4:3)'), null);
+    });
 
     fireEvent.change(fileInput, {
       target: {
@@ -122,13 +167,18 @@ test('ItemForm revokes old local image previews when replacing files', async () 
       },
     });
 
-    const confirmBtn2 = screen.getByText('ครอบรูปภาพ (4:3)');
+    const confirmBtn2 = await screen.findByText('ครอบรูปภาพ (4:3)');
     fireEvent.click(confirmBtn2);
 
-    assert.deepEqual(revoked, ['blob:test-1']);
+    await waitFor(() => {
+      assert.deepEqual(revoked, ['blob:test-1']);
+    });
   } finally {
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
     global.FileReader = originalFileReader;
+    global.Image = originalImage;
+    CanvasProto.getContext = originalGetContext;
+    CanvasProto.toBlob = originalToBlob;
   }
 });

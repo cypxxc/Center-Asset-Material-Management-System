@@ -42,8 +42,7 @@ test('dashboard shares approval actions, blocks duplicate confirmation, preserve
     cleanup()
 
     render(React.createElement(AdminWorkQueueView, { summary }))
-    fireEvent.keyDown(screen.getByRole('button', { name: 'จัดการ' }), { key: 'Enter', code: 'Enter' })
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'ยกเลิก' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }))
     assert.ok(await screen.findByRole('dialog', { name: 'ยกเลิกคำขอนี้?' }))
     assert.ok(screen.getByText('ใช้ในการปฏิบัติงาน'))
     fireEvent.change(screen.getByRole('textbox', { name: /เหตุผลการยกเลิก/ }), { target: { value: '  ขอข้อมูลเพิ่มเติม  ' } })

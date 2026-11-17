@@ -80,7 +80,7 @@ test('DisbursementDraftFormClient renders empty state initially and opens item p
   );
 
   assert.ok(container.textContent?.includes('สร้างเอกสารเบิก-จ่ายใหม่'));
-  assert.ok(container.textContent?.includes('ยังไม่มีรายการพัสดุในเอกสารนี้'));
+  assert.ok(container.textContent?.includes('ยังไม่มีรายการวัสดุในเอกสารนี้'));
   assert.ok(container.querySelector('#disbursement-transaction-type'));
   assert.ok(container.querySelector('#disbursement-recipient-name'));
   assert.ok(container.querySelector('#disbursement-department-name'));
@@ -98,7 +98,7 @@ test('DisbursementDraftFormClient validates required inputs before submitting', 
   const form = container.querySelector('form')!;
   fireEvent.submit(form);
 
-  assert.ok(container.textContent?.includes('กรุณาระบุชื่อผู้รับพัสดุ'));
+  assert.ok(container.textContent?.includes('กรุณาระบุชื่อผู้รับวัสดุ / ผู้ยืม'));
 });
 
 test('DisbursementDraftFormClient enforces due date when transaction type is asset_borrow', async () => {

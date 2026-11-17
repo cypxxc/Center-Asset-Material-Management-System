@@ -31,6 +31,7 @@ Object.assign(globalThis, {
   CustomEvent: dom.window.CustomEvent,
   Node: dom.window.Node,
   NodeFilter: dom.window.NodeFilter,
+  DocumentFragment: dom.window.DocumentFragment,
 });
 
 // Use defineProperty with enumerable: true for navigator to avoid read-only collisions
@@ -50,6 +51,7 @@ global.HTMLSelectElement = dom.window.HTMLSelectElement;
 global.HTMLFormElement = dom.window.HTMLFormElement;
 global.SVGElement = dom.window.SVGElement;
 global.FileReader = dom.window.FileReader;
+global.DocumentFragment = dom.window.DocumentFragment;
 
 // Mock Observers
 global.ResizeObserver = class ResizeObserver {

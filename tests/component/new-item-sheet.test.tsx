@@ -179,7 +179,7 @@ test('asset registration has no type tabs and submits the asset type', () => {
   assert.equal((view.container.querySelector('[name="item_type"]') as HTMLInputElement).value, 'asset');
   assert.ok(within(view.container).getByLabelText('สถานที่'));
   assert.ok(within(view.container).getByLabelText('Serial Number'));
-  assert.ok(within(view.container).getByLabelText(/เลขครุภัณฑ์/));
+  assert.ok(within(view.container).getByLabelText(/^เลขครุภัณฑ์$/));
 });
 
 test('NewItemSheet adapts to theme using CSS variables and semantic tokens', () => {

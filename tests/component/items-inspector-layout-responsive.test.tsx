@@ -113,6 +113,7 @@ test('Responsive Layout: ItemsList collapses secondary columns and adjusts min-w
       allLoadedSelected={false}
       selectedItemId={null}
       selectedItemIds={[]}
+      userCanWrite={true}
       onSelect={() => {}}
       onToggleSelectItem={() => {}}
       onToggleSelectAll={() => {}}
@@ -154,6 +155,7 @@ test('Responsive Layout: ItemsList collapses secondary columns and adjusts min-w
       allLoadedSelected={false}
       selectedItemId={null}
       selectedItemIds={[]}
+      userCanWrite={true}
       onSelect={() => {}}
       onToggleSelectItem={() => {}}
       onToggleSelectAll={() => {}}
@@ -187,6 +189,7 @@ test('ItemsList: category header has sorting toggle and type/qualification heade
       allLoadedSelected={false}
       selectedItemId={null}
       selectedItemIds={[]}
+      userCanWrite={true}
       onSelect={() => {}}
       onToggleSelectItem={() => {}}
       onToggleSelectAll={() => {}}
@@ -228,14 +231,14 @@ test('Inspector: renders item type and qualification status in dedicated informa
 
   assert.ok(screen.getAllByText('ครุภัณฑ์ (Asset)').length >= 1)
   assert.ok(screen.getAllByText('ตามเกณฑ์').length >= 1)
-  assert.ok(screen.getByText('ประเภท & สถานะเกณฑ์'))
+  assert.ok(screen.getByText('ประเภทสิ่งของ'))
 
-  // Test 2: below_threshold material
+  // Test 2: below_threshold asset
   rerender(
     <Inspector
       isOpen={true}
       mode="docked"
-      item={{ ...mockItem, item_type: 'material', qualification_status: 'below_threshold' }}
+      item={{ ...mockItem, item_type: 'asset', qualification_status: 'below_threshold' }}
       onClose={() => {}}
       onOpenDetails={() => {}}
       userCanWrite={true}
@@ -246,8 +249,26 @@ test('Inspector: renders item type and qualification status in dedicated informa
     />
   )
 
-  assert.ok(screen.getAllByText('พัสดุ (Material)').length >= 1)
+  assert.ok(screen.getAllByText('ครุภัณฑ์ (Asset)').length >= 1)
   assert.ok(screen.getAllByText('ต่ำกว่าเกณฑ์ (ต.)').length >= 1)
+
+  // Test 2b: material
+  rerender(
+    <Inspector
+      isOpen={true}
+      mode="docked"
+      item={{ ...mockItem, item_type: 'material', qualification_status: null }}
+      onClose={() => {}}
+      onOpenDetails={() => {}}
+      userCanWrite={true}
+      userCanDelete={true}
+      onCopy={() => {}}
+      onPrint={() => {}}
+      onEdit={() => {}}
+    />
+  )
+
+  assert.ok(screen.getAllByText('วัสดุ (Material)').length >= 1)
 
   // Test 3: null / unspecified qualification status
   rerender(
