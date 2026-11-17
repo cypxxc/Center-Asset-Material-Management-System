@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 import { afterEach } from 'node:test';
+import * as React from 'react';
+
+// Make React available globally for tsx classic JSX transforms in tests
+(globalThis as unknown as { React: typeof React }).React = React;
 
 // 1. Manually configure JSDOM primitives first
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {

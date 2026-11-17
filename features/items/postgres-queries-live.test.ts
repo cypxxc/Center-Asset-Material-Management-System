@@ -82,16 +82,18 @@ test('PostgreSQL query feature surface executes against real restricted-role SQL
       assert.deepEqual(stats.categoryCounts[fixture], { count: 2, qty: 5, activeQty: 5 })
 
       for (const sort_by of ['item_name', 'category', 'quantity', 'unit_price', 'total_price', 'status', 'updated_at', 'created_at', '__proto__']) {
-        const report = await reports.getPostgresReportItemsList({ category_id: categoryId, sort_by, sort_dir: 'asc' })
+        const report = await reports.getPostgresReportItemsList({ q: fixture, sort_by, sort_dir: 'asc' })
         assert.equal(report.items.length, 2)
         assert.equal(report.totalCount, 2)
         assert.equal(report.totalQuantity, 5)
         assert.equal(report.totalValue, 257.75)
       }
-      const emptyPage = await reports.getPostgresReportItemsList({ category_id: categoryId, page: '2' })
+      const emptyPage = await reports.getPostgresReportItemsList({ q: fixture, page: '2' })
       assert.equal(emptyPage.items.length, 0)
       assert.equal(emptyPage.totalValue, 257.75)
-      assert.equal((await reports.getPostgresExportReportItems({ category_id: categoryId })).items.length, 2)
+      assert.equal((await reports.getPostgresExportReportItems({ q: fixture })).items.length, 2)
+      assert.equal((await reports.getPostgresReportItemsList({ category_id: categoryId })).totalCount, 1)
+      assert.equal((await reports.getPostgresReportItemsList({ category_id: materialCategoryId })).totalCount, 1)
       assert.ok((await settings.getPostgresSettingsData('locations')).locations.some(location => location.id === locationId))
       const overview = await settings.getPostgresLocationsOverview()
       assert.equal(overview.items.find(item => item.id === assetId)?.locationId, locationId)

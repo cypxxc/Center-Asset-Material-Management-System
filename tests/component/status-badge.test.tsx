@@ -8,7 +8,7 @@ import { StatusBadge } from '../../components/ui/status-badge';
 test('StatusBadge renders the status label based on input status', () => {
   const { container } = render(React.createElement(StatusBadge, { status: 'active' }));
   const label = container.textContent;
-  assert.ok(label?.includes('ใช้งานอยู่'));
+  assert.ok(label?.includes('ใช้งานได้'));
 });
 
 test('StatusBadge accepts custom children as label', () => {

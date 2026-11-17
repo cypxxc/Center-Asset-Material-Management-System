@@ -63,12 +63,11 @@ test('Sidebar exposes one active inventory entry for every inventory classificat
 
   renderSidebar()
 
-  const inventoryLink = screen.getByRole('link', { name: /^คลัง/ })
+  const inventoryLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
   assert.equal(inventoryLink.getAttribute('href'), '/items')
   assert.equal(inventoryLink.getAttribute('aria-current'), 'page')
-  assert.equal(screen.queryByRole('link', { name: /^ครุภัณฑ์/ }), null)
-  assert.equal(screen.queryByRole('link', { name: /^พัสดุ/ }), null)
-  assert.equal(screen.queryByRole('link', { name: /^สถานที่/ }), null)
+  assert.ok(screen.getByRole('link', { name: /^วัสดุ/ }))
+  assert.ok(screen.getByRole('link', { name: /^ส่วนกลาง/ }))
   assert.equal(screen.queryByRole('link', { name: /จัดการผู้ใช้งาน/ }), null)
 })
 
@@ -82,9 +81,9 @@ test('Sidebar renders collapsible mode, admin section and handles RBAC properly'
   const dashboardLink = screen.getByRole('link', { name: /Dashboard/i })
   assert.equal(dashboardLink.getAttribute('aria-current'), 'page')
 
-  // Verify admin accordion header exists for admin profile
-  const adminAccordionBtn = screen.getByRole('button', { name: /จัดการระบบ/ })
-  assert.ok(adminAccordionBtn)
+  // Verify settings link exists
+  const settingsLink = screen.getByRole('link', { name: /ตั้งค่าระบบ/ })
+  assert.ok(settingsLink)
 
   // Verify toggle button for compact mode exists
   const toggleBtn = screen.getByRole('button', { name: 'ย่อแถบเมนู' })
@@ -93,5 +92,5 @@ test('Sidebar renders collapsible mode, admin section and handles RBAC properly'
   // Aside element is rendered
   const aside = container.querySelector('aside')
   assert.ok(aside)
-  assert.ok(aside.classList.contains('w-64'))
+  assert.ok(aside.classList.contains('w-50'))
 })

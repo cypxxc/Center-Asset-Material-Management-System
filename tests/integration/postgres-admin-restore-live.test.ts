@@ -53,7 +53,7 @@ test('fresh database migrates twice and real business restore commits or rolls b
     const categoryId = randomUUID()
     const itemId = randomUUID()
     await ownerPool.query("insert into public.categories(id,name) values($1,'Original category')", [categoryId])
-    await ownerPool.query("insert into public.items(id,item_name,item_type,category_id,quantity,unit_price,created_by) values($1,'Original item','material',$2,2,25,$3)", [itemId, categoryId, actor])
+    await ownerPool.query("insert into public.items(id,item_name,item_type,category_id,quantity,unit_price,created_by) values($1,'Original item','asset',$2,2,25,$3)", [itemId, categoryId, actor])
     const existingData = async () => (await ownerPool.query(`select
       (select jsonb_agg(to_jsonb(p) order by id) from public.profiles p) as profiles,
       (select jsonb_agg(to_jsonb(c) order by user_id) from private_auth.credentials c) as credentials,

@@ -1,6 +1,7 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import React from 'react'
 import { render, fireEvent } from '@testing-library/react'
 import { StatusDonutChart, type StatusItemData } from '../../components/dashboard/status-donut-chart'
 
@@ -36,17 +37,17 @@ test('StatusDonutChart renders legend items as Links with /items?status=... href
   assert.equal(links.length, 3)
 
   assert.equal(links[0].getAttribute('href'), '/items?status=active')
-  assert.equal(links[0].getAttribute('title'), 'ดูรายการพัสดุสถานะ ใช้งานปกติ')
+  assert.equal(links[0].getAttribute('title'), 'ดูรายการวัสดุสถานะ ใช้งานปกติ')
   assert.ok(links[0].textContent?.includes('ใช้งานปกติ'))
   assert.ok(links[0].textContent?.includes('(80%)'))
 
   assert.equal(links[1].getAttribute('href'), '/items?status=spare')
-  assert.equal(links[1].getAttribute('title'), 'ดูรายการพัสดุสถานะ สำรองในคลัง')
+  assert.equal(links[1].getAttribute('title'), 'ดูรายการวัสดุสถานะ สำรองในคลัง')
   assert.ok(links[1].textContent?.includes('สำรองในคลัง'))
   assert.ok(links[1].textContent?.includes('(20%)'))
 
   assert.equal(links[2].getAttribute('href'), '/items?status=damaged')
-  assert.equal(links[2].getAttribute('title'), 'ดูรายการพัสดุสถานะ ชำรุด')
+  assert.equal(links[2].getAttribute('title'), 'ดูรายการวัสดุสถานะ ชำรุด')
   assert.ok(links[2].textContent?.includes('ชำรุด'))
   assert.ok(links[2].textContent?.includes('(0%)'))
 })

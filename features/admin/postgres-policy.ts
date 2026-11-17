@@ -7,16 +7,29 @@ import { randomUUID } from 'node:crypto'
 export const backupTables = ['profiles', 'categories', 'locations', 'units', 'items', 'materials', 'audit_logs'] as const
 export type BackupTable = typeof backupTables[number]
 const timestamps = ['created_at', 'updated_at']
+const commonInventoryColumns = [
+  'id', 'item_name', 'item_type', 'qualification_status', 'category_id', 'quantity', 'unit_price', 'unit_id',
+  'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note',
+  'is_central', 'image_url', 'budget_source', 'gfmis_number', 'acquired_date',
+  'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at',
+  'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years',
+  'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value',
+] as const
+const itemRegisterColumns = [
+  'register_sequence', 'asset_prefix',
+  'register_accumulated_depreciation', 'register_book_value', 'register_as_of',
+] as const
+const materialVersionColumns = ['metadata_version', 'stock_version'] as const
+
 export const tableColumns: Record<BackupTable, readonly string[]> = {
   profiles: ['id', 'full_name', 'display_name', 'email', 'role', 'is_active', 'sidebar_order', ...timestamps],
   categories: ['id', 'name', 'item_type', 'description', 'color', 'icon', 'is_active', ...timestamps],
   locations: ['id', 'name', 'building', 'floor', 'room', 'department', 'description', 'is_active', ...timestamps],
   units: ['id', 'name', 'is_active', ...timestamps],
-  items: ['id', 'item_name', 'item_type', 'qualification_status', 'category_id', 'quantity', 'unit_price', 'unit_id', 'asset_no', 'serial_no', 'brand', 'model', 'location_id', 'responsible_person', 'status', 'note', 'is_central', 'image_url', 'budget_source', 'gfmis_number', 'acquired_date', 'created_by', 'updated_by', 'deleted_by', ...timestamps, 'deleted_at', 'depreciation_enabled', 'depreciation_method', 'depreciation_cost', 'depreciation_useful_life_years', 'depreciation_start_basis', 'depreciation_start_date', 'depreciation_residual_value'],
+  items: [...commonInventoryColumns, ...itemRegisterColumns],
   audit_logs: ['id', 'user_id', 'action', 'target_table', 'target_id', 'old_data', 'new_data', 'created_at'],
-  materials: [],
+  materials: [...commonInventoryColumns, ...materialVersionColumns, ...MATERIAL_LEDGER_FIELDS],
 }
-tableColumns.materials = [...tableColumns.items, ...MATERIAL_LEDGER_FIELDS]
 
 export const searchColumns: Record<AdminTable, readonly string[]> = {
   profiles: ['full_name', 'email', 'display_name'],
