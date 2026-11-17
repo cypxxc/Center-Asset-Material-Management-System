@@ -94,8 +94,18 @@ export async function checkReadiness(): Promise<ReadinessResult> {
       await getDatabase().execute(sql`select 1 from public.profiles limit 1`)
     }),
     timedCheck(async () => {
-      const { access, constants } = await import('node:fs/promises')
-      await access(process.env.LOCAL_STORAGE_PATH ?? './.local-storage', constants.R_OK | constants.W_OK)
+      const { access, mkdir, constants } = await import('node:fs/promises')
+      const storagePath = process.env.LOCAL_STORAGE_PATH ?? './.local-storage'
+      try {
+        await access(storagePath, constants.R_OK | constants.W_OK)
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+          await mkdir(storagePath, { recursive: true, mode: 0o700 })
+          await access(storagePath, constants.R_OK | constants.W_OK)
+        } else {
+          throw err
+        }
+      }
     }),
   ])
 

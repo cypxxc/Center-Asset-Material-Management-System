@@ -1,6 +1,19 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const tempStorage = mkdtempSync(join(tmpdir(), 'camms-health-test-'))
+const originalStorage = process.env.LOCAL_STORAGE_PATH
+process.env.LOCAL_STORAGE_PATH = tempStorage
+
+test.after(() => {
+  if (originalStorage === undefined) delete process.env.LOCAL_STORAGE_PATH
+  else process.env.LOCAL_STORAGE_PATH = originalStorage
+  rmSync(tempStorage, { recursive: true, force: true })
+})
 
 let dbError: Error | null = null
 let dbDelay = 0
