@@ -99,6 +99,4 @@ next-env.d.ts
 *.xlsx
 *.xls
 *.csv
-/docs/*.xlsx
-/docs/*.xls
-/docs/*.csv
+/docs/
