@@ -25,7 +25,7 @@ stub('../../lib/postgres/request', {
       if (query.sql.includes('FROM public.profiles')) return { rows: [{ id: recipientId, full_name: 'ผู้รับใหม่' }] }
       if (/FROM public\."?items"?/.test(query.sql)) return { rows: [{ id, item_type: 'asset', item_name: 'โต๊ะส่วนกลาง', is_central: central, note: central ? 'บันทึกเดิม\nส่วนกลาง' : 'บันทึกเดิม', responsible_person: 'ผู้รับเดิม', status: 'active', asset_no: 'A-01' }] }
       if (query.sql.includes('FROM public.disbursement_items')) return { rows: [{ count: borrowed ? 1 : 0 }] }
-      if (/^\s*(INSERT|UPDATE|DELETE)\b/i.test(query.sql)) writes.push(query)
+      if (/^\s*(INSERT|UPDATE|DELETE)\b/i.test(query.sql) || query.sql.includes('private.apply_asset_custody_event')) writes.push(query)
       return { rows: [] }
     },
   }),
@@ -38,10 +38,9 @@ test('admin assigns custody with old/new audit evidence and no disbursement docu
   writes.length = 0
   const result = await assignPostgresCustody({ item_ids: [id], recipient_id: recipientId })
   assert.equal(result.assigned, 1)
-  const update = writes.find((query) => query.sql.includes('UPDATE public.items'))!
-  assert.ok(update.params.includes('ผู้รับใหม่'))
-  assert.ok(update.sql.includes('is_central = false'))
-  assert.ok(update.params.includes('บันทึกเดิม'))
+  const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(event?.sql.includes("NULL, 'assignment'"))
+  assert.deepEqual(event.params, [id, 'บันทึกเดิม', recipientId])
   const audit = writes.find((query) => query.sql.includes('INSERT INTO public.audit_logs'))!
   assert.ok(audit.sql.includes('ASSIGN_CUSTODY'))
   assert.ok(audit.params.some((value) => typeof value === 'string' && value.includes('ผู้รับเดิม')))

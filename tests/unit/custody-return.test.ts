@@ -80,11 +80,11 @@ test('returnPostgresCustody requires active admin, locks item, clears custodian,
     assert.equal(res.ok, true)
     assert.equal(res.item_id, itemId)
 
-    // Verify UPDATE query
-    const updateQuery = executedQueries.find(q => q.sql.includes('UPDATE public.items'))
-    assert.ok(updateQuery, 'Must execute UPDATE query on public.items')
-    assert.ok(updateQuery.sql.includes('responsible_person = NULL'))
-    assert.ok(updateQuery.sql.includes('is_central = true'))
+    const returnEvent = executedQueries.find(q => q.sql.includes('private.apply_asset_custody_event'))
+    assert.ok(returnEvent?.sql.includes("NULL, 'custody_return'"))
+    assert.equal(returnEvent.params[0], itemId)
+    assert.equal(returnEvent.params[1], 'normal')
+    assert.equal(returnEvent.params.at(-1), locationId)
 
     // Verify INSERT audit_logs query
     const auditQuery = executedQueries.find(q => q.sql.includes('INSERT INTO public.audit_logs'))
@@ -98,7 +98,7 @@ test('returnPostgresCustody requires active admin, locks item, clears custodian,
       condition: 'damaged',
       reason: 'จอภาพแตก',
     })
-    const damagedUpdate = executedQueries.find(q => q.sql.includes('UPDATE public.items'))
+    const damagedUpdate = executedQueries.find(q => q.sql.includes('private.apply_asset_custody_event'))
     assert.ok(damagedUpdate)
     assert.ok(damagedUpdate.params.includes('damaged'))
 

@@ -1,8 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { submitBorrowRequestSchema, disbursementDraftSchema, rejectDisbursementSchema } from '../../features/disbursements/schema'
+import { submitBorrowRequestSchema, disbursementDraftSchema, rejectDisbursementSchema, partialReturnDisbursementSchema } from '../../features/disbursements/schema'
 
 const id = '00000000-0000-4000-8000-000000000001'
+test('partial returns reject repeated line IDs even when conditions or UUID casing differ', () => {
+  const line = { line_id: 'abcdefab-0000-4000-8000-abcdefabcdef', item_id: id, condition: 'lost', reason: 'Recorded loss' }
+  const input = { disbursement_id: id, items: [line] }
+  assert.equal(partialReturnDisbursementSchema.safeParse(input).success, true)
+  assert.equal(partialReturnDisbursementSchema.safeParse({
+    ...input,
+    items: [line, { ...line, line_id: line.line_id.toUpperCase(), condition: 'normal' }],
+  }).success, false)
+})
 test('requests reject duplicate inventory IDs', () => {
   assert.equal(submitBorrowRequestSchema.safeParse({ item_ids: [id, id], request_type: 'issue', purpose: 'office' }).success, false)
   const mixed = 'abcdefab-0000-4000-8000-abcdefabcdef'

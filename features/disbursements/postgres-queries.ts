@@ -52,17 +52,15 @@ export async function getPostgresDisbursements(
     clauses.push(sql`d.transaction_type = ${params.type}`)
   }
 
-  const profile = await getCurrentProfile()
-  if (profile && profile.role !== 'admin') {
-    clauses.push(sql`d.created_by = ${profile.id}::uuid`)
-  }
-
   const whereSql = clauses.length > 0 ? sql`WHERE ${sql.join(clauses, sql` and `)}` : sql``
+  const profile = await getCurrentProfile()
+  const ownership = profile?.role === 'admin' ? sql`true` : sql`d.created_by = ${profile?.id ?? null}::uuid`
+  const countWhere = sql`WHERE ${sql.join([ownership, ...clauses], sql` and `)}`
 
   return withUserDatabase(async (tx) => {
     try {
       const totalRes = await tx.execute<{ count: number }>(
-        sql`SELECT count(*)::int as count FROM public.disbursements d ${whereSql}`
+        sql`SELECT count(*)::int as count FROM public.disbursements d ${countWhere}`
       )
       const total = totalRes.rows[0]?.count ?? 0
 
@@ -79,7 +77,7 @@ export async function getPostgresDisbursements(
           count(*) filter (where d.status = 'draft')::int as draft,
           count(*) filter (where d.status = 'confirmed')::int as confirmed,
           count(*) filter (where d.status = 'pending_approval')::int as pending_approval
-        FROM public.disbursements d WHERE d.status <> 'rejected' ${profile && profile.role !== 'admin' ? sql`AND d.created_by = ${profile.id}::uuid` : sql``}`
+        FROM public.disbursements d WHERE d.status <> 'rejected' AND ${ownership}`
       )
       const statsRow = statsRes.rows[0]
       const stats = statsRow ? {
@@ -108,7 +106,7 @@ export async function getPostgresDisbursements(
         ), '[]'::jsonb) AS requested_items
         FROM (
           SELECT *, (row_number() OVER (ORDER BY created_at, id))::text AS request_number
-          FROM public.disbursements
+          FROM public.disbursements d WHERE ${ownership}
         ) d ${whereSql} ORDER BY ${orderBy} LIMIT ${pageSize} OFFSET ${offset}`
       )
 
@@ -156,7 +154,9 @@ export async function getPostgresDisbursementById(id: string) {
           coalesce(di.asset_no_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.asset_no END) AS asset_no_snapshot,
           coalesce(di.category_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN (SELECT c.name FROM public.categories c WHERE c.id = i.category_id) END) AS category_name_snapshot,
           coalesce(di.unit_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN (SELECT u.name FROM public.units u WHERE u.id = i.unit_id) END) AS unit_name_snapshot,
-          coalesce(di.unit_price_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.unit_price END) AS unit_price_snapshot
+          CASE WHEN ${doc.status} IN ('draft', 'pending_approval') AND di.issued_qty = 0
+            THEN coalesce(nullif(di.unit_price_snapshot, 0), i.unit_price, di.unit_price_snapshot)
+            ELSE di.unit_price_snapshot END AS unit_price_snapshot
         FROM public.disbursement_items di
         LEFT JOIN public.inventory_items i ON i.id = di.item_id
         WHERE di.disbursement_id = ${id} ORDER BY di.id ASC`

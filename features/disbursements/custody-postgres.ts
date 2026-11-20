@@ -252,7 +252,9 @@ export async function assignPostgresCustody(rawInput: unknown) {
       if (item.status && !['active', 'spare'].includes(item.status)) throw new Error(`"${item.item_name}" ไม่อยู่ในสถานะพร้อมใช้งาน`)
       await assertItemUnreserved(tx, item.id)
       const newNote = syncCentralNote(item.note || '', false) || null
-      await tx.execute(sql`UPDATE public.items SET responsible_person = ${recipient.full_name}, is_central = false, note = ${newNote}, updated_at = now() WHERE id = ${item.id}`)
+      await tx.execute(sql`SELECT private.apply_asset_custody_event(
+        ${item.id}, NULL, 'assignment', 1, 'normal', NULL, ${newNote}, NULL, ${recipient.id}
+      )`)
       await tx.execute(sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
         VALUES (${admin.id}, 'ASSIGN_CUSTODY', 'items', ${item.id},
           ${JSON.stringify({ responsible_person: item.responsible_person, is_central: item.is_central, note: item.note, location_id: item.location_id })}::jsonb,
@@ -433,17 +435,26 @@ export async function returnPostgresCustody(rawInput: unknown) {
       throw new Error('ครุภัณฑ์นี้ไม่มีผู้ถือครองที่สามารถรับคืนได้')
     }
 
-    const activeBorrow = await tx.execute<{ id: string; document_no: string | null }>(sql`
-      SELECT d.id, d.document_no
+    const openIssue = await tx.execute<{ id: string; document_no: string | null; transaction_type: string }>(sql`
+      SELECT d.id, d.document_no, d.transaction_type
       FROM public.disbursement_items di
       JOIN public.disbursements d ON d.id = di.disbursement_id
       WHERE di.item_id = ${data.item_id}
-        AND d.status IN ('active_borrow', 'partially_returned')
-        AND di.status NOT IN ('returned', 'reversed')
+        AND (
+          d.status = 'pending_approval'
+          OR (d.transaction_type = 'asset_borrow' AND d.status IN ('active_borrow', 'partially_returned'))
+        )
+        AND di.status IN ('issued', 'partially_returned')
+        AND di.issued_qty > di.returned_qty
       LIMIT 1
     `)
-    if (activeBorrow.rows[0]) {
-      throw new Error(`ครุภัณฑ์นี้อยู่ระหว่างการยืมตามเอกสาร ${activeBorrow.rows[0].document_no || activeBorrow.rows[0].id} กรุณาบันทึกรับคืนผ่านเมนู "เบิก-จ่ายและยืม"`)
+    const blockedDocument = openIssue.rows[0]
+    if (blockedDocument) {
+      const reference = blockedDocument.document_no || blockedDocument.id
+      if (blockedDocument.transaction_type !== 'asset_handover') {
+        throw new Error(`ครุภัณฑ์นี้อยู่ระหว่างการยืมตามเอกสาร ${reference} กรุณาบันทึกรับคืนผ่านเมนู "เบิก-จ่ายและยืม"`)
+      }
+      throw new Error(`ครุภัณฑ์นี้จ่ายแล้วตามเอกสารส่งมอบ ${reference} ที่ยังรออนุมัติ กรุณาดำเนินการเอกสารให้เสร็จก่อนรับคืน`)
     }
 
     const originLocation = await findOriginLocation(tx, item.id, item.responsible_person)
@@ -454,17 +465,9 @@ export async function returnPostgresCustody(rawInput: unknown) {
     const newStatus = data.condition === 'damaged' ? 'damaged' : 'active'
     const newNote = syncCentralNote(item.note || '', true) || null
 
-    await tx.execute(sql`
-      UPDATE public.items
-      SET responsible_person = NULL,
-          is_central = true,
-          status = ${newStatus},
-          location_id = ${originLocation.id},
-          note = ${newNote},
-          updated_at = now()
-      WHERE id = ${item.id}
-    `)
-
+    await tx.execute(sql`SELECT private.apply_asset_custody_event(
+      ${item.id}, NULL, 'custody_return', 1, ${data.condition}, ${data.reason}, ${newNote}, ${originLocation.id}
+    )`)
     await tx.execute(sql`
       INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
       VALUES (${admin.id}, 'RETURN_CUSTODY', 'items', ${item.id},

@@ -145,5 +145,8 @@ export const partialReturnDisbursementSchema = z.object({
       return_date: z.string().optional(),
       reason: stringTrimmed(500, 'กรุณาระบุเหตุผลในการคืน'),
     })
-  ).min(1, 'ต้องเลือกครุภัณฑ์ที่ต้องการคืนอย่างน้อย 1 รายการ'),
+  ).min(1, 'ต้องเลือกครุภัณฑ์ที่ต้องการคืนอย่างน้อย 1 รายการ').refine(
+    (items) => new Set(items.map((item) => item.line_id.toLowerCase())).size === items.length,
+    'รายการรับคืนต้องไม่ซ้ำกัน'
+  ),
 })

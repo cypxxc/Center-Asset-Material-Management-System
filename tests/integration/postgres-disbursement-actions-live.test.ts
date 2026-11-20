@@ -50,7 +50,7 @@ test('actual PostgreSQL actions preserve request, approval, return and concurren
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const queries = require('../../features/disbursements/postgres-queries') as typeof import('../../features/disbursements/postgres-queries')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { assignPostgresCustody } = require('../../features/disbursements/custody-postgres') as typeof import('../../features/disbursements/custody-postgres')
+    const { assignPostgresCustody, returnPostgresCustody } = require('../../features/disbursements/custody-postgres') as typeof import('../../features/disbursements/custody-postgres')
     const user = randomUUID(), other = randomUUID(), admin = randomUUID()
     for (const [id,role] of [[user,'user'],[other,'user'],[admin,'admin']]) {
       await owner.query('INSERT INTO profiles(id,full_name,email,role) VALUES($1,$2,$3,$4)', [id,role,`${id}@fixture.invalid`,role])
@@ -141,6 +141,82 @@ test('actual PostgreSQL actions preserve request, approval, return and concurren
     assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,9)
     await asUser(admin,'admin',() => actions.reversePostgresDisbursement({disbursement_id:issue.id,reason:'Fixture reversal'}))
     assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1',[material])).rows[0].quantity,10)
+
+    const rejectedMaterial = randomUUID()
+    await owner.query("INSERT INTO materials(id,item_name,item_type,quantity,is_central) VALUES($1,$2,'material',10,true)", [rejectedMaterial, rejectedMaterial])
+    const mixed = await asUser(user,'user',() => actions.submitPostgresBorrowRequest({
+      item_ids: [material, rejectedMaterial], request_type: 'issue', purpose: 'Partial decision fixture',
+    }))
+    const mixedLines = (await owner.query('SELECT id,item_id FROM disbursement_items WHERE disbursement_id=$1', [mixed.id])).rows
+    const approved = mixedLines.find(line => line.item_id === material)
+    const rejected = mixedLines.find(line => line.item_id === rejectedMaterial)
+    await asUser(admin,'admin',() => actions.partialApprovePostgresDisbursement({ disbursement_id: mixed.id, line_ids: [approved.id] }))
+    assert.deepEqual((await owner.query('SELECT status,document_no,fiscal_year FROM disbursements WHERE id=$1', [mixed.id])).rows[0], {
+      status: 'pending_approval', document_no: null, fiscal_year: null,
+    })
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1', [material])).rows[0].quantity, 9)
+    await asUser(admin,'admin',() => actions.partialRejectPostgresDisbursement({ disbursement_id: mixed.id, line_ids: [rejected.id], reason: 'Fixture rejection' }))
+    const closed = (await owner.query('SELECT status,document_no,fiscal_year,confirmed_at,confirmed_by FROM disbursements WHERE id=$1', [mixed.id])).rows[0]
+    assert.equal(closed.status, 'confirmed')
+    assert.ok(closed.document_no && closed.fiscal_year && closed.confirmed_at)
+    assert.equal(closed.confirmed_by, admin)
+    await asUser(admin,'admin',() => actions.reversePostgresDisbursement({ disbursement_id: mixed.id, reason: 'Fixture reversal' }))
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1', [material])).rows[0].quantity, 10)
+    assert.deepEqual((await owner.query('SELECT movement_type,delta FROM stock_movements WHERE disbursement_item_id=$1 ORDER BY delta', [rejected.id])).rows, [
+      { movement_type: 'issue', delta: -1 }, { movement_type: 'reversal', delta: 1 },
+    ])
+
+    const draft = await asUser(admin,'admin',() => actions.createPostgresDisbursementDraft({
+      transaction_type: 'material_issue', recipient_name: 'Fixture recipient', department_name: 'Fixture department',
+      purpose: 'Partial draft fixture', items: [{ item_id: material, requested_qty: 1 }, { item_id: rejectedMaterial, requested_qty: 1 }],
+    }))
+    const draftLines = (await owner.query('SELECT id,item_id FROM disbursement_items WHERE disbursement_id=$1', [draft.id])).rows
+    await asUser(admin,'admin',() => actions.partialApprovePostgresDisbursement({ disbursement_id: draft.id, line_ids: [draftLines[0].id] }))
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1', [draftLines[1].item_id])).rows[0].quantity, 9)
+    assert.ok((await owner.query('SELECT submitted_at FROM disbursements WHERE id=$1', [draft.id])).rows[0].submitted_at)
+    await asUser(admin,'admin',() => actions.confirmPostgresDisbursement(draft.id))
+    assert.equal((await owner.query('SELECT quantity FROM materials WHERE id=$1', [draftLines[1].item_id])).rows[0].quantity, 9)
+
+    const custodyAsset = randomUUID(), location = randomUUID()
+    await owner.query('INSERT INTO locations(id,name) VALUES($1,$2)', [location, 'Fixture custody origin'])
+    await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no,location_id) VALUES($1,$2,'asset',1,true,$2,$3)", [custodyAsset, custodyAsset, location])
+    const oldHandover = await asUser(user,'user',() => request(custodyAsset,'issue'))
+    await asUser(admin,'admin',() => actions.confirmPostgresDisbursement(oldHandover.id))
+    await asUser(admin,'admin',() => returnPostgresCustody({ item_id: custodyAsset, condition: 'normal', reason: 'Fixture custody return' }))
+    const newBorrow = await asUser(user,'user',() => request(custodyAsset,'borrow'))
+    await asUser(admin,'admin',() => actions.confirmPostgresDisbursement(newBorrow.id))
+    const readCustody = async () => (await owner.query(
+      'SELECT i.custody_revision::text AS revision, i.latest_custody_event_id AS event, c.custody_revision_after::text AS event_revision, c.action FROM items i LEFT JOIN asset_custody_logs c ON c.id=i.latest_custody_event_id WHERE i.id=$1',
+      [custodyAsset],
+    )).rows[0]
+    const borrowCustody = await readCustody()
+    assert.equal(borrowCustody.action, 'borrow')
+    assert.equal(borrowCustody.revision, borrowCustody.event_revision)
+    await owner.query('UPDATE items SET item_name=$1, location_id=NULL WHERE id=$2', ['Metadata edit', custodyAsset])
+    assert.deepEqual(await readCustody(), borrowCustody)
+    await assert.rejects(database.transaction(async tx => {
+      await tx.execute(sql`SELECT set_config('app.user_id', ${admin}, true)`)
+      await tx.execute(sql`UPDATE public.items SET latest_custody_event_id = NULL WHERE id = ${custodyAsset}`)
+    }), (error: Error) => (error.cause as { code?: string } | undefined)?.code === '42501')
+    const reverseOldHandover = () => asUser(admin,'admin',() => actions.reversePostgresDisbursement({ disbursement_id: oldHandover.id, reason: 'Old handover' }))
+    await assert.rejects(reverseOldHandover(), /กำลังยืม/)
+    const reverseCurrentBorrow = () => asUser(admin,'admin',() => actions.reversePostgresDisbursement({ disbursement_id: newBorrow.id, reason: 'Current borrow' }))
+    const reversalAttempts = await Promise.allSettled([reverseCurrentBorrow(), reverseCurrentBorrow()])
+    assert.equal(reversalAttempts.filter(result => result.status === 'fulfilled').length, 1)
+    const reversedCustody = await readCustody()
+    assert.equal(reversedCustody.action, 'reversal')
+    assert.equal(BigInt(reversedCustody.revision), BigInt(borrowCustody.revision) + BigInt(1))
+    await asUser(admin,'admin',() => assignPostgresCustody({ item_ids: [custodyAsset], recipient_id: admin }))
+    const assignment = await readCustody()
+    assert.equal(assignment.action, 'assignment')
+    await owner.query("UPDATE items SET note='ส่วนกลาง' WHERE id=$1", [custodyAsset])
+    await asUser(admin,'admin',() => assignPostgresCustody({ item_ids: [custodyAsset], recipient_id: admin }))
+    const reassignment = await readCustody()
+    assert.equal(reassignment.revision, assignment.revision)
+    assert.notEqual(reassignment.event, assignment.event)
+    await owner.query('UPDATE items SET responsible_person=$1 WHERE id=$2', ['Fixture recipient', custodyAsset])
+    assert.equal((await readCustody()).event, null)
+    await assert.rejects(reverseOldHandover(), /เหตุการณ์ถือครองล่าสุด/)
   } finally {
     await Promise.all(pools.map(pool => pool.end()))
     if (created) {

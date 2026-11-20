@@ -78,9 +78,19 @@ npm run postgres:setup
 # 2. เริ่มการทำงานของ PostgreSQL Container บน Docker
 npm run postgres:up
 
-# 3. รัน Database Migrations และสร้างบัญชี Admin เริ่มต้น
+# 3. ติดตั้งหรืออัปเกรด schema และสร้างบัญชี Admin เริ่มต้น
 npm run postgres:app:setup
 ```
+
+- **ฐานข้อมูลใหม่** ติดตั้งจาก [Final Baseline](db/postgres/migrations/0000_final_schema.sql) เพียงไฟล์เดียวสำหรับ schema ถึง `0003`
+- **ฐานข้อมูลเดิม** ทั้ง `postgres:app:setup` และ `db:migrate` ตรวจ timestamp และ hash ของ journal ก่อนรัน migration ฐานที่มี journal เก่าหรือมี schema แต่ไม่มี journal ที่ตรวจสอบได้ต้องผ่าน Transition ก่อน ห้ามใช้ CLI แบบไม่ผ่าน guard หรือรัน Final Baseline ทับฐานเดิม
+- **เมื่อเพิ่ม migration** ให้เพิ่มใน `db/postgres/migrations` ด้วยค่า `when` ที่ใหม่กว่ารายการล่าสุด คง cutoff ของ baseline ที่ `1795104000002` และเก็บไฟล์ SQL แบบ LF เพื่อรักษา hash
+
+**Transition สำหรับฐานข้อมูลเดิม**
+
+1. ตรวจ journal และ hash ของแต่ละฐานเทียบกับ migration artifacts เดิม หากยังไม่ถึง `0003` ให้ใช้ชุด release เดิมที่มี migration chain ครบอัปเกรดก่อน
+2. หยุด writer สำรอง PostgreSQL และ private storage แบบเต็ม แล้วพิสูจน์การ restore ในฐานและ storage แยก ตรวจ schema ถึง `0003` รวมถึง Custody API, triggers, RLS และสิทธิ์เทียบกับฐานที่สร้างจาก Final Baseline
+3. ให้ DBA ทดสอบการแทน journal เดิมด้วยรายการ baseline ที่มี timestamp และ hash จาก release ใหม่ใน restore clone โดยเก็บสำเนา journal เดิมและทำการแทนรายการใน transaction เดียว วิธีนี้เป็นงาน Transition แยกจาก runtime และไม่รัน schema SQL หาก bootstrap หรือ guard ยังไม่ผ่าน ให้คง maintenance และตรวจความต่างก่อนเปลี่ยนฐานจริง
 
 > 🔐 **การกำหนดบัญชีผู้ดูแลระบบ (Admin Account):**
 > - **สำหรับ Production:** แนะนำให้กำหนดอีเมลและรหัสผ่านที่ปลอดภัยผ่าน Environment Variables ก่อนรันคำสั่ง setup:

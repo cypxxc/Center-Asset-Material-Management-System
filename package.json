@@ -14,7 +14,7 @@
     "postgres:app:setup": "tsx scripts/postgres-app.ts setup",
     "postgres:activate": "tsx scripts/postgres-app.ts activate",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/postgres-app.ts migrate",
     "dev": "next dev --webpack",
     "build": "next build --webpack && tsx scripts/check-bundle-budget.ts",
     "postbuild": "node -e \"const fs=require('fs'); if(fs.existsSync('public')) fs.cpSync('public', '.next/standalone/public', {recursive:true, force:true}); if(fs.existsSync('.next/static')) fs.cpSync('.next/static', '.next/standalone/.next/static', {recursive:true, force:true});\"",

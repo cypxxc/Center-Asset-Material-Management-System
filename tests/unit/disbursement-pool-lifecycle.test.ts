@@ -38,9 +38,9 @@ const { confirmPostgresDisbursement, returnPostgresDisbursementItem } = require(
 test('approved borrowing removes central flag and marker while preserving other notes', async () => {
   mode = 'confirm'; writes.length = 0
   await confirmPostgresDisbursement(docId)
-  const update = writes.find((query) => query.sql.includes('UPDATE public.items'))!
-  assert.ok(update.sql.includes('is_central = false'))
-  assert.ok(update.params.includes('บันทึกเดิม'))
+  const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(event)
+  assert.deepEqual(event.params, [itemId, lineId, 'borrow', 1, 'บันทึกเดิม'])
 })
 
 test('approval snapshots use inventory reread under lock', async () => {
@@ -55,16 +55,16 @@ test('asset approval rejects quantity reduced to zero after submission', async (
   mode = 'confirm'; writes.length = 0; currentQuantity = 0
   try {
     await assert.rejects(confirmPostgresDisbursement(docId), /จำนวน|คงเหลือ|เพียงพอ/)
-    assert.equal(writes.some((query) => query.sql.includes('INSERT INTO public.asset_custody_logs')), false)
+    assert.equal(writes.some((query) => query.sql.includes('private.apply_asset_custody_event')), false)
   } finally { currentQuantity = 1 }
 })
 
 test('admin confirmed return restores central flag and marker', async () => {
   mode = 'return'; writes.length = 0
   await returnPostgresDisbursementItem({ line_id: lineId, return_qty: 1, condition: 'normal' })
-  const update = writes.find((query) => query.sql.includes('UPDATE public.items'))!
-  assert.ok(update.params.includes(true))
-  assert.ok(update.params.includes('บันทึกเดิม\nส่วนกลาง'))
+  const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(event?.sql.includes("'return'"))
+  assert.deepEqual(event.params, [itemId, lineId, 1, 'normal', null, 'บันทึกเดิม\nส่วนกลาง'])
 })
 
 test('user cannot confirm a return or restore central status', async () => {
@@ -78,13 +78,13 @@ test('user cannot confirm a return or restore central status', async () => {
 test('lost assets do not return to the central pool', async () => {
   mode = 'return'; writes.length = 0
   await returnPostgresDisbursementItem({ line_id: lineId, return_qty: 1, condition: 'lost' })
-  const update = writes.find((query) => query.sql.includes('UPDATE public.items'))!
-  assert.ok(update.sql.includes('is_central = false'))
-  assert.equal(update.params.some((value) => typeof value === 'string' && value.includes('ส่วนกลาง')), false)
+  const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(event?.sql.includes("'return'"))
+  assert.deepEqual(event.params, [itemId, lineId, 1, 'lost', null, 'บันทึกเดิม [บันทึกสูญหายจากการยืม]'])
 })
 
 test('return before the due date is allowed and does not block returns', async () => {
   mode = 'return'; writes.length = 0; isDue = false
   await returnPostgresDisbursementItem({ line_id: lineId, return_qty: 1, condition: 'normal' })
-  assert.ok(writes.some((query) => query.sql.includes('UPDATE public.items') || query.sql.includes('UPDATE public."items"')))
+  assert.ok(writes.some((query) => query.sql.includes('private.apply_asset_custody_event') && query.sql.includes("'return'")))
 })

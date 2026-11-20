@@ -13,6 +13,7 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logging'
 import { archivePostgresItems, ItemArchiveBlockedError } from './archive-items'
+import { lockDisbursementItems } from '@/features/disbursements/reservations'
 import { assertNoDuplicateMaterials, resolvedMaterialCategory, type MaterialImportIdentity } from './import-validation'
 import { inventoryTable } from './inventory-table'
 import { MATERIAL_LEDGER_FIELDS, materialLedgerSchema, type MaterialLedgerData } from './material-fields'
@@ -29,8 +30,24 @@ async function editor() {
   return profile
 }
 
+const borrowedCustodyMessage = 'ไม่สามารถเปลี่ยนผู้ถือครองครุภัณฑ์ที่ยังอยู่ระหว่างการยืมหรือมีรายการจ่ายที่ยังไม่ปิดได้'
+
+function blocksCustodianChange(responsiblePerson: string | null) {
+  return sql`
+    (d.status = 'pending_approval' OR (
+      d.transaction_type = 'asset_borrow' AND d.status IN ('active_borrow', 'partially_returned')
+    ))
+    AND di.status IN ('issued', 'partially_returned') AND di.issued_qty > di.returned_qty
+    AND EXISTS (
+      SELECT 1 FROM public.items i WHERE i.id = di.item_id AND i.deleted_at IS NULL
+        AND i.responsible_person IS DISTINCT FROM ${responsiblePerson}::text
+    )
+  `
+}
+
 function databaseMessage(error: unknown) {
   if (error instanceof MaterialMetadataConflict) return error.message
+  if (error instanceof Error && error.message === borrowedCustodyMessage) return error.message
   if (error instanceof Error && error.message.includes('ไม่สามารถเปลี่ยนสถานะ')) return error.message
   // Drizzle's outer message contains every SQL column name, even for unrelated failures.
   const outer = error as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } } | null
@@ -100,6 +117,7 @@ export async function updatePostgresItem(id: string, data: ItemInput, ledger?: M
     const profile = await editor()
     if (data.image_url && !resolveLocalItemImageUrl(data.image_url)) throw new Error('Invalid image URL')
     await withUserDatabase(async tx => {
+      if (data.item_type === 'asset') await lockDisbursementItems(tx, [id])
       await lockItemReferences(tx, data)
       const registry = await tx.execute<{ item_type: string }>(sql`select item_type from public.inventory_registry where id=${id}::uuid`)
       const itemType = registry.rows[0]?.item_type
@@ -108,6 +126,13 @@ export async function updatePostgresItem(id: string, data: ItemInput, ledger?: M
       const table = inventoryTable(itemType)
       const assignments = metadataUpdateColumns(columns, itemType).map(key => sql`${sql.identifier(key)}=${data[key] ?? null}`)
       if (data.item_type === 'asset') {
+        const blocked = await tx.execute(sql`
+          SELECT 1 FROM public.disbursement_items di
+          JOIN public.disbursements d ON d.id = di.disbursement_id
+          WHERE di.item_id = ${id} AND ${blocksCustodianChange(data.responsible_person ?? null)}
+          LIMIT 1
+        `)
+        if (blocked.rows.length) throw new Error(borrowedCustodyMessage)
         assignments.push(...ASSET_REGISTER_FIELDS.map(key => sql`${sql.identifier(key)}=${data[key] ?? null}`))
       }
       if (ledger && data.item_type === 'material') {
@@ -135,7 +160,10 @@ export async function mutatePostgresItems(ids: string[], operation: 'update' | '
     const validIds = z.array(uuid).min(1).max(1000).parse(ids)
     const uniqueIds = [...new Set(validIds)]
     const changes = operation === 'update' ? bulkUpdatesSchema.parse(updates) : {}
+    const makesUnavailable = operation === 'update' && changes.status !== undefined && !['active', 'spare'].includes(changes.status)
+    const changesCustodian = changes.responsible_person !== undefined
     const rows = await withUserDatabase(async tx => {
+      if (makesUnavailable || changesCustodian) await lockDisbursementItems(tx, uniqueIds)
       const match = sql`id in (${sql.join(uniqueIds.map(id => sql`${id}`), sql`, `)})`
       const affected: Array<{ id: string; image_url: string | null }> = []
       for (const type of ['asset', 'material'] as const) {
@@ -144,17 +172,21 @@ export async function mutatePostgresItems(ids: string[], operation: 'update' | '
         const selected = await tx.execute(sql`select id from ${table} where ${match} and deleted_at is null limit 1`)
         if (!selected.rows.length) continue
         await lockItemReferences(tx, { ...changes, item_type: type })
-        if (changes.status !== undefined && !['active', 'spare'].includes(changes.status)) {
+        const checksCustody = type === 'asset' && changesCustodian
+        if (makesUnavailable || checksCustody) {
           const blocked = await tx.execute(sql`
             select di.item_id from public.disbursement_items di
             join public.disbursements d on d.id = di.disbursement_id
             where di.item_id in (${sql.join(uniqueIds.map(id => sql`${id}`), sql`, `)}) and (
-              d.status in ('draft', 'pending_approval')
-              or (d.transaction_type = 'asset_borrow' and d.status in ('active_borrow', 'partially_returned')
-                and di.issued_qty > di.returned_qty and di.status <> 'reversed')
+              (${makesUnavailable} and d.status in ('draft', 'pending_approval') and di.status <> 'reversed')
+              or (${makesUnavailable} and d.transaction_type = 'asset_borrow' and d.status in ('active_borrow', 'partially_returned')
+                and di.issued_qty > di.returned_qty and di.status <> 'reversed'
+              )
+              or (${checksCustody} and ${blocksCustodianChange(changes.responsible_person || null)})
             ) limit 1
           `)
           if (blocked.rows.length) {
+            if (!makesUnavailable) throw new Error(borrowedCustodyMessage)
             throw new Error('รายการที่เลือกมีเอกสารร่าง คำขอรออนุมัติ หรือมีรายการยืมที่ยังไม่คืน ไม่สามารถเปลี่ยนสถานะเป็นไม่พร้อมใช้งานได้')
           }
         }

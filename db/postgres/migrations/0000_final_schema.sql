@@ -1,3 +1,4 @@
+-- Final schema through incremental migration 0003. Fresh databases only.
 -- CAMMS final PostgreSQL baseline. Schema only; no accounts or business data.
 -- Consolidated baseline for clean database deployment.
 -- Prerequisites: restricted camms_app and camms_auth roles (postgres:app:setup).
@@ -312,6 +313,9 @@ CREATE TABLE public.items (
     register_accumulated_depreciation numeric(14,2),
     register_book_value numeric(14,2),
     register_as_of date,
+    custody_revision bigint DEFAULT 0 NOT NULL,
+    latest_custody_event_id uuid,
+    CONSTRAINT items_custody_revision_check CHECK (custody_revision >= 0),
     CONSTRAINT items_pkey PRIMARY KEY (id),
     CONSTRAINT items_category_id_categories_id_fk FOREIGN KEY (category_id) REFERENCES public.categories(id),
     CONSTRAINT items_category_type_fk FOREIGN KEY (category_id, item_type) REFERENCES public.categories(id, item_type),
@@ -715,7 +719,7 @@ CREATE INDEX stock_movements_item_created_index ON public.stock_movements USING 
 CREATE TABLE public.asset_custody_logs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     item_id uuid NOT NULL,
-    disbursement_item_id uuid NOT NULL,
+    disbursement_item_id uuid,
     action text NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
     from_responsible text,
@@ -724,14 +728,31 @@ CREATE TABLE public.asset_custody_logs (
     note text,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    custody_revision_after bigint,
+    custody_origin_verified boolean DEFAULT false NOT NULL,
+    custody_returned_qty_after integer,
     CONSTRAINT asset_custody_logs_pkey PRIMARY KEY (id),
     CONSTRAINT asset_custody_logs_item_id_items_id_fk FOREIGN KEY (item_id) REFERENCES public.items(id) ON DELETE RESTRICT,
     CONSTRAINT asset_custody_logs_disbursement_item_id_disbursement_items_id_f FOREIGN KEY (disbursement_item_id) REFERENCES public.disbursement_items(id) ON DELETE RESTRICT,
     CONSTRAINT asset_custody_logs_created_by_profiles_id_fk FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL,
-    CONSTRAINT asset_custody_action_check CHECK (action IN ('handover', 'borrow', 'return', 'reversal')),
+    CONSTRAINT asset_custody_action_check CHECK (
+    (disbursement_item_id IS NOT NULL AND action IN ('handover','borrow','return','reversal'))
+    OR (disbursement_item_id IS NULL AND action IN ('assignment','custody_return'))
+  ),
+    CONSTRAINT asset_custody_revision_check CHECK (custody_revision_after >= 0),
+    CONSTRAINT asset_custody_verified_event_check CHECK (
+    NOT custody_origin_verified OR (
+      custody_revision_after IS NOT NULL
+      AND ((action = 'return' AND custody_returned_qty_after IS NOT NULL AND custody_returned_qty_after > 0)
+        OR (action <> 'return' AND custody_returned_qty_after IS NULL))
+    )
+  ),
     CONSTRAINT asset_custody_condition_check CHECK (item_condition IN ('normal', 'damaged', 'lost')),
     CONSTRAINT asset_custody_qty_check CHECK (quantity > 0)
 );
+
+ALTER TABLE public.items ADD CONSTRAINT items_latest_custody_event_fk
+  FOREIGN KEY (latest_custody_event_id) REFERENCES public.asset_custody_logs(id);
 
 CREATE INDEX asset_custody_item_created_index ON public.asset_custody_logs USING btree (item_id, created_at);
 
@@ -1153,13 +1174,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE private_auth.rate_limits TO camms_aut
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE private_auth.sessions TO camms_auth;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE private_auth.consumed_tokens TO camms_auth;
 
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.asset_custody_logs TO camms_app;
+GRANT SELECT,DELETE,UPDATE ON TABLE public.asset_custody_logs TO camms_app;
 GRANT SELECT,INSERT ON TABLE public.audit_logs TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.categories TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.disbursement_items TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.disbursement_sequences TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.disbursements TO camms_app;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.items TO camms_app;
+GRANT SELECT,DELETE ON TABLE public.items TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.materials TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.locations TO camms_app;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.units TO camms_app;
@@ -1175,3 +1196,246 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.profiles TO camms_auth;
 GRANT SELECT ON TABLE public.profiles TO camms_app;
 GRANT UPDATE(full_name) ON TABLE public.profiles TO camms_app;
 GRANT UPDATE(sidebar_order) ON TABLE public.profiles TO camms_app;
+
+--> statement-breakpoint
+CREATE FUNCTION private.reverse_closed_request_lines() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  UPDATE public.disbursement_items
+  SET status = 'reversed'
+  WHERE disbursement_id = NEW.id AND status = 'pending';
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION private.reverse_closed_request_lines() FROM PUBLIC;
+--> statement-breakpoint
+CREATE TRIGGER reverse_closed_request_lines
+AFTER UPDATE OF status ON public.disbursements
+FOR EACH ROW
+WHEN (OLD.status IN ('draft', 'pending_approval') AND NEW.status IN ('cancelled', 'rejected'))
+EXECUTE FUNCTION private.reverse_closed_request_lines();
+--> statement-breakpoint
+CREATE FUNCTION private.advance_asset_custody_revision() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.custody_revision := 0;
+    NEW.latest_custody_event_id := NULL;
+  ELSIF ROW(NEW.responsible_person, NEW.is_central)
+    IS DISTINCT FROM ROW(OLD.responsible_person, OLD.is_central) THEN
+    NEW.custody_revision := OLD.custody_revision + 1;
+    NEW.latest_custody_event_id := NULL;
+  ELSE
+    NEW.custody_revision := OLD.custody_revision;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+CREATE TRIGGER items_custody_revision
+BEFORE INSERT OR UPDATE ON public.items
+FOR EACH ROW EXECUTE FUNCTION private.advance_asset_custody_revision();
+--> statement-breakpoint
+DO $$
+DECLARE writable_columns text;
+BEGIN
+  SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum) INTO writable_columns
+  FROM pg_catalog.pg_attribute
+  WHERE attrelid = 'public.items'::regclass AND attnum > 0 AND NOT attisdropped
+    AND attname NOT IN ('custody_revision', 'latest_custody_event_id');
+  EXECUTE format('GRANT INSERT (%s), UPDATE (%s) ON public.items TO camms_app', writable_columns, writable_columns);
+END;
+$$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION private.advance_asset_custody_revision() FROM PUBLIC;
+--> statement-breakpoint
+CREATE FUNCTION private.verify_asset_custody_document_event() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.disbursement_items di
+    JOIN public.disbursements d ON d.id = di.disbursement_id
+    WHERE di.id = NEW.disbursement_item_id AND di.item_id = NEW.item_id
+      AND CASE NEW.action
+        WHEN 'handover' THEN di.status = 'issued' AND di.issued_qty = NEW.quantity
+          AND d.status IN ('pending_approval', 'confirmed')
+        WHEN 'borrow' THEN di.status = 'issued' AND di.issued_qty = NEW.quantity
+          AND d.status IN ('pending_approval', 'active_borrow')
+        WHEN 'return' THEN di.status IN ('returned', 'partially_returned')
+          AND di.returned_qty = NEW.custody_returned_qty_after
+          AND d.status IN ('returned', 'partially_returned')
+        WHEN 'reversal' THEN di.status = 'reversed' AND d.status = 'reversed'
+        ELSE false
+      END
+  ) THEN
+    RAISE EXCEPTION 'Custody event requires the corresponding document transition';
+  END IF;
+  RETURN NULL;
+END;
+$$;
+--> statement-breakpoint
+CREATE CONSTRAINT TRIGGER verify_asset_custody_document_event
+AFTER INSERT ON public.asset_custody_logs
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+WHEN (NEW.custody_origin_verified AND NEW.disbursement_item_id IS NOT NULL)
+EXECUTE FUNCTION private.verify_asset_custody_document_event();
+--> statement-breakpoint
+CREATE FUNCTION private.apply_asset_custody_event(
+  p_item_id uuid, p_line_id uuid, p_action text, p_quantity integer,
+  p_condition text, p_event_note text, p_item_note text,
+  p_location_id uuid DEFAULT NULL, p_recipient_id uuid DEFAULT NULL
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  actor uuid := private.current_user_id();
+  before_asset public.items%ROWTYPE;
+  after_asset public.items%ROWTYPE;
+  line public.disbursement_items%ROWTYPE;
+  document public.disbursements%ROWTYPE;
+  document_id uuid;
+  event_id uuid;
+  next_holder text;
+  next_central boolean;
+  next_status text;
+  next_quantity integer;
+  returned_after integer;
+BEGIN
+  IF actor IS NULL OR private.current_app_role() IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Admin required' USING ERRCODE = '42501';
+  END IF;
+  IF p_action IS NULL OR p_quantity IS NULL OR p_quantity <= 0 OR p_condition IS NULL
+    OR p_condition NOT IN ('normal','damaged','lost')
+    OR (p_recipient_id IS NOT NULL AND p_action <> 'assignment')
+    OR (p_location_id IS NOT NULL AND p_action NOT IN ('return','custody_return')) THEN
+    RAISE EXCEPTION 'Invalid custody event parameters';
+  END IF;
+
+  IF p_line_id IS NOT NULL THEN
+    SELECT di.disbursement_id INTO STRICT document_id FROM public.disbursement_items di WHERE di.id = p_line_id;
+    SELECT * INTO STRICT document FROM public.disbursements WHERE id = document_id FOR UPDATE;
+    SELECT * INTO STRICT line FROM public.disbursement_items
+      WHERE id = p_line_id AND item_id = p_item_id AND disbursement_id = document_id FOR UPDATE;
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('camms-disbursement:' || p_item_id::text, 0));
+  SELECT * INTO STRICT before_asset FROM public.items
+    WHERE id = p_item_id AND deleted_at IS NULL FOR UPDATE;
+  next_holder := before_asset.responsible_person;
+  next_central := before_asset.is_central;
+  next_status := before_asset.status;
+  next_quantity := before_asset.quantity;
+
+  IF p_action IN ('assignment','handover','borrow','reversal') AND EXISTS (
+    SELECT 1 FROM public.disbursement_items di
+    JOIN public.disbursements d ON d.id = di.disbursement_id
+    WHERE di.item_id = p_item_id AND d.id IS DISTINCT FROM document_id
+      AND d.status IN ('pending_approval','active_borrow','partially_returned')
+      AND di.status NOT IN ('returned','reversed')
+  ) THEN
+    RAISE EXCEPTION 'Asset has another open reservation';
+  END IF;
+  IF p_action IN ('assignment','handover','borrow') THEN
+    IF NOT (before_asset.is_central OR coalesce(before_asset.note, '') LIKE '%ส่วนกลาง%')
+      OR before_asset.status NOT IN ('active','spare') OR p_condition <> 'normal' THEN
+      RAISE EXCEPTION 'Asset is not available for assignment';
+    END IF;
+    IF p_action = 'assignment' THEN
+      IF p_line_id IS NOT NULL OR p_quantity <> 1 THEN
+        RAISE EXCEPTION 'Invalid direct assignment';
+      END IF;
+      SELECT full_name INTO STRICT next_holder FROM public.profiles
+        WHERE id = p_recipient_id AND is_active AND btrim(full_name) <> '';
+    ELSE
+      IF p_line_id IS NULL OR document.status NOT IN ('draft','pending_approval')
+        OR document.transaction_type <> (CASE WHEN p_action = 'borrow' THEN 'asset_borrow' ELSE 'asset_handover' END)
+        OR line.status <> 'pending' OR p_quantity <> line.requested_qty OR p_quantity > before_asset.quantity THEN
+        RAISE EXCEPTION 'Custody event does not match the pending document line';
+      END IF;
+      next_holder := document.recipient_name;
+    END IF;
+    next_central := false;
+  ELSIF p_action = 'return' THEN
+    IF p_line_id IS NULL OR document.transaction_type <> 'asset_borrow'
+      OR document.status NOT IN ('active_borrow','partially_returned')
+      OR line.status NOT IN ('issued','partially_returned')
+      OR p_quantity > line.issued_qty - line.returned_qty THEN
+      RAISE EXCEPTION 'Custody return does not match the outstanding document line';
+    END IF;
+    returned_after := line.returned_qty + p_quantity;
+    IF p_location_id IS NOT NULL AND (p_condition = 'lost' OR returned_after <> line.issued_qty) THEN
+      RAISE EXCEPTION 'Location requires a complete physical return';
+    END IF;
+    IF p_condition = 'lost' THEN
+      IF before_asset.quantity > 1 THEN RAISE EXCEPTION 'Cannot record loss of a multi-unit asset'; END IF;
+      next_holder := NULL;
+      next_central := false;
+      next_status := 'inactive';
+      next_quantity := 0;
+    ELSE
+      next_central := returned_after = line.issued_qty;
+      IF next_central THEN next_holder := NULL; END IF;
+      IF p_condition = 'damaged' THEN next_status := 'damaged';
+      ELSIF p_location_id IS NOT NULL THEN next_status := 'active'; END IF;
+    END IF;
+  ELSIF p_action = 'custody_return' THEN
+    IF p_line_id IS NOT NULL OR p_quantity <> 1 OR p_location_id IS NULL
+      OR p_condition = 'lost' OR before_asset.responsible_person IS NULL OR EXISTS (
+        SELECT 1 FROM public.disbursement_items di
+        JOIN public.disbursements d ON d.id = di.disbursement_id
+        WHERE di.item_id = p_item_id
+          AND (d.status = 'pending_approval' OR
+            (d.transaction_type = 'asset_borrow' AND d.status IN ('active_borrow','partially_returned')))
+          AND di.status IN ('issued','partially_returned') AND di.issued_qty > di.returned_qty
+      ) THEN
+      RAISE EXCEPTION 'Asset cannot be returned through direct custody';
+    END IF;
+    next_holder := NULL;
+    next_central := true;
+    next_status := CASE WHEN p_condition = 'damaged' THEN 'damaged' ELSE 'active' END;
+  ELSIF p_action = 'reversal' THEN
+    IF p_line_id IS NULL OR document.transaction_type NOT IN ('asset_handover','asset_borrow')
+      OR document.status NOT IN ('confirmed','active_borrow') OR line.status <> 'issued'
+      OR p_quantity <> line.issued_qty OR p_condition <> 'normal'
+      OR before_asset.responsible_person IS DISTINCT FROM document.recipient_name
+      OR EXISTS (SELECT 1 FROM public.disbursement_items WHERE disbursement_id = document_id AND returned_qty > 0) THEN
+      RAISE EXCEPTION 'Custody reversal does not match the document line';
+    END IF;
+    SELECT c.from_responsible INTO STRICT next_holder FROM public.asset_custody_logs c
+      WHERE c.id = before_asset.latest_custody_event_id AND c.item_id = p_item_id
+        AND c.disbursement_item_id = p_line_id AND c.custody_origin_verified
+        AND c.custody_revision_after = before_asset.custody_revision
+        AND c.action = CASE WHEN document.transaction_type = 'asset_borrow' THEN 'borrow' ELSE 'handover' END;
+    next_central := next_holder IS NULL;
+  ELSE
+    RAISE EXCEPTION 'Invalid custody action';
+  END IF;
+
+  IF p_action IN ('handover','borrow','return','reversal') AND EXISTS (
+    SELECT 1 FROM public.asset_custody_logs c
+    WHERE c.disbursement_item_id = p_line_id AND c.action = p_action AND c.custody_origin_verified
+      AND (p_action <> 'return' OR c.custody_returned_qty_after = returned_after)
+  ) THEN
+    RAISE EXCEPTION 'Custody event already recorded for this document transition';
+  END IF;
+  UPDATE public.items SET responsible_person = next_holder, is_central = next_central,
+    status = next_status, quantity = next_quantity, note = p_item_note,
+    location_id = coalesce(p_location_id, before_asset.location_id)
+  WHERE id = p_item_id RETURNING * INTO STRICT after_asset;
+
+  INSERT INTO public.asset_custody_logs (
+    item_id, disbursement_item_id, action, quantity, from_responsible, to_responsible,
+    item_condition, note, created_by, custody_revision_after, custody_origin_verified, custody_returned_qty_after
+  ) VALUES (p_item_id, p_line_id, p_action, p_quantity, before_asset.responsible_person,
+    after_asset.responsible_person, p_condition, p_event_note, actor, after_asset.custody_revision, true, returned_after)
+  RETURNING id INTO event_id;
+
+  UPDATE public.items SET latest_custody_event_id = event_id WHERE id = p_item_id;
+END;
+$$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION private.verify_asset_custody_document_event() FROM PUBLIC;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION private.apply_asset_custody_event(uuid, uuid, text, integer, text, text, text, uuid, uuid) FROM PUBLIC;
+--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION private.apply_asset_custody_event(uuid, uuid, text, integer, text, text, text, uuid, uuid) TO camms_app;

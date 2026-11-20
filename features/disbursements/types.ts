@@ -92,8 +92,8 @@ export interface StockMovementRow extends Record<string, unknown> {
 export interface AssetCustodyLogRow extends Record<string, unknown> {
   id: string
   item_id: string
-  disbursement_item_id: string
-  action: 'handover' | 'borrow' | 'return' | 'reversal'
+  disbursement_item_id: string | null
+  action: 'handover' | 'borrow' | 'return' | 'reversal' | 'assignment' | 'custody_return'
   quantity: number
   from_responsible: string | null
   to_responsible: string | null

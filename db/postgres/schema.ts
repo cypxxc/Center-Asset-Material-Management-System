@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { pgTable, pgSchema, uuid, text, boolean, timestamp, integer, bigint, numeric, date, jsonb, index, uniqueIndex, check, foreignKey, primaryKey } from 'drizzle-orm/pg-core'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 const stamps = () => ({ created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(), updated_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow() })
 export const profiles = pgTable('profiles', {
@@ -46,11 +47,15 @@ const inventoryColumns = () => ({
 })
 export const items = pgTable('items', {
   ...inventoryColumns(),
+  custody_revision: bigint({ mode: 'bigint' }).notNull().default(sql`0`),
+  latest_custody_event_id: uuid(),
   register_sequence: text(), asset_prefix: text(),
   register_accumulated_depreciation: numeric({ precision: 14, scale: 2, mode: 'number' }),
   register_book_value: numeric({ precision: 14, scale: 2, mode: 'number' }),
   register_as_of: date({ mode: 'string' }),
 }, (t) => [
+  foreignKey({ name: 'items_latest_custody_event_fk', columns: [t.latest_custody_event_id], foreignColumns: [custodyEventId()] }),
+  check('items_custody_revision_check', sql`${t.custody_revision} >= 0`),
   foreignKey({ name: 'items_category_type_fk', columns: [t.category_id, t.item_type], foreignColumns: [categories.id, categories.item_type] }),
   check('items_register_amounts_check', sql`${t.register_book_value} is null or ${t.register_book_value} >= 0`),
   check('items_type_check', sql`${t.item_type} = 'asset'`),
@@ -198,10 +203,15 @@ export const stockMovements = pgTable('stock_movements', {
   index('stock_movements_item_created_index').on(t.item_id, t.created_at),
 ])
 
+function custodyEventId(): AnyPgColumn { return assetCustodyLogs.id }
+
 export const assetCustodyLogs = pgTable('asset_custody_logs', {
   id: uuid().primaryKey().defaultRandom(),
   item_id: uuid().notNull().references(() => items.id, { onDelete: 'restrict' }),
-  disbursement_item_id: uuid().notNull().references(() => disbursementItems.id, { onDelete: 'restrict' }),
+  disbursement_item_id: uuid().references(() => disbursementItems.id, { onDelete: 'restrict' }),
+  custody_revision_after: bigint({ mode: 'bigint' }),
+  custody_origin_verified: boolean().notNull().default(false),
+  custody_returned_qty_after: integer(),
   action: text().notNull(),
   quantity: integer().notNull().default(1),
   from_responsible: text(),
@@ -211,7 +221,13 @@ export const assetCustodyLogs = pgTable('asset_custody_logs', {
   created_by: uuid().references(() => profiles.id, { onDelete: 'set null' }),
   created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
 }, (t) => [
-  check('asset_custody_action_check', sql`${t.action} in ('handover','borrow','return','reversal')`),
+  check('asset_custody_action_check', sql`(${t.disbursement_item_id} is not null and ${t.action} in ('handover','borrow','return','reversal')) or (${t.disbursement_item_id} is null and ${t.action} in ('assignment','custody_return'))`),
+  check('asset_custody_revision_check', sql`${t.custody_revision_after} >= 0`),
+  check('asset_custody_verified_event_check', sql`not ${t.custody_origin_verified} or (
+    ${t.custody_revision_after} is not null
+    and ((${t.action} = 'return' and ${t.custody_returned_qty_after} is not null and ${t.custody_returned_qty_after} > 0)
+      or (${t.action} <> 'return' and ${t.custody_returned_qty_after} is null))
+  )`),
   check('asset_custody_condition_check', sql`${t.item_condition} in ('normal','damaged','lost')`),
   check('asset_custody_qty_check', sql`${t.quantity} > 0`),
   index('asset_custody_item_created_index').on(t.item_id, t.created_at),

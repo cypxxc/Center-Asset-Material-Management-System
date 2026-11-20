@@ -3,8 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { migratePostgres } from './postgres-migrate'
 import { hashPassword } from '../lib/postgres/password'
 
 async function run() {
@@ -49,8 +48,7 @@ async function run() {
     const stagingOwnerPool = new Pool({ connectionString: stagingOwnerUrl.toString(), connectionTimeoutMillis: 5000 })
 
     try {
-      const ownerDb = drizzle(stagingOwnerPool)
-      await migrate(ownerDb, { migrationsFolder: './db/postgres/migrations' })
+      await migratePostgres(stagingOwnerPool)
       console.log('Drizzle migrations applied.')
 
       // Check migration records in drizzle.__drizzle_migrations

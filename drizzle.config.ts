@@ -1,4 +1,4 @@
 import { defineConfig } from 'drizzle-kit'
-import { config } from 'dotenv'
-config({ path: '.env.postgres.app', quiet: true })
-export default defineConfig({ dialect: 'postgresql', schema: './db/postgres/schema.ts', out: './db/postgres/migrations', dbCredentials: { url: process.env.DATABASE_MIGRATION_URL ?? '' }, strict: true })
+
+// Generation only. Apply migrations through the guarded npm run db:migrate command.
+export default defineConfig({ dialect: 'postgresql', schema: './db/postgres/schema.ts', out: './db/postgres/migrations', strict: true })

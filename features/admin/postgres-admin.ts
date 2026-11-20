@@ -258,7 +258,9 @@ export async function pgExportDatabaseData() {
       // One MVCC snapshot across every table; never export credentials or sessions.
       const results = await tx.execute(sql`select ${sql.join(backupTables.map(table => {
         // The owner-only password input is not part of the business backup format.
-        const row = table === 'profiles' ? sql`to_jsonb(t) - 'password'` : sql`to_jsonb(t)`
+        const row = table === 'profiles' ? sql`to_jsonb(t) - 'password'`
+          : table === 'items' ? sql`to_jsonb(t) - 'custody_revision' - 'latest_custody_event_id'`
+          : sql`to_jsonb(t)`
         return sql`(select coalesce(jsonb_agg(${row}), '[]'::jsonb) from ${tableSql(table)} t) as ${sql.identifier(table)}`
       }), sql`, `)}`)
       return { __meta: { version: 1, exportedAt: new Date().toISOString(), tables: backupTables, scope: 'business', identitiesRestored: false }, ...results.rows[0] }

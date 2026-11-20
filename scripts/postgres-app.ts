@@ -2,9 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs'
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { localPostgresConfig } from './postgres-local-config'
+import { migratePostgres } from './postgres-migrate'
 import { hashPassword } from '../lib/postgres/password'
 
 const appFile = '.env.postgres.app'
@@ -39,11 +38,19 @@ async function setup() {
       }
     }
     const existing = await owner.query('select 1 from pg_database where datname=$1',[database])
-    if (!existing.rowCount) await owner.query('CREATE DATABASE camms_registry')
+    if (!existing.rowCount) {
+      const ownerEndpoint = new URL(local.connectionString)
+      const migrationEndpoint = new URL(app.DATABASE_MIGRATION_URL)
+      if (migrationEndpoint.hostname !== ownerEndpoint.hostname ||
+          (migrationEndpoint.port || '5432') !== (ownerEndpoint.port || '5432')) {
+        throw new Error('Fresh database and migration connections must target the same PostgreSQL endpoint')
+      }
+      await owner.query('CREATE DATABASE camms_registry')
+    }
   } finally { await owner.end() }
   const migrationPool = new Pool({ connectionString: app!.DATABASE_MIGRATION_URL, connectionTimeoutMillis: 5000 })
   try {
-    await migrate(drizzle(migrationPool), { migrationsFolder: './db/postgres/migrations' })
+    await migratePostgres(migrationPool)
     const client = await migrationPool.connect()
     try {
     await client.query('BEGIN')
@@ -78,6 +85,13 @@ function activate() {
 async function main() {
   if (process.argv[2] === 'setup') await setup()
   else if (process.argv[2] === 'activate') activate()
-  else throw new Error('Usage: tsx scripts/postgres-app.ts setup|activate')
+  else if (process.argv[2] === 'migrate') {
+    const connectionString = process.env.DATABASE_MIGRATION_URL ||
+      (existsSync(appFile) ? parse(readFileSync(appFile)).DATABASE_MIGRATION_URL : undefined)
+    if (!connectionString) throw new Error('Set DATABASE_MIGRATION_URL before applying CAMMS migrations')
+    const pool = new Pool({ connectionString, connectionTimeoutMillis: 5000 })
+    try { await migratePostgres(pool) }
+    finally { await pool.end() }
+  } else throw new Error('Usage: tsx scripts/postgres-app.ts setup|activate|migrate')
 }
 main().catch((error: unknown) => { console.error(error instanceof Error ? error.message : 'PostgreSQL setup failed'); process.exitCode=1 })

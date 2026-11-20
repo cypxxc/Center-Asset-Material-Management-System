@@ -45,6 +45,8 @@ const { generateDisbursementVoucherHtml } = require('../../features/disbursement
 const {
   cancelPostgresDisbursementDraft,
   confirmPostgresDisbursement,
+  partialApprovePostgresDisbursement,
+  partialRejectPostgresDisbursement,
   returnPostgresDisbursementItem,
   reversePostgresDisbursement,
   partialReturnPostgresDisbursement,
@@ -114,7 +116,13 @@ test('BUG-06: generateDisbursementVoucherHtml outputs requested_qty for pending_
     },
   ]
 
-  const html = generateDisbursementVoucherHtml(doc, items)
+  const html = generateDisbursementVoucherHtml(doc, [
+    ...items,
+    { ...items[0], status: 'issued', requested_qty: 9, issued_qty: 2, unit_price_snapshot: 50 },
+    { ...items[0], status: 'reversed', requested_qty: 40, item_name_snapshot: 'Rejected item' },
+  ])
+  assert.ok(html.includes('1,600.00'), 'total uses requested and issued quantities according to line status')
+  assert.ok(!html.includes('Rejected item'))
   assert.ok(html.includes('10'), 'voucher contains requested quantity 10')
   assert.ok(html.includes('1,500.00'), 'voucher contains row total 1,500.00')
   assert.ok(html.includes('กระดาษ A4'), 'voucher contains item name')
@@ -285,13 +293,14 @@ test('BUG-03: partialReturnPostgresDisbursement handles lost condition safely', 
     if (query.sql.includes('public.inventory_registry')) {
       return { rows: [{ id: itemId, item_type: 'asset' }] }
     }
-    if (query.sql.includes('SELECT id, item_type, note FROM')) {
+    if (query.sql.includes('SELECT id, item_type, note, quantity FROM')) {
       return {
         rows: [
           {
             id: itemId,
             item_type: 'asset',
             note: 'ของเดิม',
+            quantity: 1,
           },
         ],
       }
@@ -320,19 +329,15 @@ test('BUG-03: partialReturnPostgresDisbursement handles lost condition safely', 
     ],
   })
 
-  const updateItem = executedStatements.find((s) => s.sql.includes('UPDATE public.items'))
-  assert.ok(updateItem, 'item update executed')
-  assert.ok(updateItem.sql.includes('responsible_person = NULL'), 'responsible person cleared')
-  assert.ok(updateItem.sql.includes('is_central = false'), 'is_central is false')
-  assert.ok(updateItem.sql.includes('quantity = 0'), 'quantity is 0')
-  assert.ok(updateItem.sql.includes("status = 'inactive'"), 'status set to inactive')
-  assert.equal(updateItem.params[0], 'ของเดิม [บันทึกสูญหายจากการยืม]', 'loss note appended')
+  const loss = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(loss?.sql.includes("'return'"))
+  assert.deepEqual(loss.params, [itemId, lineId, 1, 'lost', 'ทำหายระหว่างเดินทาง', 'ของเดิม [บันทึกสูญหายจากการยืม]', null])
 })
 
 // ==========================================
 // BUG-04: Return item retains custodian on partial return and decrements on lost
 // ==========================================
-test('BUG-04: returnPostgresDisbursementItem retains custodian on partial return and decrements on lost', async () => {
+test('BUG-04: returnPostgresDisbursementItem retains the custodian on partial return and rejects multi-unit loss', async () => {
   mockProfile = {
     id: '00000000-0000-4000-8000-000000000099',
     role: 'admin',
@@ -402,27 +407,25 @@ test('BUG-04: returnPostgresDisbursementItem retains custodian on partial return
     return_qty: 1,
     condition: 'normal',
   })
-  const updateItem = executedStatements.find((s) => s.sql.includes('UPDATE public.items'))
-  assert.ok(updateItem, 'items update executed')
-  assert.equal(updateItem.params[0], 'ผู้ยืม ทดสอบ', 'custodian preserved on partial return')
+  const partialReturn = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(partialReturn?.sql.includes("'return'"))
+  assert.deepEqual(partialReturn.params.slice(0, 5), [itemId, lineId, 1, 'normal', null])
+  assert.doesNotMatch(String(partialReturn.params[5]), /ส่วนกลาง/)
 
   // Test lost condition on remaining quantity
   executedStatements.length = 0
-  await returnPostgresDisbursementItem({
+  await assert.rejects(returnPostgresDisbursementItem({
     line_id: lineId,
     return_qty: 1,
     condition: 'lost',
-  })
-  const updateLost = executedStatements.find((s) => s.sql.includes('UPDATE public.items'))
-  assert.ok(updateLost, 'items update executed on lost')
-  // Quantity should be decremented to 2, NOT 0!
-  assert.equal(updateLost.params[2], 2, 'quantity decremented to 2 on lost, not set to 0')
+  }), /จำนวนมากกว่า 1 หน่วย/)
+  assert.ok(!executedStatements.some((s) => s.sql.includes('private.apply_asset_custody_event')))
 })
 
 // ==========================================
 // BUG-05: Reject disbursement updates pending lines to reversed and guards partial issues
 // ==========================================
-test('BUG-05: rejectPostgresDisbursement sets line status to reversed and rejects partially issued doc', async () => {
+test('BUG-05: rejectPostgresDisbursement transitions the header for the close trigger and rejects partially issued docs', async () => {
   mockProfile = {
     id: '00000000-0000-4000-8000-000000000099',
     role: 'admin',
@@ -461,10 +464,48 @@ test('BUG-05: rejectPostgresDisbursement sets line status to reversed and reject
 
   await rejectPostgresDisbursement(docId, 'ไม่อนุมัติคำขอ')
 
-  const updateLineStatus = executedStatements.find(
-    (s) => s.sql.includes('UPDATE public.disbursement_items') && s.sql.includes("status = 'reversed'")
+  const rejectHeader = executedStatements.find(
+    (s) => s.sql.includes('UPDATE public.disbursements') && s.sql.includes("status = 'rejected'")
   )
-  assert.ok(updateLineStatus, 'disbursement_items updated to reversed')
+  assert.ok(rejectHeader, 'header transitions to rejected so the database can close the pending lines')
+})
+
+test('partial approval allocates a document number only when final rejection closes the review', async () => {
+  const docId = '11111111-1111-4111-8111-111111111111'
+  const first = { id: '22222222-2222-4222-8222-222222222222', item_id: '33333333-3333-4333-8333-333333333333', status: 'pending', requested_qty: 1, issued_qty: 0 }
+  const last = { ...first, id: '44444444-4444-4444-8444-444444444444', item_id: '55555555-5555-4555-8555-555555555555' }
+  const statements: string[] = []
+  activeQueryHandler = ({ sql }) => {
+    statements.push(sql)
+    if (sql.includes('SELECT * FROM public.disbursements')) {
+      return { rows: [{ id: docId, status: 'pending_approval', transaction_type: 'material_issue', document_no: null, fiscal_year: null }] }
+    }
+    if (sql.includes('SELECT * FROM public.disbursement_items')) return { rows: [first, last] }
+    if (sql.includes('sum(delta)')) return { rows: [{ net: -1 }] }
+    if (sql.includes('public.inventory_registry') || sql.includes('SELECT i.*')) {
+      return { rows: [{ id: first.item_id, item_type: 'material', status: 'active', quantity: 0 }] }
+    }
+    if (sql.includes('RETURNING quantity')) return { rows: [{ quantity: 10 }] }
+    if (sql.includes('RETURNING current_val')) return { rows: [{ current_val: 1 }] }
+    return { rows: [] }
+  }
+
+  const partial = await partialApprovePostgresDisbursement({ disbursement_id: docId, line_ids: [first.id] })
+  assert.equal(partial.status, 'pending_approval')
+  assert.equal(partial.document_no, undefined)
+  assert.ok(!statements.some((sql) => sql.includes('disbursement_sequences') || sql.includes('UPDATE public.materials')))
+  assert.doesNotMatch(statements.find((sql) => sql.includes('UPDATE public.disbursements')) ?? '', /document_no|fiscal_year/)
+
+  first.status = 'issued'
+  first.issued_qty = 1
+  statements.length = 0
+  const closed = await partialRejectPostgresDisbursement({ disbursement_id: docId, line_ids: [last.id], reason: 'Declined' })
+  assert.equal(closed.status, 'confirmed')
+  assert.ok(statements.some((sql) => sql.includes('disbursement_sequences')))
+  const header = statements.find((sql) => sql.includes('UPDATE public.disbursements')) ?? ''
+  assert.match(header, /document_no.*fiscal_year/)
+  assert.match(header, /confirmed_at.*confirmed_by/)
+  assert.doesNotMatch(header, /reversal_reason/)
 })
 
 // ==========================================
@@ -496,6 +537,8 @@ test('BUG-07: getPostgresDisbursements scopes results to created_by for non-admi
     assert.ok(statement.sql.includes('d.created_by ='), 'query scopes to created_by')
     assert.ok(statement.params.includes(userId), 'param includes user id')
   }
+  const numbered = executedStatements.find((statement) => statement.sql.includes('row_number()'))
+  assert.match(numbered?.sql ?? '', /FROM public\.disbursements d WHERE d\.created_by = \$\d+::uuid\s*\) d/)
 })
 
 // ==========================================
@@ -575,6 +618,9 @@ test('BUG-09: reversePostgresDisbursement preserves is_central=false when preced
     if (query.sql.includes('count(*)::int as count FROM public.disbursement_items')) {
       return { rows: [{ count: 0 }] }
     }
+    if (query.sql.includes('SELECT count(*)::int AS count') && query.sql.includes('JOIN public.disbursements')) {
+      return { rows: [{ count: 0 }] }
+    }
     if (query.sql.includes('SELECT * FROM public.disbursement_items WHERE disbursement_id =')) {
       return {
         rows: [
@@ -603,7 +649,7 @@ test('BUG-09: reversePostgresDisbursement preserves is_central=false when preced
         ],
       }
     }
-    if (query.sql.includes('SELECT from_responsible FROM public.asset_custody_logs')) {
+    if (query.sql.includes('SELECT c.from_responsible FROM public.asset_custody_logs')) {
       return { rows: [{ from_responsible: 'เจ้าหน้าที่ เดิม' }] }
     }
     return { rows: [] }
@@ -613,10 +659,9 @@ test('BUG-09: reversePostgresDisbursement preserves is_central=false when preced
     disbursement_id: docId,
     reason: 'ยกเลิกการส่งมอบ',
   })
-  const updateItem = executedStatements.find((s) => s.sql.includes('UPDATE public.items'))
-  assert.ok(updateItem, 'items update executed')
-  assert.equal(updateItem.params[0], 'เจ้าหน้าที่ เดิม', 'custodian restored to Person A')
-  assert.equal(updateItem.params[1], false, 'is_central is false when previous custodian is not null')
+  const reversal = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
+  assert.ok(reversal?.sql.includes("'reversal'"))
+  assert.deepEqual(reversal.params, [itemId, lineId, 1, 'ยกเลิกการส่งมอบ', ''])
 })
 
 // ==========================================
@@ -646,6 +691,8 @@ test('BUG-11: mutatePostgresItems prevents status change to non-active when item
     res.error.includes('ไม่สามารถเปลี่ยนสถานะเป็นไม่พร้อมใช้งานได้'),
     `expected blocked status error message, received: ${res.error}`
   )
+  const custody = await mutatePostgresItems([itemId], 'update', { responsible_person: '' })
+  assert.match(custody.error ?? '', /ไม่สามารถเปลี่ยนผู้ถือครอง/)
 })
 
 // ==========================================

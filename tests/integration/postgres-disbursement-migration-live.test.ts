@@ -5,8 +5,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { migratePostgres } from '../../scripts/postgres-migrate'
 
 test(
   'fresh database executes consolidated migration baseline, verifies disbursement schema, RLS, grants, and immutability triggers idempotently',
@@ -34,15 +33,19 @@ test(
       created = true
 
       const ownerPool = fixturePool(env.DATABASE_MIGRATION_URL)
-      const owner = drizzle(ownerPool)
+      await ownerPool.query('CREATE TABLE public.unjournaled_fixture (id integer)')
+      await assert.rejects(migratePostgres(ownerPool), /requires a migration transition/)
+      const rejectedTarget = await ownerPool.query("SELECT to_regclass('drizzle.__drizzle_migrations') AS journal")
+      assert.equal(rejectedTarget.rows[0].journal, null)
+      await ownerPool.query('DROP TABLE public.unjournaled_fixture')
 
       // 2. Migrate from clean/empty state using consolidated baseline
-      await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
+      await migratePostgres(ownerPool)
       const migrationRows = await ownerPool.query('SELECT * FROM drizzle.__drizzle_migrations ORDER BY id ASC')
-      assert.ok(migrationRows.rows.length >= 1, 'Consolidated baseline migration must be recorded')
+      assert.equal(migrationRows.rows.length, 1, 'Only the final baseline must be recorded')
 
       // 3. Verify idempotency: running migrate again causes no errors and creates no duplicate records
-      await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
+      await migratePostgres(ownerPool)
       const countAfter = await ownerPool.query('SELECT count(*)::int as count FROM drizzle.__drizzle_migrations')
       assert.equal(countAfter.rows[0].count, migrationRows.rows.length)
 

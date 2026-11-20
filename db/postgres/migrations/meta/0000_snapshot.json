@@ -1,5 +1,5 @@
 {
-  "id": "9fca0733-9567-4439-8ab6-6b2b83de9644",
+  "id": "7b30ad09-30cc-4404-97d0-d5a9b1ab404e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -25,7 +25,26 @@
           "name": "disbursement_item_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "custody_revision_after": {
+          "name": "custody_revision_after",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custody_origin_verified": {
+          "name": "custody_origin_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "custody_returned_qty_after": {
+          "name": "custody_returned_qty_after",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "action": {
           "name": "action",
@@ -149,7 +168,15 @@
       "checkConstraints": {
         "asset_custody_action_check": {
           "name": "asset_custody_action_check",
-          "value": "\"asset_custody_logs\".\"action\" in ('handover','borrow','return','reversal')"
+          "value": "(\"asset_custody_logs\".\"disbursement_item_id\" is not null and \"asset_custody_logs\".\"action\" in ('handover','borrow','return','reversal')) or (\"asset_custody_logs\".\"disbursement_item_id\" is null and \"asset_custody_logs\".\"action\" in ('assignment','custody_return'))"
+        },
+        "asset_custody_revision_check": {
+          "name": "asset_custody_revision_check",
+          "value": "\"asset_custody_logs\".\"custody_revision_after\" >= 0"
+        },
+        "asset_custody_verified_event_check": {
+          "name": "asset_custody_verified_event_check",
+          "value": "not \"asset_custody_logs\".\"custody_origin_verified\" or (\n    \"asset_custody_logs\".\"custody_revision_after\" is not null\n    and ((\"asset_custody_logs\".\"action\" = 'return' and \"asset_custody_logs\".\"custody_returned_qty_after\" is not null and \"asset_custody_logs\".\"custody_returned_qty_after\" > 0)\n      or (\"asset_custody_logs\".\"action\" <> 'return' and \"asset_custody_logs\".\"custody_returned_qty_after\" is null))\n  )"
         },
         "asset_custody_condition_check": {
           "name": "asset_custody_condition_check",
@@ -1312,6 +1339,19 @@
           "notNull": true,
           "default": "now()"
         },
+        "custody_revision": {
+          "name": "custody_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "latest_custody_event_id": {
+          "name": "latest_custody_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "register_sequence": {
           "name": "register_sequence",
           "type": "text",
@@ -1554,6 +1594,19 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
+        "items_latest_custody_event_fk": {
+          "name": "items_latest_custody_event_fk",
+          "tableFrom": "items",
+          "tableTo": "asset_custody_logs",
+          "columnsFrom": [
+            "latest_custody_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "items_category_type_fk": {
           "name": "items_category_type_fk",
           "tableFrom": "items",
@@ -1574,6 +1627,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "items_custody_revision_check": {
+          "name": "items_custody_revision_check",
+          "value": "\"items\".\"custody_revision\" >= 0"
+        },
         "items_register_amounts_check": {
           "name": "items_register_amounts_check",
           "value": "\"items\".\"register_book_value\" is null or \"items\".\"register_book_value\" >= 0"
