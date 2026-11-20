@@ -9,7 +9,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 
 test(
-  'fresh database executes disbursement migration 0008, verifies RLS, grants, and immutability triggers idempotently',
+  'fresh database executes consolidated migration baseline, verifies disbursement schema, RLS, grants, and immutability triggers idempotently',
   { skip: process.env.POSTGRES_ADMIN_LIVE_TEST !== '1' || !existsSync('.env.postgres.app'), timeout: 120_000 },
   async () => {
     const env = parse(readFileSync('.env.postgres.app'))
@@ -36,10 +36,10 @@ test(
       const ownerPool = fixturePool(env.DATABASE_MIGRATION_URL)
       const owner = drizzle(ownerPool)
 
-      // 2. Migrate from clean/empty state through 0008
+      // 2. Migrate from clean/empty state using consolidated baseline
       await migrate(owner, { migrationsFolder: './db/postgres/migrations' })
       const migrationRows = await ownerPool.query('SELECT * FROM drizzle.__drizzle_migrations ORDER BY id ASC')
-      assert.ok(migrationRows.rows.length >= 9, 'All migrations through 0008+ must be recorded')
+      assert.ok(migrationRows.rows.length >= 1, 'Consolidated baseline migration must be recorded')
 
       // 3. Verify idempotency: running migrate again causes no errors and creates no duplicate records
       await migrate(owner, { migrationsFolder: './db/postgres/migrations' })

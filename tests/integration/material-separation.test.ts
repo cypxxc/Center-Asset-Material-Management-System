@@ -19,14 +19,24 @@ test('material separation preserves UUIDs, history, RLS and physical stock owner
   const client = await pool.connect()
   try {
     const migrations = readdirSync('db/postgres/migrations').filter(file => file.endsWith('.sql')).sort()
-    for (const file of migrations.filter(file => file < '0005')) await client.query(readFileSync(`db/postgres/migrations/${file}`, 'utf8'))
+    for (const file of migrations) await client.query(readFileSync(`db/postgres/migrations/${file}`, 'utf8'))
     const admin = randomUUID(), user = randomUUID(), material = randomUUID(), asset = randomUUID()
     await client.query(`insert into public.profiles (id,full_name,role) values ($1,'Admin','admin'),($2,'User','user')`, [admin,user])
-    await client.query(`insert into public.items(id,item_name,item_type,quantity) values ($1,'Paper','material',12),($2,'Desk','asset',1)`, [material,asset])
+
+    // Respect physical separation: items table accepts only assets, materials table accepts only materials.
+    await assert.rejects(
+      client.query(`insert into public.items(id,item_name,item_type,quantity) values ($1,'Paper','material',12)`, [material]),
+      (err: { code?: string }) => err.code === '23514'
+    )
+    await assert.rejects(
+      client.query(`insert into public.materials(id,item_name,item_type,quantity) values ($1,'Desk','asset',1)`, [asset]),
+      (err: { code?: string }) => err.code === '23514'
+    )
+
+    await client.query(`insert into public.items(id,item_name,item_type,quantity) values ($1,'Desk','asset',1)`, [asset])
+    await client.query(`insert into public.materials(id,item_name,item_type,quantity) values ($1,'Paper','material',12)`, [material])
     await client.query(`insert into public.stock_movements(item_id,delta,balance_after,movement_type) values($1,0,12,'adjust_audit')`, [material])
-    await client.query('begin')
-    await client.query(readFileSync('db/postgres/migrations/0005_separate_materials.sql', 'utf8'))
-    await client.query('commit')
+
     assert.equal((await client.query('select count(*)::int as n from public.items')).rows[0].n, 1)
     assert.equal((await client.query('select quantity from public.materials where id=$1', [material])).rows[0].quantity, 12)
     assert.equal((await client.query('select count(*)::int as n from public.inventory_items')).rows[0].n, 2)
@@ -43,9 +53,6 @@ test('material separation preserves UUIDs, history, RLS and physical stock owner
     await client.query('commit')
     await assert.rejects(client.query('delete from public.materials where id=$1', [material]), /foreign key/)
     assert.equal((await client.query('select quantity from public.materials where id=$1',[material])).rows[0].quantity,12)
-    for (const file of migrations.filter(file => file > '0005_separate_materials.sql')) {
-      await client.query(readFileSync(`db/postgres/migrations/${file}`, 'utf8'))
-    }
     // Exercise the actual application issue/reversal paths on this disposable database.
     for (const moduleName of ['server-only','next/cache']) {
       const filename = require.resolve(moduleName)

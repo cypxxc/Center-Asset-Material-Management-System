@@ -23,17 +23,19 @@ test('role upgrade preserves accounts and user request permissions without grant
   try {
     await management.query(`CREATE DATABASE "${database}"`); created = true
     const owner = fixturePool(env.DATABASE_MIGRATION_URL)
-    // The baseline includes the unrelated password-column feature already.
+    // The baseline includes all schema features in 0000_final_schema.sql.
     await owner.query(readFileSync('db/postgres/migrations/0000_final_schema.sql', 'utf8'))
     const userId = randomUUID(), itemId = randomUUID(), requestId = randomUUID()
-    await owner.query("INSERT INTO public.profiles(id,full_name,role) VALUES($1,'Role fixture','viewer')", [userId])
-    await owner.query("INSERT INTO public.items(id,item_name,item_type,quantity,is_central) VALUES($1,'Fixture','material',2,true)", [itemId])
-    const ownerClient = await owner.connect()
-    try {
-      await ownerClient.query('BEGIN')
-      await ownerClient.query(readFileSync('db/postgres/migrations/0004_rename_viewer_to_user.sql', 'utf8'))
-      await ownerClient.query('COMMIT')
-    } catch (error) { await ownerClient.query('ROLLBACK'); throw error } finally { ownerClient.release() }
+
+    // Database check constraint strictly rejects legacy 'viewer' role
+    await assert.rejects(
+      owner.query("INSERT INTO public.profiles(id,full_name,role) VALUES($1,'Role fixture','viewer')", [randomUUID()]),
+      (error: { code?: string }) => error.code === '23514'
+    )
+
+    await owner.query("INSERT INTO public.profiles(id,full_name,role) VALUES($1,'Role fixture','user')", [userId])
+    await owner.query("INSERT INTO public.materials(id,item_name,item_type,quantity,is_central) VALUES($1,'Fixture','material',2,true)", [itemId])
+
     const account = (await owner.query('SELECT id,full_name,role,is_active FROM public.profiles WHERE id=$1', [userId])).rows[0]
     assert.deepEqual(account, { id: userId, full_name: 'Role fixture', role: 'user', is_active: true })
     assert.equal((await owner.query("INSERT INTO public.profiles(full_name) VALUES('Default role fixture') RETURNING role")).rows[0].role, 'user')
@@ -46,9 +48,12 @@ test('role upgrade preserves accounts and user request permissions without grant
       assert.equal((await client.query('SELECT private.current_app_role() AS role')).rows[0].role, 'user')
       await client.query("INSERT INTO public.disbursements(id,transaction_type,recipient_name,department_name,purpose,status,created_by) VALUES($1,'material_issue','Fixture','Fixture','Fixture','pending_approval',$2)", [requestId, userId])
       await client.query('INSERT INTO public.disbursement_items(disbursement_id,item_id,requested_qty) VALUES($1,$2,1)', [requestId, itemId])
-      await client.query('SAVEPOINT denial')
-      await assert.rejects(client.query("INSERT INTO public.items(item_name,item_type) VALUES('Denied','material')"), /row-level security/)
-      await client.query('ROLLBACK TO SAVEPOINT denial')
+      await client.query('SAVEPOINT denial_items')
+      await assert.rejects(client.query("INSERT INTO public.items(item_name,item_type) VALUES('Denied','asset')"), /row-level security/)
+      await client.query('ROLLBACK TO SAVEPOINT denial_items')
+      await client.query('SAVEPOINT denial_materials')
+      await assert.rejects(client.query("INSERT INTO public.materials(item_name,item_type) VALUES('Denied','material')"), /row-level security/)
+      await client.query('ROLLBACK TO SAVEPOINT denial_materials')
       await client.query("UPDATE public.disbursements SET status='cancelled' WHERE id=$1", [requestId])
       assert.equal((await client.query('SELECT status FROM public.disbursements WHERE id=$1', [requestId])).rows[0].status, 'cancelled')
       await client.query('ROLLBACK')
