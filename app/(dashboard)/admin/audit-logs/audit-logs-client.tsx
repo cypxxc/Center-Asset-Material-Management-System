@@ -62,9 +62,60 @@ const TABLE_DROPDOWN_OPTIONS: FilterOption[] = [
  { value: 'audit_logs', label: 'ประวัติบันทึก (audit_logs)' },
 ]
 
+function getCustodyStatusBadge(status?: string | null) {
+  switch (status) {
+    case 'can_return':
+      return {
+        label: 'สั่งจ่าย',
+        className: 'bg-blue-50 text-blue-700 border-blue-200',
+        dotClass: 'bg-blue-500',
+      }
+    case 'returned':
+      return {
+        label: 'รับคืนแล้ว',
+        className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dotClass: 'bg-emerald-500',
+      }
+    case 'transferred':
+      return {
+        label: 'สิ้นสุดการถือครอง',
+        className: 'bg-amber-50 text-amber-700 border-amber-200',
+        dotClass: 'bg-amber-500',
+      }
+    case 'cancelled':
+      return {
+        label: 'ยกเลิก',
+        className: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+      }
+    default:
+      return {
+        label: 'สิ้นสุดรายการ',
+        className: 'bg-slate-50 text-slate-700 border-slate-200',
+        dotClass: 'bg-slate-500',
+      }
+  }
+}
+
 function getActionBadge(action: string) {
  const upper = action.toUpperCase()
  const lower = action.toLowerCase()
+
+ if (upper === 'ASSIGN_CUSTODY') {
+  return {
+   label: 'สั่งจ่ายครุภัณฑ์',
+   className: 'bg-sky-50 text-sky-700 border-sky-200',
+   dotClass: 'bg-sky-500',
+  }
+ }
+
+ if (upper === 'RETURN_CUSTODY') {
+  return {
+   label: 'รับคืนครุภัณฑ์',
+   className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+   dotClass: 'bg-emerald-500',
+  }
+ }
 
  if (['CONFIRM_DISBURSEMENT', 'REJECT_BORROW_REQUEST', 'CANCEL_DISBURSEMENT_DRAFT', 'WITHDRAW_DISBURSEMENT_REQUEST', 'REVERSE_DISBURSEMENT', 'RETURN_DISBURSEMENT_ITEM'].includes(upper)) {
  return {
@@ -182,6 +233,7 @@ export default function AuditLogsClient({
  const currentPage = initialSearchParams.page
  const startItem = initialTotalCount === 0 ? 0 : (currentPage - 1) * initialSearchParams.pageSize + 1
  const endItem = Math.min(currentPage * initialSearchParams.pageSize, initialTotalCount)
+ const isCustodyView = selectedAction === 'custody_history'
 
  return (
  <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
@@ -198,7 +250,7 @@ export default function AuditLogsClient({
  <div className="flex flex-1 [&>div]:max-w-none">
  <SearchInput
  aria-label="ค้นหาประวัติการทำรายการ"
- placeholder="ค้นหาตาม Target ID, ชื่อตาราง, หรือประเภทรายการ..."
+ placeholder={isCustodyView ? 'ค้นหาตามชื่อสิ่งของ, เลขครุภัณฑ์, ผู้ถือครอง, หรือผู้ดำเนินการ...' : 'ค้นหาตาม Target ID, ชื่อตาราง, หรือประเภทรายการ...'}
  value={searchTerm}
  onChange={(value) => {
  setSearchTerm(value)
@@ -242,30 +294,56 @@ export default function AuditLogsClient({
  <DataTable
  responsive={true}
  wrapperClassName="min-h-0 flex-1 overflow-auto rounded-none border-0 bg-muted/10 shadow-none"
- className="table-fixed min-w-[1420px] text-card-foreground"
+ className={cn('table-fixed text-card-foreground', isCustodyView ? 'min-w-[1000px]' : 'min-w-[1420px]')}
  >
  <caption className="sr-only">ประวัติการทำรายการในระบบ</caption>
- <colgroup>
- <col style={{ width: 48 }} />
- <col style={{ width: 180 }} />
- <col style={{ width: 160 }} />
- <col style={{ width: 160 }} />
- <col style={{ width: 300 }} />
- <col style={{ width: 260 }} />
- <col style={{ width: 200 }} />
- <col style={{ width: 112 }} />
- </colgroup>
+ {isCustodyView ? (
+  <colgroup>
+   <col style={{ width: 48 }} />
+   <col style={{ width: 140 }} />
+   <col style={{ width: 280 }} />
+   <col style={{ width: 150 }} />
+   <col style={{ width: 150 }} />
+   <col style={{ width: 180 }} />
+   <col style={{ width: 140 }} />
+   <col style={{ width: 80 }} />
+  </colgroup>
+ ) : (
+  <colgroup>
+   <col style={{ width: 48 }} />
+   <col style={{ width: 180 }} />
+   <col style={{ width: 160 }} />
+   <col style={{ width: 160 }} />
+   <col style={{ width: 300 }} />
+   <col style={{ width: 260 }} />
+   <col style={{ width: 200 }} />
+   <col style={{ width: 112 }} />
+  </colgroup>
+ )}
  <DataTableHeader className="bg-muted/75 backdrop-blur-xs border-b border-border/80 sticky top-0 z-10 [&_th]:px-2.5 [&_th]:text-xs">
- <tr>
- <DataTableHead className="w-12 text-center">ลำดับ</DataTableHead>
- <DataTableHead className="min-w-[150px]">วัน-เวลา</DataTableHead>
- <DataTableHead className="min-w-[140px]">ประเภทรายการ</DataTableHead>
- <DataTableHead className="min-w-[130px]">ตารางเป้าหมาย</DataTableHead>
- <DataTableHead className="min-w-[150px]">รหัสเป้าหมาย (Target ID)</DataTableHead>
- <DataTableHead className="min-w-[180px]">ผู้ทำรายการ</DataTableHead>
- <DataTableHead className="min-w-[150px]">การเปลี่ยนแปลง</DataTableHead>
- <DataTableHead isActions className="w-20">รายละเอียด</DataTableHead>
- </tr>
+ {isCustodyView ? (
+  <tr>
+   <DataTableHead className="w-12 text-center">ลำดับ</DataTableHead>
+   <DataTableHead className="min-w-[130px]">วันที่</DataTableHead>
+   <DataTableHead className="min-w-[200px]">สิ่งของ / เลขครุภัณฑ์</DataTableHead>
+   <DataTableHead className="min-w-[130px]">ผู้ถือครองเดิม</DataTableHead>
+   <DataTableHead className="min-w-[130px]">ผู้ถือครองใหม่</DataTableHead>
+   <DataTableHead className="min-w-[150px]">ผู้ดำเนินการ</DataTableHead>
+   <DataTableHead className="min-w-[130px] text-center">สถานะ</DataTableHead>
+   <DataTableHead isActions className="w-20">รายละเอียด</DataTableHead>
+  </tr>
+ ) : (
+  <tr>
+   <DataTableHead className="w-12 text-center">ลำดับ</DataTableHead>
+   <DataTableHead className="min-w-[150px]">วัน-เวลา</DataTableHead>
+   <DataTableHead className="min-w-[140px]">ประเภทรายการ</DataTableHead>
+   <DataTableHead className="min-w-[130px]">ตารางเป้าหมาย</DataTableHead>
+   <DataTableHead className="min-w-[150px]">รหัสเป้าหมาย (Target ID)</DataTableHead>
+   <DataTableHead className="min-w-[180px]">ผู้ทำรายการ</DataTableHead>
+   <DataTableHead className="min-w-[150px]">การเปลี่ยนแปลง</DataTableHead>
+   <DataTableHead isActions className="w-20">รายละเอียด</DataTableHead>
+  </tr>
+ )}
  </DataTableHeader>
  <DataTableBody>
  {initialLogs.length === 0 ? (
@@ -299,93 +377,163 @@ export default function AuditLogsClient({
  : 'border-b border-border/40 text-card-foreground hover:bg-muted/40'
  )}
  >
- <DataTableCell className="text-center font-mono text-[11px] text-muted-foreground">
- {startItem + index}
- </DataTableCell>
- <DataTableCell className="whitespace-nowrap">
- <div className="flex items-center gap-1.5 font-medium text-foreground">
- <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
- <span>{formattedDate}</span>
- </div>
- </DataTableCell>
- <DataTableCell className="min-w-0">
- <span
- className={cn(
- 'inline-flex max-w-full items-start gap-1.5 whitespace-normal break-words px-2 py-0.5 rounded-md text-[11px] font-semibold border',
- badge.className
- )}
- >
- <span className={cn('mt-1 w-1.5 h-1.5 shrink-0 rounded-full', badge.dotClass)} />
- <span className="min-w-0">{badge.label}</span>
- </span>
- </DataTableCell>
- <DataTableCell className="whitespace-nowrap">
- <div className="font-semibold text-foreground">
- {tableLabel}
- </div>
- <div className="text-[10px] font-mono text-muted-foreground">{log.target_table}</div>
- </DataTableCell>
- <DataTableCell className="whitespace-nowrap">
- {log.target_id ? (
- <div className="flex items-center gap-1">
- <span className="font-mono text-[11px] text-muted-foreground break-all whitespace-normal" title={log.target_id}>
- {log.target_id}
- </span>
- <button
- type="button"
- onClick={(e) => {
- e.stopPropagation()
- handleCopy(log.target_id!, `target-${log.id}`)
- }}
- className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground cursor-pointer"
- title="คัดลอกรหัส"
- >
- {copiedId === `target-${log.id}` ? (
- <Check className="w-3 h-3 text-emerald-600" />
+ {isCustodyView ? (
+  <>
+   <DataTableCell className="text-center font-mono text-[11px] text-muted-foreground">
+    {startItem + index}
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <div className="flex items-center gap-1.5 font-medium text-foreground">
+     <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+     <span>{formattedDate}</span>
+    </div>
+   </DataTableCell>
+   <DataTableCell className="min-w-0">
+    <div className="font-semibold text-foreground truncate" title={(log.new_data?.item_name as string) || (log.old_data?.item_name as string) || '-'}>
+     {(log.new_data?.item_name as string) || (log.old_data?.item_name as string) || '-'}
+    </div>
+    {Boolean((log.new_data?.asset_no as string) || (log.old_data?.asset_no as string)) && (
+     <div className="text-[10px] font-mono text-muted-foreground truncate" title={(log.new_data?.asset_no as string) || (log.old_data?.asset_no as string)}>
+      {(log.new_data?.asset_no as string) || (log.old_data?.asset_no as string)}
+     </div>
+    )}
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <span className="text-muted-foreground">{(log.old_data?.responsible_person as string) || (log.new_data?.previous_custodian as string) || 'ยังไม่กำหนด'}</span>
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <span className="font-medium text-foreground">{log.action === 'RETURN_CUSTODY' ? 'ส่วนกลาง' : ((log.new_data?.responsible_person as string) || '-')}</span>
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <span className="text-foreground">{log.actor_name || 'ระบบอัตโนมัติ'}</span>
+   </DataTableCell>
+   <DataTableCell className="text-center whitespace-nowrap">
+    {(() => {
+     const custodyBadge = getCustodyStatusBadge(log.status_action)
+     return (
+      <span
+       className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded-md text-[11px] font-semibold border',
+        custodyBadge.className
+       )}
+      >
+       <span className={cn('w-1.5 h-1.5 shrink-0 rounded-full', custodyBadge.dotClass)} />
+       <span>{custodyBadge.label}</span>
+      </span>
+     )
+    })()}
+   </DataTableCell>
+   <DataTableCell isActions className="whitespace-nowrap">
+    <button
+     type="button"
+     aria-label={isExpanded ? 'ซ่อนรายละเอียดรายการ' : 'ดูรายละเอียดรายการ'}
+     aria-expanded={isExpanded}
+     onClick={(e) => {
+      e.stopPropagation()
+      toggleRow(log.id)
+     }}
+     className={cn(
+      'p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer',
+      isExpanded
+       ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+       : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+     )}
+    >
+     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+    </button>
+   </DataTableCell>
+  </>
  ) : (
- <Copy className="w-3 h-3" />
+  <>
+   <DataTableCell className="text-center font-mono text-[11px] text-muted-foreground">
+    {startItem + index}
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <div className="flex items-center gap-1.5 font-medium text-foreground">
+     <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+     <span>{formattedDate}</span>
+    </div>
+   </DataTableCell>
+   <DataTableCell className="min-w-0">
+    <span
+     className={cn(
+      'inline-flex max-w-full items-start gap-1.5 whitespace-normal break-words px-2 py-0.5 rounded-md text-[11px] font-semibold border',
+      badge.className
+     )}
+    >
+     <span className={cn('mt-1 w-1.5 h-1.5 shrink-0 rounded-full', badge.dotClass)} />
+     <span className="min-w-0">{badge.label}</span>
+    </span>
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <div className="font-semibold text-foreground">
+     {tableLabel}
+    </div>
+    <div className="text-[10px] font-mono text-muted-foreground">{log.target_table}</div>
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    {log.target_id ? (
+     <div className="flex items-center gap-1">
+      <span className="font-mono text-[11px] text-muted-foreground break-all whitespace-normal">
+       {log.target_id}
+      </span>
+      <button
+       type="button"
+       onClick={(e) => {
+        e.stopPropagation()
+        handleCopy(log.target_id!, `target-${log.id}`)
+       }}
+       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground cursor-pointer"
+       title="คัดลอกรหัส"
+      >
+       {copiedId === `target-${log.id}` ? (
+        <Check className="w-3 h-3 text-emerald-600" />
+       ) : (
+        <Copy className="w-3 h-3" />
+       )}
+      </button>
+     </div>
+    ) : (
+     <span className="text-muted-foreground text-[11px]">-</span>
+    )}
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    <div className="font-normal text-foreground whitespace-normal break-words">
+     {log.actor_name || 'ระบบอัตโนมัติ'}
+    </div>
+   </DataTableCell>
+   <DataTableCell className="whitespace-nowrap">
+    {diff.length > 0 ? (
+     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground">
+      {diff.length} ฟิลด์เปลี่ยนแปลง
+     </span>
+    ) : (
+     <span className="text-[11px] text-muted-foreground">
+      {log.new_data ? 'ข้อมูล JSON' : 'ไม่มีรายละเอียด'}
+     </span>
+    )}
+   </DataTableCell>
+   <DataTableCell isActions className="whitespace-nowrap">
+    <button
+     type="button"
+     aria-label={isExpanded ? 'ซ่อนรายละเอียดรายการ' : 'ดูรายละเอียดรายการ'}
+     aria-expanded={isExpanded}
+     onClick={(e) => {
+      e.stopPropagation()
+      toggleRow(log.id)
+     }}
+     className={cn(
+      'p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer',
+      isExpanded
+       ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+       : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+     )}
+    >
+     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+    </button>
+   </DataTableCell>
+  </>
  )}
- </button>
- </div>
- ) : (
- <span className="text-muted-foreground text-[11px]">-</span>
- )}
- </DataTableCell>
- <DataTableCell className="whitespace-nowrap">
- <div className="font-normal text-foreground whitespace-normal break-words">
- {log.actor_name || 'ระบบอัตโนมัติ'}
- </div>
- </DataTableCell>
- <DataTableCell className="whitespace-nowrap">
- {diff.length > 0 ? (
- <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground">
- {diff.length} ฟิลด์เปลี่ยนแปลง
- </span>
- ) : (
- <span className="text-[11px] text-muted-foreground">
- {log.new_data ? 'ข้อมูล JSON' : 'ไม่มีรายละเอียด'}
- </span>
- )}
- </DataTableCell>
- <DataTableCell isActions className="whitespace-nowrap">
- <button
- type="button"
- aria-label={isExpanded ? 'ซ่อนรายละเอียดรายการ' : 'ดูรายละเอียดรายการ'}
- aria-expanded={isExpanded}
- onClick={(e) => {
- e.stopPropagation()
- toggleRow(log.id)
- }}
- className={cn(
- 'p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer',
- isExpanded
- ? 'bg-primary text-primary-foreground border-primary shadow-xs'
- : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
- )}
- >
- {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
- </button>
- </DataTableCell>
  </DataTableRow>
 
  {/* Expanded Row Content */}

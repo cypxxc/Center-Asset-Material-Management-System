@@ -3,17 +3,21 @@ import { cn } from "@/lib/utils"
 
 export interface DataTableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   wrapperClassName?: string
+  wrapperStyle?: React.CSSProperties
   responsive?: boolean
 }
 
 export const DataTable = React.forwardRef<HTMLTableElement, DataTableProps>(
-  ({ className, wrapperClassName, responsive = true, children, ...props }, ref) => {
+  ({ className, wrapperClassName, wrapperStyle, responsive = true, children, ...props }, ref) => {
     return (
-      <div className={cn(
-        "w-full border border-border rounded-xl bg-card overflow-hidden",
-        responsive && "overflow-x-auto",
-        wrapperClassName
-      )}>
+      <div
+        style={wrapperStyle}
+        className={cn(
+          "w-full border border-border rounded-xl bg-card overflow-hidden",
+          responsive && "overflow-x-auto",
+          wrapperClassName
+        )}
+      >
         <table
           ref={ref}
           className={cn("table-data-uniform w-full border-collapse text-left text-[13px] text-foreground", className)}

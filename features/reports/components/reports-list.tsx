@@ -19,6 +19,7 @@ import { RealtimeRefreshBridge } from '@/components/realtime-refresh-bridge'
 import { cn } from '@/lib/utils'
 import dynamic from 'next/dynamic'
 import { CategoryComboChartSkeleton } from '@/features/reports/components/category-combo-chart'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 const CategoryComboChart = dynamic(
  () => import('@/features/reports/components/category-combo-chart').then((mod) => mod.CategoryComboChart),
@@ -511,7 +512,11 @@ export function ReportsList({
  !
  </div>
  <div className="min-w-0">
- <p className="font-semibold text-card-foreground truncate">{item.item_name}</p>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="p"
+ className="font-semibold text-card-foreground truncate"
+ />
  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
  S/N: {item.serial_no || '-'} <span className="text-border">|</span> สถานที่: {item.location?.name || '-'}
  </p>
@@ -587,12 +592,13 @@ export function ReportsList({
  <span className="font-mono font-semibold text-xs tabular-nums text-right flex-1 min-w-0 text-card-foreground">
  {item.quantity.toLocaleString('th-TH')}
  </span>
- <span
+ {item.unit?.name ? (
+ <TruncatedTextTooltip
+ text={item.unit.name}
+ as="span"
  className="text-xs font-normal text-muted-foreground truncate w-10 sm:w-12 text-left shrink-0"
- title={item.unit?.name || undefined}
- >
- {item.unit?.name ?? ''}
- </span>
+ />
+ ) : null}
  </div>
  </DataTableCell>
  <DataTableCell className="py-3 px-4 text-right font-mono text-xs tabular-nums text-muted-foreground">{unitPrice.toLocaleString('th-TH')} บาท</DataTableCell>

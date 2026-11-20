@@ -24,6 +24,14 @@ async function insertSession(tx: PostgresTransaction, userId: string) {
   await tx.execute(sql`insert into private_auth.sessions(token_hash,user_id,expires_at) values (${tokenHash(token)},${userId},${expires.toISOString()})`)
   return { token, expires }
 }
+export async function createSessionForUserId(userId: string) {
+  if (!userId || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(userId)) return null
+  return getAuthDatabase().transaction(async (tx) => {
+    const activeCheck = await tx.execute<{ is_active: boolean }>(sql`select is_active from public.profiles where id=${userId}::uuid and is_active=true limit 1`)
+    if (!activeCheck.rows.length || !activeCheck.rows[0].is_active) return null
+    return insertSession(tx, userId)
+  })
+}
 export async function setSessionCookie({ token, expires }: { token: string; expires: Date }) {
   let isSecure = process.env.NODE_ENV === 'production'
   try {

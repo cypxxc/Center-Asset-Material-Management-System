@@ -7,14 +7,16 @@ import { formatDateTime } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { getPageNumbers } from '../pagination'
 import { loadCustodyHistory } from '../actions'
-import type { getCustodyHistory } from '../custody-postgres'
+import type { CustodyHistoryRow, getCustodyHistory } from '../custody-postgres'
+import { AssetReturnModal } from './asset-return-modal'
 
-export function CustodyHistoryPanel({ query, revision }: { query: string; revision: number }) {
-  return <CustodyHistoryPages key={JSON.stringify([query, revision])} query={query} />
+export function CustodyHistoryPanel({ query, revision, onAssign }: { query: string; revision: number; onAssign?: () => void }) {
+  return <CustodyHistoryPages key={JSON.stringify([query, revision])} query={query} onAssign={onAssign} />
 }
 
-function CustodyHistoryPages({ query }: { query: string }) {
+function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: () => void }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof getCustodyHistory>> | null>(null)
+  const [selectedReturnItem, setSelectedReturnItem] = useState<CustodyHistoryRow | null>(null)
   const [page, setPage] = useState(1)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -47,14 +49,17 @@ function CustodyHistoryPages({ query }: { query: string }) {
           <table className="table-data-uniform w-full min-w-[800px] table-fixed text-left text-xs text-card-foreground">
             <colgroup>
               <col className="w-12" />
-              <col className="w-[42%]" />
+              <col className="w-[36%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
               <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
+              <col className="w-20" />
             </colgroup>
             <thead className="sticky top-0 z-10 border-b border-border/80 bg-muted/75 text-muted-foreground backdrop-blur-xs"><tr>
-              {['ลำดับ', 'สิ่งของ', 'ผู้ถือครองเดิม', 'ผู้ถือครองใหม่', 'ผู้ทำรายการ', 'วันที่'].map((label) => <th key={label} className="px-2.5 py-3 font-semibold">{label}</th>)}
+              {['ลำดับ', 'สิ่งของ', 'ผู้ถือครองเดิม', 'ผู้ถือครองใหม่', 'ผู้ทำรายการ', 'วันที่', 'จัดการ'].map((label) => (
+                <th key={label} className={cn('px-2.5 py-3 font-semibold', label === 'จัดการ' && 'text-center')}>{label}</th>
+              ))}
             </tr></thead>
             <tbody className="divide-y divide-border/40">{data.rows.map((row, index) => (
               <tr key={row.id} className="h-[42px] border-b border-border/40 text-card-foreground transition-colors hover:bg-muted/40 [&>td]:h-[42px] [&>td]:max-w-0 [&>td]:px-2.5 [&>td]:py-0">
@@ -64,13 +69,36 @@ function CustodyHistoryPages({ query }: { query: string }) {
                 <td>{row.to_responsible || '-'}</td>
                 <td>{row.actor_name || '-'}</td>
                 <td className="whitespace-nowrap text-muted-foreground">{formatDateTime(row.created_at)}</td>
+                <td className="text-center">
+                  {row.status_action === 'can_return' || row.can_return ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => setSelectedReturnItem(row)}
+                    >
+                      รับคืน
+                    </Button>
+                  ) : row.status_action === 'cancelled' ? (
+                    <span className="text-[11px] text-muted-foreground font-medium">ยกเลิก</span>
+                  ) : row.status_action === 'transferred' ? (
+                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดการถือครอง</span>
+                  ) : row.status_action === 'completed' ? (
+                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดรายการ</span>
+                  ) : row.status_action === 'returned' || row.is_returned ? (
+                    <span className="text-[11px] text-muted-foreground font-medium">รับคืนแล้ว</span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดรายการ</span>
+                  )}
+                </td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-14">
-          <p className="text-sm text-muted-foreground">{q ? 'ไม่พบประวัติตามคำค้นหา' : 'ยังไม่มีประวัติมอบหมายผู้ถือครอง'}</p>
+          <p className="text-sm text-muted-foreground">{q ? 'ไม่พบรายการตามคำค้นหา' : 'ไม่มีรายการสั่งจ่ายที่อยู่ระหว่างการถือครอง'}</p>
         </div>
       )}
       </div>
@@ -98,6 +126,17 @@ function CustodyHistoryPages({ query }: { query: string }) {
           <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs font-semibold" aria-label="หน้าถัดไป" disabled={!data || !!error || data.page >= data.totalPages} onClick={() => data && changePage(data.page + 1)}>ถัดไป</Button>
         </nav>
       </footer>
+      {selectedReturnItem && (
+        <AssetReturnModal
+          item={selectedReturnItem}
+          onClose={() => setSelectedReturnItem(null)}
+          onSuccess={() => {
+            setSelectedReturnItem(null)
+            setAttempt((value) => value + 1)
+            onAssign?.()
+          }}
+        />
+      )}
     </section>
   )
 }

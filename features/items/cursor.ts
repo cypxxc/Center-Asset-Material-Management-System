@@ -82,8 +82,3 @@ export function decodeItemCursor(cursor: string, params: NormalizedItemListSearc
   assertKey(params, parsed.key)
   return { key: parsed.key, id: parsed.id }
 }
-
-/** Escapes a PostgREST quoted literal used only in a generated `.or()` predicate. */
-export function escapePostgrestLiteral(value: string) {
-  return `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
-}

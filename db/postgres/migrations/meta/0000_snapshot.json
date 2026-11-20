@@ -1,5 +1,5 @@
 {
-  "id": "0e22187d-35fc-4c46-9a58-e6c7b152a221",
+  "id": "9fca0733-9567-4439-8ab6-6b2b83de9644",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -293,6 +293,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'asset'"
+        },
         "description": {
           "name": "description",
           "type": "text",
@@ -335,18 +342,120 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "categories_name_type_unique": {
+          "name": "categories_name_type_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "categories_id_type_unique": {
+          "name": "categories_id_type_unique",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "categories_name_unique": {
-          "name": "categories_name_unique",
-          "nullsNotDistinct": false,
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "categories_item_type_check": {
+          "name": "categories_item_type_check",
+          "value": "\"categories\".\"item_type\" in ('asset','material')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "private_auth.consumed_tokens": {
+      "name": "consumed_tokens",
+      "schema": "private_auth",
+      "columns": {
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jti": {
+          "name": "jti",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "consumed_tokens_expiry_index": {
+          "name": "consumed_tokens_expiry_index",
           "columns": [
-            "name"
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "consumed_tokens_pkey": {
+          "name": "consumed_tokens_pkey",
+          "columns": [
+            "issuer",
+            "jti"
           ]
         }
       },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -563,10 +672,10 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "disbursement_items_item_id_items_id_fk": {
-          "name": "disbursement_items_item_id_items_id_fk",
+        "disbursement_items_item_id_inventory_registry_id_fk": {
+          "name": "disbursement_items_item_id_inventory_registry_id_fk",
           "tableFrom": "disbursement_items",
-          "tableTo": "items",
+          "tableTo": "inventory_registry",
           "columnsFrom": [
             "item_id"
           ],
@@ -669,6 +778,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "request_batch_id": {
+          "name": "request_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "document_no": {
           "name": "document_no",
           "type": "text",
@@ -715,6 +830,24 @@
         "due_date": {
           "name": "due_date",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "handed_over_at": {
+          "name": "handed_over_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "handed_over_by": {
+          "name": "handed_over_by",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -770,6 +903,22 @@
         }
       },
       "indexes": {
+        "disbursements_batch_index": {
+          "name": "disbursements_batch_index",
+          "columns": [
+            {
+              "expression": "request_batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"disbursements\".\"request_batch_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "disbursements_status_index": {
           "name": "disbursements_status_index",
           "columns": [
@@ -802,6 +951,32 @@
         }
       },
       "foreignKeys": {
+        "disbursements_request_batch_id_request_batches_id_fk": {
+          "name": "disbursements_request_batch_id_request_batches_id_fk",
+          "tableFrom": "disbursements",
+          "tableTo": "request_batches",
+          "columnsFrom": [
+            "request_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "disbursements_handed_over_by_profiles_id_fk": {
+          "name": "disbursements_handed_over_by_profiles_id_fk",
+          "tableFrom": "disbursements",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "handed_over_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "disbursements_confirmed_by_profiles_id_fk": {
           "name": "disbursements_confirmed_by_profiles_id_fk",
           "tableFrom": "disbursements",
@@ -858,9 +1033,65 @@
           "name": "disbursements_type_check",
           "value": "\"disbursements\".\"transaction_type\" in ('material_issue','asset_handover','asset_borrow')"
         },
+        "disbursements_handover_time_check": {
+          "name": "disbursements_handover_time_check",
+          "value": "\"disbursements\".\"handed_over_at\" is not null or \"disbursements\".\"handed_over_by\" is null"
+        },
         "disbursements_status_check": {
           "name": "disbursements_status_check",
           "value": "\"disbursements\".\"status\" in ('draft','pending_approval','confirmed','active_borrow','partially_returned','returned','reversed','cancelled','rejected')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inventory_registry": {
+      "name": "inventory_registry",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "inventory_registry_id_type_unique": {
+          "name": "inventory_registry_id_type_unique",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "inventory_registry_type_check": {
+          "name": "inventory_registry_type_check",
+          "value": "\"inventory_registry\".\"item_type\" in ('asset','material')"
         }
       },
       "isRLSEnabled": false
@@ -1080,6 +1311,36 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "register_sequence": {
+          "name": "register_sequence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asset_prefix": {
+          "name": "asset_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "register_accumulated_depreciation": {
+          "name": "register_accumulated_depreciation",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "register_book_value": {
+          "name": "register_book_value",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "register_as_of": {
+          "name": "register_as_of",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1292,15 +1553,34 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "items_category_type_fk": {
+          "name": "items_category_type_fk",
+          "tableFrom": "items",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "category_id",
+            "item_type"
+          ],
+          "columnsTo": [
+            "id",
+            "item_type"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "items_register_amounts_check": {
+          "name": "items_register_amounts_check",
+          "value": "\"items\".\"register_book_value\" is null or \"items\".\"register_book_value\" >= 0"
+        },
         "items_type_check": {
           "name": "items_type_check",
-          "value": "\"items\".\"item_type\" in ('asset','material')"
+          "value": "\"items\".\"item_type\" = 'asset'"
         },
         "items_qualification_status_check": {
           "name": "items_qualification_status_check",
@@ -1450,6 +1730,716 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.material_stock_documents": {
+      "name": "material_stock_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload_hash": {
+          "name": "payload_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_quantity": {
+          "name": "accepted_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "delta": {
+          "name": "delta",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disbursement_item_id": {
+          "name": "disbursement_item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_balance": {
+          "name": "opening_balance",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "material_stock_documents_creator_key_unique": {
+          "name": "material_stock_documents_creator_key_unique",
+          "columns": [
+            {
+              "expression": "created_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "request_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "material_stock_opening_unique": {
+          "name": "material_stock_opening_unique",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"material_stock_documents\".\"kind\"='opening'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "material_stock_documents_item_created": {
+          "name": "material_stock_documents_item_created",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "material_stock_documents_item_id_inventory_registry_id_fk": {
+          "name": "material_stock_documents_item_id_inventory_registry_id_fk",
+          "tableFrom": "material_stock_documents",
+          "tableTo": "inventory_registry",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "material_stock_documents_created_by_profiles_id_fk": {
+          "name": "material_stock_documents_created_by_profiles_id_fk",
+          "tableFrom": "material_stock_documents",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "material_stock_documents_disbursement_item_id_disbursement_items_id_fk": {
+          "name": "material_stock_documents_disbursement_item_id_disbursement_items_id_fk",
+          "tableFrom": "material_stock_documents",
+          "tableTo": "disbursement_items",
+          "columnsFrom": [
+            "disbursement_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "material_stock_documents_kind_check": {
+          "name": "material_stock_documents_kind_check",
+          "value": "\"material_stock_documents\".\"kind\" in ('receipt','count','return','opening')"
+        },
+        "material_stock_documents_quantity_check": {
+          "name": "material_stock_documents_quantity_check",
+          "value": "\"material_stock_documents\".\"quantity\">=0"
+        },
+        "material_stock_documents_accepted_check": {
+          "name": "material_stock_documents_accepted_check",
+          "value": "\"material_stock_documents\".\"accepted_quantity\">=0 and \"material_stock_documents\".\"accepted_quantity\"<=\"material_stock_documents\".\"quantity\""
+        },
+        "material_stock_documents_reason_check": {
+          "name": "material_stock_documents_reason_check",
+          "value": "length(btrim(\"material_stock_documents\".\"reason\"))>0"
+        },
+        "material_stock_documents_reference_check": {
+          "name": "material_stock_documents_reference_check",
+          "value": "length(btrim(\"material_stock_documents\".\"reference\"))>0"
+        },
+        "material_stock_documents_return_check": {
+          "name": "material_stock_documents_return_check",
+          "value": "(\"material_stock_documents\".\"kind\"='return')=(\"material_stock_documents\".\"disbursement_item_id\" is not null)"
+        },
+        "material_stock_documents_opening_check": {
+          "name": "material_stock_documents_opening_check",
+          "value": "(\"material_stock_documents\".\"kind\"='opening')=(\"material_stock_documents\".\"opening_balance\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.materials": {
+      "name": "materials",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "item_name": {
+          "name": "item_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "qualification_status": {
+          "name": "qualification_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_id": {
+          "name": "unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asset_no": {
+          "name": "asset_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serial_no": {
+          "name": "serial_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brand": {
+          "name": "brand",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsible_person": {
+          "name": "responsible_person",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_central": {
+          "name": "is_central",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "budget_source": {
+          "name": "budget_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gfmis_number": {
+          "name": "gfmis_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acquired_date": {
+          "name": "acquired_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_by": {
+          "name": "deleted_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_enabled": {
+          "name": "depreciation_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "depreciation_method": {
+          "name": "depreciation_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_cost": {
+          "name": "depreciation_cost",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_useful_life_years": {
+          "name": "depreciation_useful_life_years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_start_basis": {
+          "name": "depreciation_start_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_start_date": {
+          "name": "depreciation_start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_residual_value": {
+          "name": "depreciation_residual_value",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "metadata_version": {
+          "name": "metadata_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "stock_version": {
+          "name": "stock_version",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "specification": {
+          "name": "specification",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commodity_code": {
+          "name": "commodity_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minimum_quantity": {
+          "name": "minimum_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maximum_quantity": {
+          "name": "maximum_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fiscal_year": {
+          "name": "fiscal_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balance_as_of": {
+          "name": "balance_as_of",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_quantity": {
+          "name": "opening_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_amount": {
+          "name": "opening_amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_quantity": {
+          "name": "received_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_amount": {
+          "name": "received_amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issued_quantity": {
+          "name": "issued_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issued_amount": {
+          "name": "issued_amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balance_amount": {
+          "name": "balance_amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "materials_updated_index": {
+          "name": "materials_updated_index",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "materials_category_index": {
+          "name": "materials_category_index",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "materials_location_index": {
+          "name": "materials_location_index",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "materials_category_id_categories_id_fk": {
+          "name": "materials_category_id_categories_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "materials_location_id_locations_id_fk": {
+          "name": "materials_location_id_locations_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "materials_unit_id_units_id_fk": {
+          "name": "materials_unit_id_units_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "units",
+          "columnsFrom": [
+            "unit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "materials_created_by_profiles_id_fk": {
+          "name": "materials_created_by_profiles_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "materials_updated_by_profiles_id_fk": {
+          "name": "materials_updated_by_profiles_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "materials_deleted_by_profiles_id_fk": {
+          "name": "materials_deleted_by_profiles_id_fk",
+          "tableFrom": "materials",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "deleted_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "materials_category_type_fk": {
+          "name": "materials_category_type_fk",
+          "tableFrom": "materials",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "category_id",
+            "item_type"
+          ],
+          "columnsTo": [
+            "id",
+            "item_type"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "materials_type_check": {
+          "name": "materials_type_check",
+          "value": "\"materials\".\"item_type\" = 'material'"
+        },
+        "materials_quantity_check": {
+          "name": "materials_quantity_check",
+          "value": "\"materials\".\"quantity\" >= 0"
+        },
+        "materials_price_check": {
+          "name": "materials_price_check",
+          "value": "\"materials\".\"unit_price\" is null or \"materials\".\"unit_price\" >= 0"
+        },
+        "materials_depreciation_check": {
+          "name": "materials_depreciation_check",
+          "value": "not \"materials\".\"depreciation_enabled\""
+        },
+        "materials_status_check": {
+          "name": "materials_status_check",
+          "value": "\"materials\".\"status\" in ('active','spare','damaged','waiting_repair','inactive','disposed')"
+        },
+        "materials_ledger_check": {
+          "name": "materials_ledger_check",
+          "value": "coalesce(\"materials\".\"minimum_quantity\",0)>=0 and coalesce(\"materials\".\"maximum_quantity\",0)>=0 and coalesce(\"materials\".\"opening_quantity\",0)>=0 and coalesce(\"materials\".\"received_quantity\",0)>=0 and coalesce(\"materials\".\"issued_quantity\",0)>=0 and coalesce(\"materials\".\"opening_amount\",0)>=0 and coalesce(\"materials\".\"received_amount\",0)>=0 and coalesce(\"materials\".\"issued_amount\",0)>=0 and coalesce(\"materials\".\"balance_amount\",0)>=0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.profiles": {
       "name": "profiles",
       "schema": "",
@@ -1473,12 +2463,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "role": {
           "name": "role",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'viewer'"
+          "default": "'user'"
         },
         "is_active": {
           "name": "is_active",
@@ -1533,7 +2529,11 @@
       "checkConstraints": {
         "profiles_role_check": {
           "name": "profiles_role_check",
-          "value": "\"profiles\".\"role\" in ('admin','viewer')"
+          "value": "\"profiles\".\"role\" in ('admin','user')"
+        },
+        "profiles_password_cleared": {
+          "name": "profiles_password_cleared",
+          "value": "\"profiles\".\"password\" is null"
         }
       },
       "isRLSEnabled": false
@@ -1581,6 +2581,87 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.request_batches": {
+      "name": "request_batches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_hash": {
+          "name": "payload_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "request_batches_creator_key_unique": {
+          "name": "request_batches_creator_key_unique",
+          "columns": [
+            {
+              "expression": "created_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "request_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "request_batches_created_by_profiles_id_fk": {
+          "name": "request_batches_created_by_profiles_id_fk",
+          "tableFrom": "request_batches",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1693,6 +2774,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "stock_document_id": {
+          "name": "stock_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "delta": {
           "name": "delta",
           "type": "integer",
@@ -1726,6 +2813,22 @@
         }
       },
       "indexes": {
+        "stock_movements_document_unique": {
+          "name": "stock_movements_document_unique",
+          "columns": [
+            {
+              "expression": "stock_document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"stock_movements\".\"stock_document_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "stock_movements_item_created_index": {
           "name": "stock_movements_item_created_index",
           "columns": [
@@ -1749,10 +2852,10 @@
         }
       },
       "foreignKeys": {
-        "stock_movements_item_id_items_id_fk": {
-          "name": "stock_movements_item_id_items_id_fk",
+        "stock_movements_item_id_inventory_registry_id_fk": {
+          "name": "stock_movements_item_id_inventory_registry_id_fk",
           "tableFrom": "stock_movements",
-          "tableTo": "items",
+          "tableTo": "inventory_registry",
           "columnsFrom": [
             "item_id"
           ],
@@ -1768,6 +2871,19 @@
           "tableTo": "disbursement_items",
           "columnsFrom": [
             "disbursement_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "stock_movements_stock_document_id_material_stock_documents_id_fk": {
+          "name": "stock_movements_stock_document_id_material_stock_documents_id_fk",
+          "tableFrom": "stock_movements",
+          "tableTo": "material_stock_documents",
+          "columnsFrom": [
+            "stock_document_id"
           ],
           "columnsTo": [
             "id"
@@ -1799,7 +2915,7 @@
         },
         "stock_movements_type_check": {
           "name": "stock_movements_type_check",
-          "value": "\"stock_movements\".\"movement_type\" in ('issue','reversal','adjust_audit')"
+          "value": "\"stock_movements\".\"movement_type\" in ('issue','reversal','adjust_audit','receipt','material_return')"
         }
       },
       "isRLSEnabled": false
@@ -1855,6 +2971,115 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_sso_identities": {
+      "name": "user_sso_identities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_sso_identities_issuer_subject_unique": {
+          "name": "user_sso_identities_issuer_subject_unique",
+          "columns": [
+            {
+              "expression": "issuer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_sso_identities_user_id_index": {
+          "name": "user_sso_identities_user_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_sso_identities_user_id_profiles_id_fk": {
+          "name": "user_sso_identities_user_id_profiles_id_fk",
+          "tableFrom": "user_sso_identities",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

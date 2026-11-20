@@ -13,7 +13,7 @@ export interface ItemsBulkBarProps {
   canPrintBatch: boolean
   showPrintButton: boolean
   onBatchPrint: () => void
-  onBulkDelete: () => void
+  onBulkDelete?: () => void
   onClearSelection: () => void
 }
 
@@ -58,14 +58,17 @@ export function ItemsBulkBar({
         </Button>
       )}
 
-      {userCanDelete && (
+      {userCanDelete && onBulkDelete && (
         <Button
           onClick={onBulkDelete}
           variant="outline"
+          title="ยกเลิกรายการที่เลือก"
+          aria-label="ยกเลิกรายการที่เลือก"
           className={`${actionButtonClassName} text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30`}
         >
           <Trash2 className="size-3.5" />
-          ลบทั้งหมด
+          <span>ยกเลิก</span>
+          <span className="sr-only">ลบทั้งหมด</span>
         </Button>
       )}
 
@@ -75,9 +78,9 @@ export function ItemsBulkBar({
       <Button
         variant="outline"
         onClick={onClearSelection}
-        className="h-8.5 w-8.5 rounded-lg p-0 cursor-pointer"
-        aria-label="ปิดแถบรายการที่เลือก"
-        title="ปิด"
+        className="h-8.5 w-8.5 rounded-lg p-0 cursor-pointer bg-card hover:bg-accent text-card-foreground border-input"
+        aria-label="ยกเลิกการเลือก"
+        title="ยกเลิกการเลือก"
       >
         <X className="size-3.5" />
       </Button>

@@ -8,8 +8,8 @@ import { canCreateDisbursement } from '@/lib/permissions'
 import { recoverRequestBatch } from './request-batch-queries'
 import { getDisbursementSelectableItems } from './queries'
 import type { DisbursementSelectableItem } from './types'
-import { assignPostgresCustody, getCustodyHistory, inspectHistoricalPool, loadCustodyData } from './custody-postgres'
-import { createPostgresDisbursementDraft, updatePostgresDisbursementDraft, cancelPostgresDisbursementDraft, confirmPostgresDisbursement, returnPostgresDisbursement, returnPostgresDisbursementItem, reversePostgresDisbursement, submitPostgresBorrowRequest, rejectPostgresDisbursement } from './postgres-actions'
+import { assignPostgresCustody, getActiveLocations, getCustodyHistory, getOriginLocation, inspectHistoricalPool, loadCustodyData, returnPostgresCustody } from './custody-postgres'
+import { createPostgresDisbursementDraft, updatePostgresDisbursementDraft, cancelPostgresDisbursementDraft, confirmPostgresDisbursement, returnPostgresDisbursement, returnPostgresDisbursementItem, reversePostgresDisbursement, submitPostgresBorrowRequest, rejectPostgresDisbursement, partialApprovePostgresDisbursement, partialRejectPostgresDisbursement, partialReturnPostgresDisbursement } from './postgres-actions'
 
 function refreshDisbursementCaches() {
   revalidatePath('/items'); revalidatePath('/materials'); revalidatePath('/disbursements'); revalidatePath('/', 'layout')
@@ -56,6 +56,26 @@ export async function assignCustody(input: unknown) {
   return run('มอบหมายผู้ถือครองแล้ว', () => assignPostgresCustody(input))
 }
 
+export async function returnCustody(input: unknown) {
+  return run('บันทึกรับคืนครุภัณฑ์สำเร็จ', () => returnPostgresCustody(input))
+}
+
+export async function loadLocationsList() {
+  try { return successResponse('โหลดสถานที่สำเร็จ', await getActiveLocations()) }
+  catch { return errorResponse<{ id: string; name: string }[]>('โหลดสถานที่จัดเก็บไม่สำเร็จ') }
+}
+
+export async function loadOriginLocationAction(itemId: string, custodianName?: string | null) {
+  try {
+    const origin = await getOriginLocation(itemId, custodianName)
+    return successResponse('ดึงสถานที่ต้นทางสำเร็จ', origin)
+  } catch (err) {
+    return errorResponse<{ id: string; name: string } | null>(
+      err instanceof Error ? err.message : 'ไม่สามารถดึงสถานที่ต้นทางได้'
+    )
+  }
+}
+
 export async function inspectPoolHistory() {
   try { return successResponse('ตรวจสอบย้อนหลังแล้ว', await inspectHistoricalPool()) }
   catch { return errorResponse<Awaited<ReturnType<typeof inspectHistoricalPool>>>('ตรวจสอบย้อนหลังไม่สำเร็จ กรุณาลองใหม่ด้วยบัญชี admin') }
@@ -91,4 +111,19 @@ export async function submitBorrowRequest(input: { request_key?: string; item_id
 
 export async function rejectDisbursement(id: string, reason?: string) {
   return run('ปฏิเสธคำขอเรียบร้อย', () => rejectPostgresDisbursement(id, reason))
+}
+
+export async function partialApproveDisbursement(input: { disbursement_id: string; line_ids: string[]; replacement_due_date?: string }) {
+  return run('อนุมัติรายการที่เลือกสำเร็จ', () => partialApprovePostgresDisbursement(input))
+}
+
+export async function partialRejectDisbursement(input: { disbursement_id: string; line_ids: string[]; reason: string }) {
+  return run('ปฏิเสธรายการที่เลือกเรียบร้อย', () => partialRejectPostgresDisbursement(input))
+}
+
+export async function partialReturnDisbursement(input: {
+  disbursement_id: string
+  items: Array<{ line_id: string; item_id: string; condition: 'normal' | 'damaged'; return_date?: string; reason: string }>
+}) {
+  return run('รับคืนครุภัณฑ์ที่เลือกสำเร็จ', () => partialReturnPostgresDisbursement(input))
 }

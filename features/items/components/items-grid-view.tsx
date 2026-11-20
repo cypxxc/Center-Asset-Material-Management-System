@@ -7,6 +7,7 @@ import { ITEM_TYPE_LABELS, type ItemListRow } from '@/features/items/types'
 import { cn } from '@/lib/utils'
 import { CategoryBadge } from './category-badge'
 import { typeIcons } from './item-type-icon'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 interface ItemGridCardProps {
   item: ItemListRow
@@ -37,7 +38,6 @@ const ItemGridCard = React.memo(function ItemGridCard({
     <div
       tabIndex={0}
       onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') onSelect(item) }}
-      title={item.item_name}
       onClick={() => onSelect(item)}
       className={cn(
         'group relative flex h-[208px] min-w-0 overflow-hidden flex-col rounded-lg border p-3 text-left transition-all cursor-pointer',
@@ -123,9 +123,17 @@ const ItemGridCard = React.memo(function ItemGridCard({
           typeIcons[item.item_type]
         )}
       </div>
-      <p className="line-clamp-2 text-xs font-extrabold leading-snug text-card-foreground pr-4">{item.item_name}</p>
+      <TruncatedTextTooltip
+        text={item.item_name}
+        as="p"
+        className="line-clamp-2 text-xs font-extrabold leading-snug text-card-foreground pr-4 cursor-pointer"
+      />
       <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
-        <p className="truncate font-mono text-xs text-muted-foreground flex-1 min-w-0">{item.asset_no || item.serial_no || '-'}</p>
+        <TruncatedTextTooltip
+          text={item.asset_no || item.serial_no || '-'}
+          as="p"
+          className="truncate font-mono text-xs text-muted-foreground flex-1 min-w-0"
+        />
         {item.category && (
           <div className="max-w-[120px] truncate">
             <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} className="text-[10px] px-1.5 py-0" />
@@ -133,9 +141,11 @@ const ItemGridCard = React.memo(function ItemGridCard({
         )}
       </div>
       {[item.brand, item.model].filter(Boolean).join(' ') && (
-        <p className="truncate text-[11px] text-muted-foreground mt-0.5" title={[item.brand, item.model].filter(Boolean).join(' ')}>
-          • {[item.brand, item.model].filter(Boolean).join(' ')}
-        </p>
+        <TruncatedTextTooltip
+          text={`• ${[item.brand, item.model].filter(Boolean).join(' ')}`}
+          as="p"
+          className="truncate text-[11px] text-muted-foreground mt-0.5"
+        />
       )}
       <div className="mt-auto flex items-center justify-between pt-3">
         <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">

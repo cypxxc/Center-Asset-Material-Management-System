@@ -63,11 +63,15 @@ test('Sidebar exposes one active inventory entry for every inventory classificat
 
   renderSidebar()
 
-  const inventoryLink = screen.getByRole('link', { name: /^ครุภัณฑ์/ })
+  const inventoryLink = screen.getByRole('link', { name: 'ครุภัณฑ์' })
   assert.equal(inventoryLink.getAttribute('href'), '/items')
   assert.equal(inventoryLink.getAttribute('aria-current'), 'page')
-  assert.ok(screen.getByRole('link', { name: /^วัสดุ/ }))
-  assert.ok(screen.getByRole('link', { name: /^ส่วนกลาง/ }))
+  const materialLink = screen.getByRole('link', { name: 'วัสดุ' })
+  assert.ok(materialLink)
+  assert.equal(materialLink.getAttribute('href'), '/materials')
+  const centralLink = screen.getByRole('link', { name: 'วัสดุ - ครุภัณฑ์คงคลัง' })
+  assert.ok(centralLink)
+  assert.equal(centralLink.getAttribute('href'), '/central-items')
   assert.equal(screen.queryByRole('link', { name: /จัดการผู้ใช้งาน/ }), null)
 })
 

@@ -11,6 +11,7 @@ import {
  CheckCircle2,
 } from 'lucide-react'
 import type { UrgentDamagedItem } from '@/features/items/types'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 export interface FormattedLowStockItem {
  id: string
@@ -46,13 +47,13 @@ export function DashboardActionQueueClient({
  return (
  <div
  id="action-queue"
- className="overflow-hidden rounded-2xl border border-border/80 bg-card backdrop-blur-xs shadow-2xs flex flex-col h-full scroll-mt-6"
+ className="overflow-hidden rounded-xl border border-border bg-card shadow-2xs flex flex-col h-full scroll-mt-6"
  >
  {/* Header */}
- <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+ <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-border/60 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
  <div className="space-y-0.5">
  <h2 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
- <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
+ <span className="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400" aria-hidden="true" />
  คิวงานและรายการที่ต้องดำเนินการ
  </h2>
  <p className="text-xs text-muted-foreground">
@@ -62,12 +63,12 @@ export function DashboardActionQueueClient({
 
  <div>
  {totalUrgent === 0 ? (
- <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+ <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
  <CheckCircle2 className="size-3.5 text-emerald-500" />
  <span>คิวงานเรียบร้อย</span>
  </div>
  ) : (
- <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 border border-rose-500/20">
+ <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
  <AlertTriangle className="size-3.5 text-rose-500" />
  <span className="tabular-nums tracking-tight">ต้องดำเนินการ {totalUrgent} รายการ</span>
  </div>
@@ -81,7 +82,7 @@ export function DashboardActionQueueClient({
  role="tablist"
  aria-label="คิวรอดำเนินการ"
  onKeyDown={handleKeyDown}
- className="inline-flex items-center p-0.5 rounded-lg bg-muted/80 border border-border/60 gap-1"
+ className="inline-flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/50 gap-1"
  >
  <button
  type="button"
@@ -92,8 +93,8 @@ export function DashboardActionQueueClient({
  onClick={() => setActiveTab('damaged')}
  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer ${
  activeTab === 'damaged'
- ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/50'
- : 'text-muted-foreground hover:text-foreground hover:bg-card/50 font-medium'
+ ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/60'
+ : 'text-muted-foreground hover:text-foreground hover:bg-card/40 font-medium'
  }`}
  >
  <Hammer className="size-3.5" />
@@ -101,7 +102,7 @@ export function DashboardActionQueueClient({
  <span
  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
  damagedItems.length > 0
- ? 'bg-rose-500/15 text-rose-700 border border-rose-500/20'
+ ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
  : 'bg-muted text-muted-foreground'
  }`}
  >
@@ -118,8 +119,8 @@ export function DashboardActionQueueClient({
  onClick={() => setActiveTab('low-stock')}
  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer ${
  activeTab === 'low-stock'
- ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/50'
- : 'text-muted-foreground hover:text-foreground hover:bg-card/50 font-medium'
+ ? 'bg-card text-foreground shadow-2xs font-semibold border border-border/60'
+ : 'text-muted-foreground hover:text-foreground hover:bg-card/40 font-medium'
  }`}
  >
  <Package className="size-3.5" />
@@ -127,7 +128,7 @@ export function DashboardActionQueueClient({
  <span
  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
  lowStockItems.length > 0
- ? 'bg-amber-500/15 text-amber-700 border border-amber-500/20'
+ ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
  : 'bg-muted text-muted-foreground'
  }`}
  >
@@ -185,9 +186,11 @@ export function DashboardActionQueueClient({
  )}
 
  <div className="min-w-0 flex-1">
- <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
- {item.item_name}
- </p>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="p"
+ className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate"
+ />
  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
  {item.asset_no && (
  <span className="font-mono tabular-nums tracking-tight font-medium text-foreground/90 bg-muted px-1.5 py-0.5 rounded text-[11px] border border-border/60">
@@ -196,9 +199,11 @@ export function DashboardActionQueueClient({
  )}
  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
  <MapPin className="size-3 text-muted-foreground/70 shrink-0" />
- <span className="truncate max-w-[140px] sm:max-w-[200px]">
- {item.locationName || 'ไม่มีระบุสถานที่'}
- </span>
+ <TruncatedTextTooltip
+ text={item.locationName || 'ไม่มีระบุสถานที่'}
+ as="span"
+ className="truncate max-w-[140px] sm:max-w-[200px]"
+ />
  </span>
  </div>
  </div>
@@ -262,24 +267,28 @@ export function DashboardActionQueueClient({
  <Package className="size-4" />
  </div>
  <div className="min-w-0 flex-1">
- <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
- {item.item_name}
- </p>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="p"
+ className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate"
+ />
  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
  <MapPin className="size-3 text-muted-foreground/70 shrink-0" />
- <span className="truncate max-w-[160px] sm:max-w-[220px]">
- {item.locationName || 'ไม่มีระบุสถานที่'}
- </span>
+ <TruncatedTextTooltip
+ text={item.locationName || 'ไม่มีระบุสถานที่'}
+ as="span"
+ className="truncate max-w-[160px] sm:max-w-[220px]"
+ />
  </div>
  </div>
  </div>
 
  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
  <div className="text-left sm:text-right">
- <p className="text-xs sm:text-sm font-bold text-amber-700 tabular-nums tracking-tight font-mono">
+ <p className="text-xs sm:text-sm font-bold text-foreground tabular-nums tracking-tight font-mono">
  {item.quantity} {item.unit_name || 'ชิ้น'}
  </p>
- <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-800 border border-amber-500/20 mt-0.5">
+ <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 mt-0.5">
  <AlertTriangle className="size-2.5" />
  <span>ต่ำกว่าเกณฑ์</span>
  </span>
@@ -288,7 +297,7 @@ export function DashboardActionQueueClient({
  <Link
  href="/items"
  aria-label={`ดูข้อมูล ${item.item_name}`}
- className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-border/70 bg-card hover:bg-muted text-foreground transition-all duration-150 shadow-2xs group-hover:border-primary/40"
+ className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-foreground transition-colors shadow-2xs"
  >
  <span>ดูข้อมูล</span>
  <ChevronRight className="size-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
@@ -301,7 +310,7 @@ export function DashboardActionQueueClient({
  )}
 
  {/* Action Queue Footer / Registry Deep-link */}
- <div data-footer className="px-4 py-2.5 sm:px-5 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+ <div data-footer className="px-4 py-2.5 sm:px-5 bg-muted/15 border-t border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
  <span className="text-muted-foreground text-[11px] sm:text-xs">
  {activeTab === 'damaged'
  ? `แสดงคิวชำรุด ${damagedItems.length} รายการล่าสุด`
@@ -309,7 +318,7 @@ export function DashboardActionQueueClient({
  </span>
  <Link
  href={activeTab === 'damaged' ? '/items?status=damaged' : '/items'}
- className="font-medium text-primary hover:underline inline-flex items-center gap-1 shrink-0"
+ className="font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 shrink-0"
  >
  <span>{activeTab === 'damaged' ? 'ดูรายการครุภัณฑ์ชำรุดทั้งหมดในทะเบียน' : 'ดูทะเบียนวัสดุทั้งหมด'}</span>
  <ChevronRight className="size-3.5" />

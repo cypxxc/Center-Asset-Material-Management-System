@@ -40,11 +40,3 @@ export async function measureExecution<T>(
 
   return { result, durationMs }
 }
-
-/** Measure a Supabase/query call and record query.latency metric. */
-export async function measureQuery<T>(
-  operation: string,
-  fn: () => PromiseLike<T>,
-): Promise<{ result: T; durationMs: number }> {
-  return measureExecution(fn, { metricName: 'query.latency', labels: { operation } })
-}

@@ -2,6 +2,7 @@ import { Coins, Package, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { getReportStats } from '@/features/reports/queries'
 import { getLowStockItems, type LowStockDashboardItem } from '@/features/items/queries'
 import type { ReportStats } from '@/features/reports/types'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 export interface DashboardMetricsGridProps {
  stats?: ReportStats
@@ -28,11 +29,11 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  return (
  <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
  {/* 1. Valuation Summary */}
- <div className="group relative rounded-2xl border border-border/80 bg-card p-5 shadow-2xs hover:shadow-xs hover:border-border transition-all duration-200 flex flex-col justify-between">
+ <div className="group relative rounded-xl border border-border bg-card p-5 shadow-2xs hover:border-border/90 transition-colors flex flex-col justify-between">
  <div>
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
  <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
- <Coins className="size-3.5 text-muted-foreground/70 group-hover:text-primary transition-colors" />
+ <Coins className="size-3.5 text-muted-foreground transition-colors" />
  มูลค่าสินทรัพย์รวม
  </h2>
  <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/60">
@@ -40,22 +41,24 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  </span>
  </div>
  <div className="mt-3">
- <p className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground leading-none">
+ <p className="text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground leading-none">
  ฿{totalValue.toLocaleString('th-TH')}
  </p>
  </div>
  </div>
- <p className="mt-4 pt-3 border-t border-border/40 text-xs text-muted-foreground truncate">
- รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ
- </p>
+ <TruncatedTextTooltip
+ text="รวมครุภัณฑ์และวัสดุทั้งหมดในระบบ"
+ as="p"
+ className="mt-4 pt-3 border-t border-border/50 text-xs text-muted-foreground truncate"
+ />
  </div>
 
  {/* 2. Total Items & Breakdown */}
- <div className="group relative rounded-2xl border border-border/80 bg-card p-5 shadow-2xs hover:shadow-xs hover:border-border transition-all duration-200 flex flex-col justify-between">
+ <div className="group relative rounded-xl border border-border bg-card p-5 shadow-2xs hover:border-border/90 transition-colors flex flex-col justify-between">
  <div>
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
  <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
- <Package className="size-3.5 text-muted-foreground/70 group-hover:text-primary transition-colors" />
+ <Package className="size-3.5 text-muted-foreground transition-colors" />
  ครุภัณฑ์และวัสดุทั้งหมด
  </h2>
  <span className="text-[11px] font-mono font-medium text-muted-foreground/90 bg-muted/80 px-2 py-0.5 rounded-md border border-border/60">
@@ -63,87 +66,93 @@ export async function DashboardMetricsGrid(props: DashboardMetricsGridProps = {}
  </span>
  </div>
  <div className="mt-3">
- <p className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground leading-none">
+ <p className="text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground leading-none">
  {stats.totalItems.toLocaleString('th-TH')} รายการ
  </p>
  </div>
  </div>
- <div className="mt-4 pt-3 border-t border-border/40 space-y-1.5">
+ <div className="mt-4 pt-3 border-t border-border/50 space-y-1.5">
  <div
  role="progressbar"
  aria-label="สัดส่วนครุภัณฑ์และวัสดุ"
  aria-valuenow={Math.round(assetRatio)}
  aria-valuemin={0}
  aria-valuemax={100}
- className="w-full h-1.5 bg-muted/90 rounded-full overflow-hidden flex"
+ className="w-full h-1.5 bg-muted rounded-full overflow-hidden flex"
  >
  <div
- className="bg-primary h-full transition-all duration-500"
+ className="bg-blue-600 dark:bg-blue-500 h-full transition-all duration-500"
  style={{ width: `${assetRatio}%` }}
  title={`ครุภัณฑ์ ${assetRatio.toFixed(1)}%`}
  />
  <div
- className="bg-emerald-500 h-full transition-all duration-500"
+ className="bg-violet-600 dark:bg-violet-500 h-full transition-all duration-500"
  style={{ width: `${materialRatio}%` }}
  title={`วัสดุ ${materialRatio.toFixed(1)}%`}
  />
  </div>
- <p className="text-xs text-muted-foreground truncate">
- ครุภัณฑ์ {assetCount.toLocaleString('th-TH')} | วัสดุ {materialCount.toLocaleString('th-TH')}
- </p>
+ <TruncatedTextTooltip
+ text={`ครุภัณฑ์ ${assetCount.toLocaleString('th-TH')} | วัสดุ ${materialCount.toLocaleString('th-TH')}`}
+ as="p"
+ className="text-xs text-muted-foreground truncate"
+ />
  </div>
  </div>
 
  {/* 3. Operational Readiness */}
- <div className="group relative rounded-2xl border border-border/80 bg-card p-5 shadow-2xs hover:shadow-xs hover:border-border transition-all duration-200 flex flex-col justify-between">
+ <div className="group relative rounded-xl border border-border bg-card p-5 shadow-2xs hover:border-border/90 transition-colors flex flex-col justify-between">
  <div>
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
  <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
  <CheckCircle2 className="size-3.5 text-emerald-500" />
  ความพร้อมใช้งานของวัสดุ
  </h2>
- <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+ <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
  พร้อมใช้
  </span>
  </div>
  <div className="mt-3">
- <p className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground leading-none">
+ <p className="text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground leading-none">
  {readinessPercentage.toFixed(1)}%
  </p>
  </div>
  </div>
- <p className="mt-4 pt-3 border-t border-border/40 text-xs text-muted-foreground truncate">
- ใช้งานปกติ {activeCount.toLocaleString('th-TH')} | ชำรุด/ส่งซ่อม {damagedCount.toLocaleString('th-TH')}
- </p>
+ <TruncatedTextTooltip
+ text={`ใช้งานปกติ ${activeCount.toLocaleString('th-TH')} | ชำรุด/ส่งซ่อม ${damagedCount.toLocaleString('th-TH')}`}
+ as="p"
+ className="mt-4 pt-3 border-t border-border/50 text-xs text-muted-foreground truncate"
+ />
  </div>
 
  {/* 4. Urgent Action */}
- <div className="group relative rounded-2xl border border-rose-500/30 bg-rose-500/[0.02] p-5 shadow-2xs hover:shadow-xs hover:border-rose-500/50 transition-all duration-200 flex flex-col justify-between">
+ <div className="group relative rounded-xl border border-border bg-card p-5 shadow-2xs hover:border-border/90 transition-colors flex flex-col justify-between">
  <div>
  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
- <h2 className="flex items-center gap-1.5 font-semibold text-rose-600 text-xs">
+ <h2 className="flex items-center gap-1.5 font-semibold text-foreground/85 text-xs">
  <AlertTriangle className="size-3.5 text-rose-500" />
  รายการเร่งด่วน
  </h2>
- <span className="text-[11px] text-rose-600 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+ <span className="text-[11px] text-rose-700 dark:text-rose-400 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
  ต้องดำเนินการ
  </span>
  </div>
  <div className="mt-3">
- <p className="text-3xl font-extrabold tabular-nums tracking-tight text-rose-600 leading-none">
+ <p className="text-3xl font-bold font-mono tabular-nums tracking-tight text-rose-600 dark:text-rose-500 leading-none">
  {urgentCount.toLocaleString('th-TH')} รายการ
  </p>
  </div>
  </div>
- <div className="mt-4 pt-3 border-t border-rose-500/20 flex items-center justify-between gap-2">
- <p className="text-xs text-muted-foreground truncate">
- {damagedCount.toLocaleString('th-TH')} รายการรอซ่อม • {lowStockCount.toLocaleString('th-TH')} สต็อกต่ำ
- </p>
+ <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
+ <TruncatedTextTooltip
+ text={`${damagedCount.toLocaleString('th-TH')} รายการรอซ่อม • ${lowStockCount.toLocaleString('th-TH')} สต็อกต่ำ`}
+ as="p"
+ className="text-xs text-muted-foreground truncate"
+ />
  <a
  href="#action-queue"
  aria-label="ตรวจสอบรายการเร่งด่วนทันที ไปยังคิวงาน"
- className="text-xs font-semibold text-rose-600 hover:underline flex items-center gap-1 shrink-0"
+ className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 shrink-0"
  >
  <span>ตรวจสอบทันที</span>
  <span aria-hidden="true"> ➔</span>

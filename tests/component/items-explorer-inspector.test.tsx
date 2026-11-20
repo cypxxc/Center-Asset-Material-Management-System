@@ -182,7 +182,20 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   assert.ok(drawerScope.getByText('นายสมชาย วิศวกรรม'))
   assert.ok(drawerScope.getByText('ห้องทำงานชั้น 3'))
   assert.ok(drawerScope.getByText(/32,000/))
-  assert.ok(drawerScope.getByText('สภาพดี เบิกใช้งานเมื่อมกราคม 2026'))
+  // Open additional information accordion to reveal note
+  const accordionToggle = drawerScope.getByRole('button', { name: /ข้อมูลเพิ่มเติม/ })
+  fireEvent.click(accordionToggle)
+
+  assert.ok(
+    drawerScope.getByText((content, element) => {
+      const target = 'สภาพดี เบิกใช้งานเมื่อมกราคม 2026'
+      const hasText = element?.textContent?.includes(target) ?? false
+      const childrenDontHaveText = Array.from(element?.children ?? []).every(
+        (child) => !child.textContent?.includes(target)
+      )
+      return hasText && childrenDontHaveText
+    })
+  )
 })
 
 test('Clicking close button closes the Slide-Over Inspector Drawer', () => {

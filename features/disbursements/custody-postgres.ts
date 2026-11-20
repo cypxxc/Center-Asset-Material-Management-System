@@ -2,7 +2,8 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
-import { assignCustodySchema, custodyHistoryParamsSchema } from './custody-schema'
+import type { PostgresTransaction } from '@/lib/postgres/db'
+import { assignCustodySchema, custodyHistoryParamsSchema, returnCustodySchema } from './custody-schema'
 import { normalizeForSearch } from '@/lib/unicode'
 import { assertCentralDisbursementItem, isCentralDisbursementItem } from './central-items'
 import { createPostgresDisbursementDraft, confirmPostgresDisbursement } from './postgres-actions'
@@ -18,14 +19,23 @@ async function requireAdmin() {
   return profile
 }
 
+export type CustodyStatusAction = 'can_return' | 'returned' | 'cancelled' | 'transferred' | 'completed'
+
 export interface CustodyHistoryRow extends Record<string, unknown> {
   id: string
+  action: string
+  item_id: string | null
   item_name: string
   asset_no: string | null
   from_responsible: string | null
   to_responsible: string | null
   actor_name: string | null
   created_at: string
+  can_return: boolean
+  is_returned: boolean
+  status_action?: CustodyStatusAction
+  current_responsible?: string | null
+  current_location_id?: string | null
 }
 
 export async function getCustodyHistory(rawInput: unknown = {}) {
@@ -33,19 +43,66 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
   const params = custodyHistoryParamsSchema.parse(rawInput)
   const pageSize = 20
   const historySql = sql`
-    SELECT a.id, coalesce(a.new_data->>'item_name', i.item_name, '-') AS item_name,
+    SELECT a.id,
+      a.action,
+      a.target_id AS item_id,
+      coalesce(a.new_data->>'item_name', i.item_name, '-') AS item_name,
       coalesce(a.new_data->>'asset_no', i.asset_no) AS asset_no,
-      a.old_data->>'responsible_person' AS from_responsible,
-      a.new_data->>'responsible_person' AS to_responsible,
-      p.full_name AS actor_name, a.created_at
+      coalesce(a.old_data->>'responsible_person', a.new_data->>'previous_custodian') AS from_responsible,
+      CASE
+        WHEN a.action = 'RETURN_CUSTODY' THEN 'ส่วนกลาง'
+        ELSE a.new_data->>'responsible_person'
+      END AS to_responsible,
+      p.full_name AS actor_name,
+      a.created_at,
+      i.responsible_person AS current_responsible,
+      i.location_id AS current_location_id,
+      CASE
+        WHEN a.action = 'RETURN_CUSTODY' THEN 'returned'
+        WHEN nl.action = 'RETURN_CUSTODY' THEN 'returned'
+        WHEN nl.action = 'ASSIGN_CUSTODY' THEN 'transferred'
+        WHEN i.id IS NULL OR i.deleted_at IS NOT NULL THEN 'cancelled'
+        WHEN coalesce(i.is_central, false) = false
+          AND i.responsible_person IS NOT NULL
+          AND i.responsible_person = (a.new_data->>'responsible_person') THEN 'can_return'
+        WHEN i.responsible_person IS NOT NULL
+          AND i.responsible_person != (a.new_data->>'responsible_person') THEN 'transferred'
+        ELSE 'completed'
+      END AS status_action,
+      (
+        a.action = 'ASSIGN_CUSTODY'
+        AND nl.action IS NULL
+        AND i.id IS NOT NULL
+        AND i.deleted_at IS NULL
+        AND coalesce(i.is_central, false) = false
+        AND i.responsible_person IS NOT NULL
+        AND i.responsible_person = (a.new_data->>'responsible_person')
+      ) AS can_return,
+      (
+        a.action = 'RETURN_CUSTODY'
+        OR nl.action = 'RETURN_CUSTODY'
+      ) AS is_returned
     FROM public.audit_logs a
     LEFT JOIN public.items i ON i.id = a.target_id
     LEFT JOIN public.profiles p ON p.id = a.user_id
-    WHERE a.action = 'ASSIGN_CUSTODY' AND a.target_table = 'items'
+    LEFT JOIN LATERAL (
+      SELECT a2.action
+      FROM public.audit_logs a2
+      WHERE a2.target_table = 'items'
+        AND a2.target_id = a.target_id
+        AND a2.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY')
+        AND (a2.created_at > a.created_at OR (a2.created_at = a.created_at AND a2.id > a.id))
+      ORDER BY a2.created_at ASC, a2.id ASC
+      LIMIT 1
+    ) nl ON true
+    WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
   `
   const pattern = `%${normalizeForSearch(params.q)}%`
-  const filter = params.q ? sql`WHERE (h.item_name ILIKE ${pattern} OR h.asset_no ILIKE ${pattern}
-    OR h.from_responsible ILIKE ${pattern} OR h.to_responsible ILIKE ${pattern} OR h.actor_name ILIKE ${pattern})` : sql``
+  const baseFilter = params.active_only ? sql`h.can_return = true` : sql`true`
+  const filter = params.q
+    ? sql`WHERE ${baseFilter} AND (h.item_name ILIKE ${pattern} OR h.asset_no ILIKE ${pattern}
+        OR h.from_responsible ILIKE ${pattern} OR h.to_responsible ILIKE ${pattern} OR h.actor_name ILIKE ${pattern})`
+    : (params.active_only ? sql`WHERE ${baseFilter}` : sql``)
   return withUserDatabase(async tx => {
     const count = await tx.execute<{ total: number }>(sql`SELECT count(*)::int AS total FROM (${historySql}) h ${filter}`)
     const total = count.rows[0]?.total ?? 0
@@ -68,15 +125,59 @@ export async function loadCustodyData() {
         SELECT id, full_name FROM public.profiles WHERE is_active = true ORDER BY full_name, id
       `)
       const history = await tx.execute<CustodyHistoryRow>(sql`
-        SELECT a.id, coalesce(a.new_data->>'item_name', i.item_name, '-') AS item_name,
+        SELECT a.id,
+          a.action,
+          a.target_id AS item_id,
+          coalesce(a.new_data->>'item_name', i.item_name, '-') AS item_name,
           coalesce(a.new_data->>'asset_no', i.asset_no) AS asset_no,
-          a.old_data->>'responsible_person' AS from_responsible,
-          a.new_data->>'responsible_person' AS to_responsible,
-          p.full_name AS actor_name, a.created_at::text AS created_at
+          coalesce(a.old_data->>'responsible_person', a.new_data->>'previous_custodian') AS from_responsible,
+          CASE
+            WHEN a.action = 'RETURN_CUSTODY' THEN 'ส่วนกลาง'
+            ELSE a.new_data->>'responsible_person'
+          END AS to_responsible,
+          p.full_name AS actor_name,
+          a.created_at::text AS created_at,
+          i.responsible_person AS current_responsible,
+          i.location_id AS current_location_id,
+          CASE
+            WHEN a.action = 'RETURN_CUSTODY' THEN 'returned'
+            WHEN nl.action = 'RETURN_CUSTODY' THEN 'returned'
+            WHEN nl.action = 'ASSIGN_CUSTODY' THEN 'transferred'
+            WHEN i.id IS NULL OR i.deleted_at IS NOT NULL THEN 'cancelled'
+            WHEN coalesce(i.is_central, false) = false
+              AND i.responsible_person IS NOT NULL
+              AND i.responsible_person = (a.new_data->>'responsible_person') THEN 'can_return'
+            WHEN i.responsible_person IS NOT NULL
+              AND i.responsible_person != (a.new_data->>'responsible_person') THEN 'transferred'
+            ELSE 'completed'
+          END AS status_action,
+          (
+            a.action = 'ASSIGN_CUSTODY'
+            AND nl.action IS NULL
+            AND i.id IS NOT NULL
+            AND i.deleted_at IS NULL
+            AND coalesce(i.is_central, false) = false
+            AND i.responsible_person IS NOT NULL
+            AND i.responsible_person = (a.new_data->>'responsible_person')
+          ) AS can_return,
+          (
+            a.action = 'RETURN_CUSTODY'
+            OR nl.action = 'RETURN_CUSTODY'
+          ) AS is_returned
         FROM public.audit_logs a
         LEFT JOIN public.items i ON i.id = a.target_id
         LEFT JOIN public.profiles p ON p.id = a.user_id
-        WHERE a.action = 'ASSIGN_CUSTODY' AND a.target_table = 'items'
+        LEFT JOIN LATERAL (
+          SELECT a2.action
+          FROM public.audit_logs a2
+          WHERE a2.target_table = 'items'
+            AND a2.target_id = a.target_id
+            AND a2.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY')
+            AND (a2.created_at > a.created_at OR (a2.created_at = a.created_at AND a2.id > a.id))
+          ORDER BY a2.created_at ASC, a2.id ASC
+          LIMIT 1
+        ) nl ON true
+        WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
         ORDER BY a.created_at DESC, a.id DESC LIMIT 100
       `)
       return { users: users.rows, history: history.rows }
@@ -137,8 +238,8 @@ export async function assignPostgresCustody(rawInput: unknown) {
     for (const itemId of [...data.item_ids].sort()) {
       const result = await tx.execute<{
         id: string; item_type: string; item_name: string; asset_no: string | null;
-        is_central: boolean; note: string | null; responsible_person: string | null; status: string | null
-      }>(sql`SELECT id, item_type, item_name, asset_no, is_central, note, responsible_person, status
+        is_central: boolean; note: string | null; responsible_person: string | null; status: string | null; location_id: string | null
+      }>(sql`SELECT id, item_type, item_name, asset_no, is_central, note, responsible_person, status, location_id
         FROM ${await inventoryTableForId(tx, itemId)} WHERE id = ${itemId} AND deleted_at IS NULL FOR UPDATE`)
       const item = result.rows[0]
       if (!item) throw new Error('ไม่พบสิ่งของที่เลือก')
@@ -154,8 +255,8 @@ export async function assignPostgresCustody(rawInput: unknown) {
       await tx.execute(sql`UPDATE public.items SET responsible_person = ${recipient.full_name}, is_central = false, note = ${newNote}, updated_at = now() WHERE id = ${item.id}`)
       await tx.execute(sql`INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
         VALUES (${admin.id}, 'ASSIGN_CUSTODY', 'items', ${item.id},
-          ${JSON.stringify({ responsible_person: item.responsible_person, is_central: item.is_central, note: item.note })}::jsonb,
-          ${JSON.stringify({ responsible_person: recipient.full_name, recipient_id: recipient.id, item_name: item.item_name, asset_no: item.asset_no, is_central: false, note: newNote })}::jsonb)`)
+          ${JSON.stringify({ responsible_person: item.responsible_person, is_central: item.is_central, note: item.note, location_id: item.location_id })}::jsonb,
+          ${JSON.stringify({ responsible_person: recipient.full_name, recipient_id: recipient.id, item_name: item.item_name, asset_no: item.asset_no, is_central: false, note: newNote, origin_location_id: item.location_id })}::jsonb)`)
       assigned++
     }
     if (materials.length) {
@@ -167,5 +268,218 @@ export async function assignPostgresCustody(rawInput: unknown) {
       assigned += materials.length
     }
     return { assigned }
+  })
+}
+
+export async function getActiveLocations() {
+  await requireAdmin()
+  return withUserDatabase(async (tx) => {
+    const res = await tx.execute<{ id: string; name: string }>(sql`
+      SELECT id, name FROM public.locations WHERE is_active = true ORDER BY name
+    `)
+    return res.rows
+  })
+}
+
+export async function findOriginLocation(
+  tx: PostgresTransaction,
+  itemId: string,
+  responsiblePerson: string | null
+): Promise<{ id: string; name: string } | null> {
+  // Step 1: Look at the latest ASSIGN_CUSTODY audit log for this item and this responsible_person
+  const assignLogRes = await tx.execute<{
+    origin_location_id: string | null
+    old_location_id: string | null
+    log_created_at: string
+    log_id: string
+  }>(sql`
+    SELECT
+      a.new_data->>'origin_location_id' AS origin_location_id,
+      a.old_data->>'location_id' AS old_location_id,
+      a.created_at::text AS log_created_at,
+      a.id::text AS log_id
+    FROM public.audit_logs a
+    WHERE a.action = 'ASSIGN_CUSTODY'
+      AND a.target_table = 'items'
+      AND a.target_id = ${itemId}
+      AND (${responsiblePerson}::text IS NULL OR a.new_data->>'responsible_person' = ${responsiblePerson})
+    ORDER BY a.created_at DESC, a.id DESC
+    LIMIT 1
+  `)
+
+  const assignLog = assignLogRes.rows[0]
+  const explicitLocId = assignLog?.origin_location_id || assignLog?.old_location_id
+  if (explicitLocId) {
+    const locRes = await tx.execute<{ id: string; name: string }>(sql`
+      SELECT id, name FROM public.locations WHERE id = ${explicitLocId}::uuid
+    `)
+    if (locRes.rows[0]) return locRes.rows[0]
+  }
+
+  // Step 2: Check disbursement documents (asset_handover / asset_borrow)
+  const disbRes = await tx.execute<{ location_id: string | null; location_name: string }>(sql`
+    SELECT l.id AS location_id, coalesce(l.name, di.location_name_snapshot) AS location_name
+    FROM public.disbursement_items di
+    JOIN public.disbursements d ON d.id = di.disbursement_id
+    LEFT JOIN public.locations l ON l.name = di.location_name_snapshot
+    WHERE di.item_id = ${itemId}
+      AND (${responsiblePerson}::text IS NULL OR d.recipient_name = ${responsiblePerson})
+      AND di.location_name_snapshot IS NOT NULL
+    ORDER BY d.created_at DESC, di.id DESC
+    LIMIT 1
+  `)
+  if (disbRes.rows[0]?.location_id && disbRes.rows[0]?.location_name) {
+    return { id: disbRes.rows[0].location_id, name: disbRes.rows[0].location_name }
+  }
+
+  // Step 3: If assignLog exists but didn't have location_id stored in its JSON,
+  // find the latest item location audit log BEFORE or AT the time of this assignment
+  if (assignLog) {
+    const prevLocRes = await tx.execute<{ location_id: string }>(sql`
+      SELECT coalesce(al.new_data->>'location_id', al.old_data->>'location_id') AS location_id
+      FROM public.audit_logs al
+      WHERE al.target_table = 'items'
+        AND al.target_id = ${itemId}
+        AND al.id::text != ${assignLog.log_id}
+        AND al.created_at <= ${assignLog.log_created_at}::timestamptz
+        AND (al.new_data->>'location_id' IS NOT NULL OR al.old_data->>'location_id' IS NOT NULL)
+      ORDER BY al.created_at DESC, al.id DESC
+      LIMIT 1
+    `)
+    const prevLocId = prevLocRes.rows[0]?.location_id
+    if (prevLocId) {
+      const loc = await tx.execute<{ id: string; name: string }>(sql`
+        SELECT id, name FROM public.locations WHERE id = ${prevLocId}::uuid
+      `)
+      if (loc.rows[0]) return loc.rows[0]
+    }
+  }
+
+  // Step 4: Check if there was an earlier RETURN_CUSTODY log before this assignment
+  const returnLogRes = await tx.execute<{ location_id: string }>(sql`
+    SELECT coalesce(al.new_data->>'origin_location_id', al.new_data->>'location_id') AS location_id
+    FROM public.audit_logs al
+    WHERE al.action = 'RETURN_CUSTODY'
+      AND al.target_table = 'items'
+      AND al.target_id = ${itemId}
+    ORDER BY al.created_at DESC, al.id DESC
+    LIMIT 1
+  `)
+  const returnLocId = returnLogRes.rows[0]?.location_id
+  if (returnLocId) {
+    const loc = await tx.execute<{ id: string; name: string }>(sql`
+      SELECT id, name FROM public.locations WHERE id = ${returnLocId}::uuid
+    `)
+    if (loc.rows[0]) return loc.rows[0]
+  }
+
+  // Step 5: Check item creation / import log
+  const createLogRes = await tx.execute<{ location_id: string }>(sql`
+    SELECT coalesce(al.new_data->>'location_id', al.old_data->>'location_id') AS location_id
+    FROM public.audit_logs al
+    WHERE al.target_table = 'items'
+      AND al.target_id = ${itemId}
+      AND (al.new_data->>'location_id' IS NOT NULL OR al.old_data->>'location_id' IS NOT NULL)
+    ORDER BY al.created_at ASC, al.id ASC
+    LIMIT 1
+  `)
+  const createLocId = createLogRes.rows[0]?.location_id
+  if (createLocId) {
+    const loc = await tx.execute<{ id: string; name: string }>(sql`
+      SELECT id, name FROM public.locations WHERE id = ${createLocId}::uuid
+    `)
+    if (loc.rows[0]) return loc.rows[0]
+  }
+
+  return null
+}
+
+export async function getOriginLocation(itemId: string, custodianName?: string | null) {
+  await requireAdmin()
+  return withUserDatabase(async (tx) => {
+    return findOriginLocation(tx, itemId, custodianName ?? null)
+  })
+}
+
+export async function returnPostgresCustody(rawInput: unknown) {
+  const admin = await requireAdmin()
+  const data = returnCustodySchema.parse(rawInput)
+  return withUserDatabase(async (tx) => {
+    await lockDisbursementItems(tx, [data.item_id])
+    const result = await tx.execute<{
+      id: string
+      item_type: string
+      item_name: string
+      asset_no: string | null
+      is_central: boolean
+      responsible_person: string | null
+      status: string | null
+      location_id: string | null
+      note: string | null
+    }>(sql`
+      SELECT id, item_type, item_name, asset_no, is_central, responsible_person, status, location_id, note
+      FROM public.items
+      WHERE id = ${data.item_id} AND deleted_at IS NULL
+      FOR UPDATE
+    `)
+    const item = result.rows[0]
+    if (!item) throw new Error('ไม่พบครุภัณฑ์ในระบบหรือครุภัณฑ์ถูกลบแล้ว')
+    if (item.item_type !== 'asset') throw new Error('สามารถรับคืนได้เฉพาะครุภัณฑ์เท่านั้น')
+
+    if (item.is_central && !item.responsible_person) {
+      throw new Error('ครุภัณฑ์นี้ถูกรับคืนเป็นของส่วนกลางแล้ว')
+    }
+    if (!item.responsible_person) {
+      throw new Error('ครุภัณฑ์นี้ไม่มีผู้ถือครองที่สามารถรับคืนได้')
+    }
+
+    const originLocation = await findOriginLocation(tx, item.id, item.responsible_person)
+    if (!originLocation) {
+      throw new Error('ไม่พบข้อมูลสถานที่ต้นทางเดิมก่อนสั่งจ่ายในระบบ ไม่สามารถเดาสถานที่ได้ กรุณาระบุข้อมูลต้นทางในระบบก่อนทำรายการ')
+    }
+
+    const newStatus = data.condition === 'damaged' ? 'damaged' : 'active'
+    const newNote = syncCentralNote(item.note || '', true) || null
+
+    await tx.execute(sql`
+      UPDATE public.items
+      SET responsible_person = NULL,
+          is_central = true,
+          status = ${newStatus},
+          location_id = ${originLocation.id},
+          note = ${newNote},
+          updated_at = now()
+      WHERE id = ${item.id}
+    `)
+
+    await tx.execute(sql`
+      INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+      VALUES (${admin.id}, 'RETURN_CUSTODY', 'items', ${item.id},
+        ${JSON.stringify({
+          responsible_person: item.responsible_person,
+          is_central: item.is_central,
+          status: item.status,
+          location_id: item.location_id,
+          note: item.note,
+        })}::jsonb,
+        ${JSON.stringify({
+          responsible_person: null,
+          is_central: true,
+          status: newStatus,
+          location_id: originLocation.id,
+          origin_location_id: originLocation.id,
+          origin_location_name: originLocation.name,
+          note: newNote,
+          condition: data.condition,
+          reason: data.reason,
+          return_date: data.return_date || new Date().toISOString().slice(0, 10),
+          item_name: item.item_name,
+          asset_no: item.asset_no,
+          previous_custodian: item.responsible_person,
+          additional_note: data.note || null,
+        })}::jsonb)
+    `)
+
+    return { ok: true, item_id: item.id, origin_location: originLocation }
   })
 }

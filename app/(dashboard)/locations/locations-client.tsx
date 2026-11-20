@@ -18,6 +18,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 import { AssetTagModal, type ItemStickerData } from '@/components/ui/asset-tag-modal'
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -192,7 +193,11 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                         {typeIcons[item.type] || <Folder className="w-4 h-4 text-muted-foreground" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-foreground truncate pr-2">{item.name}</p>
+                        <TruncatedTextTooltip
+                          text={item.name}
+                          as="p"
+                          className="font-bold text-foreground truncate pr-2"
+                        />
                         <p className="text-xs text-muted-foreground mt-0.5">
                           S/N: {item.serialNumber} | {item.categoryName}
                         </p>

@@ -10,10 +10,18 @@ const APPROVAL_ACTIONS = [
   'return_disbursement_item',
 ]
 
+const CUSTODY_ACTIONS = [
+  'assign_custody',
+  'return_custody',
+]
+
 export function buildAuditActionFilter(action?: string) {
   if (!action || action === 'all') return undefined
   if (action === 'approval_history') {
     return sql`lower(a.action) in (${sql.join(APPROVAL_ACTIONS.map(value => sql`${value}`), sql`, `)})`
+  }
+  if (action === 'custody_history') {
+    return sql`lower(a.action) in (${sql.join(CUSTODY_ACTIONS.map(value => sql`${value}`), sql`, `)})`
   }
   return sql`lower(a.action) = ${action.toLowerCase()}`
 }

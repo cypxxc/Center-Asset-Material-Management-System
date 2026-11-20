@@ -39,7 +39,7 @@ export async function getPostgresDisbursements(
   if (params.q) {
     const pattern = `%${normalizeForSearch(params.q)}%`
     clauses.push(
-      sql`(d.document_no ilike ${pattern} or d.recipient_name ilike ${pattern} or d.department_name ilike ${pattern} or d.purpose ilike ${pattern})`
+      sql`(d.document_no ilike ${pattern} or d.recipient_name ilike ${pattern} or d.department_name ilike ${pattern} or d.purpose ilike ${pattern} or d.fiscal_year::text ilike ${pattern})`
     )
   }
 

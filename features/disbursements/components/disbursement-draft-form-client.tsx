@@ -20,6 +20,7 @@ import {
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { FormInput, FormTextarea, FormLabel } from '@/components/ui/form'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 import { createDisbursementDraft, updateDisbursementDraft } from '@/features/disbursements/actions'
 import type {
  DisbursementRow,
@@ -474,16 +475,22 @@ export function DisbursementDraftFormClient({
 
  {/* Code */}
  <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground">
- {currentItem?.asset_no || currentItem?.serial_no || '-'}
+ <TruncatedTextTooltip
+ text={currentItem?.asset_no || currentItem?.serial_no || '-'}
+ as="span"
+ className="truncate max-w-[140px] block"
+ />
  </td>
 
  {/* Item Details */}
  <td className="py-2.5 px-3">
  <div className="flex flex-col">
  <div className="flex items-center gap-1.5 flex-wrap">
- <span className="font-semibold text-foreground">
- {currentItem?.item_name || 'ไม่พบข้อมูลสิ่งของ'}
- </span>
+ <TruncatedTextTooltip
+ text={currentItem?.item_name || 'ไม่พบข้อมูลสิ่งของ'}
+ as="span"
+ className="font-semibold text-foreground truncate max-w-[280px] block"
+ />
  {(currentItem?.is_central || (currentItem?.note && currentItem.note.includes('ส่วนกลาง'))) && (
  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300/40">
  ส่วนกลาง
@@ -497,19 +504,25 @@ export function DisbursementDraftFormClient({
  </div>
  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
  {currentItem?.category?.name && (
- <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
- {currentItem.category.name}
- </span>
+ <TruncatedTextTooltip
+ text={currentItem.category.name}
+ as="span"
+ className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded truncate max-w-[120px] block"
+ />
  )}
  {currentItem?.serial_no && currentItem?.asset_no && (
- <span className="text-[10px] text-muted-foreground font-mono">
- S/N: {currentItem.serial_no}
- </span>
+ <TruncatedTextTooltip
+ text={`S/N: ${currentItem.serial_no}`}
+ as="span"
+ className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px] block"
+ />
  )}
  {currentItem?.note && (
- <span className="text-[10px] text-muted-foreground">
- 📝 {currentItem.note}
- </span>
+ <TruncatedTextTooltip
+ text={`📝 ${currentItem.note}`}
+ as="span"
+ className="text-[10px] text-muted-foreground truncate max-w-[160px] block"
+ />
  )}
  </div>
  </div>
@@ -525,9 +538,11 @@ export function DisbursementDraftFormClient({
  }`}
  >
  <span className="tabular-nums text-right min-w-[20px]">{currentItem?.quantity ?? 0}</span>
- <span className="font-normal text-[10px] text-muted-foreground truncate max-w-[36px]" title={currentItem?.unit?.name || 'หน่วย'}>
- {currentItem?.unit?.name || 'หน่วย'}
- </span>
+ <TruncatedTextTooltip
+ text={currentItem?.unit?.name || 'หน่วย'}
+ as="span"
+ className="font-normal text-[10px] text-muted-foreground truncate max-w-[36px]"
+ />
  </span>
  </td>
 
@@ -598,7 +613,6 @@ export function DisbursementDraftFormClient({
  size="icon-xs"
  onClick={() => handleRemoveItem(idx)}
  className="text-destructive hover:bg-destructive/10"
- title="ลบรายการนี้"
  aria-label={`ลบรายการ ${currentItem?.item_name || ''}`}
  >
  <Trash2 className="h-3.5 w-3.5" />

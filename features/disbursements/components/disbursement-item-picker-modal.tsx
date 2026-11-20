@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 import type { DisbursementTransactionType, DisbursementSelectableItem } from '@/features/disbursements/types'
 import { isCentralDisbursementItem } from '../central-items'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 interface DisbursementItemPickerModalProps {
  open: boolean
@@ -372,15 +373,23 @@ function DisbursementItemPickerModalContent({
  </td>
 
  {/* Asset / Code */}
- <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
- {item.asset_no || item.serial_no || '-'}
+ <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground max-w-[130px]">
+ <TruncatedTextTooltip
+ text={item.asset_no || item.serial_no || '-'}
+ as="span"
+ className="truncate block"
+ />
  </td>
 
  {/* Item Name */}
  <td className="py-2 px-3">
  <div className="flex flex-col gap-0.5">
  <div className="flex items-center gap-1.5 flex-wrap">
- <span className="text-foreground">{item.item_name}</span>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="span"
+ className="text-foreground truncate max-w-[320px] block"
+ />
  {(item.is_central || (item.note && item.note.includes('ส่วนกลาง'))) && (
  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300/40">
  ส่วนกลาง
@@ -389,32 +398,44 @@ function DisbursementItemPickerModalContent({
  </div>
  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
  {item.serial_no && item.asset_no && (
- <span className="font-mono">
- S/N: {item.serial_no}
- </span>
+ <TruncatedTextTooltip
+ text={`S/N: ${item.serial_no}`}
+ as="span"
+ className="font-mono truncate max-w-[120px] block"
+ />
  )}
  {item.location_name && (
- <span className="truncate max-w-[140px]" title={`สถานที่: ${item.location_name}`}>
- 📍 {item.location_name}
- </span>
+ <TruncatedTextTooltip
+ text={`📍 ${item.location_name}`}
+ as="span"
+ className="truncate max-w-[140px]"
+ />
  )}
  {item.responsible_person && (
- <span className="truncate max-w-[120px]" title={`ผู้รับผิดชอบ: ${item.responsible_person}`}>
- 👤 {item.responsible_person}
- </span>
+ <TruncatedTextTooltip
+ text={`👤 ${item.responsible_person}`}
+ as="span"
+ className="truncate max-w-[120px]"
+ />
  )}
  {item.note && (
- <span className="truncate max-w-[160px] text-muted-foreground" title={`หมายเหตุ: ${item.note}`}>
- 📝 {item.note}
- </span>
+ <TruncatedTextTooltip
+ text={`📝 ${item.note}`}
+ as="span"
+ className="truncate max-w-[160px] text-muted-foreground"
+ />
  )}
  </div>
  </div>
  </td>
 
  {/* Category */}
- <td className="py-2 px-3 text-[11px] text-muted-foreground truncate max-w-[120px]">
- {item.category?.name || '-'}
+ <td className="py-2 px-3 text-[11px] text-muted-foreground max-w-[120px]">
+ <TruncatedTextTooltip
+ text={item.category?.name || '-'}
+ as="span"
+ className="truncate block"
+ />
  </td>
 
  {/* Stock Quantity */}
@@ -427,9 +448,11 @@ function DisbursementItemPickerModalContent({
  }`}
  >
  <span className="tabular-nums text-right min-w-[20px]">{item.quantity}</span>
- <span className="font-normal text-[10px] opacity-80 truncate max-w-[36px]" title={item.unit?.name || 'หน่วย'}>
- {item.unit?.name || 'หน่วย'}
- </span>
+ <TruncatedTextTooltip
+ text={item.unit?.name || 'หน่วย'}
+ as="span"
+ className="font-normal text-[10px] opacity-80 truncate max-w-[36px]"
+ />
  </span>
  </td>
 

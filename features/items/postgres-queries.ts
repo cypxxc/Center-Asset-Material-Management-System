@@ -74,7 +74,7 @@ export function itemFilters(params: ItemListSearchParams | NormalizedItemListSea
 
     if (params.type !== 'asset') {
       searchConditions.push(sql`exists (select 1 from public.materials m where m.id = i.id
-        and (m.specification ilike ${pattern} or m.commodity_code ilike ${pattern}))`)
+        and (m.specification ilike ${pattern} or m.commodity_code ilike ${pattern} or m.fiscal_year::text ilike ${pattern}))`)
     }
 
     // Thai status label and synonym mapping
@@ -175,8 +175,18 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
     responsible_person: sql`i.responsible_person collate "th-TH-x-icu"`,
   }
   const sortBy = params.sort_by ?? ''
-  const order = Object.hasOwn(columns, sortBy) ? columns[sortBy] : sql`i.updated_at`
-  const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by ?? ''))
+  const hasCustomSort = Object.hasOwn(columns, sortBy)
+  const isCentral = params.is_central === 'true' || params.is_central === '1'
+
+  const orderClause = hasCustomSort
+    ? (() => {
+        const order = columns[sortBy]
+        const ascending = params.sort_dir === 'asc' || (params.sort_dir !== 'desc' && ['item_name', 'category', 'item_type', 'acquired_date', 'budget_source', 'asset_no', 'gfmis_number', 'responsible_person'].includes(params.sort_by ?? ''))
+        return sql`${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`}`
+      })()
+    : isCentral
+      ? sql`case when i.item_type = 'asset' then 0 else 1 end asc, case when i.item_type = 'asset' then i.asset_no end asc nulls last, i.item_name collate "th-TH-x-icu" asc nulls last, i.id asc`
+      : sql`i.updated_at desc nulls last, i.id desc`
   return withUserDatabase(async (tx) => {
     const where = itemFilters(params, true)
     // Type totals define the inventory scope independently of qualification.
@@ -195,7 +205,7 @@ export async function getPostgresItems(params: ItemListSearchParams, pageSize = 
       from public.inventory_items i where ${classificationWhere}`)
     const rows = await tx.execute<ItemListRow & Record<string, unknown>>(sql`select ${itemListColumns}, i.note, i.image_url
       from public.inventory_items i ${itemRelations} where ${where}
-      order by ${order} ${ascending ? sql`asc` : sql`desc`} nulls last, i.id ${ascending ? sql`asc` : sql`desc`} limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
+      order by ${orderClause} limit ${safePageSize} offset ${(page - 1) * safePageSize}`)
     const total = totals.rows[0]?.total ?? 0
     const assets = totals.rows[0]?.assets ?? 0
     const materials = totals.rows[0]?.materials ?? 0

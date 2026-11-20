@@ -12,7 +12,7 @@ export type MaterialRecord = MaterialLedgerData & {
 const relations = sql`left join public.categories c on c.id=m.category_id left join public.units u on u.id=m.unit_id left join public.locations l on l.id=m.location_id`
 export async function getMaterials(q = '', page = 1) {
   const safePage = Number.isSafeInteger(page) && page > 0 ? page : 1
-  const where = sql`m.deleted_at is null ${q ? sql`and (m.item_name ilike ${'%' + q + '%'} or m.specification ilike ${'%' + q + '%'} or m.commodity_code ilike ${'%' + q + '%'})` : sql``}`
+  const where = sql`m.deleted_at is null ${q ? sql`and (m.item_name ilike ${'%' + q + '%'} or m.specification ilike ${'%' + q + '%'} or m.commodity_code ilike ${'%' + q + '%'} or m.fiscal_year::text ilike ${'%' + q + '%'})` : sql``}`
   return withUserDatabase(async tx => {
     const count = await tx.execute<{ total: number }>(sql`select count(*)::int total from public.materials m where ${where}`)
     const rows = await tx.execute<MaterialRecord>(sql`select m.*,true as is_central, c.name category_name, u.name unit_name, l.name location_name from public.materials m ${relations} where ${where} order by m.item_name,m.id limit 50 offset ${(safePage-1)*50}`)

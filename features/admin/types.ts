@@ -20,6 +20,7 @@ export interface AuditLogListItem {
   actor_name?: string | null
   actor_email?: string | null
   actor_role?: string | null
+  status_action?: string | null
   profiles?: {
     id?: string
     full_name?: string | null

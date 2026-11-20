@@ -53,6 +53,7 @@ yarn-error.log*
 debug.log
 *.log
 *.log.*
+.*.log
 *.pid
 *.pid.lock
 

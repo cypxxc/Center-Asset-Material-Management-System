@@ -19,6 +19,7 @@ import { ItemThumbnail } from './item-thumbnail'
 import { CategoryBadge } from './category-badge'
 import { formatDateThaiBE } from '@/lib/date'
 import { MaterialsList } from '@/features/materials/materials-list'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 export interface ItemsListProps {
  items: (ItemListRow | null | undefined)[]
@@ -340,7 +341,6 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  <DataTableRow
  tabIndex={0}
  onKeyDown={handleKeyDown}
- title={item.item_name}
  onClick={() => onSelect(item)}
  className={cn(
  'group cursor-pointer transition-colors outline-none focus-visible:bg-muted/70 focus-visible:ring-1 focus-visible:ring-primary/50',
@@ -386,23 +386,21 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden">
  {/* 1. Item name MUST occupy its own full-width row */}
  <div className="w-full min-w-0">
- <span
- className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
- title={item.item_name}
- >
- {item.item_name}
- </span>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="span"
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight cursor-pointer"
+ />
  </div>
 
  {/* Keep Serial Number when available */}
  {item.serial_no && (
  <div className="w-full min-w-0 mt-0.5">
- <span
+ <TruncatedTextTooltip
+ text={`s/n: ${item.serial_no}`}
+ as="span"
  className="truncate font-mono text-[10px] text-muted-foreground block leading-tight"
- title={`s/n: ${item.serial_no}`}
- >
- s/n: {item.serial_no}
- </span>
+ />
  </div>
  )}
  </div>
@@ -410,18 +408,28 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  </DataTableCell>
 
  {/* วัน เดือน ปีที่รับ */}
- <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate" title={item.acquired_date ?? undefined}>
+ <DataTableCell className="w-28 px-2 text-center text-xs font-mono text-muted-foreground truncate">
  {formatDateThaiBE(item.acquired_date)}
  </DataTableCell>
 
  {/* ยี่ห้อ/รุ่น */}
- <DataTableCell className="w-56 px-2.5 text-xs text-muted-foreground truncate" title={[brandModel, item.serial_no ? `s/n: ${item.serial_no}` : ''].filter(Boolean).join(' • ') || undefined}>
+ <DataTableCell className="w-56 px-2.5 text-xs text-muted-foreground truncate">
  <div className="truncate">
- <span className="text-foreground">{brandModel || '-'}</span>
+ {brandModel ? (
+ <TruncatedTextTooltip
+ text={brandModel}
+ as="span"
+ className="text-foreground truncate block"
+ />
+ ) : (
+ <span className="text-foreground">-</span>
+ )}
  {item.serial_no && (
- <span className="text-[11px] font-mono text-muted-foreground/80 block truncate">
- s/n: {item.serial_no}
- </span>
+ <TruncatedTextTooltip
+ text={`s/n: ${item.serial_no}`}
+ as="span"
+ className="text-[11px] font-mono text-muted-foreground/80 block truncate"
+ />
  )}
  </div>
  </DataTableCell>
@@ -434,8 +442,14 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  </DataTableCell>
 
  {/* หน่วย */}
- <DataTableCell className="w-16 px-2 text-center text-xs text-muted-foreground truncate" title={item.unit?.name || undefined}>
- {item.unit?.name || '-'}
+ <DataTableCell className="w-16 px-2 text-center text-xs text-muted-foreground truncate">
+ {item.unit?.name ? (
+ <TruncatedTextTooltip
+ text={item.unit.name}
+ as="span"
+ className="truncate block"
+ />
+ ) : '-'}
  </DataTableCell>
 
  {/* เลขครุภัณฑ์ */}
@@ -448,7 +462,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  aria-label={`คัดลอก ${item.asset_no}`}
  className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer group/badge truncate max-w-full"
  >
- <span className="truncate">{item.asset_no}</span>
+ <TruncatedTextTooltip
+ text={item.asset_no}
+ as="span"
+ className="truncate"
+ />
  {copied ? <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> : <Copy className="w-2.5 h-2.5 opacity-40 group-hover/badge:opacity-100 shrink-0" />}
  </button>
  ) : (
@@ -457,13 +475,25 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  </DataTableCell>
 
  {/* ผู้ครอบครอง */}
- <DataTableCell className="w-36 px-2.5 text-xs text-foreground truncate" title={item.responsible_person || undefined}>
- {item.responsible_person || '-'}
+ <DataTableCell className="w-36 px-2.5 text-xs text-foreground truncate">
+ {item.responsible_person ? (
+ <TruncatedTextTooltip
+ text={item.responsible_person}
+ as="span"
+ className="truncate block"
+ />
+ ) : '-'}
  </DataTableCell>
 
  {/* ใช้งานที่ */}
- <DataTableCell className="w-36 px-2.5 text-xs text-muted-foreground truncate" title={item.location?.name || undefined}>
- {item.location?.name || '-'}
+ <DataTableCell className="w-36 px-2.5 text-xs text-muted-foreground truncate">
+ {item.location?.name ? (
+ <TruncatedTextTooltip
+ text={item.location.name}
+ as="span"
+ className="truncate block"
+ />
+ ) : '-'}
  </DataTableCell>
 
  {/* สภาพวัสดุ */}
@@ -501,12 +531,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
  {/* 1. Item name MUST occupy its own full-width row */}
  <div className="w-full min-w-0">
- <span
- className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight"
- title={item.item_name}
- >
- {item.item_name}
- </span>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="span"
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-tight cursor-pointer"
+ />
  </div>
  {/* Keep Serial Number and identifiers when available */}
  <div className="mt-0.5 flex items-center gap-1.5 min-w-0 text-[11px] leading-none">
@@ -532,15 +561,19 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  )}
 
  {item.serial_no && (
- <span className="truncate font-mono text-muted-foreground text-[10.5px] shrink-0" title={`s/n: ${item.serial_no}`}>
- s/n: {item.serial_no}
- </span>
+ <TruncatedTextTooltip
+ text={`s/n: ${item.serial_no}`}
+ as="span"
+ className="truncate font-mono text-muted-foreground text-[10.5px] shrink-0"
+ />
  )}
 
  {brandModel && (
- <span className="truncate text-muted-foreground text-[10.5px] leading-none" title={brandModel}>
- • {brandModel}
- </span>
+ <TruncatedTextTooltip
+ text={`• ${brandModel}`}
+ as="span"
+ className="truncate text-muted-foreground text-[10.5px] leading-none"
+ />
  )}
  </div>
  </div>
@@ -548,12 +581,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  <div className="flex flex-col justify-center min-w-0 flex-1 w-full overflow-hidden pr-2">
  {/* 1. Item name MUST occupy its own full-width row */}
  <div className="w-full min-w-0">
- <span
- className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-5"
- title={item.item_name}
- >
- {item.item_name}
- </span>
+ <TruncatedTextTooltip
+ text={item.item_name}
+ as="span"
+ className="truncate text-xs font-normal text-foreground hover:text-primary transition-colors block w-full leading-5 cursor-pointer"
+ />
  </div>
 
  {/* Keep Serial Number and identifiers when available */}
@@ -580,15 +612,20 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  )}
 
  {item.serial_no && (
- <span className="truncate font-mono text-muted-foreground text-[11px] shrink-0" title={`s/n: ${item.serial_no}`}>
- s/n: {item.serial_no}
- </span>
+ <TruncatedTextTooltip
+ text={`s/n: ${item.serial_no}`}
+ as="span"
+ className="truncate font-mono text-muted-foreground text-[11px] shrink-0"
+ />
  )}
 
  {brandModel && (
- <span className="truncate text-muted-foreground text-[11.5px] leading-none" title={brandModel}>
- • {brandModel}
- </span>
+ <TruncatedTextTooltip
+ text={`• ${brandModel}`}
+ as="span"
+ className="truncate text-muted-foreground text-[11.5px] leading-none"
+ title={brandModel}
+ />
  )}
  </div>
  </div>
@@ -596,7 +633,7 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  </DataTableCell>
 
  {/* Category Column */}
- <DataTableCell className={cn("hidden w-36 px-2.5 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")} title={item.category?.name || undefined}>
+ <DataTableCell className={cn("hidden w-36 px-2.5 text-xs text-muted-foreground truncate", isInspectorOpen ? "2xl:table-cell" : "md:table-cell")}>
  {item.category ? (
  <CategoryBadge name={item.category.name} color={item.category.color} icon={item.category.icon} />
  ) : (
@@ -610,12 +647,13 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  <span className="font-extrabold text-foreground text-sm tabular-nums text-right flex-1 min-w-0">
  {item.quantity}
  </span>
- <span
+ {item.unit?.name ? (
+ <TruncatedTextTooltip
+ text={item.unit.name}
+ as="span"
  className="text-xs font-normal text-muted-foreground truncate w-8 sm:w-10 text-left shrink-0"
- title={item.unit?.name || undefined}
- >
- {item.unit?.name ?? ''}
- </span>
+ />
+ ) : null}
  </div>
  </DataTableCell>
 
@@ -628,9 +666,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  title={item.location?.name || undefined}
  >
  {item.location?.name ? (
- <span className="truncate block" title={item.location.name}>
- {item.location.name}
- </span>
+ <TruncatedTextTooltip
+ text={item.location.name}
+ as="span"
+ className="truncate block"
+ />
  ) : (
  <span className="text-muted-foreground/50">-</span>
  )}
@@ -645,9 +685,11 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  title={item.responsible_person || undefined}
  >
  {item.responsible_person ? (
- <span className="truncate block" title={item.responsible_person}>
- {item.responsible_person}
- </span>
+ <TruncatedTextTooltip
+ text={item.responsible_person}
+ as="span"
+ className="truncate block"
+ />
  ) : (
  <span className="text-muted-foreground/50">-</span>
  )}

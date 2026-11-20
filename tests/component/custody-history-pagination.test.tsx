@@ -39,3 +39,76 @@ test('custody history loads server pages and starts at page one when search chan
     view.unmount()
   } finally { moduleEntry.exports = previous }
 })
+
+test('custody history shows return action for active custodian rows and opens return modal', async () => {
+  const panelPath = require.resolve('../../features/disbursements/components/custody-history-panel')
+  delete require.cache[panelPath]
+  const actionsPath = require.resolve('../../features/disbursements/actions')
+  require(actionsPath)
+  const moduleEntry = require.cache[actionsPath]!
+  const previous = moduleEntry.exports
+  const actions = { ...previous }
+  moduleEntry.exports = actions
+
+  const rows = [
+    {
+      id: 'event-1',
+      action: 'ASSIGN_CUSTODY',
+      item_id: 'a0000000-0000-4000-8000-000000000001',
+      item_name: 'โต๊ะทำงาน',
+      asset_no: 'ASSET-001',
+      from_responsible: null,
+      to_responsible: 'สมชาย',
+      actor_name: 'ผู้ดูแล',
+      created_at: '2026-11-01T00:00:00Z',
+      can_return: true,
+      is_returned: false,
+    },
+    {
+      id: 'event-2',
+      action: 'ASSIGN_CUSTODY',
+      item_id: 'a0000000-0000-4000-8000-000000000002',
+      item_name: 'เก้าอี้สำนักงาน',
+      asset_no: 'ASSET-002',
+      from_responsible: 'สมชาย',
+      to_responsible: 'ส่วนกลาง',
+      actor_name: 'ผู้ดูแล',
+      created_at: '2026-11-02T00:00:00Z',
+      can_return: false,
+      is_returned: true,
+    },
+  ]
+
+  actions.loadCustodyHistory = async () => ({
+    ok: true,
+    data: { rows, total: 2, page: 1, pageSize: 20, totalPages: 1 },
+  })
+  actions.loadLocationsList = async () => ({
+    ok: true,
+    data: [{ id: 'loc-1', name: 'ห้องคลัง 1' }],
+  })
+  actions.loadOriginLocationAction = async () => ({
+    ok: true,
+    data: { id: 'loc-1', name: 'ห้องคลัง 1' },
+  })
+
+  try {
+    const { CustodyHistoryPanel } = require('../../features/disbursements/components/custody-history-panel')
+    const view = render(<CustodyHistoryPanel query="" revision={0} />)
+
+    await waitFor(() => assert.ok(view.queryByText('จัดการ')))
+    await waitFor(() => assert.ok(view.queryByText('รับคืนแล้ว')))
+
+    const returnBtn = view.getByRole('button', { name: 'รับคืน' })
+    assert.ok(returnBtn)
+
+    fireEvent.click(returnBtn)
+    await waitFor(() => assert.ok(view.queryByText('รับคืนครุภัณฑ์')))
+    await waitFor(() => assert.ok(view.getAllByText('โต๊ะทำงาน').length >= 2))
+    await waitFor(() => assert.ok(view.queryByText('ยืนยันรับคืน')))
+
+    view.unmount()
+  } finally {
+    moduleEntry.exports = previous
+  }
+})

@@ -60,7 +60,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       >
         ข้ามไปเนื้อหาหลัก
       </a>
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground flex-col">
+      <div className="relative flex h-screen w-screen overflow-hidden bg-background text-foreground flex-col">
         <OfflineBanner />
         <div className="flex flex-1 min-h-0 w-full overflow-hidden">
           <NewItemDialogProvider
@@ -72,7 +72,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             <Sidebar profile={profile} sidebarData={sidebarData} />
             <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
               <Header profile={profile} />
-              <main id="main-content" className="flex-1 min-w-0 overflow-hidden">
+              <main id="main-content" className="relative flex-1 min-w-0 overflow-hidden">
                 {children}
               </main>
             </div>

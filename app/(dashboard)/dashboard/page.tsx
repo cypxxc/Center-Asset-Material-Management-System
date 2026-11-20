@@ -23,18 +23,28 @@ export default async function DashboardPage() {
       contentClassName="space-y-5 sm:space-y-6"
     >
       <DashboardRealtimeBoundary tables={profile.role === 'admin' ? ['items', 'audit_logs'] : ['items']} />
-      <Suspense fallback={<AcquisitionChartSkeleton />}>
-        <DashboardAcquisitionChart />
-      </Suspense>
-      <Suspense fallback={<AcquisitionChartSkeleton title="ทะเบียนวัสดุ" />}>
-        <DashboardAcquisitionChart itemType="material" />
-      </Suspense>
+
+      {/* 1. Quick Action — รออนุมัติ */}
+      {profile.role === 'admin' && (
+        <Suspense fallback={<AdminWorkQueueSkeleton />}>
+          <AdminDashboardWorkQueue />
+        </Suspense>
+      )}
+
+      {/* 2. กราฟทะเบียนครุภัณฑ์ | กราฟทะเบียนวัสดุ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start">
+        <Suspense fallback={<AcquisitionChartSkeleton />}>
+          <DashboardAcquisitionChart />
+        </Suspense>
+        <Suspense fallback={<AcquisitionChartSkeleton title="ทะเบียนวัสดุ" />}>
+          <DashboardAcquisitionChart itemType="material" />
+        </Suspense>
+      </div>
+
+      {/* 3. กราฟยอดรวมการยืมและเบิกสำเร็จ */}
       <Suspense fallback={<AcquisitionChartSkeleton title="ยอดรวมการยืมและเบิกที่สำเร็จ" />}>
         <DashboardDisbursementChart />
       </Suspense>
-      {profile.role === 'admin' && <Suspense fallback={<AdminWorkQueueSkeleton />}>
-        <AdminDashboardWorkQueue />
-      </Suspense>}
     </PageContainer>
   )
 }

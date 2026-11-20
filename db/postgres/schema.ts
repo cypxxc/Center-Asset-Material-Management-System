@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { pgTable, pgSchema, uuid, text, boolean, timestamp, integer, bigint, numeric, date, jsonb, index, uniqueIndex, check, foreignKey } from 'drizzle-orm/pg-core'
+import { pgTable, pgSchema, uuid, text, boolean, timestamp, integer, bigint, numeric, date, jsonb, index, uniqueIndex, check, foreignKey, primaryKey } from 'drizzle-orm/pg-core'
 
 const stamps = () => ({ created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(), updated_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow() })
 export const profiles = pgTable('profiles', {
@@ -221,3 +221,26 @@ export const credentials = auth.table('credentials', { user_id: uuid().primaryKe
 export const sessions = auth.table('sessions', { token_hash: text().primaryKey(), user_id: uuid().notNull().references(() => profiles.id, { onDelete: 'cascade' }), expires_at: timestamp({ withTimezone: true, mode: 'string' }).notNull(), created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow() }, (t) => [index('sessions_user_index').on(t.user_id), index('sessions_expiry_index').on(t.expires_at)])
 export const loginAttempts = auth.table('login_attempts', { key: text().primaryKey(), window_started_at: timestamp({ withTimezone:true,mode:'string' }).notNull().defaultNow(), attempts: integer().notNull() }, t=>[index('login_attempts_window_index').on(t.window_started_at)])
 export const rateLimits = auth.table('rate_limits', { key: text().primaryKey(), window_started_at: timestamp({ withTimezone:true,mode:'string' }).notNull().defaultNow(), count: integer().notNull().default(0) }, t=>[index('rate_limits_window_index').on(t.window_started_at)])
+
+export const userSsoIdentities = pgTable('user_sso_identities', {
+  id: uuid().primaryKey().defaultRandom(),
+  user_id: uuid().notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  issuer: text().notNull(),
+  subject: text().notNull(),
+  email: text(),
+  created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  updated_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('user_sso_identities_issuer_subject_unique').on(t.issuer, t.subject),
+  index('user_sso_identities_user_id_index').on(t.user_id),
+])
+
+export const consumedTokens = auth.table('consumed_tokens', {
+  issuer: text().notNull(),
+  jti: text().notNull(),
+  expires_at: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
+  created_at: timestamp({ withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.issuer, t.jti], name: 'consumed_tokens_pkey' }),
+  index('consumed_tokens_expiry_index').on(t.expires_at),
+])

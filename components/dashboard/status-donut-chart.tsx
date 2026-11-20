@@ -93,7 +93,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
               <span className="text-[11px] font-medium text-muted-foreground truncate max-w-[84px] tracking-tight">
                 {activeHoverItem.label}
               </span>
-              <span className="text-base font-bold tabular-nums tracking-tight text-card-foreground font-mono">
+              <span className="text-base font-bold tabular-nums tracking-tight text-foreground font-mono">
                 {activeHoverItem.qty.toLocaleString()} ชิ้น
               </span>
               <span className="text-[10px] text-muted-foreground tabular-nums font-mono">
@@ -103,7 +103,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
           ) : (
             <>
               <span className="text-[11px] text-muted-foreground font-medium tracking-tight">ทั้งหมด</span>
-              <span className="text-base font-bold tabular-nums tracking-tight text-card-foreground font-mono">
+              <span className="text-base font-bold tabular-nums tracking-tight text-foreground font-mono">
                 {totalQuantity.toLocaleString()} ชิ้น
               </span>
             </>
@@ -112,7 +112,7 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
       </div>
 
       {/* Legend Grid */}
-      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/40 text-xs font-medium">
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/50 text-xs font-medium">
         {statusData.map((item) => (
           <Link
             key={item.key}
@@ -124,10 +124,10 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
             onFocus={() => setHoveredKey(item.key)}
             onBlur={() => setHoveredKey(null)}
             className={cn(
-              "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40",
+              "group flex items-center justify-between text-xs px-2.5 py-1.5 rounded-md border transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
               hoveredKey === item.key
-                ? "bg-muted/80 border-border text-card-foreground font-semibold shadow-2xs"
-                : "border-border/40 hover:border-border/80 hover:bg-muted/40 text-muted-foreground"
+                ? "bg-muted/80 border-border text-foreground font-medium shadow-2xs"
+                : "border-border/50 hover:border-border hover:bg-muted/40 text-muted-foreground"
             )}
           >
             <div className="flex items-center gap-1.5 min-w-0">
@@ -136,11 +136,11 @@ export function StatusDonutChart({ totalQuantity, statusData }: StatusDonutChart
                 style={{ backgroundColor: item.color }}
                 aria-hidden="true"
               />
-              <span className="truncate group-hover:text-card-foreground transition-colors">
+              <span className="truncate group-hover:text-foreground transition-colors">
                 {item.label}
               </span>
             </div>
-            <span className="text-[11px] font-mono tabular-nums text-muted-foreground group-hover:text-card-foreground shrink-0 font-medium ml-1">
+            <span className="text-[11px] font-mono tabular-nums text-muted-foreground group-hover:text-foreground shrink-0 font-medium ml-1">
               ({Math.round(item.pct)}%)
             </span>
           </Link>

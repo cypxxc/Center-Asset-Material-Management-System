@@ -76,8 +76,7 @@ export function Sidebar({ profile }: SidebarProps) {
     }
   })
 
-  // User-controlled manual overrides for admin folder expansion
-  const [adminFolderManual, setAdminFolderManual] = useState<boolean | null>(true)
+  const [disbursementFolderOpen, setDisbursementFolderOpen] = useState<boolean | null>(null)
 
   const [optimisticTarget, setOptimisticTarget] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -123,10 +122,16 @@ export function Sidebar({ profile }: SidebarProps) {
   const isMaterialsActive = currentPath.startsWith('/materials')
 
   const isDisbursementsActive = currentPath.startsWith('/disbursements')
+  const currentTab = optimisticTarget
+    ? new URLSearchParams(optimisticTarget.includes('?') ? optimisticTarget.split('?')[1] : '').get('tab')
+    : searchParams.get('tab')
+  const isDisbursementIssueActive = isDisbursementsActive && currentTab === 'documents'
+  const isDisbursementApprovalActive = isDisbursementsActive && currentTab === 'requests'
+  const isParentDisbursementsActive = isDisbursementsActive && !isDisbursementIssueActive && !isDisbursementApprovalActive
+  const disbursementFolderExpanded = (isDisbursementIssueActive || isDisbursementApprovalActive) || (disbursementFolderOpen !== null ? disbursementFolderOpen : isDisbursementsActive)
 
   const isSettingsActive = currentPath === '/settings'
   const isAuditLogsActive = currentPath.startsWith('/admin/audit-logs')
-  const adminFolderExpanded = adminFolderManual ?? true
 
   const navItemClass = (isActive: boolean) =>
     cn(
@@ -272,7 +277,7 @@ export function Sidebar({ profile }: SidebarProps) {
               </Link>
             </NavItemTooltip>
 
-            <NavItemTooltip label="ส่วนกลาง" enabled={isCollapsed}>
+            <NavItemTooltip label="วัสดุ - ครุภัณฑ์คงคลัง" enabled={isCollapsed}>
               <Link
                 href="/central-items"
                 onPointerDown={() => handleOptimisticNavigate('/central-items')}
@@ -281,74 +286,142 @@ export function Sidebar({ profile }: SidebarProps) {
                 className={navItemClass(isCentralActive)}
               >
                 <Warehouse className={navIconClass('text-emerald-500', isCentralActive)} />
-                {!isCollapsed && <span className="truncate">ส่วนกลาง</span>}
+                {!isCollapsed && <span className="truncate min-w-0">วัสดุ - ครุภัณฑ์คงคลัง</span>}
               </Link>
             </NavItemTooltip>
 
             <NavItemTooltip label={disbursementsLabel} enabled={isCollapsed}>
-              <Link
-                href="/disbursements"
-                onPointerDown={() => handleOptimisticNavigate('/disbursements')}
-                onClick={() => handleOptimisticNavigate('/disbursements')}
-                aria-current={isDisbursementsActive ? 'page' : undefined}
-                className={navItemClass(isDisbursementsActive)}
-              >
-                <ArrowLeftRight className={navIconClass('text-orange-500', isDisbursementsActive)} />
-                {!isCollapsed && <span className="truncate">{disbursementsLabel}</span>}
-              </Link>
+              {isCollapsed ? (
+                <Link
+                  href="/disbursements"
+                  onPointerDown={() => handleOptimisticNavigate('/disbursements')}
+                  onClick={() => handleOptimisticNavigate('/disbursements')}
+                  aria-current={isDisbursementsActive ? 'page' : undefined}
+                  className={navItemClass(isDisbursementsActive)}
+                >
+                  <ArrowLeftRight className={navIconClass('text-orange-500', isDisbursementsActive)} />
+                </Link>
+              ) : (
+                <div className="space-y-0.5">
+                  {/* Parent item: Link to main disbursements + separate Chevron toggle */}
+                  <div
+                    className={cn(
+                      'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
+                      isParentDisbursementsActive
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-r before:bg-primary'
+                        : isDisbursementsActive
+                        ? 'text-foreground font-medium hover:bg-sidebar-accent/70'
+                        : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
+                    )}
+                  >
+                    <Link
+                      href="/disbursements"
+                      onPointerDown={() => handleOptimisticNavigate('/disbursements')}
+                      onClick={() => handleOptimisticNavigate('/disbursements')}
+                      aria-current={isParentDisbursementsActive ? 'page' : undefined}
+                      className="flex flex-1 min-w-0 items-center px-2.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring rounded-l-lg"
+                    >
+                      <ArrowLeftRight className={cn('h-4 w-4 shrink-0 transition-colors mr-2.5', isDisbursementsActive ? 'text-primary' : 'text-muted-foreground group-hover:text-sidebar-accent-foreground')} />
+                      <span className="truncate flex-1 text-left">{disbursementsLabel}</span>
+                    </Link>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setDisbursementFolderOpen((prev) => !(prev !== null ? prev : disbursementFolderExpanded))
+                        }}
+                        aria-label={disbursementFolderExpanded ? 'ยุบเมนูย่อยเบิก - จ่าย' : 'ขยายเมนูย่อยเบิก - จ่าย'}
+                        title={disbursementFolderExpanded ? 'ยุบเมนูย่อย' : 'ขยายเมนูย่อย'}
+                        className="p-1.5 mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring shrink-0"
+                      >
+                        {disbursementFolderExpanded
+                          ? <ChevronDown className="h-3 w-3" />
+                          : <ChevronRight className="h-3 w-3" />}
+                      </button>
+                    )}
+                  </div>
+                  {/* Submenu */}
+                  {disbursementFolderExpanded && isAdmin && (
+                    <div className="space-y-0.5 pl-5">
+                      <Link
+                        href="/disbursements?tab=documents"
+                        onPointerDown={() => handleOptimisticNavigate('/disbursements?tab=documents')}
+                        onClick={() => handleOptimisticNavigate('/disbursements?tab=documents')}
+                        aria-current={isDisbursementIssueActive ? 'page' : undefined}
+                        className={cn(
+                          'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
+                          'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1',
+                          'w-full px-2.5 py-1.5',
+                          isDisbursementIssueActive
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-primary'
+                            : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
+                        )}
+                      >
+                        <span className="truncate">จ่าย</span>
+                      </Link>
+                      <Link
+                        href="/disbursements?tab=requests"
+                        onPointerDown={() => handleOptimisticNavigate('/disbursements?tab=requests')}
+                        onClick={() => handleOptimisticNavigate('/disbursements?tab=requests')}
+                        aria-current={isDisbursementApprovalActive ? 'page' : undefined}
+                        className={cn(
+                          'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
+                          'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1',
+                          'w-full px-2.5 py-1.5',
+                          isDisbursementApprovalActive
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-primary'
+                            : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
+                        )}
+                      >
+                        <span className="truncate">อนุมัติ</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </NavItemTooltip>
 
 
 
           </div>
 
-          {/* Group 3: จัดการระบบ (Collapsible Accordion for Enterprise UI) */}
+          {/* Group 3: จัดการระบบ */}
           {canWrite && (
             <div className="space-y-1 pt-1">
               {!isCollapsed ? (
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => setAdminFolderManual((prev) => !prev)}
-                    className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer rounded"
-                  >
-                    <span>จัดการระบบ</span>
-                    {adminFolderExpanded ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                  </button>
+                  <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+                    จัดการระบบ
+                  </p>
+                  <div className="space-y-0.5">
+                    {/* System Settings - Admin & Staff */}
+                    <Link
+                      href="/settings"
+                      onPointerDown={() => handleOptimisticNavigate('/settings')}
+                      onClick={() => handleOptimisticNavigate('/settings')}
+                      aria-current={isSettingsActive ? 'page' : undefined}
+                      className={navItemClass(isSettingsActive)}
+                    >
+                      <Settings className={navIconClass('text-violet-500', isSettingsActive)} />
+                      <span className="truncate">ตั้งค่าระบบ</span>
+                    </Link>
 
-                  {adminFolderExpanded && (
-                    <div className="space-y-0.5 pt-1 pl-1 transition-all duration-150 motion-reduce:transition-none">
-                      {/* System Settings - Admin & Staff */}
+                    {/* Audit Logs Explorer - Admin Only */}
+                    {isAdmin && (
                       <Link
-                        href="/settings"
-                        onPointerDown={() => handleOptimisticNavigate('/settings')}
-                        onClick={() => handleOptimisticNavigate('/settings')}
-                        aria-current={isSettingsActive ? 'page' : undefined}
-                        className={navItemClass(isSettingsActive)}
+                        href="/admin/audit-logs"
+                        onPointerDown={() => handleOptimisticNavigate('/admin/audit-logs')}
+                        onClick={() => handleOptimisticNavigate('/admin/audit-logs')}
+                        aria-current={isAuditLogsActive ? 'page' : undefined}
+                        className={navItemClass(isAuditLogsActive)}
                       >
-                        <Settings className={navIconClass('text-violet-500', isSettingsActive)} />
-                        <span className="truncate">ตั้งค่าระบบ</span>
+                        <History className={navIconClass('text-orange-500', isAuditLogsActive)} />
+                        <span className="truncate">Logs</span>
                       </Link>
-
-                      {/* Audit Logs Explorer - Admin Only */}
-                      {isAdmin && (
-                        <Link
-                          href="/admin/audit-logs"
-                          onPointerDown={() => handleOptimisticNavigate('/admin/audit-logs')}
-                          onClick={() => handleOptimisticNavigate('/admin/audit-logs')}
-                          aria-current={isAuditLogsActive ? 'page' : undefined}
-                          className={navItemClass(isAuditLogsActive)}
-                        >
-                          <History className={navIconClass('text-orange-500', isAuditLogsActive)} />
-                          <span className="truncate">Logs</span>
-                        </Link>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ) : (
                 /* In collapsed mode, render direct icon buttons with tooltips */

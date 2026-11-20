@@ -4,6 +4,7 @@ import { History } from 'lucide-react'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
 const ACTION_DROPDOWN_OPTIONS: FilterOption[] = [
  { value: 'approval_history', label: 'ประวัติการอนุมัติ', colorDot: 'bg-violet-500' },
+ { value: 'custody_history', label: 'การจ่าย', colorDot: 'bg-sky-500' },
  { value: 'INSERT', label: 'สร้างข้อมูล (INSERT)', colorDot: 'bg-emerald-500' },
  { value: 'UPDATE', label: 'แก้ไขข้อมูล (UPDATE)', colorDot: 'bg-blue-500' },
  { value: 'DELETE', label: 'ลบข้อมูล (DELETE)', colorDot: 'bg-rose-500' },

@@ -4,7 +4,6 @@ import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { DropdownMenu } from 'radix-ui'
 import {
  Activity,
  Boxes,
@@ -13,8 +12,6 @@ import {
  Clock,
  FileEdit,
  CheckCircle2,
- ChevronDown,
- Check,
 } from 'lucide-react'
 import { AuditActionFilter } from '@/features/admin/components/audit-action-filter'
 import { cn } from '@/lib/utils'
@@ -26,8 +23,6 @@ import { GroupedTransactionsTable } from './grouped-transactions-table'
 import type { DisbursementRow, CentralAvailableItem } from '@/features/disbursements/types'
 import { BorrowCatalogView } from '@/features/disbursements/components/borrow-catalog-view'
 import { getPageNumbers } from '../pagination'
-
-export { getPageNumbers } from '../pagination'
 
 const DisbursementCreateModal = dynamic(() => import('./disbursement-create-modal').then((module) => module.DisbursementCreateModal))
 const CustodyHistoryPanel = dynamic(() => import('./custody-history-panel').then((module) => module.CustodyHistoryPanel))
@@ -160,7 +155,7 @@ export function DisbursementListClient({
  {/* Left: Main Title & Count Badge */}
  <div className="flex items-center gap-3 min-w-0">
  <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
- {activeTab === 'history' ? 'ประวัติการอนุมัติ' : userRole === 'user' ? 'เบิก' : 'เบิก - จ่าย'}
+ {activeTab === 'history' ? 'ประวัติการอนุมัติ' : activeTab === 'documents' ? 'จ่าย' : activeTab === 'requests' ? 'อนุมัติ' : 'เบิก - ยืม'}
  </h1>
  <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
  {activeTab === 'catalog'
@@ -191,46 +186,16 @@ export function DisbursementListClient({
 
  {/* Top Tab Switcher */}
  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
- {activeTab !== 'history' && <>
- <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="เบิกและยืม">
- <DropdownMenu.Root>
- <DropdownMenu.Trigger asChild>
+ {activeTab !== 'history' && (
+ <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label={userRole === 'admin' ? 'เบิกและยืม' : 'รายการของฉัน'}>
+ {userRole === 'admin' ? (
+ <>
  <button
  type="button"
- aria-current={activeTab === 'catalog' ? 'page' : undefined}
- className={cn(
- 'group inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
- activeTab === 'catalog'
- ? 'bg-background text-primary shadow-xs'
- : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
- )}
- >
- <span>เบิก / ยืม</span>
- <ChevronDown className="ml-0.5 h-3.5 w-3.5 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" aria-hidden="true" />
- </button>
- </DropdownMenu.Trigger>
- <DropdownMenu.Portal>
- <DropdownMenu.Content align="start" sideOffset={6} className="z-50 min-w-[200px] max-w-[280px] max-h-[320px] overflow-y-auto rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none">
- <DropdownMenu.RadioGroup value={catalogType} onValueChange={value => {
-   setCatalogType(value as 'asset' | 'material')
-   setCatalogQuery('')
-   setActiveTab('catalog')
-   router.push('/disbursements?tab=catalog', { scroll: false })
- }}>
- {([{ value: 'asset', label: 'ครุภัณฑ์' }, { value: 'material', label: 'วัสดุ' }] as const).map(option => <DropdownMenu.RadioItem key={option.value} value={option.value} className={cn('flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors', catalogType === option.value ? 'bg-primary/10 text-primary font-bold' : 'text-foreground hover:bg-muted data-[highlighted]:bg-muted')}>
- <span className="truncate">{option.label}</span>
- <DropdownMenu.ItemIndicator><Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" /></DropdownMenu.ItemIndicator>
- </DropdownMenu.RadioItem>)}
- </DropdownMenu.RadioGroup>
- </DropdownMenu.Content>
- </DropdownMenu.Portal>
- </DropdownMenu.Root>
-
- </div>
- <div className="ml-1 flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="จ่ายและอนุมัติ">
- <button
- type="button"
- onClick={() => { setActiveTab('documents'); applyFilters('', 'all', '', 1, 'documents') }}
+ onClick={() => {
+ setActiveTab('documents')
+ applyFilters('', 'all', '', 1, 'documents')
+ }}
  aria-pressed={activeTab === 'documents'}
  className={cn(
  'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
@@ -239,10 +204,8 @@ export function DisbursementListClient({
  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
  )}
  >
- {userRole === 'admin' ? 'จ่าย' : 'รายการของฉัน'}
+ จ่าย
  </button>
- {userRole === 'admin' && (
- <>
  <button
  type="button"
  onClick={() => {
@@ -255,16 +218,32 @@ export function DisbursementListClient({
  aria-pressed={activeTab === 'requests'}
  className={cn(
  'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
- activeTab === 'requests' ? 'bg-background text-primary shadow-xs' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ activeTab === 'requests'
+ ? 'bg-background text-primary shadow-xs'
+ : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
  )}
  >
  อนุมัติ
  </button>
  </>
+ ) : (
+ <button
+ type="button"
+ onClick={() => { setActiveTab('documents'); applyFilters('', 'all', '', 1, 'documents') }}
+ aria-pressed={activeTab === 'documents'}
+ className={cn(
+ 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
+ activeTab === 'documents'
+ ? 'bg-background text-primary shadow-xs'
+ : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ รายการของฉัน
+ </button>
  )}
  </div>
- </>}
- <div className="order-2 min-w-0 flex-1 basis-[calc(100%-8rem)] sm:order-1 sm:basis-0 sm:max-w-md sm:mx-auto">
+ )}
+ <div className="order-1 min-w-0 flex-1 max-w-md">
  <SearchInput
  key={activeTab}
  value={activeTab === 'catalog' ? catalogQuery : q}
@@ -276,7 +255,49 @@ export function DisbursementListClient({
  className="h-9 text-xs"
  />
  </div>
- {activeTab === 'catalog' && <div ref={setCartContainer} className="order-3 shrink-0 sm:order-2" />}
+ {activeTab === 'catalog' && (
+ <div className="order-2 ml-auto flex items-center gap-2 shrink-0">
+ <div className="inline-flex rounded-lg bg-muted p-0.5" role="group" aria-label="ประเภทสิ่งของ">
+ <button
+ type="button"
+ onClick={() => {
+   setCatalogType('asset')
+   setCatalogQuery('')
+   setActiveTab('catalog')
+   router.push('/disbursements?tab=catalog', { scroll: false })
+ }}
+ aria-pressed={catalogType === 'asset'}
+ className={cn(
+   'inline-flex min-h-9 items-center justify-center rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
+   catalogType === 'asset'
+     ? 'bg-background text-primary shadow-xs'
+     : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ ครุภัณฑ์
+ </button>
+ <button
+ type="button"
+ onClick={() => {
+   setCatalogType('material')
+   setCatalogQuery('')
+   setActiveTab('catalog')
+   router.push('/disbursements?tab=catalog', { scroll: false })
+ }}
+ aria-pressed={catalogType === 'material'}
+ className={cn(
+   'inline-flex min-h-9 items-center justify-center rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
+   catalogType === 'material'
+     ? 'bg-background text-primary shadow-xs'
+     : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+ )}
+ >
+ วัสดุ
+ </button>
+ </div>
+ <div ref={setCartContainer} className="shrink-0" />
+ </div>
+ )}
  {activeTab !== 'catalog' && (userRole !== 'admin' || activeTab === 'requests' || activeTab === 'history') && (
  <div className="order-3 min-w-0">
  {/* Dropdown Filters */}

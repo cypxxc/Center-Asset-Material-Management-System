@@ -304,12 +304,60 @@ export async function pgGetAuditLogsList(params: GetAuditLogsParams) {
       if (params.target_table && params.target_table !== 'all') filters.push(sql`a.target_table = ${params.target_table}`)
       if (params.q?.trim()) {
         const term = params.q.trim()
-        filters.push(sql`(a.target_id::text = ${term} or a.target_table ilike ${'%' + term + '%'} or a.action ilike ${'%' + term + '%'})`)
+        if (params.action === 'custody_history') {
+          const pattern = '%' + term + '%'
+          filters.push(sql`(
+            a.target_id::text = ${term}
+            or a.target_table ilike ${pattern}
+            or a.action ilike ${pattern}
+            or a.new_data->>'item_name' ilike ${pattern}
+            or a.new_data->>'asset_no' ilike ${pattern}
+            or a.new_data->>'responsible_person' ilike ${pattern}
+            or a.old_data->>'responsible_person' ilike ${pattern}
+            or a.new_data->>'previous_custodian' ilike ${pattern}
+            or p.full_name ilike ${pattern}
+          )`)
+        } else {
+          filters.push(sql`(a.target_id::text = ${term} or a.target_table ilike ${'%' + term + '%'} or a.action ilike ${'%' + term + '%'})`)
+        }
       }
       const where = sql.join(filters, sql` and `)
       const { limit, offset } = pageBounds(params.page, params.pageSize)
-      const count = await tx.execute(sql`select count(*)::integer as count from public.audit_logs a where ${where}`)
-      const rows = await tx.execute(sql`select a.*, coalesce(p.full_name, 'ระบบอัตโนมัติ') as actor_name, p.email as actor_email, p.role as actor_role, case when p.id is null then null else jsonb_build_object('id', p.id, 'full_name', p.full_name, 'email', p.email, 'role', p.role) end as profiles from public.audit_logs a left join public.profiles p on p.id = a.user_id where ${where} order by a.created_at desc, a.id limit ${limit} offset ${offset}`)
+      const count = await tx.execute(sql`select count(*)::integer as count from public.audit_logs a left join public.profiles p on p.id = a.user_id where ${where}`)
+      const rows = await tx.execute(sql`
+        select a.*,
+          coalesce(p.full_name, 'ระบบอัตโนมัติ') as actor_name,
+          p.email as actor_email,
+          p.role as actor_role,
+          case when p.id is null then null else jsonb_build_object('id', p.id, 'full_name', p.full_name, 'email', p.email, 'role', p.role) end as profiles,
+          CASE
+            WHEN a.action = 'RETURN_CUSTODY' THEN 'returned'
+            WHEN nl.action = 'RETURN_CUSTODY' THEN 'returned'
+            WHEN nl.action = 'ASSIGN_CUSTODY' THEN 'transferred'
+            WHEN i.id IS NULL OR i.deleted_at IS NOT NULL THEN 'cancelled'
+            WHEN coalesce(i.is_central, false) = false
+              AND i.responsible_person IS NOT NULL
+              AND i.responsible_person = (a.new_data->>'responsible_person') THEN 'can_return'
+            WHEN i.responsible_person IS NOT NULL
+              AND i.responsible_person != (a.new_data->>'responsible_person') THEN 'transferred'
+            ELSE 'completed'
+          END AS status_action
+        from public.audit_logs a
+        left join public.items i on i.id = a.target_id
+        left join public.profiles p on p.id = a.user_id
+        left join lateral (
+          select a2.action
+          from public.audit_logs a2
+          where a2.target_table = 'items'
+            and a2.target_id = a.target_id
+            and a2.action in ('ASSIGN_CUSTODY', 'RETURN_CUSTODY')
+            and (a2.created_at > a.created_at or (a2.created_at = a.created_at and a2.id > a.id))
+          order by a2.created_at asc, a2.id asc
+          limit 1
+        ) nl on true
+        where ${where}
+        order by a.created_at desc, a.id limit ${limit} offset ${offset}
+      `)
       return { logs: serializable(rows.rows) as unknown as AuditLogListItem[], totalCount: Number(count.rows[0]?.count ?? 0), error: undefined }
     })
   } catch (error) { return { ...failure(error), logs: [] as AuditLogListItem[], totalCount: 0 } }

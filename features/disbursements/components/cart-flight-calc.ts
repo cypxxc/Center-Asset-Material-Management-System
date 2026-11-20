@@ -7,12 +7,6 @@ export interface Point {
   y: number
 }
 
-export interface PaperProjectileOptions {
-  duration?: number
-  arcLift?: number
-  onArrive?: () => void
-}
-
 /**
  * Checks if the user prefers reduced motion.
  */

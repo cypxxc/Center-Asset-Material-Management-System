@@ -1,17 +1,64 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { formatDate } from '@/lib/date'
 import { DataTable, DataTableHeader, DataTableHead, DataTableBody, DataTableRow, DataTableCell } from '@/components/ui/data-table'
+import { cn } from '@/lib/utils'
 import { DisbursementStatusBadge, DisbursementTypeBadge } from './badges'
 import { ApprovalRowActions } from './approval-row-actions'
 import { DueBorrowReturnAction } from './due-borrow-return-action'
 import { TransactionItemsTable } from './transaction-items-table'
 import type { DisbursementRow } from '../types'
 
-export function GroupedTransactionsTable({ documents, userRole, historyMode = false }: { documents: DisbursementRow[]; userRole: string; historyMode?: boolean; materialApprovalSlaHours?: number | null }) {
+export function GroupedTransactionsTable({
+  documents,
+  userRole,
+  historyMode = false,
+  maxRows,
+  wrapperClassName,
+}: {
+  documents: DisbursementRow[]
+  userRole: string
+  historyMode?: boolean
+  materialApprovalSlaHours?: number | null
+  maxRows?: number
+  wrapperClassName?: string
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [maxHeightStyle, setMaxHeightStyle] = useState<number | undefined>(undefined)
+  const tableRef = useRef<HTMLTableElement>(null)
+
+  useEffect(() => {
+    if (!maxRows || documents.length <= maxRows) {
+      return
+    }
+    const table = tableRef.current
+    if (!table) return
+
+    const measure = () => {
+      const thead = table.querySelector('thead')
+      const rows = table.querySelectorAll<HTMLElement>('tbody > tr[data-row="document"]')
+      if (!thead || rows.length < maxRows) return
+
+      let height = thead.offsetHeight
+      for (let i = 0; i < maxRows && i < rows.length; i++) {
+        height += rows[i].offsetHeight
+      }
+      if (height > 0) {
+        setMaxHeightStyle(height)
+      }
+    }
+
+    measure()
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure)
+      observer.observe(table)
+      return () => observer.disconnect()
+    }
+  }, [documents.length, maxRows])
+
   function toggleDetails(id: string) {
     setExpanded(previous => {
       const next = new Set(previous)
@@ -20,8 +67,20 @@ export function GroupedTransactionsTable({ documents, userRole, historyMode = fa
       return next
     })
   }
-  return <DataTable wrapperClassName="disbursement-table-scroll border-0 rounded-none" className="min-w-[1000px] [&_tr>th:last-child]:pr-6 [&_tr>td:last-child]:pr-6">
-    <DataTableHeader><tr>
+
+  const isScrollable = Boolean(maxRows && documents.length > maxRows)
+
+  return <DataTable
+    ref={tableRef}
+    wrapperStyle={isScrollable && maxHeightStyle ? { maxHeight: `${maxHeightStyle}px` } : undefined}
+    wrapperClassName={cn(
+      "disbursement-table-scroll",
+      wrapperClassName ?? "border-0 rounded-none",
+      isScrollable && "overflow-y-auto max-h-[350px]"
+    )}
+    className="min-w-[1000px] [&_tr>th:last-child]:pr-6 [&_tr>td:last-child]:pr-6"
+  >
+    <DataTableHeader className="[&_th]:bg-muted [&_th]:border-b [&_th]:border-border"><tr>
       <DataTableHead className="w-12"><span className="sr-only">ขยายรายการ</span></DataTableHead>
       <DataTableHead>ชื่อผู้ขอ</DataTableHead>
       <DataTableHead className="text-right">จำนวน</DataTableHead><DataTableHead>วันที่</DataTableHead><DataTableHead>สถานะ</DataTableHead><DataTableHead isActions className="w-48 text-center">จัดการ</DataTableHead>
@@ -34,6 +93,7 @@ export function GroupedTransactionsTable({ documents, userRole, historyMode = fa
       const requesterName = doc.requester_name || doc.recipient_name || 'ไม่ระบุชื่อ'
       return <Fragment key={doc.id}>
         <DataTableRow
+          data-row="document"
           tabIndex={historyMode ? 0 : undefined}
           aria-expanded={historyMode ? open : undefined}
           aria-controls={historyMode && open ? `transaction-${doc.id}` : undefined}

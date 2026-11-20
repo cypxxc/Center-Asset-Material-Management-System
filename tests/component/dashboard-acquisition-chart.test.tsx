@@ -15,7 +15,7 @@ const summary: AcquisitionSummary = {
 }
 
 test('switching convention preserves the selected year and metric while updating its date range and totals', () => {
-  const view = render(<DashboardAcquisitionChartClient summary={summary} />)
+  const view = render(<DashboardAcquisitionChartClient summary={summary} showMetricSelect />)
   fireEvent.change(view.getByLabelText('เลือกปี'), { target: { value: '2025' } })
   fireEvent.change(view.getByLabelText('เลือกข้อมูลที่แสดง'), { target: { value: 'value' } })
   assert.ok(view.container.textContent?.includes('500 บาท'))

@@ -597,7 +597,7 @@ function ItemsExplorerSession({
               <div className="flex items-center gap-2.5 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
                   {params.is_central === 'true' || params.is_central === '1'
-                    ? 'ส่วนกลาง'
+                    ? 'วัสดุ - ครุภัณฑ์คงคลัง'
                     : params.type === 'material'
                     ? 'รายการทะเบียนวัสดุ'
                     : params.type === 'asset'
@@ -684,6 +684,8 @@ function ItemsExplorerSession({
                   status: '',
                   location_id: '',
                   q: '',
+                  sort_by: '',
+                  sort_dir: '',
                 })
               }}
               localItemsCount={currentItems.length}

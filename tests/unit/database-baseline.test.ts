@@ -14,7 +14,7 @@ test('distribution retains a complete baseline and matching incremental migratio
   const snapshot = JSON.parse(readFileSync(`${folder}/meta/0000_snapshot.json`, 'utf8'))
   assert.equal(snapshot.prevId, '00000000-0000-0000-0000-000000000000')
   assert.equal(snapshot.tables['public.profiles'].columns.email.notNull, false)
-  assert.equal(Object.keys(snapshot.tables).length, 15)
+  assert.equal(Object.keys(snapshot.tables).length, 21)
   const migrations = readMigrationFiles({ migrationsFolder: folder })
   assert.equal(migrations.length, sqlFiles.length)
   const sql = migrations[0].sql.join('\n')

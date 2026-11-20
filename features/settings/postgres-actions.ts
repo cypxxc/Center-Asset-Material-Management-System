@@ -8,7 +8,6 @@ import { withUserDatabase } from '@/lib/postgres/request'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { categorySchema, locationSchema, unitSchema } from './schema'
-import { pgUpdateUserProfile } from '@/features/admin/postgres-admin'
 import { writeAuditLog } from '@/lib/audit'
 
 const definitions = {
@@ -85,21 +84,4 @@ export async function mutatePostgresMetadata(table: MetadataTable, operation: 'c
     }
   }
   finish(tab, message)
-}
-
-export async function updatePostgresSettingsProfile(id: string, formData: FormData): Promise<never> {
-  const profile = await getCurrentProfile()
-  if (!profile?.is_active || profile.role !== 'admin') finish('users', 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถจัดการผู้ใช้ได้')
-  if (profile.id === id) finish('users', 'ไม่สามารถแก้ไขโปรไฟล์ของตนเองได้')
-  const parsed = z.object({ id: z.string().uuid(), role: z.enum(['admin','user']) }).safeParse({ id, role: formData.get('role') })
-  if (!parsed.success) finish('users', 'ข้อมูลผู้ใช้ไม่ถูกต้อง')
-  const active = formData.get('is_active') === 'on' || formData.get('is_active') === 'true'
-  const rate = await checkRateLimit('settings-update-profile', 30, 60000)
-  if (!rate.success) finish('users', rate.error!)
-  let message: string | undefined
-  try {
-    const result = await pgUpdateUserProfile(id, { role: parsed.data.role, is_active: active })
-    if (!('success' in result) || !result.success) message = 'ไม่สามารถบันทึกโปรไฟล์ได้ กรุณาลองใหม่อีกครั้ง'
-  } catch (error) { message = friendlyError(error) }
-  finish('users', message)
 }

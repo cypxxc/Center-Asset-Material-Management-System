@@ -5,7 +5,7 @@ export function MetricsGridSkeleton() {
  data-testid="metrics-grid-skeleton"
  >
  {[1, 2, 3, 4].map((i) => (
- <div key={i} className="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs flex flex-col justify-between gap-4 animate-pulse">
+ <div key={i} className="rounded-xl border border-border bg-card p-5 shadow-2xs flex flex-col justify-between gap-4 animate-pulse">
  <div>
  <div className="flex items-center justify-between">
  <div className="h-4 w-28 bg-muted rounded" />
@@ -15,7 +15,7 @@ export function MetricsGridSkeleton() {
  <div className="h-8 w-32 bg-muted rounded" />
  </div>
  </div>
- <div className="h-3.5 w-36 bg-muted rounded pt-3 border-t border-border/40" />
+ <div className="h-3.5 w-36 bg-muted rounded pt-3 border-t border-border/50" />
  </div>
  ))}
  </div>
@@ -26,7 +26,7 @@ export function CategoryListSkeleton() {
  return (
  <div className="flex flex-col gap-4 sm:gap-5 h-full">
  <div
- className="overflow-hidden rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between animate-pulse"
+ className="overflow-hidden rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between animate-pulse"
  data-testid="category-list-skeleton"
  >
  <div className="pb-2.5 border-b border-border/40 flex items-center justify-between">
@@ -43,7 +43,7 @@ export function CategoryListSkeleton() {
  </div>
  </div>
 
- <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between flex-1 animate-pulse">
+ <div className="overflow-hidden rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between flex-1 animate-pulse">
  <div className="pb-2.5 border-b border-border/40 flex items-center justify-between">
  <div className="h-4 w-40 bg-muted rounded" />
  <div className="h-4 w-14 bg-muted rounded" />
@@ -74,7 +74,7 @@ export function ActionQueueSkeleton() {
  <div
  id="action-queue"
  data-testid="action-queue-skeleton"
- className="overflow-hidden rounded-xl border border-border/70 bg-card/60 shadow-2xs flex flex-col h-full animate-pulse scroll-mt-6"
+ className="overflow-hidden rounded-xl border border-border bg-card shadow-2xs flex flex-col h-full animate-pulse scroll-mt-6"
  >
  {/* Header */}
  <div className="px-4 py-3 sm:px-4.5 sm:py-3.5 border-b border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { renderCategoryIconElement } from '@/lib/category-icons'
+import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
 
 export interface CategoryBadgeProps {
   name: string
@@ -13,7 +14,6 @@ export function CategoryBadge({ name, color, icon, className }: CategoryBadgePro
 
   return (
     <span
-      title={name}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs border max-w-full min-w-0 transition-colors',
         className
@@ -33,7 +33,7 @@ export function CategoryBadge({ name, color, icon, className }: CategoryBadgePro
         style: { color: `color-mix(in oklab, ${safeColor} 75%, var(--foreground))` },
         'aria-hidden': true,
       })}
-      <span className="truncate text-foreground font-medium">{name}</span>
+      <TruncatedTextTooltip text={name} as="span" className="truncate text-foreground font-medium" />
     </span>
   )
 }

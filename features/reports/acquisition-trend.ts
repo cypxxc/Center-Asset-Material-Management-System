@@ -18,6 +18,7 @@ export function calculateAcquisitionChange(previous: number, current: number): A
 
 export function getPeriodChange(previous: AcquisitionPeriod | undefined, current: AcquisitionPeriod, metric: AcquisitionMetric) {
   if (!previous || previous.future || current.future || previous.partial || current.partial) return null
+  if (previous.recordCount === 0 || current.recordCount === 0) return null
   if (metric === 'value' && (previous.missingPriceCount > 0 || current.missingPriceCount > 0)) return null
   return calculateAcquisitionChange(metric === 'count' ? previous.recordCount : previous.knownValue,
     metric === 'count' ? current.recordCount : current.knownValue)

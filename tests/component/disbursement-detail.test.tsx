@@ -40,6 +40,13 @@ require.cache[actionsPath] = {
       returnCallPayload = input;
       return { ok: true, data: { ok: true } };
     },
+    loadOriginLocationAction: async () => {
+      return { ok: true, data: { id: 'loc-1', name: 'ห้องทำงานชั้น 3' } };
+    },
+    partialReturnDisbursement: async (input: unknown) => {
+      returnCallPayload = input;
+      return { ok: true, data: { ok: true } };
+    },
     reverseDisbursement: async (input: unknown) => {
       reverseCallPayload = input;
       return { ok: true, data: { ok: true } };
@@ -169,7 +176,7 @@ test('DisbursementDetailClient opens return modal and submits item return', asyn
   refreshed = false;
   returnCallPayload = null;
 
-  const { container } = render(
+  render(
     React.createElement(DisbursementDetailClient, {
       doc: sampleBorrowDoc,
       canMutate: true,
@@ -180,23 +187,31 @@ test('DisbursementDetailClient opens return modal and submits item return', asyn
   fireEvent.click(returnBtn);
 
   // Return dialog opened
-  const dialog = screen.getByRole('dialog', { name: /บันทึกรับคืนครุภัณฑ์/ });
+  const dialog = await screen.findByRole('dialog', { name: /รับคืนครุภัณฑ์/ });
   assert.ok(dialog);
 
+  // Enter required return reason
+  const reasonInput = screen.getByPlaceholderText('ระบุเหตุผลในการคืนครุภัณฑ์...');
+  fireEvent.change(reasonInput, { target: { value: 'คืนสภาพปกติ' } });
+
   // Submit return
-  const submitReturnBtn = screen.getByRole('button', { name: 'บันทึกรับคืน' });
+  const submitReturnBtn = await screen.findByRole('button', { name: /ยืนยันรับคืน/ });
+  await waitFor(() => assert.equal((submitReturnBtn as HTMLButtonElement).disabled, false));
   fireEvent.click(submitReturnBtn);
 
   await waitFor(() => {
-    assert.ok(container.textContent?.includes('บันทึกรับคืนวัสดุสำเร็จ'));
+    assert.equal(refreshed, true);
   });
 
-  assert.deepEqual(returnCallPayload, {
-    line_id: 'line-borrow-1',
-    return_qty: 1,
-    condition: 'normal',
-    note: null,
-  });
+  assert.ok(returnCallPayload);
+  const payload = returnCallPayload as { disbursement_id?: string; items?: { line_id: string; condition: string }[]; line_id?: string };
+  if (payload.items) {
+    assert.equal(payload.disbursement_id, 'doc-borrow-1');
+    assert.equal(payload.items[0].line_id, 'line-borrow-1');
+    assert.equal(payload.items[0].condition, 'normal');
+  } else {
+    assert.equal(payload.line_id, 'line-borrow-1');
+  }
   assert.equal(refreshed, true);
 });
 

@@ -94,17 +94,3 @@ export async function retry<T>(fn: () => Promise<T>, options: RetryOptions = {})
 
   throw lastError
 }
-
-/** Retry wrapper tuned for Supabase client calls. */
-export async function retrySupabase<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-  return retry(fn, { signal })
-}
-
-/** Retry wrapper tuned for storage uploads/downloads. */
-export async function retryStorage<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-  return retry(fn, {
-    maxAttempts: 4,
-    signal,
-    isRetryable: (error) => DEFAULT_IS_RETRYABLE(error),
-  })
-}

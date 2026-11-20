@@ -120,3 +120,30 @@ export const reverseDisbursementSchema = z.object({
   disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
   reason: stringTrimmed(500, 'กรุณาระบุเหตุผลการยกเลิก/คืนสภาพ'),
 })
+
+export const partialApproveDisbursementSchema = z.object({
+  disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
+  line_ids: z.array(z.string().uuid('รหัสรายการไม่ถูกต้อง')).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ'),
+  replacement_due_date: z.string().optional().nullable(),
+})
+
+export const partialRejectDisbursementSchema = z.object({
+  disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
+  line_ids: z.array(z.string().uuid('รหัสรายการไม่ถูกต้อง')).min(1, 'ต้องเลือกรายการอย่างน้อย 1 รายการ'),
+  reason: stringTrimmed(500, 'กรุณาระบุเหตุผลการปฏิเสธ'),
+})
+
+export const partialReturnDisbursementSchema = z.object({
+  disbursement_id: z.string().uuid('รหัสเอกสารไม่ถูกต้อง'),
+  items: z.array(
+    z.object({
+      line_id: z.string().uuid('รหัสรายการไม่ถูกต้อง'),
+      item_id: z.string().uuid('รหัสครุภัณฑ์ไม่ถูกต้อง'),
+      condition: z.enum(['normal', 'damaged'], {
+        message: 'กรุณาระบุสภาพครุภัณฑ์',
+      }),
+      return_date: z.string().optional(),
+      reason: stringTrimmed(500, 'กรุณาระบุเหตุผลในการคืน'),
+    })
+  ).min(1, 'ต้องเลือกครุภัณฑ์ที่ต้องการคืนอย่างน้อย 1 รายการ'),
+})

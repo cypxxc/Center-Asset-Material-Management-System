@@ -112,7 +112,7 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
               )}
             >
               <Warehouse className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>ส่วนกลาง</span>
+              <span className="truncate">วัสดุ - ครุภัณฑ์คงคลัง</span>
             </Link>
 
             <Link

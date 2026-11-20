@@ -1,4 +1,5 @@
 import '../setup/dom'
+import 'next/dynamic'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
@@ -20,6 +21,27 @@ test('dashboard shares approval actions, blocks duplicate confirmation, preserve
     rejectDisbursement: async (id: string, reason?: string) => { calls.push({ action: 'reject', id, reason }); return { ok: true } },
     cancelDisbursementDraft: async () => { throw new Error('Pending requests must use rejection, not draft cancellation') },
   } } as NodeJS.Module
+
+  const { GroupedTransactionsTable } = await import('../../features/disbursements/components/grouped-transactions-table')
+
+  const dynamicPath = require.resolve('next/dynamic')
+  const originalDynamic = require.cache[dynamicPath]
+  const mockDynamic = () => {
+    return function DynamicMock(props: React.ComponentProps<typeof GroupedTransactionsTable>) {
+      return React.createElement(GroupedTransactionsTable, props)
+    }
+  }
+  mockDynamic.default = mockDynamic
+  require.cache[dynamicPath] = {
+    id: dynamicPath,
+    filename: dynamicPath,
+    loaded: true,
+    exports: mockDynamic,
+  } as NodeJS.Module
+
+  const viewPath = require.resolve('../../components/dashboard/dashboard-admin-work-queue-view')
+  delete require.cache[viewPath]
+
   globalThis.getComputedStyle = window.getComputedStyle.bind(window)
   globalThis.MutationObserver = window.MutationObserver
   globalThis.CustomEvent = window.CustomEvent
@@ -61,5 +83,9 @@ test('dashboard shares approval actions, blocks duplicate confirmation, preserve
     cleanup()
     nav.useRouter = originalRouter
     if (originalActions) require.cache[actionPath] = originalActions; else delete require.cache[actionPath]
+    if (originalDynamic) require.cache[dynamicPath] = originalDynamic; else delete require.cache[dynamicPath]
+    delete require.cache[viewPath]
+    delete require.cache[require.resolve('../../features/disbursements/components/grouped-transactions-table')]
+    delete require.cache[require.resolve('../../features/disbursements/components/approval-row-actions')]
   }
 })

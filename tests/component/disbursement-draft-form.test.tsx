@@ -140,12 +140,12 @@ test('DisbursementDraftFormClient handles quantity stepper and stock limit', asy
   assert.equal(qtyInput.value, '1');
 
   // Click Plus button
-  const plusBtn = screen.getByTitle('เพิ่มจำนวน');
+  const plusBtn = screen.queryByTitle('เพิ่มจำนวน') || screen.getByRole('button', { name: /เพิ่มจำนวน/ });
   fireEvent.click(plusBtn);
   assert.equal(qtyInput.value, '2');
 
   // Click Minus button
-  const minusBtn = screen.getByTitle('ลดจำนวน');
+  const minusBtn = screen.queryByTitle('ลดจำนวน') || screen.getByRole('button', { name: /ลดจำนวน/ });
   fireEvent.click(minusBtn);
   assert.equal(qtyInput.value, '1');
 
