@@ -17,7 +17,13 @@ export async function profileForToken(token: string | undefined): Promise<(Local
   const profile = result.rows[0]
   return profile ? { ...profile, session_expires_at: new Date(profile.session_expires_at).toISOString() } : null
 }
-export const getPostgresProfile = cache(async function getPostgresProfile() { return profileForToken((await cookies()).get(SESSION_COOKIE)?.value) })
+export const getPostgresProfile = cache(async function getPostgresProfile() {
+  try {
+    return profileForToken((await cookies()).get(SESSION_COOKIE)?.value)
+  } catch {
+    return null
+  }
+})
 async function insertSession(tx: PostgresTransaction, userId: string) {
   const token = randomBytes(32).toString('hex')
   const expires = new Date(Date.now() + 8 * 60 * 60 * 1000)

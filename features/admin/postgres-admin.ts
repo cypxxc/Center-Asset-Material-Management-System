@@ -7,6 +7,7 @@ import { withUserDatabase } from '@/lib/postgres/request'
 import { hashPassword } from '@/lib/postgres/password'
 import { normalizeForStorage } from '@/lib/unicode'
 import { assertAdminTable } from './table-policy'
+import { archivePostgresItems } from '@/features/items/archive-items'
 import { assertSelfProtection, backupTables, newUserSchema, pageBounds, parseBusinessBackup, profileUpdateSchema, searchColumns, tableColumns, uuidSchema, writablePayload, type BackupTable } from './postgres-policy'
 import type { ProfileListItem, AuditLogListItem } from './types'
 import type { GetAuditLogsParams } from './queries'
@@ -121,9 +122,25 @@ export async function pgDeleteTableRow(tableName: string, rowId: string): Promis
     uuidSchema.parse(rowId)
     if (table === 'profiles') return pgDeleteAuthUser(rowId)
     if (table === 'audit_logs') throw new Error('Audit history is read-only.')
-    await withAdmin(async tx => {
-      const result = await tx.execute(sql`delete from ${tableSql(table)} where id = ${rowId}::uuid returning id`)
-      if (!result.rows.length) throw new Error('ไม่พบข้อมูลที่ต้องการลบ')
+    await withAdmin(async (tx, actorId) => {
+      if (table === 'items' || table === 'materials') {
+        const itemType = table === 'items' ? 'asset' : 'material'
+        const archived = await archivePostgresItems(tx, [rowId], actorId, itemType)
+        if (!archived.length) throw new Error('ไม่พบข้อมูลที่ต้องการลบหรือข้อมูลถูกลบไปแล้ว')
+        await tx.execute(sql`
+          INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
+          VALUES (${actorId}::uuid, 'DELETE_ITEM', ${table}, ${rowId}::uuid,
+            ${JSON.stringify({ operation: 'soft_delete', source: 'admin_table' })}::jsonb)
+        `)
+      } else {
+        const result = await tx.execute(sql`delete from ${tableSql(table)} where id = ${rowId}::uuid returning id`)
+        if (!result.rows.length) throw new Error('ไม่พบข้อมูลที่ต้องการลบ')
+        await tx.execute(sql`
+          INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
+          VALUES (${actorId}::uuid, 'DELETE_ROW', ${table}, ${rowId}::uuid,
+            ${JSON.stringify({ table, rowId })}::jsonb)
+        `)
+      }
     })
     invalidate()
     return { success: true }

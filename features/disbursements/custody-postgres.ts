@@ -433,6 +433,19 @@ export async function returnPostgresCustody(rawInput: unknown) {
       throw new Error('ครุภัณฑ์นี้ไม่มีผู้ถือครองที่สามารถรับคืนได้')
     }
 
+    const activeBorrow = await tx.execute<{ id: string; document_no: string | null }>(sql`
+      SELECT d.id, d.document_no
+      FROM public.disbursement_items di
+      JOIN public.disbursements d ON d.id = di.disbursement_id
+      WHERE di.item_id = ${data.item_id}
+        AND d.status IN ('active_borrow', 'partially_returned')
+        AND di.status NOT IN ('returned', 'reversed')
+      LIMIT 1
+    `)
+    if (activeBorrow.rows[0]) {
+      throw new Error(`ครุภัณฑ์นี้อยู่ระหว่างการยืมตามเอกสาร ${activeBorrow.rows[0].document_no || activeBorrow.rows[0].id} กรุณาบันทึกรับคืนผ่านเมนู "เบิก-จ่ายและยืม"`)
+    }
+
     const originLocation = await findOriginLocation(tx, item.id, item.responsible_person)
     if (!originLocation) {
       throw new Error('ไม่พบข้อมูลสถานที่ต้นทางเดิมก่อนสั่งจ่ายในระบบ ไม่สามารถเดาสถานที่ได้ กรุณาระบุข้อมูลต้นทางในระบบก่อนทำรายการ')

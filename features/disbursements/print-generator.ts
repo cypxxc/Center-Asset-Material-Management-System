@@ -44,7 +44,8 @@ export function generateDisbursementVoucherHtml(
   let totalValue = 0
 
   const tableRowsHtml = items.map((item, idx) => {
-    const qty = doc.status === 'draft' ? item.requested_qty : item.issued_qty
+    const isUnapproved = ['draft', 'pending_approval'].includes(doc.status)
+    const qty = isUnapproved ? item.requested_qty : item.issued_qty
     const unitPrice = item.unit_price_snapshot ?? 0
     const rowTotal = qty * unitPrice
     totalQty += qty

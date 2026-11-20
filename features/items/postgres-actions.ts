@@ -31,6 +31,7 @@ async function editor() {
 
 function databaseMessage(error: unknown) {
   if (error instanceof MaterialMetadataConflict) return error.message
+  if (error instanceof Error && error.message.includes('ไม่สามารถเปลี่ยนสถานะ')) return error.message
   // Drizzle's outer message contains every SQL column name, even for unrelated failures.
   const outer = error as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } } | null
   const databaseError = outer?.cause ?? outer
@@ -143,11 +144,25 @@ export async function mutatePostgresItems(ids: string[], operation: 'update' | '
         const selected = await tx.execute(sql`select id from ${table} where ${match} and deleted_at is null limit 1`)
         if (!selected.rows.length) continue
         await lockItemReferences(tx, { ...changes, item_type: type })
+        if (changes.status !== undefined && !['active', 'spare'].includes(changes.status)) {
+          const blocked = await tx.execute(sql`
+            select di.item_id from public.disbursement_items di
+            join public.disbursements d on d.id = di.disbursement_id
+            where di.item_id in (${sql.join(uniqueIds.map(id => sql`${id}`), sql`, `)}) and (
+              d.status in ('draft', 'pending_approval')
+              or (d.transaction_type = 'asset_borrow' and d.status in ('active_borrow', 'partially_returned')
+                and di.issued_qty > di.returned_qty and di.status <> 'reversed')
+            ) limit 1
+          `)
+          if (blocked.rows.length) {
+            throw new Error('รายการที่เลือกมีเอกสารร่าง คำขอรออนุมัติ หรือมีรายการยืมที่ยังไม่คืน ไม่สามารถเปลี่ยนสถานะเป็นไม่พร้อมใช้งานได้')
+          }
+        }
         const assignments = [sql`updated_by=${profile.id}`, sql`updated_at=now()`]
         if (changes.location_id !== undefined) assignments.push(sql`location_id=${changes.location_id || null}`)
         if (changes.category_id !== undefined) assignments.push(sql`category_id=${changes.category_id}`)
         if (changes.unit_id !== undefined) assignments.push(sql`unit_id=${changes.unit_id}`)
-        if (changes.responsible_person !== undefined) assignments.push(sql`responsible_person=${changes.responsible_person || null}`)
+        if (type === 'asset' && changes.responsible_person !== undefined) assignments.push(sql`responsible_person=${changes.responsible_person || null}`)
         if (changes.status !== undefined) assignments.push(sql`status=${changes.status}`)
         affected.push(...(await tx.execute<{ id: string; image_url: string | null }>(sql`update ${table} set ${sql.join(assignments, sql`, `)} where ${match} and deleted_at is null returning id, image_url`)).rows)
         continue

@@ -123,7 +123,7 @@ export async function partialRejectDisbursement(input: { disbursement_id: string
 
 export async function partialReturnDisbursement(input: {
   disbursement_id: string
-  items: Array<{ line_id: string; item_id: string; condition: 'normal' | 'damaged'; return_date?: string; reason: string }>
+  items: Array<{ line_id: string; item_id: string; condition: 'normal' | 'damaged' | 'lost'; return_date?: string; reason: string }>
 }) {
   return run('รับคืนครุภัณฑ์ที่เลือกสำเร็จ', () => partialReturnPostgresDisbursement(input))
 }

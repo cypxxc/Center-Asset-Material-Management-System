@@ -139,7 +139,7 @@ export const partialReturnDisbursementSchema = z.object({
     z.object({
       line_id: z.string().uuid('รหัสรายการไม่ถูกต้อง'),
       item_id: z.string().uuid('รหัสครุภัณฑ์ไม่ถูกต้อง'),
-      condition: z.enum(['normal', 'damaged'], {
+      condition: z.enum(['normal', 'damaged', 'lost'], {
         message: 'กรุณาระบุสภาพครุภัณฑ์',
       }),
       return_date: z.string().optional(),

@@ -16,7 +16,7 @@ export function requestFingerprint(input: CartInput): string {
 export function batchSummary(statuses: string[]): string {
   if (!statuses.length) return 'ไม่มีเอกสาร'
   if (statuses.every(s => s === 'pending_approval')) return 'รออนุมัติ'
-  if (statuses.every(s => ['returned', 'reversed', 'cancelled', 'rejected'].includes(s))) return 'สิ้นสุดแล้ว'
+  if (statuses.every(s => ['confirmed', 'returned', 'reversed', 'cancelled', 'rejected'].includes(s))) return 'สิ้นสุดแล้ว'
   if (new Set(statuses).size > 1) return 'ดำเนินการบางส่วน'
   return statuses[0] === 'confirmed' ? 'อนุมัติแล้ว' : statuses[0] === 'active_borrow' ? 'อยู่ระหว่างยืม' : 'อยู่ระหว่างดำเนินการ'
 }

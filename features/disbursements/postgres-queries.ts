@@ -12,6 +12,7 @@ import type {
 } from './types'
 import { disbursementListParamsSchema } from './schema'
 import { COMPLETED_DISBURSEMENT_STATUSES } from './status-groups'
+import { getCurrentProfile } from '@/features/auth/queries'
 
 export async function getPostgresDisbursements(
   paramsInput: unknown = {}
@@ -51,6 +52,11 @@ export async function getPostgresDisbursements(
     clauses.push(sql`d.transaction_type = ${params.type}`)
   }
 
+  const profile = await getCurrentProfile()
+  if (profile && profile.role !== 'admin') {
+    clauses.push(sql`d.created_by = ${profile.id}::uuid`)
+  }
+
   const whereSql = clauses.length > 0 ? sql`WHERE ${sql.join(clauses, sql` and `)}` : sql``
 
   return withUserDatabase(async (tx) => {
@@ -73,7 +79,7 @@ export async function getPostgresDisbursements(
           count(*) filter (where d.status = 'draft')::int as draft,
           count(*) filter (where d.status = 'confirmed')::int as confirmed,
           count(*) filter (where d.status = 'pending_approval')::int as pending_approval
-        FROM public.disbursements d WHERE d.status <> 'rejected'`
+        FROM public.disbursements d WHERE d.status <> 'rejected' ${profile && profile.role !== 'admin' ? sql`AND d.created_by = ${profile.id}::uuid` : sql``}`
       )
       const statsRow = statsRes.rows[0]
       const stats = statsRow ? {
@@ -139,10 +145,18 @@ export async function getPostgresDisbursementById(id: string) {
       const doc = docRes.rows[0]
       if (!doc) return null
 
+      const profile = await getCurrentProfile()
+      if (profile && profile.role !== 'admin' && doc.created_by !== profile.id) {
+        return null
+      }
+
       const linesRes = await tx.execute<DisbursementItemRow>(
         sql`SELECT di.*,
           coalesce(di.item_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.item_name END) AS item_name_snapshot,
-          coalesce(di.asset_no_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.asset_no END) AS asset_no_snapshot
+          coalesce(di.asset_no_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.asset_no END) AS asset_no_snapshot,
+          coalesce(di.category_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN (SELECT c.name FROM public.categories c WHERE c.id = i.category_id) END) AS category_name_snapshot,
+          coalesce(di.unit_name_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN (SELECT u.name FROM public.units u WHERE u.id = i.unit_id) END) AS unit_name_snapshot,
+          coalesce(di.unit_price_snapshot, CASE WHEN ${doc.status} IN ('draft', 'pending_approval') THEN i.unit_price END) AS unit_price_snapshot
         FROM public.disbursement_items di
         LEFT JOIN public.inventory_items i ON i.id = di.item_id
         WHERE di.disbursement_id = ${id} ORDER BY di.id ASC`
