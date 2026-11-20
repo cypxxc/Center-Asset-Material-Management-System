@@ -229,7 +229,7 @@ export async function getPostgresItemBatch(
 ): Promise<ItemBatchResult> {
   const columns: Record<NormalizedItemListSearchParams['sort_by'], SQL> = {
     updated_at: sql`i.updated_at`,
-    item_name: sql`i.item_name`,
+    item_name: sql`i.item_name collate "th-TH-x-icu"`,
     category: sql`coalesce(c.name, '') collate "th-TH-x-icu"`,
     item_type: sql`i.item_type`,
     quantity: sql`i.quantity`,

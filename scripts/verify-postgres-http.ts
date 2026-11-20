@@ -44,12 +44,14 @@ async function main() {
       } catch (error) { await client.query('rollback'); throw error }
     }
     try {
-      await mutate("insert into public.items(id,item_name,item_type,quantity,image_url,created_by,updated_by) values($1,$2,'asset',1,$3,$4,$4)", [itemId, `HTTP verification ${itemId}`, url, userId])
       const request = (path: string, authenticated = true) => fetch(base + path, {
         headers: authenticated ? { Cookie: `camms_session=${token}` } : {}, redirect: 'manual', signal: AbortSignal.timeout(60000),
       })
+      const unreferenced = await request(url, false)
+      assert.equal(unreferenced.status, 404, `Unreferenced image unexpectedly returned ${unreferenced.status}`)
+      await mutate("insert into public.items(id,item_name,item_type,quantity,image_url,created_by,updated_by) values($1,$2,'asset',1,$3,$4,$4)", [itemId, `HTTP verification ${itemId}`, url, userId])
       const anonymous = await request(url, false)
-      assert.ok([401,403,404].includes(anonymous.status), `Anonymous image unexpectedly returned ${anonymous.status}`)
+      assert.equal(anonymous.status, 200, `Active public item image unexpectedly returned ${anonymous.status}`)
       const image = await request(url)
       assert.equal(image.status, 200)
       assert.equal(image.headers.get('content-type'), 'image/png')
@@ -59,7 +61,7 @@ async function main() {
       const traversal = await request('/api/files/item-images/%2e%2e%2f%2e%2e%2f.env.postgres.app')
       assert.ok([400,403,404].includes(traversal.status))
       assert.equal((await request('/api/events?tables=items', false)).status, 401)
-      console.log('PASS: private PNG bytes/headers, anonymous denial, traversal denial, SSE authentication')
+      console.log('PASS: public item PNG bytes/headers, unreferenced denial, traversal denial, SSE authentication')
 
       const events: string[] = []
       let closed = false
@@ -103,6 +105,7 @@ async function main() {
       await owner.query('delete from private_auth.sessions where token_hash=$1', [hash])
       await waitFor(() => closed, 17000)
       await streamTask
+      await owner.query('update public.items set deleted_at=now() where id=$1', [itemId])
       assert.ok([401,403,404].includes((await request(url)).status))
       assert.equal((await request('/api/events?tables=items')).status, 401)
       console.log(`PASS: revoked session closes SSE in ${Date.now() - revokedAt}ms and loses image/event access`)

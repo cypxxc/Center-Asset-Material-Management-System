@@ -10,7 +10,7 @@ export interface AuditLogPayload {
   feature: string
   userId: string | null
   targetType: string
-  targetId?: string
+  targetId?: string | null
   oldValues?: unknown
   newValues?: unknown
   timestamp?: string
@@ -19,6 +19,7 @@ export interface AuditLogPayload {
   traceId?: string
   ip?: string
   persistToDatabase?: boolean
+  throwOnError?: boolean
 }
 
 /**
@@ -94,12 +95,20 @@ export async function writeAuditLog(payload: AuditLogPayload) {
           audit_failure: true,
           userId: payload.userId || undefined,
           targetTable: payload.targetType,
-          targetId: payload.targetId,
+          targetId: payload.targetId ?? undefined,
           requestId,
         },
         error
       )
+      if (payload.throwOnError) {
+        throw error
+      }
     }
+  }
+
+  if (payload.throwOnError) {
+    await persist()
+    return
   }
 
   // Keep the response fast while allowing Next.js/Vercel to finish the write.

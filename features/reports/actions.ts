@@ -37,13 +37,14 @@ export async function recordReportExportAudit(
       feature: 'reports',
       userId: profile.id,
       targetType: 'reports',
-      targetId: `export-${format}-${Date.now()}`,
+      targetId: null,
       newValues: {
         format,
         filterSummary,
         exportedBy: profile.full_name,
         userRole: profile.role,
       },
+      throwOnError: true,
     })
 
     return successResponse('บันทึกประวัติการส่งออกสำเร็จ')

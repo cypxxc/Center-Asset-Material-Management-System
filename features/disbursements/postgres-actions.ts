@@ -1200,41 +1200,48 @@ export async function partialReturnPostgresDisbursement(
         throw new Error(`รายการ ${line.item_name_snapshot || line.id} คืนครบแล้ว`)
       }
 
-      // Auto-detect origin location
-      const originLocation = await findOriginLocation(tx, retItem.item_id, doc.recipient_name)
-      if (!originLocation) {
-        throw new Error(`ไม่พบสถานที่ต้นทางเดิมสำหรับครุภัณฑ์ ${line.item_name_snapshot || retItem.item_id} ไม่สามารถเดาสถานที่ได้`)
-      }
-
       const itemRes = await tx.execute<{ id: string; item_type: string; note: string | null }>(
-        sql`SELECT id, item_type, note FROM public.items WHERE id = ${retItem.item_id} AND deleted_at IS NULL FOR UPDATE`
+        sql`SELECT id, item_type, note FROM ${await inventoryTableForId(tx, retItem.item_id)} WHERE id = ${retItem.item_id} AND deleted_at IS NULL FOR UPDATE`
       )
       const currentItem = itemRes.rows[0]
-      if (!currentItem) throw new Error(`ไม่พบครุภัณฑ์ ${retItem.item_id} หรือถูกลบแล้ว`)
+      if (!currentItem) throw new Error(`ไม่พบสิ่งของ ${retItem.item_id} หรือถูกลบแล้ว`)
 
-      const centralNote = syncCentralNote(currentItem.note || '', true) || null
+      let originLocationName: string | null = null
 
-      // Custody log
-      await tx.execute(
-        sql`INSERT INTO public.asset_custody_logs (
-          item_id, disbursement_item_id, action, quantity, from_responsible, to_responsible, item_condition, note, created_by
-        ) VALUES (
-          ${retItem.item_id}, ${line.id}, 'return', ${unreturned}, ${doc.recipient_name}, NULL, ${retItem.condition}, ${retItem.reason}, ${user.id}
-        )`
-      )
+      if (currentItem.item_type === 'material') {
+        await restoreBorrowedMaterial(tx, currentItem.id, line.id, retItem.condition === 'normal' ? unreturned : 0, user.id)
+      } else {
+        // Auto-detect origin location
+        const originLocation = await findOriginLocation(tx, retItem.item_id, doc.recipient_name)
+        if (!originLocation) {
+          throw new Error(`ไม่พบสถานที่ต้นทางเดิมสำหรับครุภัณฑ์ ${line.item_name_snapshot || retItem.item_id} ไม่สามารถเดาสถานที่ได้`)
+        }
+        originLocationName = originLocation.name
 
-      // Update item
-      const itemStatus = retItem.condition === 'damaged' ? 'damaged' : 'active'
-      await tx.execute(
-        sql`UPDATE public.items
-            SET responsible_person = NULL,
-                status = ${itemStatus},
-                location_id = ${originLocation.id},
-                is_central = true,
-                note = ${centralNote},
-                updated_at = now()
-            WHERE id = ${retItem.item_id}`
-      )
+        const centralNote = syncCentralNote(currentItem.note || '', true) || null
+
+        // Custody log
+        await tx.execute(
+          sql`INSERT INTO public.asset_custody_logs (
+            item_id, disbursement_item_id, action, quantity, from_responsible, to_responsible, item_condition, note, created_by
+          ) VALUES (
+            ${retItem.item_id}, ${line.id}, 'return', ${unreturned}, ${doc.recipient_name}, NULL, ${retItem.condition}, ${retItem.reason}, ${user.id}
+          )`
+        )
+
+        // Update item
+        const itemStatus = retItem.condition === 'damaged' ? 'damaged' : 'active'
+        await tx.execute(
+          sql`UPDATE public.items
+              SET responsible_person = NULL,
+                  status = ${itemStatus},
+                  location_id = ${originLocation.id},
+                  is_central = true,
+                  note = ${centralNote},
+                  updated_at = now()
+              WHERE id = ${retItem.item_id}`
+        )
+      }
 
       // Update line
       await tx.execute(
@@ -1250,7 +1257,7 @@ export async function partialReturnPostgresDisbursement(
             VALUES (
               ${user.id}, 'RETURN_DISBURSEMENT_ITEM', 'disbursement_items', ${line.id},
               ${JSON.stringify({ returned_qty: line.returned_qty })}::jsonb,
-              ${JSON.stringify({ returned_qty: line.issued_qty, condition: retItem.condition, reason: retItem.reason, origin_location: originLocation.name })}::jsonb
+              ${JSON.stringify({ returned_qty: line.issued_qty, condition: retItem.condition, reason: retItem.reason, origin_location: originLocationName })}::jsonb
             )`
       )
     }
