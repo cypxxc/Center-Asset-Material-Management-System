@@ -58,8 +58,11 @@ export async function readLocalItemImage(url: string) {
     // infrastructure failures from inadvertently opening public image access.
     if (!(err instanceof AuthorizationError)) throw err
     const { getDatabase } = await import('./db')
-    const exists = await getDatabase().execute(query)
-    isReferenced = exists.rows.length > 0
+    const exists = await getDatabase().execute<{ is_public?: boolean; id?: string }>(
+      sql`select private.is_public_item_image(${url}) as is_public`
+    )
+    const row = exists.rows[0]
+    isReferenced = row ? (row.is_public !== undefined ? Boolean(row.is_public) : Boolean(row.id)) : false
   }
 
   if (!isReferenced) return null

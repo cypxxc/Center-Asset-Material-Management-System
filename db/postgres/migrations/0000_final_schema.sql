@@ -489,6 +489,17 @@ CREATE FUNCTION private.get_public_item(p_id text) RETURNS TABLE(id uuid, item_n
   LIMIT 1;
 $_$;
 
+-- Function: private.is_public_item_image
+CREATE FUNCTION private.is_public_item_image(p_url text) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+  SELECT EXISTS (
+    SELECT 1 FROM public.inventory_items i
+    WHERE i.image_url = p_url AND i.deleted_at IS NULL
+  );
+$_$;
+
 -- Table: public.audit_logs
 CREATE TABLE public.audit_logs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1115,6 +1126,9 @@ GRANT ALL ON FUNCTION private.current_user_id() TO camms_auth;
 
 REVOKE ALL ON FUNCTION private.get_public_item(text) FROM PUBLIC;
 GRANT ALL ON FUNCTION private.get_public_item(text) TO camms_app;
+
+REVOKE ALL ON FUNCTION private.is_public_item_image(text) FROM PUBLIC;
+GRANT ALL ON FUNCTION private.is_public_item_image(text) TO camms_app;
 
 REVOKE ALL ON FUNCTION private.stamp_update() FROM PUBLIC;
 REVOKE ALL ON FUNCTION private.inventory_identity() FROM PUBLIC;

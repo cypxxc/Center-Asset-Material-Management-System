@@ -256,8 +256,22 @@ export async function pgImportDatabaseData(source: string) {
     const backup = parseBusinessBackup(source)
     const tables: BackupTable[] = ['categories', 'locations', 'units', 'items', 'materials']
     await withAdmin(async tx => {
-      // Lock all restored tables together to serialize against concurrent edits/number allocation.
-      await tx.execute(sql`lock table public.items, public.materials, public.categories, public.locations, public.units in share row exclusive mode`)
+      // Lock all restored tables and transactional tables together to serialize against concurrent edits and transactions.
+      await tx.execute(sql`lock table public.items, public.materials, public.categories, public.locations, public.units, public.disbursements, public.disbursement_items in share row exclusive mode`)
+
+      // Preflight check: refuse import if active transaction history references inventory records
+      const historyCheck = await tx.execute<{ count: number }>(sql`
+        SELECT (
+          (SELECT count(*)::int FROM public.disbursement_items) +
+          (SELECT count(*)::int FROM public.stock_movements) +
+          (SELECT count(*)::int FROM public.material_stock_documents) +
+          (SELECT count(*)::int FROM public.asset_custody_logs)
+        ) AS count
+      `)
+      if (Number(historyCheck.rows[0]?.count ?? 0) > 0) {
+        throw new Error('ไม่สามารถนำเข้าข้อมูลสำรองทับได้ เนื่องจากระบบมีประวัติการเบิกจ่าย การยืม-คืน หรือการเคลื่อนไหวสต็อกแล้ว กรุณาใช้การกู้คืนฐานข้อมูลระดับเซิร์ฟเวอร์ (Full Database Restore) แทน')
+      }
+
       for (const table of [...tables].reverse()) await tx.execute(sql`delete from ${tableSql(table)}`)
       for (const table of tables) {
         if (!backup[table].length) continue
