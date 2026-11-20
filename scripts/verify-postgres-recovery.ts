@@ -59,16 +59,22 @@ async function main() {
     const seedStorage = path.join(root,'seed-storage')
     const seed = await restore(initial,names[0],seedStorage)
     const actor = randomUUID(), item = randomUUID(), file = randomUUID()
+    const unreferencedFile = randomUUID(), deletedItem = randomUUID(), deletedFile = randomUUID()
     const email = `recovery-${suffix}@example.com`, password = randomBytes(24).toString('hex')
     const encoded = await hashPassword(password)
     const imageUrl = `/api/files/item-images/${actor}/${file}.png`
+    const unreferencedUrl = `/api/files/item-images/${actor}/${unreferencedFile}.png`
+    const deletedImageUrl = `/api/files/item-images/${actor}/${deletedFile}.png`
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGAAAAAASUVORK5CYII=','base64')
     await seed.query("insert into public.profiles(id,email,full_name,role) values($1,$2,'Recovery drill','admin')",[actor,email])
     await seed.query('insert into private_auth.credentials(user_id,password_hash) values($1,$2)',[actor,encoded])
     await seed.query("insert into private_auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 hour')",[suffix,actor])
     await seed.query("insert into public.items(id,item_name,item_type,quantity,image_url,created_by) values($1,'Recovery drill item','asset',7,$2,$3)",[item,imageUrl,actor])
+    await seed.query("insert into public.items(id,item_name,item_type,quantity,image_url,created_by,deleted_at) values($1,'Deleted drill item','asset',1,$2,$3,now())",[deletedItem,deletedImageUrl,actor])
     await mkdir(path.join(seedStorage,'item-images',actor),{recursive:true})
     await writeFile(path.join(seedStorage,'item-images',actor,`${file}.png`),png,{flag:'wx',mode:0o600})
+    await writeFile(path.join(seedStorage,'item-images',actor,`${unreferencedFile}.png`),png,{flag:'wx',mode:0o600})
+    await writeFile(path.join(seedStorage,'item-images',actor,`${deletedFile}.png`),png,{flag:'wx',mode:0o600})
     const backup = await backupPostgres(path.join(root,'backups'),{migrationUrl:connection(app.DATABASE_MIGRATION_URL,names[0]),storagePath:seedStorage})
     const restoredStorage = path.join(root,'restored-storage')
     const restored = await restore(backup,names[1],restoredStorage)
@@ -113,11 +119,15 @@ async function main() {
       assert.equal(image.status,200)
       assert.deepEqual(Buffer.from(image.bytes),png)
       const anonymous = await browser.newContext()
-      assert.ok([401,403,404].includes((await anonymous.request.get(base+imageUrl)).status()))
+      assert.equal((await anonymous.request.get(base+imageUrl)).status(), 200)
+      assert.equal((await anonymous.request.get(base+unreferencedUrl)).status(), 404)
+      assert.equal((await anonymous.request.get(base+deletedImageUrl)).status(), 404)
+      const traversal = await anonymous.request.get(base+'/api/files/item-images/%2e%2e%2f%2e%2e%2f.env.postgres.app')
+      assert.ok([400,403,404].includes(traversal.status()))
       await anonymous.close()
       await page.goto(`${base}/items?q=${encodeURIComponent('Recovery drill item')}`)
       await expect(page.locator('#main-content')).toContainText('Recovery drill item')
-      console.log('PASS: restored production web login creates a new session, restored item renders, private image bytes match, anonymous image denied')
+      console.log('PASS: restored production web login creates a new session, restored item renders, public image accessible, unreferenced/deleted/traversal denied')
     } finally { await browser.close() }
   } finally {
     if(server && server.exitCode === null) { const exit=once(server,'exit');server.kill();await exit }
