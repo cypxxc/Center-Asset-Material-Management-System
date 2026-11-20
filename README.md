@@ -1,360 +1,254 @@
 # CAMMS Portal — Center Asset & Material Management System
 ### ระบบบริหารจัดการทรัพย์สินและวัสดุส่วนกลาง
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.3.8-black?logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql)](https://www.postgresql.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-Supported-3ECF8E?logo=supabase)](https://supabase.com/)
-
-[English](#english-overview) • [ภาษาไทย](#ภาพรวมระบบภาษาไทย) • [คู่มือการรันด้วย Docker](#-การรันระบบด้วย-docker-docker-execution-guide)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?logo=docker)](https://www.docker.com/)
 
 ---
 
-## ภาพรวมระบบ (ภาษาไทย)
+## 📌 ภาพรวมระบบ (System Overview)
 
-**CAMMS (Center Asset & Material Management System)** คือเว็บแอปพลิเคชันภายในสำหรับหน่วยงานและองค์กร ใช้จัดการ ติดตาม และตรวจสอบครุภัณฑ์และวัสดุส่วนกลาง พัฒนาด้วย **Next.js 16 (App Router)** รองรับทั้งฐานข้อมูล **Supabase** และ **Standalone Docker PostgreSQL** พร้อมสถาปัตยกรรมความปลอดภัยระดับสูง การจัดกลุ่มบทบาทผู้ใช้งาน (RBAC) และการออกแบบที่เน้นภาษาไทยเป็นหลัก (Thai-first UI)
+**CAMMS (Center Asset & Material Management System)** คือระบบสารสนเทศเว็บแอปพลิเคชันสำหรับหน่วยงานภาครัฐและองค์กร เพื่อใช้บริหาร จัดการ ติดตาม และตรวจสอบพัสดุส่วนกลางตามระเบียบงานพัสดุและมาตรฐานกรมบัญชีกลาง โดยแบ่งการทำงานออกเป็น 2 ประเภทหลัก:
 
-### 🌟 คุณสมบัติเด่น (Key Features)
+1. **ครุภัณฑ์ (Durable Assets):** ทรัพย์สินคงทนถาวร ติดตามรายชิ้นด้วยรหัสครุภัณฑ์, หมายเลขซีเรียล (Serial Number), อาคาร/สถานที่จัดเก็บ, ผู้ถือครอง, ระบบพิมพ์ฉลาก QR Code (รองรับกระดาษ A4 และ Thermal Roll) และคำนวณค่าเสื่อมราคาแบบเส้นตรง (Straight-line Depreciation) สูงสุดจนเหลือมูลค่า 1 บาท
+2. **วัสดุสิ้นเปลือง (Consumable Materials):** พัสดุสิ้นเปลือง ติดตามยอดรับ-จ่ายตามบัญชีคุมวัสดุราชการ ยอดคงเหลือ แจ้งเตือนจุดสั่งซื้อขั้นต่ำ และตัดสต็อกทันทีเมื่อส่งคำขอเบิก
 
-- 📦 **ทะเบียนครุภัณฑ์และวัสดุ (Registry & Inventory)**:
-  - จัดการข้อมูล เพิ่ม ลบ แก้ไข รายการทรัพย์สิน พร้อมรหัสครุภัณฑ์, หมายเลขซีเรียล (Serial Number), สถานที่จัดเก็บ, หมวดหมู่ และหน่วยนับ
-  - รองรับหมวดหมู่ครุภัณฑ์มาตรฐานสำนักงบประมาณและกรมบัญชีกลาง (13 หมวดมาตรฐาน)
-- 🏷️ **QR Code / ฉลากครุภัณฑ์ (Asset Tags & Labels)**:
-  - สร้างและพิมพ์สติกเกอร์/ป้าย QR Code สำหรับติดทรัพย์สิน รองรับทั้งกระดาษ A4 และ Thermal Roll พร้อมระบบสแกนตรวจสอบ
-- 📉 **คำนวณค่าเสื่อมราคา (Depreciation Tracking)**:
-  - ติดตามอายุการใช้งาน คำนวณมูลค่าคงเหลือและค่าเสื่อมราคาอัตโนมัติ
-- 🖼️ **ระบบจัดการรูปภาพ (Image Processing)**:
-  - ครอปและบีบอัดรูปภาพฝั่ง Client ก่อนอัปโหลด เก็บรูปภาพปลอดภัยผ่าน Supabase Storage หรือระบบ Authenticated Local File Storage
-- 📊 **รายงานและการส่งออกข้อมูล (Reports & Export)**:
-  - สรุปรายงานและส่งออกไฟล์ **Excel (.xlsx)** และ **PDF** พร้อมระบบตรวจจับและยืนยันสิทธิ์เซสชันฝั่ง Server
-- 👥 **ระบบสิทธิ์และการรักษาความปลอดภัย (RBAC & Security)**:
-  - **Admin (ผู้ดูแลระบบ)**: สิทธิ์สมบูรณ์ จัดการบทบาทผู้ใช้ การตั้งค่า ตรวจสอบฐานข้อมูล และลบรายการ (มีระบบป้องกันตนเองและป้องกัน Last-Admin Lockout)
-  - **Staff (เจ้าหน้าที่)**: บันทึก/อัปเดตข้อมูล ทำรายการแบบกลุ่ม และดูข้อมูลอ้างอิง (ไม่สามารถลบรายการหรือจัดการผู้ใช้ได้)
-  - **Viewer (ผู้เข้าชม)**: เรียกดูข้อมูล ค้นหา และดูรายงานได้เท่านั้น (Read-only)
-- ⚡ **อัปเดตข้อมูลแบบ Realtime**:
-  - หน้ารายการ, Dashboard, รายงาน และ Audit Log รีเฟรชทันทีเมื่อมีการแก้ไขข้อมูลส่วนกลาง
-- 🇹🇭 **มาตรฐานภาษาไทยและฟอนต์ (Thai-first UI & Unicode Hardening)**:
-  - แสดงผลด้วยฟอนต์ *Sarabun* ร่วมกับ *Capriola*
-  - รองรับระบบเรียงลำดับพจนานุกรมไทยด้วย ICU Collation (`th-TH-x-icu`)
-  - ทำความสะอาดข้อความด้วย NFC Normalization และตัดอักขระล่องหนอัตโนมัติ
+### ✨ ฟังก์ชันสำคัญ (Key Features)
+
+- **ทะเบียนทรัพย์สินและวัสดุ (Registry & Inventory):** จัดการข้อมูล เพิ่ม ปรับปรุง จำหน่าย พร้อมรองรับ 13 หมวดหมู่ครุภัณฑ์มาตรฐานสำนักงบประมาณ
+- **สร้างและพิมพ์ฉลาก QR Code (Asset Tags & Labels):** สร้าง QR Code และพิมพ์ป้ายติดครุภัณฑ์ทันที รองรับทั้งเครื่องพิมพ์สติกเกอร์ทั่วไปและ Thermal Roll
+- **ระบบเบิกจ่ายและยืม-คืน (Disbursements & Loans):** คำขอเบิกจ่ายวัสดุ ทะเบียนคุมการยืม-คืนครุภัณฑ์ พร้อมระบบตัดและคืนยอดคงเหลือแบบอัตโนมัติ
+- **คำนวณค่าเสื่อมราคา (Depreciation Tracking):** คำนวณมูลค่าทางบัญชีและค่าเสื่อมราคาสะสมอัตโนมัติตามระยะเวลาถือครอง
+- **รายงานและการส่งออก (Reports & Export):** สร้างรายงานสรุปยอดพัสดุและส่งออกไฟล์ **Excel (.xlsx)** และ **PDF**
+- **ระบบกำหนดสิทธิ์ผู้ใช้งาน (RBAC & Security):**
+  - `admin` (ผู้ดูแลระบบ): สิทธิ์ระดับสูงสุดในการจัดการระบบ (Full CRUD) ทั้งครุภัณฑ์ วัสดุ หมวดหมู่ สถานที่ หน่วยนับ การอนุมัติ/ยืนยันการเบิกจ่ายและยืม-คืน จัดการบัญชีผู้ใช้ รีเซ็ตรหัสผ่าน ตรวจสอบ Audit Logs พร้อมระบบป้องกันตนเอง (Anti-Lockout) ไม่ให้ลบหรือลดสิทธิ์ผู้ดูแลคนสุดท้าย
+  - `user` (ผู้ใช้งานทั่วไป): สิทธิ์เข้าดูข้อมูลครุภัณฑ์ วัสดุ และรายงาน (Read-only) สามารถสร้างและส่งคำขอเบิกวัสดุ (`material_issue`) ได้ แต่ไม่สามารถแก้ไขทะเบียนทรัพย์สิน อนุมัติรายการ หรือเข้าถึงส่วนการตั้งค่าระบบและจัดการผู้ใช้
+- **มาตรฐานภาษาไทย (Thai-first UI):** แสดงผลด้วยฟอนต์ *Sarabun* เรียงลำดับคำภาษาไทยตามพจนานุกรมด้วย ICU Collation (`th-TH-x-icu`) และจัดเก็บข้อความด้วย Unicode NFC Normalization
 
 ---
 
-## English Overview
+## 🛠️ Technology Stack ที่ใช้งานจริง
 
-**CAMMS (Center Asset & Material Management System)** is an enterprise web application designed for Thai government and modern organizational units to track, audit, and manage shared office assets and materials. Built with **Next.js 16 (App Router)**, CAMMS seamlessly supports both **Supabase** and **standalone Docker PostgreSQL** backends.
-
-### 🌟 Key Highlights
-
-- **Complete Inventory Registry**: Full CRUD operations with custom asset numbers, serial numbers, locations, categories, and units. Preloaded with standard Thai Government asset categories.
-- **Asset Tags & QR Printing**: Instant QR code label generation supporting standard A4 sticker layouts and thermal roll printers.
-- **Depreciation Calculation**: Automated asset lifespan and depreciation calculation with remaining value tracking.
-- **Client-Side Image Optimization**: High-performance cropping and compression before uploading to Supabase Storage or private local disk storage.
-- **Data Export & Reporting**: Server-authenticated dataset queries with high-fidelity **Excel (.xlsx)** and browser **PDF** export.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions (`Admin`, `Staff`, `Viewer`) with defense-in-depth route guards and anti-lockout safeguards.
-- **Realtime Synchronization**: Instant updates across inventory registers, dashboards, reports, and mutation audit logs.
-- **Thai-first & Accessible UI**: Dual typography (*Sarabun* + *Capriola*), 100% semantic color tokens with seamless dark/light modes, and ICU-level Thai collation (`th-TH-x-icu`).
+| เลเยอร์ (Layer) | เทคโนโลยีที่ใช้ (Technology) | รายละเอียด (Specification) |
+| :--- | :--- | :--- |
+| **Framework** | [Next.js 16](https://nextjs.org/) | App Router, Standalone Output, Webpack Build, Node.js 24 LTS |
+| **Frontend & UI** | [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/) | Radix UI Primitives, Lucide Icons, Thai Sarabun Font |
+| **Database & ORM** | [PostgreSQL 17](https://www.postgresql.org/) + [Drizzle ORM](https://orm.drizzle.team/) | Row-Level Security (RLS), Connection Pooling, ICU Collation |
+| **Authentication** | Custom PostgreSQL Auth | จัดการใน `private_auth` schema ด้วย Bcrypt และ SHA-256 Tokens |
+| **Reverse Proxy** | [Caddy](https://caddyserver.com/) | Reverse Proxy พร้อมระบบจัดการ HTTPS/TLS Certificate อัตโนมัติ |
+| **File Storage** | Authenticated Local Storage | จัดเก็บรูปภาพ/เอกสารลง Storage บนเซิร์ฟเวอร์พร้อมจำกัดสิทธิ์อ่าน |
+| **Export Engines** | [ExcelJS](https://github.com/exceljs/exceljs) | สรุปรายงานและส่งออก Spreadsheet (.xlsx) และ Browser Print PDF |
 
 ---
 
-## 🛠️ สถาปัตยกรรมและเทคโนโลยี (Tech Stack)
+## 💻 Requirements สำหรับติดตั้ง
 
-| เลเยอร์ (Layer) | เทคโนโลยีที่ใช้ (Technology) |
-| :--- | :--- |
-| **Framework** | [Next.js 16.3.8](https://nextjs.org/) (App Router, Webpack, `proxy.ts` middleware) |
-| **UI & Styling** | [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [Radix UI](https://www.radix-ui.com/), [Lucide Icons](https://lucide.dev/) |
-| **Typography** | Sarabun (ภาษาไทย) & Capriola (ละตินและตัวเลข) |
-| **Database & ORM** | [PostgreSQL 16+](https://www.postgresql.org/) / [Supabase](https://supabase.com/) + [Drizzle ORM](https://orm.drizzle.team/), Row-Level Security (RLS) |
-| **Auth** | Supabase Auth หรือ Local Docker Postgres Auth (`private_auth` schema) |
-| **Validation** | [Zod v4](https://zod.dev/) + Custom Unicode/NFC Sanitization |
-| **Export Engines** | [ExcelJS](https://github.com/exceljs/exceljs) (.xlsx) & Browser Print-to-PDF Engine |
-| **Quality & Testing**| TypeScript 5.x (Strict), ESLint 9 (Flat Config), Playwright, Node Test Runner |
+- **ระบบปฏิบัติการ (OS):** Linux (แนะนำ Ubuntu 22.04 LTS ขึ้นไปสำหรับ Production) หรือ Windows Server / Windows ที่มี Docker
+- **Docker & Docker Compose:** Docker Engine 24+ และ Docker Compose v2+
+- **Node.js & npm:** Node.js `>=24.0.0 <25` (LTS) และ npm `11.14.1` (จำเป็นสำหรับรันสคริปต์ Setup และ Migration)
+- **เครือข่ายและพอร์ต (Network Ports):**
+  - พอร์ต `80` (HTTP) และ `443` (HTTPS) สำหรับเว็บผ่าน Caddy Proxy (หรือพอร์ตอื่นตามที่กำหนด)
+  - พอร์ต `15432` สำหรับ PostgreSQL Local Container (เข้าถึงได้เฉพาะ Localhost หรือ Docker Network ภายใน)
+- **พื้นที่จัดเก็บข้อมูล (Storage):** โฟลเดอร์สำหรับเก็บไฟล์อัปโหลด (Persistent Local Storage) และ Volume สำหรับ Database
 
 ---
 
-## 🚀 เริ่มต้นใช้งาน (Quick Start)
+## 🚀 ขั้นตอนติดตั้งแบบย่อ (Production Deployment Guide)
 
-> 🤖 **ทำงานร่วมกับ AI Coding Agent (Cursor, Claude Code, Windsurf, Copilot, Antigravity ฯลฯ):**  
-> หากต้องการให้ Agent ช่วยติดตั้ง dependencies, ตั้งค่าคอนฟิก และเตรียมฐานข้อมูลให้อัตโนมัติ สามารถสั่งให้ Agent อ่าน [**`AGENT_SETUP.md`**](AGENT_SETUP.md) ได้ทันที
-
-### 1. ความต้องการของระบบ (Prerequisites)
-
-- **Node.js**: `>=24.0.0 <25` (LTS)
-- **npm**: `11.14.1`
-- **Docker & Docker Compose** (กรณีเลือกใช้ Standalone PostgreSQL) หรือ **Supabase Account**
-
-### 2. การตั้งค่า Environment Variables
-
-คัดลอกไฟล์ตัวอย่าง `.env.example` หรือสร้างไฟล์ `.env.local` ในรูทของโปรเจกต์:
-
-#### สำหรับการใช้งานผ่าน Supabase:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
-```
-
-#### สำหรับการใช้งานผ่าน Local Docker PostgreSQL:
-> ศึกษาคู่มือแบบละเอียดที่หัวข้อ [การรันระบบด้วย Docker](#-การรันระบบด้วย-docker-docker-execution-guide) หรือ [docs/postgres/README.md](docs/postgres/README.md)
-```bash
-# 1. ติดตั้งคอนฟิกและสร้างฐานข้อมูล Docker
-npm run postgres:setup
-npm run postgres:up
-npm run postgres:app:setup
-
-# 2. สลับค่ามาใช้งาน Local Docker PostgreSQL
-npm run postgres:activate
-```
-
-### 3. การติดตั้งและรันเซิร์ฟเวอร์ (Installation & Run)
+### ขั้นตอนที่ 1: Clone Repository และติดตั้ง Dependencies
 
 ```bash
-# 1. ติดตั้ง Dependencies
-npm install
-
-# 2. ตรวจสอบความถูกต้องของ Environment Variables
-npm run verify-env
-
-# 3. รัน Development Server
-npm run dev
-```
-
-เปิดเบราว์เซอร์ไปที่ [http://localhost:3000](http://localhost:3000)
-
----
-
-## 🐳 การรันระบบด้วย Docker (Docker Execution Guide)
-
-ระบบ CAMMS ออกแบบให้สามารถรันบนสภาพแวดล้อม Docker ได้อย่างยืดหยุ่น โดยแบ่งรูปแบบการรันออกเป็น **3 รูปแบบหลัก** ตามลักษณะการใช้งาน:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                      เลือกรูปแบบการรันด้วย Docker                      │
-├────────────────────────────────┬───────────────────────────────────────┤
-│ 1. Local Database Container    │ ฐานข้อมูล PostgreSQL บน Docker        │
-│    (เหมาะสำหรับการพัฒนา/ทั่วไป) │ + เว็บ Next.js รันบนเครื่อง Host     │
-├────────────────────────────────┼───────────────────────────────────────┤
-│ 2. Full-Stack Production       │ เว็บ Next.js Standalone + Caddy HTTPS │
-│    (เหมาะสำหรับ Production/Staging) │ + ฐานข้อมูล PostgreSQL บน Docker ทั้งหมด │
-├────────────────────────────────┼───────────────────────────────────────┤
-│ 3. Standalone Docker Image     │ Build Image เดี่ยวด้วยคำสั่ง Docker   │
-│    (เหมาะสำหรับ CI/CD & Deploy) │ มาตรฐาน เพื่อนำไปรันบน Container Host │
-└────────────────────────────────┴───────────────────────────────────────┘
-```
-
----
-
-### รูปแบบที่ 1: รันฐานข้อมูลบน Docker + เว็บ Next.js บนเครื่อง (แนะนำสำหรับการพัฒนา)
-
-ในรูปแบบนี้ ฐานข้อมูล PostgreSQL 17 จะทำงานใน Docker Container แบบแยกเดี่ยว มี Volume เก็บข้อมูลถาวร และเว็บรันผ่าน Node.js ในเครื่อง
-
-#### คำสั่งการติดตั้งและรันครั้งแรก:
-```bash
-# 1. ติดตั้งไลบรารี
+git clone <repository-url>
+cd Center-Asset-Material-Management-System
 npm ci
-
-# 2. สร้างคอนฟิกรหัสผ่านและไฟล์ .env.postgres.* อัตโนมัติ
-npm run postgres:setup
-
-# 3. เริ่มการทำงานของ PostgreSQL Container ผ่าน Docker Compose
-npm run postgres:up
-
-# 4. รัน Drizzle Migrations สร้างตาราง สิทธิ์ RBAC และบัญชีผู้ดูแลเริ่มต้น
-npm run postgres:app:setup
-
-# 5. สลับค่า .env.local ให้เชื่อมต่อกับ Docker PostgreSQL (พอร์ต 15432)
-npm run postgres:activate
-
-# 6. เริ่มการทำงานของเว็บแอปพลิเคชัน
-npm run dev
 ```
 
-#### ข้อมูลการเข้าใช้งานเริ่มต้น:
-- **URL เว็บไซต์:** [http://localhost:3000](http://localhost:3000) (หรือ [http://127.0.0.1:3000](http://127.0.0.1:3000))
-- **อีเมลผู้ดูแลเริ่มต้น:** `admin@camms.local`
-- **รหัสผ่านผู้ดูแล:** สุ่มสร้างไว้ในไฟล์ `.env.postgres.admin` (สามารถเปิดดูและนำมาล็อกอิน จากนั้นเปลี่ยนรหัสผ่านได้ที่หน้า Profile)
-- **พอร์ตฐานข้อมูล:** `127.0.0.1:15432` (ฐานข้อมูล: `camms_registry`)
+### ขั้นตอนที่ 2: เตรียมฐานข้อมูลและการรัน Migration
 
-#### คำสั่งเปิด/ปิดฐานข้อมูลในแต่ละวัน:
+ระบบมีสคริปต์อัตโนมัติสำหรับสร้างคอนฟิกและฐานข้อมูล:
+
 ```bash
-# หยุดการทำงานของฐานข้อมูล (เก็บข้อมูลใน Volume ถาวร)
-npm run postgres:stop
+# 1. สร้างคอนฟิกฐานข้อมูลและรหัสผ่านแบบสุ่ม (.env.postgres.local)
+npm run postgres:setup
 
-# เริ่มการทำงานของฐานข้อมูลกลับขึ้นมา
+# 2. เริ่มการทำงานของ PostgreSQL Container บน Docker
 npm run postgres:up
+
+# 3. รัน Database Migrations และสร้างบัญชี Admin เริ่มต้น
+npm run postgres:app:setup
 ```
 
----
+> 🔐 **การกำหนดบัญชีผู้ดูแลระบบ (Admin Account):**
+> - **สำหรับ Production:** แนะนำให้กำหนดอีเมลและรหัสผ่านที่ปลอดภัยผ่าน Environment Variables ก่อนรันคำสั่ง setup:
+>   ```bash
+>   INITIAL_ADMIN_EMAIL="admin@yourdomain.go.th" INITIAL_ADMIN_PASSWORD="<STRONG_PASSWORD>" npm run postgres:app:setup
+>   ```
+> - **กรณีไม่ระบุ:** ระบบจะสุ่มรหัสผ่านและสร้างบัญชีเริ่มต้นไว้ในไฟล์ `.env.postgres.admin` (อีเมลเริ่มต้น: `admin@camms.local`) ให้เปิดดูเพื่อเข้าสู่ระบบครั้งแรกและ**ต้องเปลี่ยนรหัสผ่านทันที**ผ่านหน้า Profile
+> - ⚠️ **ข้อควรระวัง:** ห้ามใช้รหัสผ่านสุ่มเริ่มต้นหรืออีเมลตัวอย่างสำหรับการพัฒนาต่อเนื่องใน Production
 
-### รูปแบบที่ 2: รันทั้งระบบด้วย Docker Compose (Full-Stack Production with HTTPS)
+> ℹ️ *หมายเหตุ:* คำสั่ง `npm run postgres:activate` มีไว้สำหรับการรันแบบ Local Development บนเครื่องพัฒนาเท่านั้น **ห้ามนำมาใช้ใน Production** (ใน Production ให้ใช้ไฟล์ `.env.production.compose` และ `.env.production.runtime` ในขั้นตอนถัดไป)
 
-ในรูปแบบนี้ ระบบจะรันผ่าน Docker Container ทั้งหมด 100%:
-1. **Next.js Web Container**: Standalone build แบบ Non-root user (UID 10001) ปลอดภัยสูง
-2. **Caddy Reverse Proxy**: จัดการ HTTPS/TLS Certificate อัตโนมัติและจำกัดเส้นทาง
-3. **PostgreSQL Container**: ฐานข้อมูลพร้อม Volume และ Isolated Network
+### ขั้นตอนที่ 3: กำหนดค่า Production Endpoint
 
-#### ขั้นตอนและคำสั่งรัน:
+ใช้สคริปต์ `scripts/prepare-production.ts` เพื่อสร้างไฟล์ `.env.production.compose` และ `.env.production.runtime` โดยอัตโนมัติ:
 
+**กรณีที่ 1: ใช้งาน Production จริงด้วย Public Domain (HTTPS อัตโนมัติ):**
 ```bash
-# ขั้นตอนที่ 1: ตรวจสอบว่าฐานข้อมูล Docker รันและ Setup เรียบร้อยแล้ว
-npm run postgres:setup
-npm run postgres:up
-npm run postgres:app:setup
+npx tsx scripts/prepare-production.ts --site asset.yourdomain.go.th --tls public --bind 0.0.0.0
+```
 
-# ขั้นตอนที่ 2: เตรียมการกำหนดค่า Production Endpoint
-# กรณี ก) ทดสอบบนเครื่องตัวเองผ่าน HTTPS (พอร์ต 8443 / 8080):
+**กรณีที่ 2: ทดสอบระบบภายในหรือบนเครื่อง Localhost (Internal TLS):**
+```bash
 npx tsx scripts/prepare-production.ts --site localhost --tls internal --https-port 8443 --http-port 8080
+```
 
-# กรณี ข) รันใช้งานจริงด้วยชื่อโดเมน (Public Domain):
-# npx tsx scripts/prepare-production.ts --site asset.yourdomain.go.th --tls public --bind 0.0.0.0
+### ขั้นตอนที่ 4: Build และเริ่มระบบด้วย Docker Compose
 
-# ขั้นตอนที่ 3: Build Docker Image ของแอปพลิเคชัน
+```bash
+# 1. Build Docker Image (Standalone Next.js)
 docker compose --env-file .env.production.compose -f compose.production.yaml build
 
-# ขั้นตอนที่ 4: สั่งรัน Containers ทั้งหมดในโหมด Background (-d)
+# 2. เริ่มการทำงานของบริการทั้งหมดในโหมด Background
 docker compose --env-file .env.production.compose -f compose.production.yaml up -d --wait --wait-timeout 120
 
-# ขั้นตอนที่ 5: ตรวจสอบสถานะการทำงานและ Health Status
+# 3. ตรวจสอบสถานะ Containers
 docker compose --env-file .env.production.compose -f compose.production.yaml ps
 ```
 
-#### การเข้าใช้งาน:
-- เปิดเบราว์เซอร์ไปที่: `https://localhost:8443` (หรือโดเมนที่กำหนด)
-- ตรวจสอบสถานะ Health Endpoint:
-  ```bash
-  curl -k https://localhost:8443/api/health/readiness
-  # คืนค่า: {"status":"ok",...}
-  ```
+---
 
-#### คำสั่งจัดการ Production Compose:
+## ⚙️ Environment Variables สำคัญ
+
+ระบบแยกตัวแปรการเชื่อมต่อตามหลัก Least Privilege โดยไม่มีการเปิดเผยรหัสผ่านในคู่มือ:
+
+| ตัวแปร (Variable) | หน้าที่และความสำคัญ | แหล่งที่มา / ตำแหน่งที่เก็บ |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | การเชื่อมต่อสำหรับ Application ทั่วไป (`camms_app` role) บังคับใช้ RLS | `.env.production.runtime` / `.env.postgres.app` |
+| `DATABASE_AUTH_URL` | การเชื่อมต่อสำหรับตรวจสอบบัญชีและเซสชัน (`camms_auth` role) | `.env.production.runtime` / `.env.postgres.app` |
+| `DATABASE_MIGRATION_URL`| การเชื่อมต่อระดับ Migration/Owner สำหรับอัปเดตสคีมา | `.env.postgres.app` |
+| `LOCAL_STORAGE_PATH` | Path ไดเรกทอรีสำหรับเก็บไฟล์รูปภาพและเอกสารแนบบนเครื่อง Host | `.env.production.compose` (Bind mount ไปยัง `/data/storage`) |
+| `CAMMS_SITE` | ชื่อ Hostname หรือ Domain สำหรับออกใบรับรอง TLS | `.env.production.compose` |
+| `CAMMS_BIND_ADDRESS` | ที่อยู่ IP สำหรับ Bind บริการเว็บ (เช่น `0.0.0.0` หรือ `127.0.0.1`) | `.env.production.compose` |
+| `CAMMS_HTTP_PORT` / `CAMMS_HTTPS_PORT` | พอร์ตสำหรับ Caddy Proxy (ค่าเริ่มต้น: 80 / 443) | `.env.production.compose` |
+| `GEMINI_API_KEY` | *(ทางเลือก)* API Key สำหรับระบบ AI UAT และการตรวจสอบข้อมูล | `.env.local` |
+
+> ⚠️ ดูรูปแบบตัวอย่างโครงสร้างตัวแปรได้ที่ไฟล์ [`.env.example`](.env.example)
+
+---
+
+## 🔄 วิธีเริ่ม/หยุดระบบ และการตรวจสอบ Health Check
+
+### คำสั่งควบคุมระบบ (Docker Production)
+
 ```bash
-# ดู Log การทำงานแบบ Realtime
+# ตรวจสอบสถานะ Containers และ Healthcheck
+docker compose --env-file .env.production.compose -f compose.production.yaml ps
+
+# ดู Logs การทำงานแบบ Realtime
 docker compose --env-file .env.production.compose -f compose.production.yaml logs -f app
 
-# รีสตาร์ทเซอร์วิสเว็บและพร็อกซี
+# รีสตาร์ทเฉพาะ App และ Proxy
 docker compose --env-file .env.production.compose -f compose.production.yaml restart app proxy
 
 # หยุดการทำงานของระบบ
 docker compose --env-file .env.production.compose -f compose.production.yaml stop
+
+# เริ่มระบบกลับขึ้นมาใหม่
+docker compose --env-file .env.production.compose -f compose.production.yaml up -d
+```
+
+### การตรวจสอบ Health Check
+
+ระบบมี HTTP Endpoints สำหรับตรวจเช็คสถานะการทำงาน:
+
+```bash
+# 1. Readiness Probe (ตรวจสอบความพร้อมของ Database, Storage และระบบทั้งหมด)
+curl -k https://<your-host>:<port>/api/health/readiness
+# คืนค่า: {"ready":true,"checks":{"database":{"status":"up"},"storage":{"status":"up"},"authDatabase":{"status":"up"}}}
+
+# 2. Liveness Probe (ตรวจสอบว่า Web Process ยังคงทำงานปกติ)
+curl -k https://<your-host>:<port>/api/health/liveness
+# คืนค่า: {"alive":true}
 ```
 
 ---
 
-### รูปแบบที่ 3: การ Build & Run ด้วยคำสั่ง Docker มาตรฐาน (Single Container)
+## 💾 การ Backup และ Restore เบื้องต้น
 
-สำหรับทีม DevOps ที่ต้องการนำ Image ไปรันบน Kubernetes, Cloud Run หรือ Container Registry:
+### 1. การทำ Full Backup (Database + Files)
 
-#### 1. Build Image:
+ระบบมีสคริปต์รวมสำหรับสำรองข้อมูล PostgreSQL (แบบ Custom Dump) พร้อมไฟล์แนบทั้งหมดในโฟลเดอร์ Storage:
+
 ```bash
-docker build -t camms-portal:latest .
+# รัน Backup ไปยัง Absolute Directory ภายนอก (ระบุ Path เต็ม)
+npm run backup:release -- "/var/backups/camms"
+# (บน Windows: npm run backup:release -- "D:/CAMMS-Backups")
 ```
 
-#### 2. Run Container:
-```bash
-docker run -d \
-  --name camms-app \
-  -p 3000:3000 \
-  -e NODE_ENV=production \
-  -e DATA_BACKEND=postgres \
-  -e NEXT_PUBLIC_DATA_BACKEND=postgres \
-  -e LOCAL_STORAGE_PATH=/data/storage \
-  -v camms_storage_data:/data/storage \
-  camms-portal:latest
-```
+เมื่อเสร็จสมบูรณ์ จะได้โฟลเดอร์ชื่อ `camms-postgres-<timestamp>-<uuid>` ซึ่งประกอบด้วย:
+- `database.dump`: ข้อมูลฐานข้อมูล PostgreSQL
+- `storage/`: ไฟล์เอกสารและรูปภาพทั้งหมด
+- `manifest.json`: รายการไฟล์และ Checksum (SHA-256) เพื่อยืนยันความถูกต้อง
+
+### 2. การตั้งค่า Scheduled Backup
+สำหรับการสำรองข้อมูลอัตโนมัติตามตารางเวลา สามารถดูวิธีการตั้งค่า Windows Task Scheduler หรือ Cron Job ได้ที่คู่มือ [docs/production/backup-README.md](docs/production/backup-README.md)
+
+### 3. การ Restore ข้อมูลเบื้องต้น
+1. กู้คืนโครงสร้างและข้อมูลฐานข้อมูลผ่านคำสั่ง `pg_restore`:
+   ```bash
+   pg_restore -U <db_user> -d camms_registry --clean --if-exists database.dump
+   ```
+2. คัดลอกโฟลเดอร์ `storage/` จากชุดสำรองข้อมูลกลับไปยังตำแหน่ง `LOCAL_STORAGE_PATH`
+3. ล้างเซสชันเก่าในตาราง `private_auth.sessions` ก่อนเปิดให้บริการอีกครั้ง
+> 📖 ศึกษารายละเอียดเพิ่มเติมได้ที่ [docs/postgres/README.md](docs/postgres/README.md)
 
 ---
 
-### 🤖 การรัน AI Autonomous UAT ร่วมกับระบบบน Docker
+## ⚠️ ข้อควรระวังในการติดตั้ง Production
 
-เมื่อรันระบบ CAMMS ผ่าน Docker (ไม่ว่าจะรันบนพอร์ต 3000, 3001 หรือ 8443) คุณสามารถสั่งให้ AI Agent (Google Gemini API) เข้าตรวจรับระบบแบบอัตโนมัติได้ทันที:
-
-```bash
-# รัน AI UAT ครบทุกบทบาท (Admin, Staff, Viewer) ชี้ไปยัง Docker พอร์ต 3000
-npm run test:uat:ai
-
-# รันแบบเปิดหน้าต่างเบราว์เซอร์สด (Headed Mode) ให้เห็น AI คลิกและพิมพ์
-npm run test:uat:ai:headed
-
-# รันโดยระบุ URL หรือพอร์ตที่รันบน Docker โดยตรง
-npx tsx scripts/ai-uat/run.ts --url http://localhost:3001
-
-# ทดสอบเฉพาะบทบาทที่ต้องการ
-npm run test:uat:ai:admin
-npm run test:uat:ai:staff
-npm run test:uat:ai:viewer
-```
-หลังการทดสอบสิ้นสุด AI จะออกรายงาน **Interactive HTML Report** ให้ที่ `test-results/uat/index.html` อัตโนมัติ
+1. **ไม่ใช้ Development Credentials ใน Production:**
+   - ห้ามใช้บัญชีและรหัสผ่านเริ่มต้นสำหรับการพัฒนา (`admin@camms.local`) ในสภาพแวดล้อม Production
+   - ห้ามคัดลอกไฟล์คอนฟิก Development (เช่น `.env.local` จาก `npm run postgres:activate`) ไปใช้กับ Production
+   - กำหนดสิทธิ์ไฟล์คอนฟิกและ Secrets เช่น `.env.production.runtime`, `.env.postgres.app`, `.env.postgres.admin` ให้เข้มงวด (เช่น `chmod 600`) และห้าม commit ขึ้น Version Control เด็ดขาด
+2. **เปลี่ยนรหัสผ่าน Admin เริ่มต้นทันที:**
+   - หากติดตั้งโดยใช้รหัสผ่านสุ่มใน `.env.postgres.admin` ให้เข้าสู่ระบบและเปลี่ยนรหัสผ่านใหม่ทันทีผ่านหน้า Profile
+3. **การแยกสิทธิ์ Database Roles:**
+   - ห้ามใช้ Superuser (`postgres`) เป็น Connection String ของ Application Runtime โดยเด็ดขาด ให้ใช้ `camms_app` สำหรับงานทั่วไป (ซึ่งถูกจำกัดด้วย RLS และไม่สามารถเข้าถึงตารางจัดเก็บรหัสผ่านได้) และ `camms_auth` สำหรับระบบตรวจสอบเซสชัน/ล็อกอิน
+4. **ความคงอยู่ของข้อมูล (Persistent Storage):**
+   - ตรวจสอบว่า Docker Volume `postgres_data` และโฟลเดอร์ `LOCAL_STORAGE_PATH` ตั้งอยู่บน Storage ที่มีความทนทาน มีระบบสำรองข้อมูลสม่ำเสมอ และไม่ถูกลบเมื่อรีสตาร์ทเซิร์ฟเวอร์
+5. **Anti-Lockout Protection:**
+   - ระบบมีกลไกป้องกันการลบหรือลดสิทธิ์ผู้ดูแลระบบคนสุดท้าย เพื่อป้องกันปัญหาไม่มีสิทธิ์จัดการระบบ
 
 ---
 
-## 📜 คำสั่งพัฒนาที่สำคัญ (CLI Commands)
+## 📜 คำสั่ง CLI ที่สำคัญ (CLI Reference)
 
-| คำสั่ง (Command) | รายละเอียด (Description) |
+| คำสั่ง (Command) | คำอธิบาย (Description) |
 | :--- | :--- |
-| `npm run check` | **Full Quality Gate**: ตรวจสอบ env, รัน unit/component tests, lint โค้ด และ build |
-| `npm run dev` | รัน Next.js Development Server |
-| `npm run build` | คอมไพล์โปรเจกต์สำหรับ Production พร้อมตรวจ Bundle Budget |
-| `npm run typecheck` | ตรวจสอบ Strict TypeScript types และ Dead Code |
-| `npm run lint` | ตรวจสอบ Linting ด้วย ESLint 9 (Flat Config) |
-| `npm test` | รัน Test Suite ทั้งหมดผ่าน Node test runner (`tsx`) |
-| `npm run test:uat:ai` | **AI Autonomous UAT**: ตรวจรับระบบอัตโนมัติด้วย Google Gemini API (ครบทุก Role) |
-| `npm run test:uat:ai:headed` | รัน AI UAT แบบเปิดหน้าต่างเบราว์เซอร์สด (Headed Mode) |
-| `npm run test:uat:ai:admin` | รัน AI UAT เฉพาะสิทธิ์ผู้ดูแลระบบ (Admin Scenarios) |
-| `npm run test:uat:ai:staff` | รัน AI UAT เฉพาะสิทธิ์เจ้าหน้าที่ (Staff Scenarios) |
-| `npm run test:uat:ai:viewer` | รัน AI UAT เฉพาะสิทธิ์ผู้เข้าชม (Viewer Scenarios) |
-| `npm run test:e2e` | รัน Playwright End-to-End (E2E) Browser Tests |
-| `npm run test:smoke` | รัน Playwright Smoke Tests |
-| `npm run verify-env` | ตรวจสอบความสมบูรณ์ของค่าตัวแปรใน `.env.local` |
-| `npm run verify-db-release` | ตรวจสอบสถานะ Migrations, สิทธิ์ RPC และ RLS Policies แบบ Read-only |
-| `npm run postgres:setup` | ติดตั้งและกำหนดค่า Docker PostgreSQL เริ่มต้น |
+| `npm run postgres:setup` | สร้างไฟล์กำหนดค่าฐานข้อมูลเริ่มต้น (`.env.postgres.local`) |
 | `npm run postgres:up` | เริ่มการทำงานของ Docker PostgreSQL Container |
-| `npm run postgres:stop` | หยุดการทำงานของ Docker PostgreSQL Container (คงข้อมูลใน Volume) |
-| `npm run postgres:app:setup` | รัน Migration และสร้างบัญชี Admin เริ่มต้นสำหรับ Docker |
-| `npm run postgres:activate` | สลับค่า `.env.local` มาใช้งาน Local Docker PostgreSQL |
+| `npm run postgres:stop` | หยุดการทำงานของ Docker PostgreSQL Container (เก็บข้อมูลใน Volume ถาวร) |
+| `npm run postgres:app:setup` | ดำเนินการ Migrate สคีมา และสร้างบัญชี Admin เริ่มต้น |
+| `npm run postgres:activate` | สลับค่า `.env.local` มาใช้งาน Local Docker PostgreSQL สำหรับ Development |
+| `npm run verify-env` | ตรวจสอบความถูกต้องของ Environment Variables ก่อนเริ่มแอปพลิเคชัน |
+| `npm run backup:release -- <path>` | ดำเนินการ Full Backup ฐานข้อมูลและ Storage ไปยังไดเรกทอรีที่ระบุ |
 | `npm run health:diagnose` | ตรวจสอบความผิดปกติของข้อมูลใน Database และ Storage |
-| `npm run health:heal` | ซ่อมแซมและแก้ไขข้อมูลที่ตรวจพบความผิดปกติโดยอัตโนมัติ |
-| `npm run mcp` | เริ่มการทำงานของ Local Model Context Protocol (MCP) Server |
+| `npm run health:heal` | สั่งซ่อมแซมและแก้ไขข้อมูลที่ผิดปกติโดยอัตโนมัติ |
 
 ---
 
-## 🗄️ ฐานข้อมูลและ Migrations (Database Management)
+## 📚 เอกสารอ้างอิงเพิ่มเติม (Documentation)
 
-ระบบจัดการโครงสร้างฐานข้อมูลผ่านไฟล์ SQL ใน `db/migrations/`:
-
-```bash
-# นำเข้าหมวดหมู่ครุภัณฑ์ตามมาตรฐานสำนักงบประมาณ (13 หมวดหมู่มาตรฐาน)
-npx tsx scripts/seed-asset-categories.ts
-
-# Apply Migrations ไปยังฐานข้อมูลเป้าหมาย
-$env:MIGRATION_FILES='00001_initial_schema.sql,00002_units_active_columns.sql'
-npx tsx scripts/apply-migrations.ts
-```
-
----
-
-## 🔒 ข้อกำหนดทางสถาปัตยกรรม (Architectural Rules)
-
-1. **Client / Server Separation**:
-   - Server Components ทำหน้าที่ดึงข้อมูลผ่าน `features/<domain>/queries.ts`
-   - การเปลี่ยนแปลงข้อมูล (Mutations) ต้องทำผ่าน Server Actions ใน `features/<domain>/actions.ts` เท่านั้น
-2. **Dual-Client Security**:
-   - ห้ามเปิดเผย `SUPABASE_SERVICE_ROLE_KEY` ไปยัง Client เด็ดขาด
-   - สิทธิ์ RLS บังคับใช้กับทุก Session ปกติ
-3. **Anti-Lockout Safeguards**:
-   - ผู้ดูแลระบบไม่สามารถลดสิทธิ์ ลบ หรือระงับการใช้งานบัญชีตนเองได้ และระบบจะป้องกันไม่ให้ระบบขาดผู้ดูแลระบบคนสุดท้ายเสมอ
-4. **Cache Revalidation**:
-   - ทุกครั้งที่มีการเพิ่ม/แก้ไข/ลบข้อมูล ต้องเรียก `revalidatePath('/', 'layout')` เพื่ออัปเดตตัวเลขใน Sidebar เสมอ
-
----
-
-## 📚 เอกสารเพิ่มเติม (Documentation)
-
-- [Docker PostgreSQL Setup Guide](docs/postgres/README.md) — คู่มือการติดตั้งและบริหาร Docker Postgres
-- [Product Context & Scope](docs/context/PRODUCT.md) — วัตถุประสงค์และขอบเขตของผลิตภัณฑ์
-- [Agent & Engineering Rules](docs/context/AGENTS.md) — กฎและระเบียบสำหรับ Agent & Developer
-- [Codebase Cleanup Report](docs/cleanup/README.md) — สรุปการตรวจสอบและทำความสะอาดโค้ด
+- [Docker PostgreSQL & Schema Guide](docs/postgres/README.md) — คู่มือรายละเอียดฐานข้อมูลและ Migrations
+- [Scheduled Backup Policy Guide](docs/production/backup-README.md) — นโยบายและการตั้งค่าการสำรองข้อมูลอัตโนมัติ
+- [System Architecture](docs/ARCHITECTURE.md) — สถาปัตยกรรมระบบและ Network Flow
+- [Database Schema Documentation](docs/DATABASE_SCHEMA.md) — รายละเอียดโครงสร้างตารางและสิทธิ์ RLS
+- [Business Rules & Workflows](docs/BUSINESS_RULES.md) — กฎทางธุรกิจ บัญชีคุมวัสดุ และการตัดสต็อก
+- [Developer & Agent Guidelines](AGENTS.md) — แนวทางการพัฒนาและการบำรุงรักษาโค้ด
 
 ---
 
