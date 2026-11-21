@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { parse } from 'dotenv'
+import { readMigrationFiles } from 'drizzle-orm/migrator'
 import { Pool } from 'pg'
 import { migratePostgres } from '../../scripts/postgres-migrate'
 
@@ -39,10 +40,17 @@ test(
       assert.equal(rejectedTarget.rows[0].journal, null)
       await ownerPool.query('DROP TABLE public.unjournaled_fixture')
 
-      // 2. Migrate from clean/empty state using consolidated baseline
+      // 2. Apply the baseline and incremental migrations to the empty database
+      const expectedMigrations = readMigrationFiles({ migrationsFolder: './db/postgres/migrations' })
       await migratePostgres(ownerPool)
-      const migrationRows = await ownerPool.query('SELECT * FROM drizzle.__drizzle_migrations ORDER BY id ASC')
-      assert.equal(migrationRows.rows.length, 1, 'Only the final baseline must be recorded')
+      const migrationRows = await ownerPool.query<{ hash: string; stamp: string }>(
+        'SELECT hash, created_at::text AS stamp FROM drizzle.__drizzle_migrations ORDER BY id ASC'
+      )
+      assert.deepEqual(
+        migrationRows.rows,
+        expectedMigrations.map(({ hash, folderMillis }) => ({ hash, stamp: String(folderMillis) })),
+        'Applied migrations must match the journal in order'
+      )
 
       // 3. Verify idempotency: running migrate again causes no errors and creates no duplicate records
       await migratePostgres(ownerPool)
