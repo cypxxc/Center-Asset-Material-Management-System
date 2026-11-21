@@ -17,6 +17,8 @@
 /blob-report/
 .nyc_output/
 /playwright/.cache/
+/tests/e2e/staging/results.json
+/tests/e2e/staging/screenshots/*.png
 
 # database migrations
 # Only track SQL files and meta json/journal required by Drizzle
