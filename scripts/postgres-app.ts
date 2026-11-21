@@ -7,6 +7,7 @@ import { migratePostgres } from './postgres-migrate'
 import { hashPassword } from '../lib/postgres/password'
 
 const appFile = '.env.postgres.app'
+const credentialsFile = '.env.postgres.admin'
 const database = 'camms_registry'
 const secret = () => randomBytes(32).toString('hex')
 function writeEnv(file: string, values: Record<string, string>) {
@@ -52,35 +53,46 @@ async function setup() {
   try {
     await migratePostgres(migrationPool)
     const client = await migrationPool.connect()
+    let starter: { email: string; password: string } | undefined
     try {
-    await client.query('BEGIN')
-    await client.query("select pg_advisory_xact_lock(hashtext('camms-initial-admin'))")
-    const count = await client.query('select count(*)::int as count from public.profiles')
-    if (count.rows[0].count === 0) {
-      const credentialsFile = '.env.postgres.admin'
-      if (!existsSync(credentialsFile)) writeEnv(credentialsFile, { INITIAL_ADMIN_EMAIL: process.env.INITIAL_ADMIN_EMAIL || 'admin@camms.local', INITIAL_ADMIN_PASSWORD: process.env.INITIAL_ADMIN_PASSWORD || secret() })
-      const initial = parse(readFileSync(credentialsFile))
-      const hash = await hashPassword(initial.INITIAL_ADMIN_PASSWORD)
-      const result = await client.query("insert into public.profiles(full_name,email,role) values('ผู้ดูแลระบบ',$1,'admin') returning id", [initial.INITIAL_ADMIN_EMAIL])
-      await client.query('insert into private_auth.credentials(user_id,password_hash) values($1,$2)', [result.rows[0].id,hash])
-      console.log('Created initial administrator; credentials are saved in .env.postgres.admin.')
-    }
-    await client.query('COMMIT')
+      await client.query('BEGIN')
+      await client.query("select pg_advisory_xact_lock(hashtext('camms-initial-admin'))")
+      const count = await client.query('select count(*)::int as count from public.profiles')
+      if (count.rows[0].count === 0) {
+        if (!existsSync(credentialsFile)) writeEnv(credentialsFile, { INITIAL_ADMIN_EMAIL: process.env.INITIAL_ADMIN_EMAIL || 'admin@camms.local', INITIAL_ADMIN_PASSWORD: process.env.INITIAL_ADMIN_PASSWORD || secret() })
+        const initial = parse(readFileSync(credentialsFile))
+        const hash = await hashPassword(initial.INITIAL_ADMIN_PASSWORD)
+        const result = await client.query("insert into public.profiles(full_name,email,role) values('ผู้ดูแลระบบ',$1,'admin') returning id", [initial.INITIAL_ADMIN_EMAIL])
+        await client.query('insert into private_auth.credentials(user_id,password_hash) values($1,$2)', [result.rows[0].id,hash])
+        starter = { email: initial.INITIAL_ADMIN_EMAIL, password: initial.INITIAL_ADMIN_PASSWORD }
+      }
+      await client.query('COMMIT')
     } catch (error) { await client.query('ROLLBACK'); throw error }
     finally { client.release() }
+    if (starter) {
+      console.log('[postgres:app:setup] Created starter account (administrator).')
+      console.log(`  Email: ${starter.email}`)
+      if (process.stdout.isTTY && !process.env.CI) console.log(`  Password: ${starter.password}`)
+      console.log(`  Credentials file: ${credentialsFile} (INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_PASSWORD)`)
+    } else {
+      console.log('[postgres:app:setup] Existing accounts retained. Starter account creation skipped.')
+    }
     mkdirSync(app!.LOCAL_STORAGE_PATH,{ recursive:true })
-    console.log('Fresh application schema is ready in Docker: camms_registry. Existing installations retained; no Supabase data imported.')
+    console.log(`[postgres:app:setup] Database ${database}, roles camms_app and camms_auth, migrations, and local storage are ready.`)
   } finally { await migrationPool.end() }
 }
 function activate() {
   const app = parse(readFileSync(appFile))
   mkdirSync('.cache/postgres', { recursive:true })
-  if (existsSync('.env.local') && !existsSync('.cache/postgres/previous-env.local')) copyFileSync('.env.local','.cache/postgres/previous-env.local')
+  if (existsSync('.env.local') && !existsSync('.cache/postgres/previous-env.local')) {
+    copyFileSync('.env.local','.cache/postgres/previous-env.local')
+    console.log('[postgres:activate] Backed up the previous configuration to .cache/postgres/previous-env.local.')
+  }
   const previous = existsSync('.env.local') ? parse(readFileSync('.env.local')) : {}
   const next = Object.fromEntries(Object.entries(previous).filter(([key]) => !key.includes('SUPABASE') && key !== 'DATABASE_MIGRATION_URL'))
   for (const key of ['DATA_BACKEND','NEXT_PUBLIC_DATA_BACKEND','DATABASE_URL','DATABASE_AUTH_URL','LOCAL_STORAGE_PATH']) next[key] = app[key]
   writeFileSync('.env.local',Object.entries(next).map(([key,value]) => `${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600})
-  console.log('Local application configured for PostgreSQL. Previous configuration backed up in .cache/postgres/previous-env.local. Restart the app to apply.')
+  console.log('[postgres:activate] PostgreSQL settings saved to .env.local. Start or restart the app with npm run dev.')
 }
 async function main() {
   if (process.argv[2] === 'setup') await setup()

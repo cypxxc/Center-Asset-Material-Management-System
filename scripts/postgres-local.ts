@@ -81,15 +81,16 @@ async function main() {
   if (command === 'setup') {
     try {
       writeFileSync(envFile, `POSTGRES_USER=camms_local\nPOSTGRES_PASSWORD=${randomBytes(32).toString('hex')}\nPOSTGRES_DB=camms_local\nPOSTGRES_PORT=15432\n`, { flag: 'wx', mode: 0o600 })
-      console.log(`Created ${envFile} with a random local password.`)
+      console.log(`[postgres:setup] Created ${envFile} with a generated PostgreSQL password.`)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
       readConfig()
-      console.log('Existing local PostgreSQL configuration retained.')
+      console.log(`[postgres:setup] Existing configuration in ${envFile} is ready.`)
     }
   } else if (command === 'up') {
-    readConfig()
+    const { port } = readConfig()
     compose('up', '-d', '--wait', '--wait-timeout', '60', 'postgres')
+    console.log(`[postgres:up] PostgreSQL is ready at 127.0.0.1:${port}.`)
   } else if (command === 'stop') {
     readConfig()
     compose('stop', 'postgres')

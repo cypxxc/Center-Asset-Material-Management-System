@@ -34,13 +34,17 @@ npm ci
 สำหรับการติดตั้งใหม่ ให้รันจากโฟลเดอร์โครงการหลังเปิด Docker
 
 ```sh
+# สร้างไฟล์ตั้งค่า PostgreSQL ในเครื่อง
 npm run postgres:setup
+# เริ่มคอนเทนเนอร์และรอให้ PostgreSQL พร้อมใช้งาน
 npm run postgres:up
+# เตรียมฐานข้อมูล รัน Migration และสร้าง Starter Account ในฐานข้อมูลใหม่
 npm run postgres:app:setup
+# บันทึกค่าการเชื่อมต่อของแอปลง .env.local
 npm run postgres:activate
 ```
 
-สคริปต์จะเตรียม PostgreSQL สร้างฐานข้อมูล `camms_registry` และบทบาท `camms_app` กับ `camms_auth` แล้วรัน Migration สร้างบัญชีผู้ดูแลระบบครั้งแรก และบันทึกข้อมูลสำหรับเข้าสู่ระบบใน `.env.postgres.admin` คำสั่ง `postgres:activate` จะนำค่าที่แอปต้องใช้จาก `.env.postgres.app` ไปตั้งใน `.env.local`
+แต่ละคำสั่งจะแจ้งในเทอร์มินัลเมื่อทำงานสำเร็จ เมื่อ `postgres:app:setup` สร้าง **Starter Account** (บัญชีผู้ดูแลระบบ) สำเร็จ ระบบจะแจ้งอีเมล ซึ่งค่าเริ่มต้นคือ `admin@camms.local` และแสดงรหัสผ่านในเทอร์มินัลแบบโต้ตอบนอก CI หากรันผ่าน CI หรือเก็บผลลัพธ์ลงไฟล์ ให้ดูรหัสผ่านจาก `INITIAL_ADMIN_PASSWORD` ใน `.env.postgres.admin` รหัสผ่านจะถูกสุ่มหากไม่ได้กำหนดไว้ การรันซ้ำกับฐานข้อมูลที่มีบัญชีอยู่แล้วจะแจ้งว่าข้ามการสร้างบัญชี
 
 เมื่อตั้งค่าการเชื่อมต่อเอง ให้ใช้ [.env.example](.env.example) เป็นต้นแบบสำหรับ `.env.local` โดยตั้งค่าดังนี้
 
