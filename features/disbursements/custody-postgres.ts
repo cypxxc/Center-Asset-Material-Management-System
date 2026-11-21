@@ -364,6 +364,7 @@ export async function findOriginLocation(
     WHERE al.action = 'RETURN_CUSTODY'
       AND al.target_table = 'items'
       AND al.target_id = ${itemId}
+      ${assignLog ? sql`AND al.created_at < ${assignLog.log_created_at}::timestamptz` : sql.empty()}
     ORDER BY al.created_at DESC, al.id DESC
     LIMIT 1
   `)

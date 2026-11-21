@@ -1045,8 +1045,15 @@ export async function partialRejectPostgresDisbursement(
     const allLines = allLinesRes.rows
     if (allLines.length === 0) throw new Error('ไม่พบรายการสิ่งของในเอกสาร')
 
-    const selectedLines = allLines.filter((line) => data.line_ids.includes(line.id))
-    if (selectedLines.length === 0) throw new Error('ไม่พบรายการที่เลือกสำหรับปฏิเสธ')
+    const requestedLineIds = new Set(data.line_ids.map((id) => id.toLowerCase()))
+    if (requestedLineIds.size !== data.line_ids.length) {
+      throw new Error('ไม่สามารถระบุรายการสิ่งของซ้ำได้')
+    }
+
+    const selectedLines = allLines.filter((line) => requestedLineIds.has(line.id.toLowerCase()))
+    if (selectedLines.length !== requestedLineIds.size) {
+      throw new Error('ไม่พบรายการที่เลือกสำหรับปฏิเสธในเอกสาร')
+    }
 
     for (const line of selectedLines) {
       if (line.status !== 'pending') {
