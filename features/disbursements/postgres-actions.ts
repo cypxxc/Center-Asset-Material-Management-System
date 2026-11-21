@@ -1163,7 +1163,9 @@ export async function partialReturnPostgresDisbursement(
 
     // 4. Process each return item
     for (const retItem of data.items) {
-      const line = allLines.find((l) => l.id === retItem.line_id && l.item_id === retItem.item_id)
+      const line = allLines.find((l) =>
+        l.id === retItem.line_id.toLowerCase() && l.item_id === retItem.item_id.toLowerCase()
+      )
       if (!line) throw new Error(`ไม่พบรายการสิ่งของ ${retItem.item_id} ในเอกสาร`)
       if (!['issued', 'partially_returned'].includes(line.status)) {
         throw new Error(`รายการ ${line.item_name_snapshot || line.id} ไม่ได้อยู่ระหว่างการยืมหรือคืนครบแล้ว`)
