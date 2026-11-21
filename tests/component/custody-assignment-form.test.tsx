@@ -22,10 +22,9 @@ test('central picker shows both types and keeps selections when filtering', () =
     { id: 'material-1', item_name: 'กระดาษส่วนกลาง', item_type: 'material', asset_no: null, serial_no: null, quantity: 10 },
   ]} users={[]} onCancel={() => {}} onSuccess={() => {}} onPendingChange={() => {}} />)
   fireEvent.click(view.getByRole('button', { name: 'เลือกสิ่งของ' }))
-  assert.equal(view.getAllByRole('checkbox').length, 2)
+  assert.equal(view.getAllByRole('checkbox').length, 1)
   fireEvent.click(view.getByRole('checkbox', { name: 'เลือก กระดาษส่วนกลาง' }))
-  fireEvent.keyDown(view.getByRole('button', { name: 'ประเภทสิ่งของส่วนกลาง' }), { key: 'Enter' })
-  fireEvent.click(view.getByRole('menuitemradio', { name: 'ครุภัณฑ์' }))
+  fireEvent.click(view.getByRole('button', { name: 'ครุภัณฑ์' }))
   assert.equal(view.queryByRole('checkbox', { name: 'เลือก กระดาษส่วนกลาง' }), null)
   fireEvent.click(view.getByRole('checkbox', { name: 'เลือก โต๊ะส่วนกลาง' }))
   fireEvent.click(view.getByRole('button', { name: 'ยืนยันรายการ (2)' }))
@@ -41,6 +40,7 @@ test('expanded catalog cards preserve selected items after confirmation and reop
     { id: 'asset-1', item_name: 'โต๊ะส่วนกลาง', item_type: 'asset', asset_no: 'A-001', serial_no: null, quantity: 1, location_name: 'ห้องประชุม', responsible_person: 'ผู้ถือครองเดิม' },
   ]} users={[]} onCancel={() => {}} onSuccess={() => {}} onPendingChange={() => {}} />)
   fireEvent.click(view.getByRole('button', { name: 'เลือกสิ่งของ' }))
+  fireEvent.click(view.getByRole('button', { name: 'ครุภัณฑ์' }))
   const checkbox = view.getByRole('checkbox', { name: 'เลือก โต๊ะส่วนกลาง' }) as HTMLInputElement
   assert.equal(checkbox.checked, false)
   fireEvent.click(checkbox)
@@ -62,6 +62,7 @@ test('confirming or dismissing the left picker keeps the main modal open', async
     </Dialog.Content></Dialog.Portal>
   </Dialog.Root>)
   fireEvent.click(view.getByRole('button', { name: 'เลือกสิ่งของ' }))
+  fireEvent.click(view.getByRole('button', { name: 'ครุภัณฑ์' }))
   fireEvent.click(view.getByRole('checkbox', { name: 'เลือก โต๊ะส่วนกลาง' }))
   fireEvent.click(view.getByRole('button', { name: 'ยืนยันรายการ (1)' }))
   assert.ok(view.getByRole('dialog', { name: 'มอบหมายผู้ถือครอง' }))
