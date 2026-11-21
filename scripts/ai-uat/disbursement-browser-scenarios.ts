@@ -12,10 +12,12 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
   const pages = { user: await contexts.user.newPage(), other: await contexts.other.newPage(), admin: await contexts.admin.newPage() }
   const results: Result[] = []
   const errors: string[] = []
-  Object.entries(pages).forEach(([role, page]) => page.on('pageerror', error => errors.push(`${role}: ${error.message}`)))
+  let activeCase = 'setup'
+  Object.entries(pages).forEach(([role, page]) => page.on('pageerror', error => errors.push(`${activeCase} ${role} ${page.url()}: ${error.message}`)))
   const ids: Record<string, string> = {}
   async function run(id: string, title: string, page: Page, test: () => Promise<string | void>) {
     if (process.env.UAT_CASES && !process.env.UAT_CASES.split(',').includes(id)) return
+    activeCase = id
     console.log(`[UAT ${id}] ${title}`)
     try {
       const details = await test()
@@ -32,26 +34,47 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
     }
   }
   async function catalog(page: Page, key: string) {
+    const isMat = ['issueMaterial', 'reverse', 'adminDraft'].includes(key)
     await page.goto(`${baseUrl}/disbursements?tab=catalog`)
-    await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {})
-    await page.getByRole('textbox', { name: 'ค้นหาพัสดุส่วนกลาง' }).fill(fixture.items[key].name)
+    await page.waitForLoadState('domcontentloaded')
+    if (isMat) {
+      await page.getByRole('button', { name: /วัสดุ/ }).click()
+    } else {
+      const assetBtn = page.getByRole('button', { name: /ครุภัณฑ์/ })
+      if (await assetBtn.isVisible()) {
+        const isPressed = await assetBtn.getAttribute('aria-pressed')
+        if (isPressed !== 'true') await assetBtn.click()
+      }
+    }
+    const search = page.locator('input[type="search"], input[placeholder*="ค้นหา"]').first()
+    await search.fill(fixture.items[key].name)
+    await page.waitForTimeout(500)
   }
-  const heading = (page: Page, key: string) => page.getByRole('heading', { name: fixture.items[key].name, exact: true })
+  const heading = (page: Page, key: string) => page.getByRole('heading', { name: fixture.items[key].name })
   async function doc(key: string) {
     const result = await owner.query('SELECT d.* FROM public.disbursements d JOIN public.disbursement_items di ON di.disbursement_id=d.id WHERE di.item_id=$1 ORDER BY d.created_at DESC LIMIT 1', [fixture.items[key].id])
     return result.rows[0]
   }
   async function state(key: string, status: string) { await expect.poll(async () => (await doc(key))?.status, { timeout: 20000 }).toBe(status) }
-  async function quantity(key: string, amount: number) { await expect.poll(async () => Number((await owner.query('SELECT quantity FROM public.items WHERE id=$1', [fixture.items[key].id])).rows[0].quantity)).toBe(amount) }
+  async function quantity(key: string, amount: number) { await expect.poll(async () => Number((await owner.query('SELECT quantity FROM public.inventory_items WHERE id=$1', [fixture.items[key].id])).rows[0]?.quantity)).toBe(amount) }
   async function request(key: string, type: 'borrow' | 'issue' = 'borrow') {
     const page = pages.user
     await catalog(page, key)
-    await page.getByRole('button', { name: `เลือก ${fixture.items[key].name}`, exact: true }).click()
-    await page.getByRole('region', { name: 'จัดการรายการที่เลือก' }).getByRole('button', { name: 'สร้างคำขอรวม', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'แบบฟอร์มเบิกหรือยืมพัสดุ' })
-    await dialog.getByRole('button', { name: type === 'borrow' ? 'ยืม' : 'เบิก', exact: true }).click()
+    const card = page.locator('[data-cart-card]', { hasText: fixture.items[key].name }).first()
+    await card.locator('button[data-cart-btn]').click()
+    await page.getByRole('button', { name: /ตะกร้า/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' })
+    await expect(dialog).toBeVisible({ timeout: 10000 })
     await dialog.locator('#central-request-purpose').fill(`AI-UAT ${key}`)
-    await dialog.getByRole('button', { name: type === 'borrow' ? 'ยืนยันคำขอยืม' : 'ยืนยันคำขอเบิก', exact: true }).click()
+    if (type === 'issue' && key === 'issueAsset') {
+      await dialog.getByRole('button', { name: `การทำรายการ ${fixture.items[key].name}`, exact: true }).click()
+      await page.getByRole('menuitemradio', { name: 'เบิก', exact: true }).click()
+    }
+    const dueInput = dialog.locator('#central-request-due-date')
+    if (await dueInput.isVisible()) {
+      await dueInput.fill('2026-12-31')
+    }
+    await dialog.getByRole('button', { name: 'ยืนยันคำขอ', exact: true }).click()
     await expect(dialog).toBeHidden({ timeout: 20000 })
     await state(key, 'pending_approval')
     ids[key] = (await doc(key)).id
@@ -68,13 +91,21 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
     await state(key, status)
     await expect(pages.admin.getByRole('dialog')).toHaveCount(0)
   }
-  async function returnItem(key: string, condition: string) {
+  async function returnItem(key: string, condition: 'normal' | 'damaged' | 'lost') {
     await detail(pages.admin, key)
-    await pages.admin.getByRole('button', { name: 'บันทึกคืน (1)', exact: true }).click()
-    await pages.admin.locator('#return-condition-select').selectOption(condition)
-    await pages.admin.locator('#return-note-input').fill(`AI-UAT ${condition}`)
-    await pages.admin.getByRole('button', { name: 'บันทึกรับคืน', exact: true }).click()
+    await pages.admin.getByRole('button', { name: 'รับคืนทั้งหมด (1)', exact: true }).click()
+    const dialog = pages.admin.getByRole('dialog')
+    const labels = { normal: 'ปกติ', damaged: 'ชำรุด', lost: 'สูญหาย' }
+    await dialog.getByRole('button', { name: labels[condition], exact: true }).click()
+    await dialog.getByLabel('เหตุผลในการคืน').fill(`AI-UAT ${condition}`)
+    await dialog.getByRole('button', { name: 'ยืนยันรับคืน (1 รายการ)', exact: true }).click()
     await state(key, 'returned')
+    await expect(dialog).toBeHidden()
+    const event = await owner.query(
+      "SELECT item_condition FROM public.asset_custody_logs WHERE item_id=$1 AND action='return'",
+      [fixture.items[key].id],
+    )
+    expect(event.rows).toEqual([{ item_condition: condition }])
   }
   try {
     await run('B00', 'Admin navigates disbursements from the sidebar without duplicate tabs', pages.admin, async () => {
@@ -95,11 +126,17 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       await catalog(pages.user, 'borrow'); await expect(heading(pages.user, 'borrow')).toBeVisible(); await expect(heading(pages.user, 'cancel')).toHaveCount(0)
     })
     await run('B02', 'Empty purpose is rejected without creating a request', pages.user, async () => {
-      await catalog(pages.user, 'validation'); await pages.user.getByRole('button', { name: 'เลือก UAT-validation', exact: true }).click()
-      await pages.user.getByRole('region', { name: 'จัดการรายการที่เลือก' }).getByRole('button', { name: 'สร้างคำขอรวม', exact: true }).click()
-      await pages.user.getByRole('dialog').getByRole('button', { name: 'ยืนยันคำขอยืม', exact: true }).click()
-      await expect(pages.user.getByRole('dialog').getByText(/กรุณาระบุวัตถุประสงค์/).first()).toBeVisible()
+      await catalog(pages.user, 'validation')
+      const card = pages.user.locator('[data-cart-card]', { hasText: fixture.items.validation.name }).first()
+      await card.locator('button[data-cart-btn]').click()
+      await pages.user.getByRole('button', { name: /ตะกร้า/ }).click()
+      const dialog = pages.user.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' })
+      await dialog.locator('#central-request-purpose').fill('')
+      await dialog.getByRole('button', { name: 'ยืนยันคำขอ', exact: true }).click()
+      const isValid = await dialog.locator('#central-request-purpose').evaluate((el: HTMLTextAreaElement) => el.checkValidity())
+      expect(isValid).toBe(false)
       expect(await doc('validation')).toBeUndefined()
+      await dialog.getByRole('button', { name: 'ยกเลิก', exact: true }).click()
     })
     await run('B03', 'User submits borrow request', pages.user, async () => { await request('borrow'); return `Created pending request ${ids.borrow}` })
     await run('B04', 'Reserved asset disappears from other user ready catalog', pages.other, async () => { await catalog(pages.other, 'borrow'); await expect(heading(pages.other, 'borrow')).toHaveCount(0) })
@@ -123,8 +160,8 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       await state('borrow', 'active_borrow'); await expect(pages.admin.getByRole('dialog')).toHaveCount(0)
     })
     await run('B08', 'Active borrow normal return restores catalog eligibility', pages.admin, async () => { await returnItem('borrow', 'normal'); await catalog(pages.other, 'borrow'); await expect(heading(pages.other, 'borrow')).toBeVisible() })
-    await run('B09', 'Material issue reduces stock from ten to nine and has no return action', pages.admin, async () => {
-      await request('issueMaterial', 'issue'); await approve('issueMaterial', 'confirmed'); await quantity('issueMaterial', 9); await detail(pages.admin, 'issueMaterial'); await expect(pages.admin.getByRole('button', { name: /บันทึกคืน/ })).toHaveCount(0)
+    await run('B09', 'Material issue reduces stock from ten to nine without exposing the asset-loan return action', pages.admin, async () => {
+      await request('issueMaterial', 'issue'); await quantity('issueMaterial', 9); await approve('issueMaterial', 'confirmed'); await quantity('issueMaterial', 9); await detail(pages.admin, 'issueMaterial'); await expect(pages.admin.getByRole('button', { name: /^รับคืนทั้งหมด/ })).toHaveCount(0)
     })
     await run('B10', 'Asset issue removes asset from central ready pool', pages.admin, async () => {
       await request('issueAsset', 'issue'); await approve('issueAsset', 'confirmed'); await catalog(pages.other, 'issueAsset'); await expect(heading(pages.other, 'issueAsset')).toHaveCount(0)
@@ -136,8 +173,7 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
     await run('B13', 'Admin rejects with persisted reason and releases stock; rejected details redirect to history', pages.admin, async () => {
       await request('reject')
       await pages.admin.goto(`${baseUrl}/disbursements?tab=requests&status=all`)
-      await pages.admin.getByRole('row').filter({ has: pages.admin.locator(`[id="expand-${ids.reject}"]`) }).getByRole('button', { name: 'จัดการ', exact: true }).click()
-      await pages.admin.getByRole('menuitem', { name: 'ยกเลิก', exact: true }).click()
+      await pages.admin.getByRole('row').filter({ has: pages.admin.locator(`[id="expand-${ids.reject}"]`) }).getByRole('button', { name: 'ยกเลิก', exact: true }).click()
       await pages.admin.getByRole('dialog').getByRole('textbox').fill('AI-UAT unavailable for scheduled work')
       await pages.admin.getByRole('button', { name: 'ยกเลิกคำขอ', exact: true }).click()
       await state('reject', 'rejected')
@@ -147,7 +183,7 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       expect(JSON.stringify(rejected)).toContain('AI-UAT unavailable for scheduled work')
       await catalog(pages.other, 'reject'); await expect(heading(pages.other, 'reject')).toBeVisible()
     })
-    for (const condition of ['damaged', 'lost']) await run(condition === 'damaged' ? 'B14' : 'B15', `Borrow returned ${condition} stays outside ready pool`, pages.admin, async () => {
+    for (const condition of ['damaged', 'lost'] as const) await run(condition === 'damaged' ? 'B14' : 'B15', `Borrow returned ${condition} stays outside ready pool`, pages.admin, async () => {
       await request(condition); await approve(condition); await returnItem(condition, condition); await catalog(pages.other, condition); await expect(heading(pages.other, condition)).toHaveCount(0)
     })
     await run('B16', 'Material issue reversal restores quantity and records reason', pages.admin, async () => {
@@ -158,20 +194,31 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       await expect(pages.user.locator(`[id="expand-${ids.borrow}"]`)).toBeVisible()
     })
     await run('B18', 'Mobile catalog and request form fit viewport', pages.user, async () => {
-      await pages.user.setViewportSize({ width: 390, height: 844 }); await catalog(pages.user, 'validation'); await pages.user.getByRole('button', { name: 'เลือก UAT-validation', exact: true }).click(); await pages.user.getByRole('region', { name: 'จัดการรายการที่เลือก' }).getByRole('button', { name: 'สร้างคำขอรวม', exact: true }).click(); await expect(pages.user.getByRole('dialog')).toBeVisible(); expect(await pages.user.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); await pages.user.screenshot({ path: path.join(outputDir, 'mobile-request.png'), fullPage: true })
+      await pages.user.setViewportSize({ width: 390, height: 844 })
+      await catalog(pages.user, 'validation')
+      const card = pages.user.locator('[data-cart-card]', { hasText: fixture.items.validation.name }).first()
+      await card.locator('button[data-cart-btn]').click()
+      await pages.user.getByRole('button', { name: /ตะกร้า/ }).click()
+      const dialog = pages.user.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' })
+      await expect(dialog).toBeVisible()
+      expect(await pages.user.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await pages.user.screenshot({ path: path.join(outputDir, 'mobile-request.png'), fullPage: true })
+      await dialog.getByRole('button', { name: 'ยกเลิก', exact: true }).click()
     })
     await run('B21', 'Concurrent users requesting the same asset create exactly one pending request', pages.user, async () => {
       await pages.user.setViewportSize({ width: 1280, height: 900 })
       async function prepare(page: Page) {
         await catalog(page, 'concurrent')
-        await page.getByRole('button', { name: 'เลือก UAT-concurrent', exact: true }).click()
-        await page.getByRole('region', { name: 'จัดการรายการที่เลือก' }).getByRole('button', { name: 'สร้างคำขอรวม', exact: true }).click()
-        const dialog = page.getByRole('dialog', { name: 'แบบฟอร์มเบิกหรือยืมพัสดุ' })
-        await dialog.getByRole('button', { name: 'ยืม', exact: true }).click()
+        const card = page.locator('[data-cart-card]', { hasText: fixture.items.concurrent.name }).first()
+        await card.locator('button[data-cart-btn]').click()
+        await page.getByRole('button', { name: /ตะกร้า/ }).click()
+        const dialog = page.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' })
         await dialog.locator('#central-request-purpose').fill('AI-UAT concurrent')
+        const due = dialog.locator('#central-request-due-date')
+        if (await due.isVisible()) await due.fill('2026-12-31')
       }
       await Promise.all([prepare(pages.user), prepare(pages.other)])
-      await Promise.all([pages.user, pages.other].map(page => page.getByRole('dialog').getByRole('button', { name: 'ยืนยันคำขอยืม', exact: true }).click()))
+      await Promise.all([pages.user, pages.other].map(page => page.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' }).getByRole('button', { name: 'ยืนยันคำขอ', exact: true }).click()))
       await state('concurrent', 'pending_approval')
       await expect.poll(async () => {
         const messages = await Promise.all([pages.user, pages.other].map(page => page.getByText('รายการนี้มีคำขอรออนุมัติหรือกำลังยืม ไม่สามารถทำรายการซ้ำได้', { exact: true }).count()))
@@ -181,6 +228,9 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       expect(documents.rows).toHaveLength(1)
       expect([fixture.users.user, fixture.users.other]).toContain(documents.rows[0].created_by)
       ids.concurrent = documents.rows[0].id
+      const losingPage = documents.rows[0].created_by === fixture.users.user ? pages.other : pages.user
+      await losingPage.reload()
+      await expect(losingPage.getByRole('button', { name: 'ตรวจสอบคำขอที่ส่งล่าสุด' })).toBeVisible()
       return `Single request ${ids.concurrent}; winner ${documents.rows[0].created_by}; losing user received reservation error.`
     })
     await run('B22', 'Concurrent stale admin approvals create one custody borrow event', pages.admin, async () => {
@@ -211,15 +261,18 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
     })
     await run('B24', 'Borrow without due date is blocked and creates no document', pages.user, async () => {
       await catalog(pages.user, 'validation')
-      await pages.user.getByRole('button', { name: 'เลือก UAT-validation', exact: true }).click()
-      await pages.user.getByRole('region', { name: 'จัดการรายการที่เลือก' }).getByRole('button', { name: 'สร้างคำขอรวม', exact: true }).click()
-      const dialog = pages.user.getByRole('dialog', { name: 'แบบฟอร์มเบิกหรือยืมพัสดุ' })
-      await dialog.getByRole('button', { name: 'ยืม', exact: true }).click()
+      const card = pages.user.locator('[data-cart-card]', { hasText: fixture.items.validation.name }).first()
+      await card.locator('button[data-cart-btn]').click()
+      await pages.user.getByRole('button', { name: /ตะกร้า/ }).click()
+      const dialog = pages.user.getByRole('dialog', { name: 'สร้างคำขอเบิก–ยืม' })
       await dialog.locator('#central-request-purpose').fill('AI-UAT invalid missing date')
-      await dialog.locator('#central-request-due-date').fill('')
-      await dialog.getByRole('button', { name: 'ยืนยันคำขอยืม', exact: true }).click()
-      await expect(dialog.getByText('กรุณาระบุวันที่กำหนดส่งคืน', { exact: true })).toBeVisible()
+      const dueInput = dialog.locator('#central-request-due-date')
+      await dueInput.fill('')
+      await dialog.getByRole('button', { name: 'ยืนยันคำขอ', exact: true }).click()
+      const isValid = await dueInput.evaluate((el: HTMLInputElement) => el.checkValidity())
+      expect(isValid).toBe(false)
       expect(await doc('validation')).toBeUndefined()
+      await dialog.getByRole('button', { name: 'ยกเลิก', exact: true }).click()
     })
     await run('B25', 'Material ledgers and document audit actors match completed UI actions', pages.admin, async () => {
       const issue = await owner.query('SELECT delta,balance_after,movement_type,created_by FROM public.stock_movements WHERE item_id=$1', [fixture.items.issueMaterial.id])
@@ -227,7 +280,7 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       expect(Number(issue.rows[0].delta)).toBe(-1)
       expect(Number(issue.rows[0].balance_after)).toBe(9)
       expect(issue.rows[0].movement_type).toBe('issue')
-      expect(issue.rows[0].created_by).toBe(fixture.users.admin)
+      expect(issue.rows[0].created_by).toBe(fixture.users.user)
       const reversal = await owner.query('SELECT delta,balance_after,movement_type,created_by FROM public.stock_movements WHERE item_id=$1', [fixture.items.reverse.id])
       expect(reversal.rows).toHaveLength(2)
       expect(reversal.rows.map(row => row.movement_type).sort()).toEqual(['issue', 'reversal'])
@@ -252,7 +305,7 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       await pages.admin.goto(`${baseUrl}/disbursements?tab=documents`)
       await pages.admin.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {})
       await pages.admin.getByRole('button', { name: 'สั่งจ่าย', exact: true }).first().click()
-      const form = pages.admin.getByRole('dialog', { name: 'มอบหมายผู้ถือครอง' })
+      const form = pages.admin.getByRole('dialog', { name: 'สั่งจ่ายสิ่งของส่วนกลาง' })
       await expect(form).toBeVisible()
       await form.getByRole('button', { name: 'เลือกสิ่งของ', exact: true }).click()
       const picker = pages.admin.getByRole('dialog', { name: 'เลือกสิ่งของส่วนกลาง' })
@@ -261,7 +314,7 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
       await picker.getByRole('button', { name: 'ยืนยันรายการ (1)', exact: true }).click()
       await form.locator('#custody-recipient').click()
       await pages.admin.getByRole('option', { name: 'UAT User', exact: true }).click()
-      await form.getByRole('button', { name: 'ยืนยันผู้ถือครอง', exact: true }).click()
+      await form.getByRole('button', { name: 'ยืนยันสั่งจ่าย', exact: true }).click()
       await expect(form).toBeHidden({ timeout: 20000 })
       await expect.poll(async () => (await owner.query('SELECT responsible_person FROM public.items WHERE id=$1', [fixture.items.assignment.id])).rows[0].responsible_person).toBe('UAT User')
       const row = pages.admin.getByRole('row').filter({ hasText: fixture.items.assignment.name })

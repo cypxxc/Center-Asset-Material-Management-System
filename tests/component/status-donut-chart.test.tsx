@@ -1,7 +1,6 @@
 import '../setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
 import { render, fireEvent } from '@testing-library/react'
 import { StatusDonutChart, type StatusItemData } from '../../components/dashboard/status-donut-chart'
 

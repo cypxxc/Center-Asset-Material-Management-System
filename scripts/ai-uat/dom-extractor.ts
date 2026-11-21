@@ -47,8 +47,6 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
   // Evaluate interactive elements inside the browser DOM context
   const rawElements = await page.evaluate(`(() => {
     const selector = 'button, a[href], input, select, textarea, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"]';
-    const nodes = Array.from(document.querySelectorAll(selector));
-
     function isVisible(elem) {
       if (!(elem instanceof HTMLElement)) return false;
       const style = window.getComputedStyle(elem);
@@ -57,6 +55,11 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
       return rect.width > 0 && rect.height > 0;
     }
 
+    const dialogs = Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [role="alertdialog"]')).filter(isVisible);
+    const scope = dialogs.at(-1) || document;
+    const nodes = Array.from(scope.querySelectorAll(selector));
+    const inSelectionBar = node => Boolean(node.closest('[aria-label="จัดการรายการที่เลือก"]'));
+    nodes.sort((a, b) => Number(inSelectionBar(b)) - Number(inSelectionBar(a)));
     const items = [];
     let index = 0;
     for (const node of nodes) {
@@ -76,7 +79,7 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
         const id = node.id || '';
         const ariaLabel = node.getAttribute('aria-label') || '';
         const type = node.type || 'text';
-        label = ariaLabel || placeholder || name || id || type;
+        label = ariaLabel || node.labels?.[0]?.textContent?.trim() || placeholder || name || id || type;
         value = node.value;
       } else if (tag === 'select') {
         const name = node.name || node.id || '';
@@ -85,7 +88,7 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
         const selected = node.selectedOptions && node.selectedOptions[0];
         value = selected ? selected.text : node.value;
       } else {
-        label = (node.textContent || '').trim() || node.getAttribute('aria-label') || node.getAttribute('title') || '';
+        label = node.getAttribute('aria-label') || (node.textContent || '').trim() || node.getAttribute('title') || '';
       }
 
       if (label.length > 50) {
@@ -97,6 +100,8 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
         generatedSelector = '#' + CSS.escape(node.id);
       } else if (node.getAttribute('name')) {
         generatedSelector = tag + '[name="' + CSS.escape(node.getAttribute('name')) + '"]';
+      } else if (tag === 'button' && node.hasAttribute('aria-label')) {
+        generatedSelector = 'button[aria-label=' + JSON.stringify(node.getAttribute('aria-label')) + ']';
       } else if (tag === 'button' && label) {
         generatedSelector = 'button:has-text("' + label.replace(/"/g, '\\"') + '")';
       } else if (tag === 'a' && node.getAttribute('href')) {
@@ -119,7 +124,14 @@ export async function extractInteractiveElements(page: Page): Promise<DOMSnapsho
     return items;
   })()`)
 
-  const elements: InteractiveElement[] = rawElements.map((el, idx) => ({
+  const elements: InteractiveElement[] = (rawElements as Array<{
+    tag: string
+    role: string
+    label: string
+    value: string
+    disabled: boolean
+    selector: string
+  }>).map((el, idx) => ({
     id: idx + 1,
     tag: el.tag,
     role: el.role,

@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { chromium } from '@playwright/test'
 import { extractInteractiveElements } from '../../scripts/ai-uat/dom-extractor'
 import { runScenario } from '../../scripts/ai-uat/agent-driver'
+import type { GeminiUATClient } from '../../scripts/ai-uat/gemini-client'
 
 test('AI sees the active modal instead of exhausting its budget on background controls', {
   skip: process.env.AI_UAT_BROWSER_TEST !== '1',
@@ -31,7 +32,7 @@ test('read-only AI assertions do not falsely flag a responsive page as stagnant'
     const client={decideNextAction:async()=>++step<3
       ? {thought:'Observe unchanged page',tool:'assert_condition' as const,args:{passed:true,assertion:'Visible screen',observation:'Synthetic page'}}
       : {thought:'Read-only checks done',tool:'complete_goal' as const,args:{status:'PASS',summary:'Synthetic observations complete'}}}
-    const result=await runScenario(page,{id:'SYNTHETIC-READONLY',role:'user',title:'Synthetic read-only checks',goal:'Observe twice then complete',successCriteria:['Read-only assertions'],maxSteps:4},client,'.cache/ai-driver-readonly-regression')
+    const result=await runScenario(page,{id:'SYNTHETIC-READONLY',role:'user',title:'Synthetic read-only checks',goal:'Observe twice then complete',successCriteria:['Read-only assertions'],maxSteps:4},client as unknown as GeminiUATClient,'.cache/ai-driver-readonly-regression')
     assert.equal(result.status,'PASS')
     await page.setContent('<form><input name="newPassword" type="password" required><button>Save</button></form>')
     let validationStep=0
@@ -42,7 +43,7 @@ test('read-only AI assertions do not falsely flag a responsive page as stagnant'
       assert.match(context.previousSteps[0].result,/"valueMissing":true/)
       return {thought:'Observed validation',tool:'complete_goal' as const,args:{status:'PASS',summary:'Native validation reported'}}
     }}
-    const validation=await runScenario(page,{id:'SYNTHETIC-VALIDATION',role:'user',title:'Native validation',goal:'Observe empty form rejection',successCriteria:['Validation observation'],maxSteps:3},validationClient,'.cache/ai-driver-validation-regression')
+    const validation=await runScenario(page,{id:'SYNTHETIC-VALIDATION',role:'user',title:'Native validation',goal:'Observe empty form rejection',successCriteria:['Validation observation'],maxSteps:3},validationClient as unknown as GeminiUATClient,'.cache/ai-driver-validation-regression')
     assert.equal(validation.status,'PASS')
   } finally {await browser.close()}
 })
@@ -81,7 +82,7 @@ test('distinct permission-check URLs redirecting to one dashboard are valid prog
       return ++step<3
       ? {thought:'Check denied route',tool:'navigate_to' as const,args:{path:`/forbidden-${step}`}}
       : {thought:'Done',tool:'complete_goal' as const,args:{status:'PASS',summary:'Redirects verified'}}}}
-    const result=await runScenario(page,{id:'SYNTHETIC-REDIRECT',role:'user',title:'Redirect checks',goal:'Check two denied URLs',successCriteria:['Redirect'],maxSteps:4},client,'.cache/ai-driver-redirect-regression')
+    const result=await runScenario(page,{id:'SYNTHETIC-REDIRECT',role:'user',title:'Redirect checks',goal:'Check two denied URLs',successCriteria:['Redirect'],maxSteps:4},client as unknown as GeminiUATClient,'.cache/ai-driver-redirect-regression')
     assert.equal(result.status,'PASS')
     assert.ok(observations.some(result=>result.includes('/forbidden-1') && result.includes(`${baseURL}/dashboard`)),JSON.stringify(observations))
   } finally {await browser.close();await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()))}
@@ -90,15 +91,35 @@ test('distinct permission-check URLs redirecting to one dashboard are valid prog
 test('downloads and popup previews count as progress without changing the parent DOM', {
   skip: process.env.AI_UAT_BROWSER_TEST !== '1',
 }, async () => {
+  const server = createServer((request, response) => {
+    if (request.url === '/download') {
+      response.writeHead(200, { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="fixture.txt"' })
+      response.end('synthetic fixture')
+    } else if (request.url === '/preview') {
+      response.end('synthetic preview')
+    } else {
+      response.writeHead(200, { 'content-type': 'text/html' })
+      response.end('<a href="/download">Download</a><button onclick="window.open(\'/preview\')">Preview</button>')
+    }
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  assert.ok(address && typeof address !== 'string')
   const browser=await chromium.launch({headless:true})
   try {
     const page=await browser.newPage()
-    await page.setContent(`<button onclick="const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['synthetic']));a.download='fixture.txt';a.click()">Download</button><button onclick="window.open('about:blank')">Preview</button>`)
+    await page.goto(`http://127.0.0.1:${address.port}`)
     let step=0
-    const client={decideNextAction:async()=>++step<3
-      ? {thought:'Export',tool:'click_element' as const,args:{id:step}}
-      : {thought:'Done',tool:'complete_goal' as const,args:{status:'PASS',summary:'Exports observed'}}}
-    const result=await runScenario(page,{id:'SYNTHETIC-EXPORT',role:'admin',title:'Export checks',goal:'Download and preview',successCriteria:['External events'],maxSteps:4},client,'.cache/ai-driver-export-regression')
-    assert.equal(result.status,'PASS')
-  } finally {await browser.close()}
+    const client={decideNextAction:async(context: {previousSteps: Array<{result:string}>})=>{
+      if (++step < 3) return {thought:'Export',tool:'click_element' as const,args:{id:step}}
+      assert.match(context.previousSteps[0].result, /; download/)
+      assert.match(context.previousSteps[1].result, /; popup/)
+      return {thought:'Done',tool:'complete_goal' as const,args:{status:'PASS',summary:'Exports observed'}}
+    }}
+    const result=await runScenario(page,{id:'SYNTHETIC-EXPORT',role:'admin',title:'Export checks',goal:'Download and preview',successCriteria:['External events'],maxSteps:4},client as unknown as GeminiUATClient,'.cache/ai-driver-export-regression')
+    assert.equal(result.status,'PASS',result.summary)
+  } finally {
+    await browser.close()
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
 })

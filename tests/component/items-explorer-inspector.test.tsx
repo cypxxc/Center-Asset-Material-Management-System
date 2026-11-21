@@ -187,7 +187,7 @@ test('Clicking an item row opens the Slide-Over Inspector Drawer with correct me
   fireEvent.click(accordionToggle)
 
   assert.ok(
-    drawerScope.getByText((content, element) => {
+    drawerScope.getByText((_content, element) => {
       const target = 'สภาพดี เบิกใช้งานเมื่อมกราคม 2026'
       const hasText = element?.textContent?.includes(target) ?? false
       const childrenDontHaveText = Array.from(element?.children ?? []).every(

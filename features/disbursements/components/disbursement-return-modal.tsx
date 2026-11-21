@@ -24,16 +24,19 @@ interface DisbursementReturnModalProps {
   onSuccess: () => void
 }
 
-export function DisbursementReturnModal({
+export function DisbursementReturnModal({ isOpen, ...props }: DisbursementReturnModalProps) {
+  return isOpen ? <ReturnForm {...props} /> : null
+}
+
+function ReturnForm({
   disbursementId,
   recipientName,
   items,
-  isOpen,
   onClose,
   onSuccess,
-}: DisbursementReturnModalProps) {
+}: Omit<DisbursementReturnModalProps, 'isOpen'>) {
   const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [condition, setCondition] = useState<'normal' | 'damaged'>('normal')
+  const [condition, setCondition] = useState<'normal' | 'damaged' | 'lost'>('normal')
   const [reason, setReason] = useState('')
   const [locationMap, setLocationMap] = useState<Record<string, { id: string; name: string } | null>>({})
   const [isLoadingLocations, setIsLoadingLocations] = useState(true)
@@ -41,7 +44,7 @@ export function DisbursementReturnModal({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!isOpen || items.length === 0) return
+    if (items.length === 0) return
     let active = true
     queueMicrotask(() => {
       if (active) {
@@ -72,13 +75,11 @@ export function DisbursementReturnModal({
     return () => {
       active = false
     }
-  }, [isOpen, items, recipientName])
-
-  if (!isOpen) return null
+  }, [items, recipientName])
 
   // Check if any item lacks origin location
   const missingOrigins = items.filter((item) => !locationMap[item.item_id])
-  const hasMissingOrigin = !isLoadingLocations && missingOrigins.length > 0
+  const hasMissingOrigin = condition !== 'lost' && !isLoadingLocations && missingOrigins.length > 0
 
   // Check unique origin locations
   const validLocations = items
@@ -200,7 +201,11 @@ export function DisbursementReturnModal({
                 <label className="text-xs font-medium text-foreground">
                   สถานที่จัดเก็บหลังรับคืน (ต้นทางเดิมก่อนการยืม)
                 </label>
-                {isLoadingLocations ? (
+                {condition === 'lost' ? (
+                  <div className="rounded-lg border border-input bg-muted/20 p-2.5 text-xs text-muted-foreground">
+                    บันทึกสูญหายโดยไม่ส่งคืนไปยังสถานที่จัดเก็บ
+                  </div>
+                ) : isLoadingLocations ? (
                   <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-muted/20 px-3 text-xs text-muted-foreground">
                     <Loader2 className="size-3.5 animate-spin" />
                     <span>กำลังตรวจสอบสถานที่ต้นทางเดิม...</span>
@@ -248,10 +253,11 @@ export function DisbursementReturnModal({
                 <label className="text-xs font-medium text-foreground">
                   สภาพครุภัณฑ์ <span className="text-destructive">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setCondition('normal')}
+                    aria-pressed={condition === 'normal'}
                     disabled={isSubmitting}
                     className={cn(
                       'flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 px-3 transition-colors cursor-pointer bg-background',
@@ -272,6 +278,7 @@ export function DisbursementReturnModal({
                   <button
                     type="button"
                     onClick={() => setCondition('damaged')}
+                    aria-pressed={condition === 'damaged'}
                     disabled={isSubmitting}
                     className={cn(
                       'flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 px-3 transition-colors cursor-pointer bg-background',
@@ -287,6 +294,21 @@ export function DisbursementReturnModal({
                       )}
                     />
                     <span className="text-xs">ชำรุด</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCondition('lost')}
+                    aria-pressed={condition === 'lost'}
+                    disabled={isSubmitting}
+                    className={cn(
+                      'flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 px-3 transition-colors cursor-pointer bg-background',
+                      condition === 'lost'
+                        ? 'border-destructive text-destructive font-semibold'
+                        : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                    )}
+                  >
+                    <span className="text-xs">สูญหาย</span>
                   </button>
                 </div>
               </div>

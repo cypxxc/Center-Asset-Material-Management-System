@@ -3,7 +3,7 @@ import { config } from 'dotenv'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export function getReadinessConnectionString(env: NodeJS.ProcessEnv = process.env, directory = process.cwd()) {
+export function getReadinessConnectionString(env: Partial<NodeJS.ProcessEnv> = process.env, directory = process.cwd()) {
   const merged = { ...env }
   config({ path: [resolve(directory, '.env.local'), resolve(directory, '.env')], processEnv: merged, quiet: true })
   const connectionString = merged.DATABASE_MIGRATION_URL || merged.DATABASE_URL

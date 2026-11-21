@@ -122,5 +122,5 @@ test('ItemsList: mode="ledger" selects item when clicked', () => {
   const row = screen.getByText('เครื่องคอมพิวเตอร์โน้ตบุ๊ก สำหรับงานประมวลผล')
   fireEvent.click(row)
 
-  assert.equal(selectedItem?.id, 'item-ledger-1')
+  assert.equal((selectedItem as ItemListRow | null)?.id, 'item-ledger-1')
 })

@@ -81,7 +81,7 @@ test('runToolPipeline returns UNAUTHORIZED_ERROR when actor role is insufficient
   })
 
   const viewerContext: ToolExecutionContext = {
-    actor: { id: 'viewer-1', role: 'viewer', isActive: true },
+    actor: { id: 'viewer-1', role: 'user', isActive: true },
   }
 
   const result = await runToolPipeline(adminTool, {}, viewerContext)

@@ -63,7 +63,8 @@ test('admin confirmed return restores central flag and marker', async () => {
   mode = 'return'; writes.length = 0
   await returnPostgresDisbursementItem({ line_id: lineId, return_qty: 1, condition: 'normal' })
   const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(event?.sql.includes("'return'"))
+  assert.ok(event)
+  assert.ok(event.sql.includes("'return'"))
   assert.deepEqual(event.params, [itemId, lineId, 1, 'normal', null, 'บันทึกเดิม\nส่วนกลาง'])
 })
 
@@ -79,7 +80,8 @@ test('lost assets do not return to the central pool', async () => {
   mode = 'return'; writes.length = 0
   await returnPostgresDisbursementItem({ line_id: lineId, return_qty: 1, condition: 'lost' })
   const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(event?.sql.includes("'return'"))
+  assert.ok(event)
+  assert.ok(event.sql.includes("'return'"))
   assert.deepEqual(event.params, [itemId, lineId, 1, 'lost', null, 'บันทึกเดิม [บันทึกสูญหายจากการยืม]'])
 })
 

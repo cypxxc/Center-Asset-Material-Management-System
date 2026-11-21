@@ -1,5 +1,4 @@
 import '../../tests/setup/dom'
-import React from 'react'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { render, screen } from '@testing-library/react'

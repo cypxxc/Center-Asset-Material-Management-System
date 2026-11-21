@@ -34,7 +34,6 @@ function renderRow(props: Partial<ItemTableRowProps> = {}) {
     isSelected: false,
     isChecked: false,
     onSelect: () => { selected = true },
-    onDoubleClick: () => {},
     onToggleSelectItem: () => { checked = true },
     isInspectorOpen: false,
     ...props,

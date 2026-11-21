@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import type { UATScenario, ScenarioResult, AgentStepAction, DefectFinding } from './scenarios/types'
-import { GeminiUATClient, type AgentDecision } from './gemini-client'
+import type { GeminiUATClient, AgentDecision } from './gemini-client'
 import { extractInteractiveElements, type InteractiveElement } from './dom-extractor'
 import { normalizeForStorage } from '@/lib/unicode'
 
@@ -23,7 +23,7 @@ export function isStagnant(hashHistory: string[]): boolean {
 export async function runScenario(
   page: Page,
   scenario: UATScenario,
-  client: GeminiUATClient,
+  client: Pick<GeminiUATClient, 'decideNextAction'>,
   outputDir: string
 ): Promise<ScenarioResult> {
   const startTime = Date.now()
@@ -39,13 +39,13 @@ export async function runScenario(
   let isComplete = false
   let finalStatus: 'PASS' | 'FAIL' = 'FAIL'
   let finalSummary = 'Scenario ไม่เสร็จสิ้นภายในขีดจำกัดขั้นตอน'
+  let previousMutation = ''
 
   for (let stepNumber = 1; stepNumber <= maxSteps; stepNumber++) {
     // 1. Snapshot DOM and Screenshot
     await page.waitForLoadState('domcontentloaded').catch(() => {})
     const dom = await extractInteractiveElements(page)
-    const currentHash = computeDOMHash(dom.elements)
-    hashHistory.push(currentHash)
+    const currentHash = `${dom.url}:${computeDOMHash(dom.elements)}`
 
     const screenshotPath = join(screenshotDir, `step-${stepNumber}.png`)
     await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {})
@@ -101,6 +101,12 @@ export async function runScenario(
 
     // 3. Execute Decision Tool
     let actionResultSummary = 'ดำเนินการสำเร็จ'
+    let externalEvent = ''
+    let nativeValidation = false
+    const onDownload = () => { externalEvent = 'download' }
+    const onPopup = () => { externalEvent = 'popup' }
+    page.on('download', onDownload)
+    page.on('popup', onPopup)
     try {
       if (decision.tool === 'complete_goal') {
         const status = (decision.args.status as string) === 'PASS' ? 'PASS' : 'FAIL'
@@ -122,8 +128,18 @@ export async function runScenario(
         if (!element) {
           actionResultSummary = `ไม่พบ element [#${id}]`
         } else {
-          await page.locator(element.selector).first().click({ timeout: 5000 })
+          const locator = page.locator(element.selector).first()
+          await locator.click({ timeout: 5000 })
           actionResultSummary = `คลิก element [#${id}] (${element.label})`
+          const invalid = await locator.evaluate(node => {
+            if (!(node instanceof HTMLButtonElement || node instanceof HTMLInputElement) || node.type !== 'submit') return []
+            return Array.from(node.form?.querySelectorAll<HTMLInputElement>('input:invalid, textarea:invalid, select:invalid') ?? [])
+              .map(field => ({ field: field.name || field.id, valueMissing: field.validity.valueMissing }))
+          }, undefined, { timeout: 500 }).catch(() => [])
+          if (invalid.length) {
+            nativeValidation = true
+            actionResultSummary += `; browser validation ${JSON.stringify(invalid)}`
+          }
         }
       } else if (decision.tool === 'fill_input') {
         const id = Number(decision.args.id)
@@ -150,7 +166,7 @@ export async function runScenario(
       } else if (decision.tool === 'navigate_to') {
         const targetPath = String(decision.args.path || '/')
         await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: 15000 })
-        actionResultSummary = `เดินทางไปยัง ${targetPath}`
+        actionResultSummary = `เดินทางไปยัง ${targetPath} → ${page.url()}`
       } else if (decision.tool === 'assert_condition') {
         const passed = Boolean(decision.args.passed)
         const assertion = String(decision.args.assertion || '')
@@ -168,16 +184,25 @@ export async function runScenario(
     } catch (execErr) {
       const errMsg = execErr instanceof Error ? execErr.message : String(execErr)
       actionResultSummary = `เกิดข้อผิดพลาดขณะรันคำสั่ง ${decision.tool}: ${errMsg}`
+    } finally {
+      await page.waitForTimeout(500).catch(() => {})
+      page.off('download', onDownload)
+      page.off('popup', onPopup)
     }
 
+    if (externalEvent) actionResultSummary += `; ${externalEvent}`
     previousStepSummaries.push({
       step: stepNumber,
       tool: decision.tool,
       result: actionResultSummary,
     })
 
-    // Short stabilization pause
-    await page.waitForTimeout(500)
+    const mutation = decision.tool === 'assert_condition' || externalEvent || nativeValidation
+      ? ''
+      : JSON.stringify([decision.tool, decision.args.id, decision.args.path, decision.args.value])
+    if (mutation !== previousMutation || !mutation) hashHistory.length = 0
+    if (mutation) hashHistory.push(currentHash)
+    previousMutation = mutation
   }
 
   const durationMs = Date.now() - startTime

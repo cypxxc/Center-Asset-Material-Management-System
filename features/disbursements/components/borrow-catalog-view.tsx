@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition, useRef } from 'react'
+import { useState, useMemo, useTransition, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog, DropdownMenu, Tooltip } from 'radix-ui'
 import {
@@ -47,15 +47,19 @@ export function BorrowCatalogView({
 }: BorrowCatalogViewProps) {
   const { toast } = useToast()
   const router = useRouter()
-  const [pendingRecovery, setPendingRecovery] = useState(() => {
-    try {
-      if (typeof window === 'undefined') return null
-      const saved = sessionStorage.getItem('camms-pending-cart-request')
-      return saved ? parseCartRetry(saved) : null
-    } catch {
-      return null
-    }
-  })
+  const [pendingRecovery, setPendingRecovery] = useState<ReturnType<typeof parseCartRetry>>(null)
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      try {
+        setPendingRecovery(parseCartRetry(sessionStorage.getItem('camms-pending-cart-request')))
+      } catch {
+        // A blocked storage read leaves the catalog usable.
+      }
+    })
+    return () => { active = false }
+  }, [])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectedSnapshots, setSelectedSnapshots] = useState<Record<string, CentralAvailableItem>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})

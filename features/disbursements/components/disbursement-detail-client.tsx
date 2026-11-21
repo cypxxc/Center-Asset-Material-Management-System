@@ -1076,6 +1076,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  isOpen={multiReturnModalOpen}
  onClose={() => setMultiReturnModalOpen(false)}
  onSuccess={() => {
+ setMultiReturnModalOpen(false)
  setSelectedLineIds(new Set())
  router.refresh()
  }}

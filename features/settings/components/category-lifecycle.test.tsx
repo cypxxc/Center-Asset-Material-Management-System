@@ -1,7 +1,6 @@
 import '@/tests/setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { CategorySection } from './metadata-sections'
 import type { CategoryRow } from '../types'

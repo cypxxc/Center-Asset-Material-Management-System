@@ -39,7 +39,8 @@ test('admin assigns custody with old/new audit evidence and no disbursement docu
   const result = await assignPostgresCustody({ item_ids: [id], recipient_id: recipientId })
   assert.equal(result.assigned, 1)
   const event = writes.find((query) => query.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(event?.sql.includes("NULL, 'assignment'"))
+  assert.ok(event)
+  assert.ok(event.sql.includes("NULL, 'assignment'"))
   assert.deepEqual(event.params, [id, 'บันทึกเดิม', recipientId])
   const audit = writes.find((query) => query.sql.includes('INSERT INTO public.audit_logs'))!
   assert.ok(audit.sql.includes('ASSIGN_CUSTODY'))

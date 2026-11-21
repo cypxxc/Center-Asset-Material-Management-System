@@ -51,28 +51,21 @@ export async function runSupplementalBrowserUAT(contexts: Record<'user'|'admin'|
       }
       expect(response.status()).toBe(200)
     })
-    for (const [tab,table,label,add,name] of [
-      ['units','units','ชื่อหน่วยนับใหม่','เพิ่มหน่วยนับ','AI-UAT-UNIT'],
-      ['categories','categories','ชื่อหมวดหมู่ใหม่','เพิ่มหมวดหมู่','AI-UAT-CATEGORY'],
-      ['locations','locations','สถานที่','เพิ่มสถานที่','AI-UAT-LOCATION'],
+    for (const [tab,table,label,editLabel,add,name] of [
+      ['units','units','เพิ่มชื่อหน่วยนับ','ชื่อหน่วยนับ','เพิ่มหน่วยนับ','AI-UAT-UNIT'],
+      ['categories','categories','เพิ่มชื่อหมวดหมู่','ชื่อหมวดหมู่','เพิ่มหมวดหมู่','AI-UAT-CATEGORY'],
+      ['locations','locations','เพิ่มสถานที่','ชื่อสถานที่','เพิ่มสถานที่','AI-UAT-LOCATION'],
     ]) {
       await run(`EX-META-${tab}`,`Admin creates and edits ${tab} through settings UI`,admin,async()=>{
         await go(admin,`/settings?tab=${tab}`)
-        await admin.getByLabel(label,{exact:true}).first().fill(name)
+        await admin.getByRole('textbox',{name:label,exact:true}).fill(name)
         await admin.getByRole('button',{name:add,exact:true}).click()
         await expect.poll(async()=>(await owner.query(`SELECT count(*)::int AS n FROM ${table} WHERE name=$1`,[name])).rows[0].n).toBe(1)
         // Metadata actions redirect; restore the selected tab before editing its new row.
         await go(admin,`/settings?tab=${tab}`)
-        const input=admin.locator('input[name="name"]').filter({visible:true})
-        const target=await input.all()
-        let found=false
-        for(const field of target) if(await field.inputValue()===name) {
-          const form=field.locator('xpath=ancestor::form')
-          await field.fill(`${name}-EDIT`)
-          await form.getByRole('button',{name:'บันทึก',exact:true}).click()
-          found=true;break
-        }
-        expect(found).toBe(true)
+        const field=admin.getByRole('textbox',{name:`${editLabel} ${name}`,exact:true})
+        await field.fill(`${name}-EDIT`)
+        await field.press('Enter')
         await expect.poll(async()=>(await owner.query(`SELECT count(*)::int AS n FROM ${table} WHERE name=$1`,[`${name}-EDIT`])).rows[0].n).toBe(1)
       })
     }
@@ -166,13 +159,21 @@ export async function runSupplementalBrowserUAT(contexts: Record<'user'|'admin'|
       await go(admin,'/settings?tab=import')
       await admin.locator('input[type="file"]').setInputFiles({name:'uat-invalid.csv',mimeType:'text/csv',buffer:Buffer.from('wrong_header\nAI-UAT-INVALID')})
       await expect(admin.getByText('เกิดข้อผิดพลาดในการนำเข้า',{exact:true})).toBeVisible()
-      expect((await owner.query('SELECT count(*)::int AS n FROM items WHERE item_name=$1',['AI-UAT-INVALID'])).rows[0].n).toBe(0)
+      expect((await owner.query('SELECT count(*)::int AS n FROM inventory_items WHERE item_name=$1',['AI-UAT-INVALID'])).rows[0].n).toBe(0)
     })
-    await run('EX-IMPORT-CSV','Admin uploads CSV and verifies material quantity persisted',admin,async()=>{
-      await go(admin,'/settings?tab=import')
-      await admin.locator('input[type="file"]').setInputFiles({name:'uat-material.csv',mimeType:'text/csv',buffer:Buffer.from('item_name,item_type,quantity,unit_name,unit_price\nAI-UAT-IMPORT,material,3,AI-UAT-UNIT-EDIT,10')})
+    await run('EX-IMPORT-MATERIAL-XLSX','Admin uploads a material workbook and verifies persisted stock',admin,async()=>{
+      await go(admin,'/settings?tab=import&type=material')
+      const workbook = new ExcelJS.Workbook()
+      const sheet = workbook.addWorksheet('Materials')
+      sheet.addRow(['item_name', 'item_type', 'quantity', 'unit_name', 'unit_price'])
+      sheet.addRow(['AI-UAT-IMPORT', 'material', 3, 'AI-UAT-UNIT-EDIT', 10])
+      await admin.getByLabel('เลือกไฟล์วัสดุ (Excel)').setInputFiles({
+        name: 'uat-material.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+      })
       await expect(admin.getByText('การนำเข้าสำเร็จ',{exact:true})).toBeVisible({timeout:20000})
-      const rows=(await owner.query('SELECT quantity,item_type FROM items WHERE item_name=$1',['AI-UAT-IMPORT'])).rows
+      const rows=(await owner.query('SELECT quantity,item_type FROM inventory_items WHERE item_name=$1',['AI-UAT-IMPORT'])).rows
       expect(rows).toHaveLength(1);expect(Number(rows[0].quantity)).toBe(3);expect(rows[0].item_type).toBe('material')
     })
     await run('EX-PASSWORD-VALIDATION','User mismatched passwords are rejected without changing credentials',user,async()=>{
@@ -202,7 +203,7 @@ export async function runSupplementalBrowserUAT(contexts: Record<'user'|'admin'|
       expect(itemId,'Create prerequisite').not.toBe('')
       await go(admin,'/items?q=AI-UAT-ASSET-001')
       await admin.getByRole('checkbox',{name:'เลือก AI-UAT-ASSET-EDIT',exact:true}).check()
-      await admin.getByRole('button',{name:'ลบทั้งหมด',exact:true}).click()
+      await admin.getByRole('button',{name:'ยกเลิกรายการที่เลือก',exact:true}).click()
       await admin.getByRole('dialog').getByRole('button',{name:'ยืนยันการลบ',exact:true}).click()
       await expect.poll(async()=>(await owner.query('SELECT count(*)::int AS n FROM items WHERE id=$1 AND deleted_at IS NULL',[itemId])).rows[0].n).toBe(0)
     })

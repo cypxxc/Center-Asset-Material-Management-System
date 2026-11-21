@@ -1,6 +1,6 @@
-export type UserRole = 'admin' | 'staff' | 'viewer'
+export const USER_ROLES = ['admin', 'staff', 'viewer'] as const
 
-export const USER_ROLES: readonly UserRole[] = ['admin', 'staff', 'viewer'] as const
+export type UserRole = (typeof USER_ROLES)[number] | 'user'
 
 export interface UATScenario {
   id: string

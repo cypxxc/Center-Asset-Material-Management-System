@@ -32,7 +32,7 @@ test('returnPostgresCustody requires active admin, locks item, clears custodian,
     item_name: 'เครื่องคอมพิวเตอร์',
     asset_no: 'ASSET-2026-001',
     is_central: false,
-    responsible_person: 'นายสมชาย ใจดี',
+    responsible_person: 'นายสมชาย ใจดี' as string | null,
     status: 'active',
     location_id: null,
     note: 'ใช้งานประจำ',
@@ -81,7 +81,8 @@ test('returnPostgresCustody requires active admin, locks item, clears custodian,
     assert.equal(res.item_id, itemId)
 
     const returnEvent = executedQueries.find(q => q.sql.includes('private.apply_asset_custody_event'))
-    assert.ok(returnEvent?.sql.includes("NULL, 'custody_return'"))
+    assert.ok(returnEvent)
+    assert.ok(returnEvent.sql.includes("NULL, 'custody_return'"))
     assert.equal(returnEvent.params[0], itemId)
     assert.equal(returnEvent.params[1], 'normal')
     assert.equal(returnEvent.params.at(-1), locationId)

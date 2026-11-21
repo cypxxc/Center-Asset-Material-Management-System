@@ -34,12 +34,6 @@
     "node_modules",
     "prototype",
     "scratch",
-    "backend",
-    "tests",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "scripts/ai-uat"
+    "backend"
   ]
 }

@@ -13,3 +13,5 @@ export const bulkEditSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(BULK_EDIT_LIMIT).transform(ids => [...new Set(ids)]),
   updates: bulkUpdatesSchema,
 }).strict()
+export type BulkItemUpdates = z.infer<typeof bulkUpdatesSchema>
+

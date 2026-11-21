@@ -330,7 +330,8 @@ test('BUG-03: partialReturnPostgresDisbursement handles lost condition safely', 
   })
 
   const loss = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(loss?.sql.includes("'return'"))
+  assert.ok(loss)
+  assert.ok(loss.sql.includes("'return'"))
   assert.deepEqual(loss.params, [itemId, lineId, 1, 'lost', 'ทำหายระหว่างเดินทาง', 'ของเดิม [บันทึกสูญหายจากการยืม]', null])
 })
 
@@ -408,7 +409,8 @@ test('BUG-04: returnPostgresDisbursementItem retains the custodian on partial re
     condition: 'normal',
   })
   const partialReturn = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(partialReturn?.sql.includes("'return'"))
+  assert.ok(partialReturn)
+  assert.ok(partialReturn.sql.includes("'return'"))
   assert.deepEqual(partialReturn.params.slice(0, 5), [itemId, lineId, 1, 'normal', null])
   assert.doesNotMatch(String(partialReturn.params[5]), /ส่วนกลาง/)
 
@@ -660,7 +662,8 @@ test('BUG-09: reversePostgresDisbursement preserves is_central=false when preced
     reason: 'ยกเลิกการส่งมอบ',
   })
   const reversal = executedStatements.find((s) => s.sql.includes('private.apply_asset_custody_event'))
-  assert.ok(reversal?.sql.includes("'reversal'"))
+  assert.ok(reversal)
+  assert.ok(reversal.sql.includes("'reversal'"))
   assert.deepEqual(reversal.params, [itemId, lineId, 1, 'ยกเลิกการส่งมอบ', ''])
 })
 

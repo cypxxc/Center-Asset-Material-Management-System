@@ -20,7 +20,9 @@ const outputDir = resolve(root, 'test-results', 'disbursement-uat', runId)
 const workspace = resolve(root, '.cache', `disbursement-uat-${runId}`)
 const port = process.env.UAT_PORT || '3107'
 const baseUrl = `http://127.0.0.1:${port}`
+const closure = process.env.UAT_CLOSURE === '1'
 const results: { id: string; title: string; status: string; details: string; screenshot?: string }[] = []
+const qualityChecks: { command: string; exitCode: number | null }[] = []
 const aiResults: ScenarioResult[] = []
 const pageErrors: string[] = []
 let server: ChildProcess | undefined
@@ -35,20 +37,39 @@ function sanitizedError(error: unknown) {
   return text.replace(/postgres(?:ql)?:\/\/[^\s]+/g, '[database connection]').replace(/key=[^&\s"']+/g, 'key=[redacted]')
 }
 
+function recordPoolError(role: string, error: Error) {
+  const id = `UAT-DB-${role}`
+  if (results.some(result => result.id === id)) return
+  const details = sanitizedError(error)
+  results.push({ id, title: 'Isolated database connection', status: 'FAIL', details })
+  console.error(`[UAT ${id}] FAIL ${details}`)
+}
+
 async function main() {
+  if (closure && (process.env.UAT_PRODUCTION !== '1' || process.env.UAT_VERIFY_ALL !== '1' || process.env.UAT_SKIP_AI !== '1'
+    || process.env.UAT_CASES || process.env.UAT_EXTRA_CASES)) {
+    throw new Error('Closure requires production mode and all deterministic browser cases without filters')
+  }
   mkdirSync(outputDir, { recursive: true })
   mkdirSync(workspace, { recursive: true })
   mkdirSync(join(workspace, 'storage'), { recursive: true })
   const env = parse(readFileSync('.env.postgres.app'))
   const target = new URL(env.DATABASE_MIGRATION_URL)
-  if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname)) throw new Error('UAT requires a local disposable database host')
+  for (const key of ['DATABASE_URL', 'DATABASE_AUTH_URL', 'DATABASE_MIGRATION_URL']) {
+    const url = new URL(env[key])
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) || url.port !== target.port) {
+      throw new Error('UAT requires app, auth and migration connections on the same local database port')
+    }
+  }
   fixtureName = `camms_uat_${randomUUID().replaceAll('-', '')}`
   if (!/^camms_uat_[a-f0-9]{32}$/.test(fixtureName)) throw new Error('Invalid fixture name')
   management = new Pool({ connectionString: env.DATABASE_MIGRATION_URL, connectionTimeoutMillis: 5000 })
+  management.on('error', error => recordPoolError('MANAGEMENT', error))
   const fixtureUrl = (value: string) => { const url = new URL(value); url.pathname = `/${fixtureName}`; return url.toString() }
   await management.query(`CREATE DATABASE "${fixtureName}"`)
   fixtureCreated = true
   owner = new Pool({ connectionString: fixtureUrl(env.DATABASE_MIGRATION_URL) })
+  owner.on('error', error => recordPoolError('FIXTURE', error))
   for (const file of readdirSync('db/postgres/migrations').filter(f => /^\d{4}_.+\.sql$/.test(f)).sort()) {
     await owner.query(readFileSync(join('db/postgres/migrations', file), 'utf8'))
   }
@@ -64,16 +85,29 @@ async function main() {
     const token = randomBytes(32).toString('hex'); tokens[role] = token
     await owner.query("INSERT INTO private_auth.sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '2 hours')", [createHash('sha256').update(token).digest('hex'), id])
   }
+  const originLocation = (await owner.query("INSERT INTO locations(name) VALUES ('UAT origin') RETURNING id")).rows[0].id
   for (const key of ['borrow', 'issueMaterial', 'issueAsset', 'cancel', 'reject', 'damaged', 'lost', 'reverse', 'concurrent', 'validation', 'aiBorrow', 'aiIssue', 'assignment', 'adminDraft']) {
     const id = randomUUID(), name = `UAT-${key}`
     fixture.items[key] = { id, name }
     const material = ['issueMaterial','reverse','adminDraft'].includes(key)
-    await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no,status,note) VALUES($1,$2,$3,$4,true,$5,'active','UAT isolated fixture')", [id,name,material ? 'material' : 'asset',material ? 10 : 1,material ? null : `UAT-${key}`])
+    if (material) {
+      await owner.query("INSERT INTO materials(id,item_name,item_type,quantity,is_central,status,note) VALUES($1,$2,'material',$3,true,'active','UAT isolated fixture')", [id,name,10])
+    } else {
+      await owner.query("INSERT INTO items(id,item_name,item_type,quantity,is_central,asset_no,status,note,location_id) VALUES($1,$2,'asset',$3,true,$4,'active','UAT isolated fixture',$5)", [id,name,1,`UAT-${key}`,key === 'lost' ? null : originLocation])
+    }
   }
   // Reference data belongs only to this disposable fixture and lets AI exercise required fields.
   await owner.query("INSERT INTO units(name) VALUES('UAT-unit')")
   await owner.query("INSERT INTO categories(name) VALUES('UAT-category')")
   // A separate source snapshot has no real environment files or real uploaded data.
+  if (closure) {
+    const files = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' })
+    if (files.status !== 0) throw new Error('Unable to enumerate source files for the isolated build')
+    for (const file of new Set(files.stdout.split('\0').filter(Boolean))) {
+      if ((basename(file).startsWith('.env') && basename(file) !== '.env.example') || !existsSync(resolve(root, file))) continue
+      cpSync(resolve(root, file), resolve(workspace, file))
+    }
+  }
   for (const folder of ['app','components','features','lib','hooks','db','public']) {
     if (existsSync(folder)) cpSync(resolve(root, folder), join(workspace, folder), { recursive: true })
   }
@@ -85,7 +119,42 @@ async function main() {
   cpSync(resolve(root, 'scripts/verify-env.ts'), join(workspace, 'scripts/verify-env.ts'))
   symlinkSync(resolve(root, 'node_modules'), join(workspace, 'node_modules'), 'junction')
   const production = process.env.UAT_PRODUCTION === '1'
-  if (production) {
+  const runtimeEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    NODE_ENV: production ? 'production' : 'development',
+    NODE_OPTIONS: '--max-old-space-size=2048',
+    DATABASE_URL: fixtureUrl(env.DATABASE_URL),
+    DATABASE_AUTH_URL: fixtureUrl(env.DATABASE_AUTH_URL),
+    DATABASE_MIGRATION_URL: fixtureUrl(env.DATABASE_MIGRATION_URL),
+    DATA_BACKEND: 'postgres',
+    NEXT_PUBLIC_DATA_BACKEND: 'postgres',
+    LOCAL_STORAGE_PATH: join(workspace, 'storage'),
+    HEALTH_STATUS_SECRET: healthStatusSecret,
+    GEMINI_API_KEY: '',
+    NEXT_TELEMETRY_DISABLED: '1',
+  }
+  async function quality(command: 'build' | 'lint' | 'typecheck' | 'test') {
+    const log = createWriteStream(join(outputDir, `${command}.log`))
+    const commandLine = command === 'test' ? 'npm test' : `npm run ${command}`
+    const checkEnv: NodeJS.ProcessEnv = {
+      ...runtimeEnv,
+      NODE_ENV: (command === 'test' ? 'test' : runtimeEnv.NODE_ENV) as 'test' | 'development' | 'production',
+    }
+    const check = spawn(commandLine, { cwd: workspace, shell: true, windowsHide: true, env: checkEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    check.stdout.pipe(log, { end: false })
+    check.stderr.pipe(log, { end: false })
+    const exitCode = await new Promise<number | null>(resolve => {
+      check.once('error', () => resolve(null))
+      check.once('close', resolve)
+    })
+    await new Promise<void>(resolve => log.end(resolve))
+    qualityChecks.push({ command, exitCode })
+    console.log(`[quality ${command}] ${exitCode === 0 ? 'PASS' : 'FAIL'}`)
+    return exitCode === 0
+  }
+  if (closure) {
+    if (!await quality('build')) throw new Error('Isolated production build failed')
+  } else if (production) {
     if (!existsSync(resolve(root, '.next/BUILD_ID'))) throw new Error('Production UAT requires a successful build first')
     cpSync(resolve(root, '.next'), join(workspace, '.next'), { recursive: true,
       filter: source => !['cache', 'dev', 'standalone'].includes(source.slice(resolve(root, '.next').length + 1).split(/[\\/]/)[0]),
@@ -94,13 +163,13 @@ async function main() {
   const log = createWriteStream(join(outputDir, 'server.log'))
   server = spawn(process.execPath, [resolve(root,'node_modules/next/dist/bin/next'),production?'start':'dev',...(production?[]:['--webpack']),'--hostname','127.0.0.1','--port',port], {
     cwd: workspace, windowsHide: true,
-    env: { ...process.env, NODE_ENV: production?'production':'development', NODE_OPTIONS:'--max-old-space-size=2048', DATABASE_URL: fixtureUrl(env.DATABASE_URL), DATABASE_AUTH_URL: fixtureUrl(env.DATABASE_AUTH_URL), DATABASE_MIGRATION_URL: fixtureUrl(env.DATABASE_MIGRATION_URL), DATA_BACKEND:'postgres',NEXT_PUBLIC_DATA_BACKEND:'postgres', LOCAL_STORAGE_PATH:join(workspace,'storage'), HEALTH_STATUS_SECRET:healthStatusSecret, GEMINI_API_KEY:'', NEXT_TELEMETRY_DISABLED:'1' },
+    env: runtimeEnv,
     stdio:['ignore','pipe','pipe'],
   })
-  server.stdout?.pipe(log); server.stderr?.pipe(log)
+  server?.stdout?.pipe(log); server?.stderr?.pipe(log)
   let ready = false
   for (let i=0;i<120;i++) {
-    if (server.exitCode !== null) throw new Error('Isolated UAT server exited during startup')
+    if (server && server.exitCode !== null) throw new Error('Isolated UAT server exited during startup')
     try { const response = await fetch(`${baseUrl}/login`, { signal: AbortSignal.timeout(3000) }); if (response.ok) { ready=true; break } } catch { /* compiling */ }
     await new Promise(r => setTimeout(r,1000))
   }
@@ -119,7 +188,7 @@ async function main() {
     const loginPage = await loginContext.newPage()
     try {
       await loginPage.goto('/login',{waitUntil:'networkidle'})
-      await loginPage.getByLabel('ชื่อผู้ใช้',{exact:true}).fill('viewer@uat.invalid')
+      await loginPage.getByLabel('ชื่อผู้ใช้',{exact:true}).fill('user@uat.invalid')
       await loginPage.getByLabel('รหัสผ่าน',{exact:true}).fill(password)
       await loginPage.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click()
       await expect(loginPage).toHaveURL(/\/dashboard/,{timeout:60000})
@@ -219,6 +288,34 @@ async function main() {
     }
     for (const context of Object.values(contexts)) await context.close()
   } finally { await browser.close() }
+  if (closure) {
+    if (new Set(results.map(result => result.id)).size !== 69 || results.length !== 69) {
+      results.push({ id: 'C-COVERAGE', title: 'Full browser case coverage', status: 'FAIL', details: 'Expected 69 distinct browser cases.' })
+    }
+    // Password-change and logout cases revoke browser tokens. Issue fresh,
+    // independent fixture sessions for the server-action checks.
+    const serverTokens: Record<string, string> = {}
+    for (const [role, id] of Object.entries(fixture.users)) {
+      const token = randomBytes(32).toString('hex')
+      await owner.query("INSERT INTO private_auth.sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",
+        [createHash('sha256').update(token).digest('hex'), id])
+      serverTokens[role] = token
+    }
+    const checks = spawnSync(process.execPath, ['--conditions=react-server', '--import', 'tsx', 'scripts/ai-uat/closure-server-checks.ts'], {
+      cwd: workspace, encoding: 'utf8', timeout: 60_000,
+      env: { ...runtimeEnv, CAMMS_UAT_DATABASE: fixtureName, CAMMS_UAT_SESSIONS: JSON.stringify(serverTokens) } as NodeJS.ProcessEnv,
+    })
+    if (checks.status === 0) {
+      const serverResults = JSON.parse(checks.stdout) as typeof results
+      results.push(...serverResults)
+      for (const result of serverResults) console.log(`[UAT ${result.id}] ${result.status} ${result.details}`)
+    } else {
+      const details = sanitizedError(checks.error ?? checks.stderr)
+      results.push({ id: 'C-RUNNER', title: 'Server and database regression runner', status: 'FAIL', details })
+      console.error(`[UAT C-RUNNER] FAIL ${details}`)
+    }
+    await Promise.all((['lint', 'typecheck', 'test'] as const).map(quality))
+  }
 }
 
 async function finish() {
@@ -226,21 +323,26 @@ async function finish() {
     if (process.platform==='win32') spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'})
     else server.kill('SIGTERM')
   }
-  await owner?.end()
-  if (fixtureCreated && management) {
-    if (!/^camms_uat_[a-f0-9]{32}$/.test(fixtureName)) throw new Error('Unsafe cleanup target')
-    await management.query(`DROP DATABASE "${fixtureName}" WITH (FORCE)`)
-    cleanup=true
+  try {
+    await owner?.end()
+    if (fixtureCreated && management) {
+      if (!/^camms_uat_[a-f0-9]{32}$/.test(fixtureName)) throw new Error('Unsafe cleanup target')
+      await management.query(`DROP DATABASE IF EXISTS "${fixtureName}" WITH (FORCE)`)
+      cleanup=true
+    }
+  } catch (error) {
+    results.push({ id: 'UAT-CLEANUP', title: 'Isolated fixture cleanup', status: 'FAIL', details: sanitizedError(error) })
+  } finally {
+    await management?.end()
   }
-  await management?.end()
   mkdirSync(outputDir,{recursive:true})
-  const data={timestamp:new Date().toISOString(),runtime:process.version,mode:process.env.UAT_PRODUCTION==='1'?'production':'development',results,aiResults,pageErrors,cleanup,scope:'User/Admin browser UAT on isolated synthetic PostgreSQL fixture'}
+  const data={timestamp:new Date().toISOString(),runtime:process.version,mode:process.env.UAT_PRODUCTION==='1'?'production':'development',results,aiResults,pageErrors,cleanup,qualityChecks,scope:'User/Admin browser UAT on isolated synthetic PostgreSQL fixture'}
   writeFileSync(join(outputDir,'results.json'),JSON.stringify(data,null,2))
   const passed=results.filter(r=>r.status==='PASS').length
   const content=`# ผล AI UAT ระบบเบิกจ่าย\n\nวันที่: ${data.timestamp}\n\nผ่าน ${passed}/${results.length}; page errors ${pageErrors.length}; fixture cleanup ${cleanup}\n\nทดสอบแอปแยกด้วย Playwright และ Gemini AI ใช้ข้อมูลจำลองเท่านั้น\n\n| Case | Scenario | Result | Evidence |\n|---|---|---|---|\n${results.map(r=>`| ${r.id} | ${r.title} | ${r.status} | ${r.details.replace(/\|/g,'/').replace(/\n/g,' ').slice(0,1000)}${r.screenshot?` [screenshot](${r.screenshot})`:''} |`).join('\n')}\n\n## Page errors\n\n${pageErrors.length?pageErrors.map(e=>'- '+e).join('\n'):'None'}\n\nFull evidence: ${outputDir.replaceAll('\\','/')}\n`
   writeFileSync(join(outputDir,'SUMMARY.md'),content)
   console.log(JSON.stringify({uatReport:join(outputDir,'SUMMARY.md'),passed,total:results.length,cleanup,pageErrors:pageErrors.length}))
-  if (results.some(result => result.status === 'FAIL')) process.exitCode = 1
+  if (results.some(result => result.status === 'FAIL') || pageErrors.length || qualityChecks.some(check => check.exitCode !== 0)) process.exitCode = 1
 }
 
 main().catch(error=>{results.push({id:'UAT-RUNNER',title:'UAT execution infrastructure',status:'FAIL',details:sanitizedError(error)});console.error(sanitizedError(error));process.exitCode=1}).finally(finish)

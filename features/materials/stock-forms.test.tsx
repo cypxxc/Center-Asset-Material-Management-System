@@ -1,7 +1,6 @@
 import '../../tests/setup/dom'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
 
 const calls: Record<string, unknown>[] = []
