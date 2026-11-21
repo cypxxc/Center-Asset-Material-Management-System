@@ -694,10 +694,10 @@ export default function AuditLogsClient({
  aria-current={page === currentPage ? 'page' : undefined}
  aria-label={`หน้า ${page}`}
  className={cn(
- 'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring',
+ 'flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring',
  page === currentPage
- ? 'bg-primary text-primary-foreground shadow-xs font-bold'
- : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+ ? 'border-primary/40 bg-primary/10 text-primary shadow-xs font-bold'
+ : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
  )}
  >
  {page}

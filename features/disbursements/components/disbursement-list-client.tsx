@@ -185,7 +185,10 @@ export function DisbursementListClient({
  </div>
 
  {/* Search and filters */}
- <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
+ <div className={cn(
+ 'flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 sm:px-6',
+ userRole === 'admin' && (activeTab === 'requests' || activeTab === 'documents') ? 'bg-card/60 py-2.5' : 'bg-card py-1.5'
+ )}>
  {userRole !== 'admin' && activeTab !== 'history' && (
  <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="รายการของฉัน">
  <button
@@ -203,7 +206,12 @@ export function DisbursementListClient({
  </button>
  </div>
  )}
- <div className="order-1 min-w-0 flex-1 max-w-md">
+ <div className={cn(
+ 'order-1 min-w-0',
+ userRole === 'admin' && (activeTab === 'requests' || activeTab === 'documents')
+ ? 'w-full sm:w-auto sm:min-w-40 sm:max-w-xs sm:flex-1'
+ : 'max-w-md flex-1'
+ )}>
  <SearchInput
  key={activeTab}
  value={activeTab === 'catalog' ? catalogQuery : q}
@@ -318,13 +326,14 @@ export function DisbursementListClient({
  {/* ZONE 3: Main Table Area with Transition Dimming */}
  <div className={cn('flex-1 min-h-0 overflow-auto bg-background transition-opacity duration-150', isPending && 'opacity-60 pointer-events-none')}>
  {initialItems.length === 0 ? (
- activeTab === 'requests' || activeTab === 'history' ? (
- <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground sm:px-6">
+ <div className="p-4 sm:p-6">
+ {activeTab === 'requests' || activeTab === 'history' ? (
+ <p role="status" className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-4 text-center text-sm text-muted-foreground shadow-xs sm:p-6">
  {hasActiveFilters ? 'ไม่พบรายการตามเงื่อนไขที่ค้นหา' : activeTab === 'history' ? 'ยังไม่มีประวัติการอนุมัติ' : 'ไม่มีคำขอรออนุมัติ'}
  </p>
  ) : (
- <div className="p-8 flex items-center justify-center min-h-[360px]">
  <EmptyState
+ className="p-4 sm:p-6"
  icon={<Boxes className="h-10 w-10 text-muted-foreground/60" />}
  title={hasActiveFilters ? 'ไม่พบเอกสารตามเงื่อนไขที่ค้นหา' : 'ยังไม่มีประวัติการเบิก-จ่าย'}
  description={
@@ -354,8 +363,8 @@ export function DisbursementListClient({
  ) : undefined
  }
  />
+ )}
  </div>
- )
  ) : (
  <GroupedTransactionsTable documents={initialItems} userRole={userRole} historyMode={activeTab === 'history'} materialApprovalSlaHours={materialApprovalSlaHours} />
  )}

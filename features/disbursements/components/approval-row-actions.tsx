@@ -57,10 +57,10 @@ export function ApprovalRowActions({ doc, className }: {
     {needsDueDate && <div className="mb-2 whitespace-normal text-xs">
       <p>กำหนดส่งคืนเดิมพ้นกำหนดแล้ว กรุณายืนยันวันใหม่ก่อนอนุมัติ</p>
       <label htmlFor={dueInputId}>กำหนดส่งคืนใหม่</label>
-      <input id={dueInputId} type="date" min={bangkokCalendarDate()} value={replacementDueDate} disabled={busy || completed} onChange={event => setReplacementDueDate(event.target.value)} className="mt-1 block rounded border border-border bg-background px-2 py-1 text-foreground" />
+      <input id={dueInputId} type="date" min={bangkokCalendarDate()} value={replacementDueDate} disabled={busy || completed} onChange={event => setReplacementDueDate(event.target.value)} className="mt-1 block h-8 w-full rounded-lg border border-input bg-background px-2 text-xs text-foreground" />
     </div>}
-    <div className={cn('flex items-center justify-end gap-2', className)}>
-      {actionable && <Button size="sm" disabled={disabled} onClick={confirm}>{busy ? 'กำลังยืนยัน...' : 'ยืนยัน'}</Button>}
+    <div className={cn('flex flex-wrap items-center justify-end gap-1.5 [&>button]:h-8 [&>button]:rounded-lg [&>button]:px-2.5 [&>button]:text-xs', className)}>
+      {actionable && <Button size="sm" variant="outline" className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15" disabled={disabled} onClick={confirm}>{busy ? 'กำลังยืนยัน...' : 'ยืนยัน'}</Button>}
       {menuRequested
         ? <ApprovalRowMenu key={doc.status} doc={doc} disabled={busy || completed} onBusyChange={setMenuBusy} onComplete={() => { setCompleted(true); router.refresh() }} />
         : <Button variant="outline" size="sm" disabled={!cancellable || busy || menuBusy || completed}

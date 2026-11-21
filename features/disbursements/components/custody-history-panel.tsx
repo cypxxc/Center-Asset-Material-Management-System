@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { formatDateTime } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { getPageNumbers } from '../pagination'
@@ -39,57 +40,57 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background" aria-label="ประวัติมอบหมายผู้ถือครอง">
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
       {error ? (
         <div role="alert" className="flex flex-col items-center gap-3 py-12"><p className="text-sm text-destructive">{error}</p><Button variant="outline" onClick={() => { setError(''); setAttempt((value) => value + 1) }}>ลองใหม่</Button></div>
       ) : data === null ? (
         <div role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />กำลังโหลดประวัติ...</div>
       ) : data.rows.length ? (
-        <div className="min-w-0 bg-muted/10">
-          <table className="table-data-uniform w-full min-w-[800px] table-fixed text-left text-xs text-card-foreground">
+        <div className="min-w-0">
+          <table className="table-data-uniform w-full min-w-[880px] table-fixed text-left text-xs text-card-foreground">
             <colgroup>
               <col className="w-12" />
-              <col className="w-[36%]" />
-              <col className="w-[12%]" />
-              <col className="w-[12%]" />
-              <col className="w-[12%]" />
-              <col className="w-[13%]" />
-              <col className="w-20" />
+              <col />
+              <col className="w-[15%]" />
+              <col className="w-[15%]" />
+              <col className="w-[14%]" />
+              <col className="w-[17%]" />
+              <col className="w-[15%]" />
             </colgroup>
             <thead className="sticky top-0 z-10 border-b border-border/80 bg-muted/75 text-muted-foreground backdrop-blur-xs"><tr>
               {['ลำดับ', 'สิ่งของ', 'ผู้ถือครองเดิม', 'ผู้ถือครองใหม่', 'ผู้ทำรายการ', 'วันที่', 'จัดการ'].map((label) => (
-                <th key={label} className={cn('px-2.5 py-3 font-semibold', label === 'จัดการ' && 'text-center')}>{label}</th>
+                <th key={label} className={cn('px-3 py-3 font-semibold', (label === 'ลำดับ' || label === 'จัดการ') && 'text-center')}>{label}</th>
               ))}
             </tr></thead>
             <tbody className="divide-y divide-border/40">{data.rows.map((row, index) => (
-              <tr key={row.id} className="h-[42px] border-b border-border/40 text-card-foreground transition-colors hover:bg-muted/40 [&>td]:h-[42px] [&>td]:max-w-0 [&>td]:px-2.5 [&>td]:py-0">
+              <tr key={row.id} className="h-[42px] border-b border-border/40 text-card-foreground transition-colors hover:bg-muted/40 [&>td]:h-[42px] [&>td]:max-w-0 [&>td]:px-3 [&>td]:py-0">
                 <td className="text-center font-mono tabular-nums text-muted-foreground">{(data.page - 1) * data.pageSize + index + 1}</td>
-                <td className="whitespace-normal break-words"><p className="font-medium">{row.item_name}</p><p className="break-all text-muted-foreground">{row.asset_no || 'ไม่ระบุเลขครุภัณฑ์'}</p></td>
-                <td>{row.from_responsible || 'ยังไม่กำหนด'}</td>
-                <td>{row.to_responsible || '-'}</td>
-                <td>{row.actor_name || '-'}</td>
-                <td className="whitespace-nowrap text-muted-foreground">{formatDateTime(row.created_at)}</td>
-                <td className="text-center">
+                <td className="whitespace-normal break-words"><p className="font-medium">{row.item_name}</p><p className="break-all font-mono text-[11px] text-muted-foreground">{row.asset_no || 'ไม่ระบุเลขครุภัณฑ์'}</p></td>
+                <td className="break-words">{row.from_responsible || 'ยังไม่กำหนด'}</td>
+                <td className="break-words">{row.to_responsible || '-'}</td>
+                <td className="break-words">{row.actor_name || '-'}</td>
+                <td className="whitespace-nowrap text-left tabular-nums text-muted-foreground">{formatDateTime(row.created_at)}</td>
+                <td className="text-center [&_span]:whitespace-normal">
                   {row.status_action === 'can_return' || row.can_return ? (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                      className="h-8 rounded-lg border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary hover:bg-primary/15"
                       onClick={() => setSelectedReturnItem(row)}
                     >
                       รับคืน
                     </Button>
                   ) : row.status_action === 'cancelled' ? (
-                    <span className="text-[11px] text-muted-foreground font-medium">ยกเลิก</span>
+                    <StatusBadge size="sm" variant="danger">ยกเลิก</StatusBadge>
                   ) : row.status_action === 'transferred' ? (
-                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดการถือครอง</span>
+                    <StatusBadge size="sm" variant="muted">สิ้นสุดการถือครอง</StatusBadge>
                   ) : row.status_action === 'completed' ? (
-                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดรายการ</span>
+                    <StatusBadge size="sm" variant="muted">สิ้นสุดรายการ</StatusBadge>
                   ) : row.status_action === 'returned' || row.is_returned ? (
-                    <span className="text-[11px] text-muted-foreground font-medium">รับคืนแล้ว</span>
+                    <StatusBadge size="sm" variant="success">รับคืนแล้ว</StatusBadge>
                   ) : (
-                    <span className="text-[11px] text-muted-foreground font-medium">สิ้นสุดรายการ</span>
+                    <StatusBadge size="sm" variant="muted">สิ้นสุดรายการ</StatusBadge>
                   )}
                 </td>
               </tr>
@@ -97,8 +98,10 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
           </table>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-14">
-          <p className="text-sm text-muted-foreground">{q ? 'ไม่พบรายการตามคำค้นหา' : 'ไม่มีรายการสั่งจ่ายที่อยู่ระหว่างการถือครอง'}</p>
+        <div className="p-4 sm:p-6">
+          <p role="status" className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-4 text-center text-sm text-muted-foreground shadow-xs sm:p-6">
+            {q ? 'ไม่พบรายการตามคำค้นหา' : 'ไม่มีรายการสั่งจ่ายที่อยู่ระหว่างการถือครอง'}
+          </p>
         </div>
       )}
       </div>

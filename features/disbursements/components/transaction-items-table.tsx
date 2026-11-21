@@ -4,14 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MaterialReturnForm } from '@/features/materials/material-return-form'
-import { CheckCircle2, RotateCcw, XCircle } from 'lucide-react'
+import { CheckCircle2, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-import { partialApproveDisbursement, partialRejectDisbursement } from '../actions'
+import { partialApproveDisbursement } from '../actions'
 import { DisbursementReturnModal, type ReturnModalItem } from './disbursement-return-modal'
 import type { DisbursementRow } from '../types'
 
-export function TransactionItemsTable({ document, userRole }: { document: DisbursementRow; userRole: string }) {
+export function TransactionItemsTable({ document, userRole, reference }: { document: DisbursementRow; userRole: string; reference: string }) {
   const router = useRouter()
   const isAdmin = userRole === 'admin'
   const isPendingApproval = isAdmin && document.status === 'pending_approval'
@@ -21,8 +21,6 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
   const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set())
   const [returnItems, setReturnItems] = useState<ReturnModalItem[]>([])
   const [returnModalOpen, setReturnModalOpen] = useState(false)
-  const [rejectModalOpen, setRejectModalOpen] = useState(false)
-  const [rejectReason, setRejectReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -72,31 +70,6 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
     }
   }
 
-  async function handlePartialReject() {
-    if (selectedLineIds.size === 0 || !rejectReason.trim() || busy) return
-    setBusy(true)
-    setError('')
-    try {
-      const res = await partialRejectDisbursement({
-        disbursement_id: document.id,
-        line_ids: Array.from(selectedLineIds),
-        reason: rejectReason.trim(),
-      })
-      if (!res.ok) {
-        setError(res.error || 'เกิดข้อผิดพลาดในการปฏิเสธ')
-        return
-      }
-      setRejectModalOpen(false)
-      setRejectReason('')
-      setSelectedLineIds(new Set())
-      router.refresh()
-    } catch {
-      setError('เกิดข้อผิดพลาดในการปฏิเสธ')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function openSingleReturn(item: typeof items[0]) {
     setReturnItems([{
       line_id: item.line_id,
@@ -124,54 +97,50 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
   }
 
   return (
-    <div className="space-y-3">
-      {/* Batch Actions Bar */}
-      {canSelect && selectedLineIds.size > 0 && (
-        <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 rounded-md border border-border text-xs">
-          <span className="font-medium">เลือกอยู่ {selectedLineIds.size} รายการ</span>
-          <div className="flex items-center gap-2">
-            {isPendingApproval && (
-              <>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={busy}
-                  onClick={() => setRejectModalOpen(true)}
-                  className="h-7 text-xs gap-1"
-                >
-                  <XCircle className="h-3.5 w-3.5" />
-                  <span>ปฏิเสธที่เลือก</span>
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={handlePartialApprove}
-                  className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>อนุมัติที่เลือก</span>
-                </Button>
-              </>
-            )}
-            {canReturn && (
-              <Button
-                size="sm"
-                disabled={busy}
-                onClick={openSelectedReturn}
-                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>รับคืนที่เลือก ({selectedLineIds.size})</span>
-              </Button>
-            )}
-          </div>
+    <div className="rounded-xl border border-border bg-card shadow-xs">
+      <header className="border-b border-border px-4 py-3">
+        <p className="text-[11px] font-semibold text-muted-foreground">รายละเอียดเอกสาร</p>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="min-w-0 break-words text-sm font-extrabold text-card-foreground">{reference}</h3>
+          {isPendingApproval && (
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || selectedLineIds.size === 0}
+              onClick={handlePartialApprove}
+              className="h-7 shrink-0 gap-1 bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>อนุมัติที่เลือก</span>
+            </Button>
+          )}
+        </div>
+      </header>
+      <div className="space-y-3 p-3.5 sm:p-4">
+      <dl className="rounded-lg border border-border bg-muted/40 p-2.5 text-xs">
+        <dt className="font-medium text-muted-foreground">วัตถุประสงค์</dt>
+        <dd className="mt-0.5 break-words text-card-foreground">{document.purpose || '—'}</dd>
+      </dl>
+      {document.status === 'rejected' && <p className="whitespace-pre-wrap break-words rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 text-xs text-destructive"><strong>เหตุผลที่ไม่อนุมัติ: </strong>{document.reversal_reason || 'ไม่อนุมัติคำขอ'}</p>}
+      {canReturn && canSelect && selectedLineIds.size > 0 && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={openSelectedReturn}
+            className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>รับคืนที่เลือก ({selectedLineIds.size})</span>
+          </Button>
         </div>
       )}
 
       {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
 
-      <table aria-label="รายการวัสดุในคำขอ" className="w-full text-left text-sm [&_th]:px-4 [&_th]:py-2 [&_th]:font-medium [&_td]:px-4 [&_td]:py-3">
-        <thead className="border-b border-border text-xs text-muted-foreground">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <table aria-label="รายการวัสดุในคำขอ" className="table-data-uniform w-full min-w-[600px] text-left text-xs text-card-foreground [&_th]:px-2.5 [&_th]:py-2 [&_th]:font-semibold [&_td]:px-2.5 [&_td]:py-1.5">
+        <thead className="border-b border-border/80 bg-muted/75 text-muted-foreground">
           <tr>
             {canSelect && (
               <th scope="col" className="w-8 text-center px-2">
@@ -194,14 +163,14 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
             {(canReturn || canReturnMaterial) && <th scope="col" className="text-right">คืน</th>}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-y divide-border/40">
           {items.map((item) => {
             const outstanding = Math.max(0, item.issued_qty - item.returned_qty)
             const isEligible = isPendingApproval ? item.status === 'pending' : (canReturn ? outstanding > 0 : false)
             const isChecked = selectedLineIds.has(item.line_id)
 
             return (
-              <tr key={item.line_id} className={cn("align-middle hover:bg-muted/20", isChecked && "bg-primary/5")}>
+              <tr key={item.line_id} className={cn("h-[42px] align-middle transition-colors hover:bg-muted/40", isChecked && "bg-primary/5")}>
                 {canSelect && (
                   <td className="text-center px-2">
                     <input
@@ -220,16 +189,16 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
                     {/* Inventory URLs may point to either backend's existing storage. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {item.image_url && (
-                      <img src={item.image_url} alt="" width={36} height={36} loading="lazy" className="h-9 w-9 shrink-0 rounded object-contain" />
+                      <img src={item.image_url} alt="" width={36} height={36} loading="lazy" className="size-8 shrink-0 rounded-lg border border-border bg-muted/40 object-contain" />
                     )}
-                    <span className="min-w-0 break-words">{item.item_name}</span>
+                    <span className="min-w-0 break-words font-medium">{item.item_name}</span>
                   </div>
                 </td>
                 <td className="text-right tabular-nums">{item.requested_qty}</td>
                 <td className="text-right tabular-nums">{item.issued_qty}</td>
                 <td className="text-right tabular-nums">{item.returned_qty}</td>
                 <td className="text-right tabular-nums">{document.transaction_type === 'asset_borrow' ? outstanding : '—'}</td>
-                <td className="whitespace-nowrap text-center">
+                <td className="whitespace-nowrap text-center [&>span]:gap-1 [&>span]:rounded-md [&>span]:border [&>span]:border-current/20 [&>span]:px-2 [&>span]:text-[10.5px] [&>span]:leading-tight">
                   {item.status === 'pending' && (
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                       รออนุมัติ
@@ -290,56 +259,9 @@ export function TransactionItemsTable({ document, userRole }: { document: Disbur
           )}
         </tbody>
       </table>
+      </div>
 
-      {/* Reject Modal */}
-      {rejectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              handlePartialReject()
-            }}
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg space-y-4 text-xs"
-          >
-            <div className="flex items-center gap-2 text-destructive border-b border-border pb-3">
-              <XCircle className="h-5 w-5" />
-              <h3 className="font-bold text-sm text-foreground">ปฏิเสธรายการที่เลือก ({selectedLineIds.size} รายการ)</h3>
-            </div>
-            <div>
-              <label htmlFor="batch-reject-reason" className="block text-xs font-medium mb-1.5 text-foreground">
-                ระบุเหตุผลในการไม่อนุมัติ <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                id="batch-reject-reason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="ระบุเหตุผลในการปฏิเสธ..."
-                rows={3}
-                required
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setRejectModalOpen(false)}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                type="submit"
-                variant="destructive"
-                size="sm"
-                disabled={busy || !rejectReason.trim()}
-              >
-                {busy ? 'กำลังประมวลผล...' : 'ยืนยันปฏิเสธที่เลือก'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
+      </div>
 
       {/* Return Modal */}
       <DisbursementReturnModal

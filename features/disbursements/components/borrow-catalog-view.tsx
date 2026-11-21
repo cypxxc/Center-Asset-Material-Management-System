@@ -510,11 +510,13 @@ export function BorrowCatalogView({
       <div ref={cardsViewport} className="min-h-0 flex-1 overflow-auto bg-background p-4 sm:p-6">
         {/* Grid of items */}
         {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
+          <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-4 text-center shadow-xs sm:p-6">
             <div className="mb-3 rounded-full bg-muted p-4 text-muted-foreground">
               <PackageCheck className="h-8 w-8 stroke-1" />
             </div>
-            <h3 className="text-base font-semibold text-foreground">{selectedIds.size > 0 && !q ? 'เลือกรายการที่พร้อมใช้งานครบแล้ว' : 'ไม่พบวัสดุส่วนกลาง'}</h3>
+            <h3 className="text-base font-semibold text-foreground">
+              {selectedIds.size > 0 && !q ? 'เลือกรายการที่พร้อมใช้งานครบแล้ว' : catalogType === 'asset' ? 'ไม่พบครุภัณฑ์ส่วนกลาง' : 'ไม่พบวัสดุส่วนกลาง'}
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               {q ? 'ลองเปลี่ยนคำค้นหา' : selectedIds.size > 0 ? 'เปิดตะกร้าเพื่อตรวจสอบรายการและดำเนินการต่อ' : 'ขณะนี้ยังไม่มีวัสดุหรือครุภัณฑ์ส่วนกลางในระบบ'}
             </p>

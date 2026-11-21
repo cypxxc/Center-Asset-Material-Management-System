@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DropdownMenu } from 'radix-ui'
-import { Check, ChevronDown, Layers, MapPin, Plus, X } from 'lucide-react'
+import { Dialog } from 'radix-ui'
+import { Check, Layers, MapPin, Plus, X } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -27,12 +27,12 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
   const [pickerOpen, setPickerOpen] = useState(false)
   const [draftSelected, setDraftSelected] = useState<string[]>([])
   const [query, setQuery] = useState('')
-  const [itemType, setItemType] = useState<'all' | 'material' | 'asset'>('all')
+  const [itemType, setItemType] = useState<'material' | 'asset'>('material')
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const selectedItems = items.filter((item) => selected.includes(item.id))
-  const selectableItems = items.filter((item) => (itemType === 'all' || item.item_type === itemType) && (!query.trim() || [item.item_name, item.asset_no, item.responsible_person].some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()))))
+  const selectableItems = items.filter((item) => item.item_type === itemType && (!query.trim() || [item.item_name, item.asset_no, item.responsible_person].some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()))))
 
   function changePickerOpen(open: boolean) {
     if (open) { setDraftSelected(selected); setQuery('') }
@@ -95,29 +95,23 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
               <Dialog.Close asChild><Button type="button" variant="ghost" size="icon-sm" aria-label="ปิดหน้าต่างเลือกสิ่งของ"><X className="size-4" /></Button></Dialog.Close>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-3 bg-muted/10 p-4">
-              <div className="flex shrink-0 items-center gap-2 text-xs">
-                <span>ประเภทสิ่งของ</span>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger asChild>
-                    <button type="button" aria-label="ประเภทสิ่งของส่วนกลาง" className="group inline-flex h-9 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground/80 shadow-2xs outline-none transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20">
-                      <Layers className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                      {itemType === 'material' ? 'วัสดุ' : itemType === 'asset' ? 'ครุภัณฑ์' : 'ทั้งหมด'}
-                      <ChevronDown className="size-3.5 opacity-50" aria-hidden="true" />
-                    </button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.Content align="start" sideOffset={6} className="z-[70] min-w-[200px] rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none">
-                      <DropdownMenu.RadioGroup value={itemType} onValueChange={value => setItemType(value as typeof itemType)}>
-                        {([{ value: 'all', label: 'ทั้งหมด' }, { value: 'material', label: 'วัสดุ' }, { value: 'asset', label: 'ครุภัณฑ์' }] as const).map(option => (
-                          <DropdownMenu.RadioItem key={option.value} value={option.value} className={cn('flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors data-[highlighted]:bg-muted', itemType === option.value && 'bg-primary/10 font-bold text-primary')}>
-                            <span>{option.label}</span>
-                            <DropdownMenu.ItemIndicator><Check className="size-3.5 text-primary" aria-hidden="true" /></DropdownMenu.ItemIndicator>
-                          </DropdownMenu.RadioItem>
-                        ))}
-                      </DropdownMenu.RadioGroup>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Root>
+              <div className="inline-flex shrink-0 self-start rounded-lg bg-muted p-0.5" role="group" aria-label="ประเภทสิ่งของส่วนกลาง">
+                {([{ value: 'material', label: 'วัสดุ' }, { value: 'asset', label: 'ครุภัณฑ์' }] as const).map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={itemType === option.value}
+                    onClick={() => setItemType(option.value)}
+                    className={cn(
+                      'inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md px-3.5 py-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                      itemType === option.value
+                        ? 'bg-background text-primary shadow-xs'
+                        : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               <div className="h-8 shrink-0">
                 <SearchInput value={query} onChange={setQuery} aria-label="ค้นหาสิ่งของส่วนกลาง" placeholder="ค้นหาชื่อ, เลขครุภัณฑ์, ผู้ถือครองเดิม..." className="h-8 text-xs" />

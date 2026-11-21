@@ -96,17 +96,20 @@ export function AssetReturnModal({ item, onClose, onSuccess }: AssetReturnModalP
   return (
     <Dialog.Root open onOpenChange={(open) => { if (!open && !isSubmitting) onClose() }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs" />
         <Dialog.Content
           aria-describedby={undefined}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => { if (isSubmitting) event.preventDefault() }}
-          className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden border-l border-border bg-card text-card-foreground shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-right sm:max-w-[460px]"
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-5">
-            <Dialog.Title className="text-sm font-semibold">รับคืนครุภัณฑ์</Dialog.Title>
+          <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground">รายละเอียดครุภัณฑ์</p>
+              <Dialog.Title className="text-sm font-extrabold sm:text-base">รับคืนครุภัณฑ์</Dialog.Title>
+            </div>
             <Dialog.Close asChild>
-              <Button variant="ghost" size="icon" disabled={isSubmitting} aria-label="ปิด">
+              <Button variant="outline" size="icon" className="size-8 shrink-0 rounded-lg bg-muted/60 text-muted-foreground sm:size-9" disabled={isSubmitting} aria-label="ปิด">
                 <X className="size-4" />
               </Button>
             </Dialog.Close>

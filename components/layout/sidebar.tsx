@@ -359,7 +359,7 @@ export function Sidebar({ profile }: SidebarProps) {
                             : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
                         )}
                       >
-                        <span className="truncate">เบิก</span>
+                        <span className="truncate">อนุมัติ</span>
                       </Link>
                       <Link
                         href="/disbursements?tab=documents"
