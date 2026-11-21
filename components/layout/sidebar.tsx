@@ -346,6 +346,22 @@ export function Sidebar({ profile }: SidebarProps) {
                   {disbursementFolderExpanded && isAdmin && (
                     <div className="space-y-0.5 pl-5">
                       <Link
+                        href="/disbursements?tab=requests"
+                        onPointerDown={() => handleOptimisticNavigate('/disbursements?tab=requests')}
+                        onClick={() => handleOptimisticNavigate('/disbursements?tab=requests')}
+                        aria-current={isDisbursementApprovalActive ? 'page' : undefined}
+                        className={cn(
+                          'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
+                          'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1',
+                          'w-full px-2.5 py-1.5',
+                          isDisbursementApprovalActive
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-primary'
+                            : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
+                        )}
+                      >
+                        <span className="truncate">เบิก</span>
+                      </Link>
+                      <Link
                         href="/disbursements?tab=documents"
                         onPointerDown={() => handleOptimisticNavigate('/disbursements?tab=documents')}
                         onClick={() => handleOptimisticNavigate('/disbursements?tab=documents')}
@@ -360,22 +376,6 @@ export function Sidebar({ profile }: SidebarProps) {
                         )}
                       >
                         <span className="truncate">จ่าย</span>
-                      </Link>
-                      <Link
-                        href="/disbursements?tab=requests"
-                        onPointerDown={() => handleOptimisticNavigate('/disbursements?tab=requests')}
-                        onClick={() => handleOptimisticNavigate('/disbursements?tab=requests')}
-                        aria-current={isDisbursementApprovalActive ? 'page' : undefined}
-                        className={cn(
-                          'group flex items-center rounded-lg font-medium outline-none transition-all duration-150 relative text-xs',
-                          'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1',
-                          'w-full px-2.5 py-1.5',
-                          isDisbursementApprovalActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-primary'
-                            : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <span className="truncate">อนุมัติ</span>
                       </Link>
                     </div>
                   )}

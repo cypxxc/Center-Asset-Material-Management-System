@@ -33,10 +33,11 @@ test('approval history has completed status filters and keeps its scope when nav
   } finally { cleanup(); navigation.useRouter = originalRouter }
 })
 
-test('approval history tab is removed from the disbursement workspace', () => {
+test('admin disbursements do not duplicate sidebar navigation', () => {
   const view = render(<DisbursementListClient {...props} initialTab="requests" />)
   assert.equal(view.queryByRole('button', { name: 'ประวัติการอนุมัติ' }), null)
-  assert.ok(view.getByRole('button', { name: 'อนุมัติ' }))
+  assert.equal(view.queryByRole('button', { name: 'อนุมัติ' }), null)
+  assert.equal(view.queryByRole('button', { name: 'จ่าย' }), null)
 })
 
 test('approval history is not offered to the user role', () => {

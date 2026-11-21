@@ -184,49 +184,10 @@ export function DisbursementListClient({
  </div>
  </div>
 
- {/* Top Tab Switcher */}
+ {/* Search and filters */}
  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-1.5 sm:px-6">
- {activeTab !== 'history' && (
- <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label={userRole === 'admin' ? 'เบิกและยืม' : 'รายการของฉัน'}>
- {userRole === 'admin' ? (
- <>
- <button
- type="button"
- onClick={() => {
- setActiveTab('documents')
- applyFilters('', 'all', '', 1, 'documents')
- }}
- aria-pressed={activeTab === 'documents'}
- className={cn(
- 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
- activeTab === 'documents'
- ? 'bg-background text-primary shadow-xs'
- : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
- )}
- >
- จ่าย
- </button>
- <button
- type="button"
- onClick={() => {
- setActiveTab('requests')
- setStatus('all')
- setType('')
- setQ('')
- applyFilters('', 'all', '', 1, 'requests')
- }}
- aria-pressed={activeTab === 'requests'}
- className={cn(
- 'min-h-9 flex-1 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none',
- activeTab === 'requests'
- ? 'bg-background text-primary shadow-xs'
- : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
- )}
- >
- อนุมัติ
- </button>
- </>
- ) : (
+ {userRole !== 'admin' && activeTab !== 'history' && (
+ <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="รายการของฉัน">
  <button
  type="button"
  onClick={() => { setActiveTab('documents'); applyFilters('', 'all', '', 1, 'documents') }}
@@ -240,7 +201,6 @@ export function DisbursementListClient({
  >
  รายการของฉัน
  </button>
- )}
  </div>
  )}
  <div className="order-1 min-w-0 flex-1 max-w-md">

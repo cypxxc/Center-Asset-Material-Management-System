@@ -77,6 +77,20 @@ export async function runDisbursementBrowserUAT({ baseUrl, browser, contexts, fi
     await state(key, 'returned')
   }
   try {
+    await run('B00', 'Admin navigates disbursements from the sidebar without duplicate tabs', pages.admin, async () => {
+      const page = pages.admin
+      await page.goto(`${baseUrl}/disbursements`)
+      const requests = page.getByRole('link', { name: 'เบิก', exact: true })
+      const documents = page.getByRole('link', { name: 'จ่าย', exact: true })
+      for (const [link, tab] of [[requests, 'requests'], [documents, 'documents']] as const) {
+        await link.click()
+        await expect(page).toHaveURL(url => url.searchParams.get('tab') === tab)
+        await expect(link).toHaveAttribute('aria-current', 'page')
+        await expect(page.getByRole('button', { name: 'จ่าย', exact: true })).toHaveCount(0)
+        await expect(page.getByRole('button', { name: 'อนุมัติ', exact: true })).toHaveCount(0)
+      }
+    })
+
     await run('B01', 'Catalog search matches exact item and excludes unrelated items', pages.user, async () => {
       await catalog(pages.user, 'borrow'); await expect(heading(pages.user, 'borrow')).toBeVisible(); await expect(heading(pages.user, 'cancel')).toHaveCount(0)
     })
