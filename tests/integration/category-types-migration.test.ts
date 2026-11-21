@@ -33,7 +33,9 @@ test('category migration preserves shared, exclusive, unused and archived refere
     `)
     const original = (await client.query(`SELECT id FROM ${schema}.categories WHERE name='shared'`)).rows[0].id
     const materialOnly = (await client.query(`SELECT id FROM ${schema}.categories WHERE name='material-only'`)).rows[0].id
-    const migration = readFileSync('db/postgres/migrations/0013_category_types.sql','utf8').replaceAll('public.', schema + '.')
+    // Keep the historical upgrade as a fixture after consolidation into the runtime baseline.
+    const migration = readFileSync(new URL('../fixtures/postgres/0013_category_types.sql', import.meta.url), 'utf8')
+      .replaceAll('public.', schema + '.')
     await client.query(migration)
     const categories = (await client.query(`SELECT id,name,item_type,description,icon,is_active,updated_at FROM ${schema}.categories ORDER BY name,item_type`)).rows
     assert.equal(categories.length, 5)

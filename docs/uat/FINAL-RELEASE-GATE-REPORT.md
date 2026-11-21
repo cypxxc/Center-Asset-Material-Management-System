@@ -43,6 +43,8 @@
 
 ## 3. การวิเคราะห์รายการทดสอบที่ถูกข้ามทั้ง 29 เคส (29 Skipped Tests Analysis)
 
+**ผลตรวจซ้ำสำหรับ Release Evidence Check:** เคสที่ถูกข้ามในรอบปกติแบ่งเป็น Critical PostgreSQL integration 24 เคส และ Optional 5 เคสสำหรับ AI DOM browser driver (ลำดับ 22–26) การเปิดเงื่อนไขของชุด PostgreSQL บนฐาน Docker แยกให้ผล 25/25 ผ่าน โดยรวมเคสตรวจข้อมูลซ้ำภายในไฟล์นำเข้าที่รันอยู่แล้วอีก 1 เคส การจัดระดับในตารางด้านล่างเป็นผลประเมินเดิมก่อนทดสอบซ้ำ
+
 จากการตรวจสอบชุดทดสอบทั้งหมดพบว่ามี 29 Tests ที่แสดงสถานะ `# SKIP` ซึ่งทั้งหมดจัดอยู่ในหมวด **Opt-in Live Database Integration Tests** โดยมีเหตุผลทางสถาปัตยกรรมและหลักฐานการทดสอบทดแทนดังนี้:
 
 | ลำดับ | ไฟล์ทดสอบ | ชื่อเคสทดสอบ | เงื่อนไขการข้าม (Skip Guard) | การยืนยันความถูกต้อง (Verification Coverage) | วิกฤตหรือไม่? |
@@ -89,11 +91,11 @@
 
 ## 5. การตรวจสอบความถูกต้องของฐานข้อมูลและ Audit Trail (Database Assertions & Audit Logs)
 
-จากการรัน `scripts/final-production-e2e-verification.ts` และ `scripts/test-database-custody-integrity.ts`:
+ผลจาก `scripts/final-production-e2e-verification.ts` และ `scripts/test-database-custody-integrity.ts` อ้างอิง [รายงาน Standalone E2E](FINAL-PRODUCTION-E2E-REPORT.md) สำหรับลำดับการทดสอบใบเบิก
 1. **Rule 0009 (Immediate Stock Deduction):**
-   - เมื่อผู้ใช้ส่งคำขอเบิกวัสดุ 5 หน่วย: สต็อกลดทันทีจาก 20 เหลือ 15 (`PASS`)
-   - เมื่อแอดมิน Reject หรือผู้ใช้ Cancel คำขอ: สต็อกคืนทันทีกลับเป็น 20 (`PASS`)
-   - เมื่อแอดมิน Confirm คำขอ: สต็อกคงเดิมที่ 14 **ไม่มีการตัดสต็อกซ้ำซ้อน** (`PASS`)
+   - ใบเบิกที่ 1 จำนวน 5 หน่วย: ส่งคำขอแล้วสต็อกลดจาก 20 เหลือ 15 เมื่อแอดมินปฏิเสธ สต็อกกลับเป็น 20 (`PASS`)
+   - ใบเบิกที่ 2 จำนวน 4 หน่วย: ส่งคำขอแล้วสต็อกลดจาก 20 เหลือ 16 เมื่อผู้ขอถอนคำขอ สต็อกกลับเป็น 20 (`PASS`)
+   - ใบเบิกที่ 3 จำนวน 6 หน่วย: ส่งคำขอแล้วสต็อกลดจาก 20 เหลือ 14 เมื่อแอดมินอนุมัติ สต็อกยังเป็น 14 บัญชีเคลื่อนไหวมี `issue -6` เพียงรายการเดียว และ Audit Log บันทึก `CONFIRM_DISBURSEMENT` จาก `pending_approval` เป็น `confirmed` หนึ่งครั้ง (`PASS`)
 2. **Custody State Engine (`private.apply_asset_custody_event`):**
    - การยืม: ตัดออกจากส่วนกลาง `is_central = false`, ผู้ถือครองบันทึกชื่อผู้ยืม, Revision เพิ่มเป็น 1 (`PASS`)
    - การรับคืนปกติ: คืนเข้ากองกลาง `is_central = true`, ผู้ถือครองเป็น `NULL`, Revision เพิ่มเป็น 2 (`PASS`)

@@ -64,6 +64,14 @@ test('material quantity reservations, cancellation, approval and reversal round-
       await actions.cancelPostgresDisbursementDraft({ id: a.id })
       assert.equal((await available()).quantity, 8)
       await actions.confirmPostgresDisbursement(b.id)
+      const readIssueLedger = async () => (await tx.execute(sql`
+        select m.movement_type, m.delta, m.balance_after
+        from public.stock_movements m
+        join public.disbursement_items line on line.id = m.disbursement_item_id
+        where line.disbursement_id = ${b.id}
+      `)).rows
+      const expectedLedger = [{ movement_type: 'issue', delta: -2, balance_after: 5 }]
+      assert.deepEqual(await readIssueLedger(), expectedLedger)
       const tracking = await import('./tracking-postgres')
       const beforeReceipt = (await available()).stock_quantity
       const received = await tracking.markPostgresDisbursementHandover(b.id)
@@ -75,6 +83,13 @@ test('material quantity reservations, cancellation, approval and reversal round-
       assert.equal((await available()).stock_quantity, 8)
       assert.equal((await available()).reserved_quantity, 0)
       await assert.rejects(actions.confirmPostgresDisbursement(b.id))
+      assert.deepEqual(await readIssueLedger(), expectedLedger)
+      const confirmations = await tx.execute<{ count: number }>(sql`
+        select count(*)::int as count from public.audit_logs
+        where target_id = ${b.id} and action = 'CONFIRM_DISBURSEMENT'
+          and old_data->>'status' = 'pending_approval' and new_data->>'status' = 'confirmed'
+      `)
+      assert.equal(confirmations.rows[0].count, 1)
       const snapshot = await tx.execute<{ price: string | null }>(sql`select unit_price_snapshot as price from public.disbursement_items where disbursement_id=${b.id}`)
       assert.equal(snapshot.rows[0].price, null)
       const rejected = await request(8)
