@@ -8,6 +8,7 @@ import { eq, sql } from 'drizzle-orm'
 import { pgSchema, text, uuid } from 'drizzle-orm/pg-core'
 import { Pool } from 'pg'
 import { localPostgresConfig, isolatedEnvironment } from './postgres-local-config'
+import { checkLocalPostgres } from './postgres-local-connection'
 
 const envFile = '.env.postgres.local'
 const isolatedEnv: NodeJS.ProcessEnv = { ...isolatedEnvironment(process.env), NODE_ENV: process.env.NODE_ENV ?? 'development' }
@@ -88,8 +89,9 @@ async function main() {
       console.log(`[postgres:setup] Existing configuration in ${envFile} is ready.`)
     }
   } else if (command === 'up') {
-    const { port } = readConfig()
+    const { port, connectionString } = readConfig()
     compose('up', '-d', '--wait', '--wait-timeout', '60', 'postgres')
+    await checkLocalPostgres(connectionString)
     console.log(`[postgres:up] PostgreSQL is ready at 127.0.0.1:${port}.`)
   } else if (command === 'stop') {
     readConfig()

@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from
 import { parse } from 'dotenv'
 import { Pool } from 'pg'
 import { localPostgresConfig } from './postgres-local-config'
+import { checkLocalPostgres } from './postgres-local-connection'
 import { migratePostgres } from './postgres-migrate'
 import { hashPassword } from '../lib/postgres/password'
 
@@ -15,6 +16,7 @@ function writeEnv(file: string, values: Record<string, string>) {
 }
 async function setup() {
   const local = localPostgresConfig(parse(readFileSync('.env.postgres.local')))
+  await checkLocalPostgres(local.connectionString)
   const owner = new Pool({ connectionString: local.connectionString, connectionTimeoutMillis: 5000 })
   let app: Record<string,string>
   try {
@@ -81,8 +83,19 @@ async function setup() {
     console.log(`[postgres:app:setup] Database ${database}, roles camms_app and camms_auth, migrations, and local storage are ready.`)
   } finally { await migrationPool.end() }
 }
-function activate() {
+async function activate() {
   const app = parse(readFileSync(appFile))
+  for (const key of ['DATABASE_URL', 'DATABASE_AUTH_URL']) {
+    if (!app[key]) throw new Error(`Missing ${key} in .env.postgres.app. Run npm run postgres:app:setup first.`)
+    const pool = new Pool({ connectionString: app[key], connectionTimeoutMillis: 5000 })
+    try {
+      await pool.query('select 1')
+    } catch (error) {
+      throw new Error(`Could not connect using ${key} in .env.postgres.app. Check the saved credentials and run npm run postgres:app:setup successfully before activating.`, { cause: error })
+    } finally {
+      await pool.end()
+    }
+  }
   mkdirSync('.cache/postgres', { recursive:true })
   if (existsSync('.env.local') && !existsSync('.cache/postgres/previous-env.local')) {
     copyFileSync('.env.local','.cache/postgres/previous-env.local')
@@ -96,7 +109,7 @@ function activate() {
 }
 async function main() {
   if (process.argv[2] === 'setup') await setup()
-  else if (process.argv[2] === 'activate') activate()
+  else if (process.argv[2] === 'activate') await activate()
   else if (process.argv[2] === 'migrate') {
     const connectionString = process.env.DATABASE_MIGRATION_URL ||
       (existsSync(appFile) ? parse(readFileSync(appFile)).DATABASE_MIGRATION_URL : undefined)
