@@ -245,10 +245,10 @@ export async function assignPostgresCustody(rawInput: unknown) {
       if (!item) throw new Error('ไม่พบสิ่งของที่เลือก')
       assertCentralDisbursementItem(item)
       if (item.item_type === 'material') {
-        materials.push({ item_id: item.id, requested_qty: data.quantities[item.id] ?? 1 })
+        materials.push({ item_id: item.id, requested_qty: data.quantities[itemId] ?? 1 })
         continue
       }
-      if ((data.quantities[item.id] ?? 1) !== 1) throw new Error('ครุภัณฑ์สั่งจ่ายได้ครั้งละ 1 หน่วยต่อรายการ')
+      if ((data.quantities[itemId] ?? 1) !== 1) throw new Error('ครุภัณฑ์สั่งจ่ายได้ครั้งละ 1 หน่วยต่อรายการ')
       if (item.status && !['active', 'spare'].includes(item.status)) throw new Error(`"${item.item_name}" ไม่อยู่ในสถานะพร้อมใช้งาน`)
       await assertItemUnreserved(tx, item.id)
       const newNote = syncCentralNote(item.note || '', false) || null
