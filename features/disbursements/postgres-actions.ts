@@ -867,6 +867,17 @@ export async function partialApprovePostgresDisbursement(
     const allLines = allLinesRes.rows
     if (allLines.length === 0) throw new Error('ไม่สามารถยืนยันเอกสารที่ไม่มีรายการสิ่งของได้')
 
+    if (new Set(data.line_ids.map((id) => id.toLowerCase())).size !== data.line_ids.length) {
+      throw new Error('ไม่สามารถระบุรายการสิ่งของซ้ำได้')
+    }
+
+    const allLineIds = new Set(allLines.map((line) => line.id.toLowerCase()))
+    for (const id of data.line_ids) {
+      if (!allLineIds.has(id.toLowerCase())) {
+        throw new Error(`ไม่พบรายการสิ่งของ ${id} ในเอกสาร`)
+      }
+    }
+
     const selectedLines = allLines.filter((line) => data.line_ids.includes(line.id))
     if (selectedLines.length === 0) throw new Error('ไม่พบรายการที่เลือกสำหรับอนุมัติ')
 
