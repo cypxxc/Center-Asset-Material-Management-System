@@ -201,7 +201,7 @@ export function DashboardAcquisitionChartClient({
             </p>
           )}
 
-          {series.totals.recordCount === 0 && itemType !== 'material' ? (
+          {series.totals.recordCount === 0 ? (
             <div className="flex min-h-40 flex-col items-center justify-center gap-2 px-4 text-center">
               <ChartNoAxesCombined className="size-7 text-muted-foreground" aria-hidden="true" />
               <p className="text-sm font-medium">ยังไม่มีรายการที่ระบุ{dateBasis}ในช่วงนี้</p>
