@@ -89,9 +89,19 @@ export async function checkReadiness(): Promise<ReadinessResult> {
 
   const [database, storage] = await Promise.all([
     timedCheck(async () => {
-      const { getDatabase } = await import('@/lib/postgres/db')
+      const { getDatabase, getAuthDatabase } = await import('@/lib/postgres/db')
       const { sql } = await import('drizzle-orm')
-      await getDatabase().execute(sql`select 1 from public.profiles limit 1`)
+      const appDb = getDatabase()
+      const authDb = getAuthDatabase()
+      await Promise.all([
+        appDb.execute(sql`select 1 from public.profiles limit 1`),
+        authDb.execute(sql`
+          select 1 from public.profiles
+          cross join private_auth.credentials
+          cross join private_auth.sessions
+          limit 1
+        `),
+      ])
     }),
     timedCheck(async () => {
       const { access, mkdir, constants } = await import('node:fs/promises')
