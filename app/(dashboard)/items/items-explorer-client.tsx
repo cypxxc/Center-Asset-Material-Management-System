@@ -604,7 +604,7 @@ function ItemsExplorerSession({
                       ? 'รายการทะเบียนครุภัณฑ์'
                       : 'รายการคลัง'}
                 </h1>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 border border-primary/20 shrink-0">
                   {total.toLocaleString()} รายการ
                 </span>
               </div>
@@ -648,7 +648,7 @@ function ItemsExplorerSession({
                       setEditingItem(null)
                       setIsSheetOpen(true)
                     }}
-                    className="h-8 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-semibold text-xs px-3.5 gap-1.5 shadow-xs transition-all cursor-pointer inline-flex items-center shrink-0"
+                    className="h-8 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 font-semibold text-xs px-3.5 gap-1.5 shadow-xs transition-all cursor-pointer inline-flex items-center shrink-0"
                   >
                     <Plus className="h-4 w-4" />
                     <span>ขึ้นทะเบียนใหม่</span>
@@ -793,7 +793,7 @@ function ItemsExplorerSession({
                   : 'แสดง 0 จาก 0 รายการ'}
               </span>
               {selectedItemIds.length > 0 && (
-                <span className="text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0 select-none">
+                <span className="text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 font-bold text-xs shrink-0 select-none">
                   เลือกอยู่ {selectedItemIds.length} รายการ
                 </span>
               )}
@@ -809,8 +809,8 @@ function ItemsExplorerSession({
                   className={cn(
                     "flex h-8 px-2.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border font-semibold shadow-2xs",
                     isAtLeft
-                      ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
-                      : "border-transparent text-muted-foreground hover:bg-card hover:text-foreground"
+                      ? "border-primary/40 bg-primary/10 text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 shadow-xs"
+                      : "border-transparent text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300 hover:bg-card hover:text-foreground"
                   )}
                   title="คอลัมน์ฝั่งซ้าย (คลิกเพื่อเลื่อนกลับไปทางซ้าย)"
                   aria-label="คอลัมน์ฝั่งซ้าย"
@@ -824,8 +824,8 @@ function ItemsExplorerSession({
                   className={cn(
                     "flex h-8 px-2.5 items-center gap-1 rounded-md text-xs transition-all cursor-pointer border font-semibold shadow-2xs",
                     !isAtLeft
-                      ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
-                      : "border-transparent text-muted-foreground hover:bg-card hover:text-foreground"
+                      ? "border-primary/40 bg-primary/10 text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 shadow-xs"
+                      : "border-transparent text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300 hover:bg-card hover:text-foreground"
                   )}
                   title="คอลัมน์ฝั่งขวา (คลิกเพื่อเลื่อนไปดูคอลัมน์ทางขวา)"
                   aria-label="คอลัมน์ฝั่งขวา"
@@ -871,8 +871,8 @@ function ItemsExplorerSession({
                         className={cn(
                           'flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors cursor-pointer select-none',
                           isCurrent
-                            ? 'border-primary/40 bg-primary/10 text-primary shadow-xs font-bold'
-                            : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                            ? 'border-primary/40 bg-primary/10 text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 shadow-xs font-bold'
+                            : 'border-transparent text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300 hover:bg-muted hover:text-foreground'
                         )}
                       >
                         {item}

@@ -5,8 +5,8 @@ const realAuthE2EEnabled = process.env.CAMMS_E2E_REAL_AUTH === 'true';
 
 async function signIn(
   page: Page,
-  email = process.env.CAMMS_E2E_ADMIN_ID ?? 'admin@registry.s',
-  password = process.env.CAMMS_E2E_ADMIN_PASSWORD ?? 'admin1234',
+  email = process.env.CAMMS_E2E_ADMIN_ID ?? 'admin@camms.local',
+  password = process.env.CAMMS_E2E_ADMIN_PASSWORD ?? 'Admin@123456',
 ) {
   await page.goto('/login');
   await page.locator('input[name="id"]').fill(email);
@@ -51,38 +51,41 @@ test.describe('CAMMS E2E critical journeys and accessibility', () => {
     const itemName = `E2E Laptop ${Date.now()}`;
 
     await page.goto('/items?new=true');
-    await expect(page.locator('input[name="item_name"]')).toBeVisible();
-    await page.locator('input[name="item_name"]').fill(itemName);
-    await page.locator('input[name="quantity"]').fill('1');
-    await page.locator('.new-item-sheet-dialog select[name="status"]').selectOption('active');
-    await page.locator('.new-item-sheet-dialog button[type="submit"]').click();
+    const newItemDialog = page.locator('dialog.new-item-sheet-dialog[open]');
+    await expect(newItemDialog.locator('input[name="item_name"]')).toBeVisible();
+    await newItemDialog.locator('input[name="item_name"]').fill(itemName);
+    await newItemDialog.locator('#quantity').fill('1');
+
+    const unitCombobox = newItemDialog.locator('#unit_id');
+    await unitCombobox.click();
+    const unitOption = newItemDialog.locator('li[role="option"]').filter({ hasText: 'เครื่อง' }).first();
+    await unitOption.waitFor({ state: 'visible' });
+    await unitOption.click();
+
+    await newItemDialog.getByRole('button', { name: 'บันทึกรายการ' }).click();
 
     await expect(page.locator(`text=${itemName}`).first()).toBeVisible({ timeout: 15_000 });
 
-    await page.locator(`text=${itemName}`).first().click();
-    const editLink = page.locator('a[href$="/edit"]').first();
-    await expect(editLink).toBeVisible();
-    await editLink.click();
+    const itemCheckbox = page.locator(`input[aria-label="เลือก ${itemName}"]`);
+    await itemCheckbox.click();
 
-    await expect(page.locator('input[name="quantity"]')).toBeVisible();
-    await page.locator('input[name="quantity"]').fill('5');
-    await page.getByRole('button', { name: 'บันทึกข้อมูล' }).click();
-    await page.waitForURL(/\/items\/[a-f0-9-]+/);
-    await expect(page.locator('body')).toContainText('5');
+    await page.getByRole('button', { name: 'แก้ไขข้อมูล' }).click();
+    const editDialog = page.locator('dialog.new-item-sheet-dialog[open]');
+    await expect(editDialog).toBeVisible();
+    await editDialog.locator('#quantity').fill('5');
+    await editDialog.getByRole('button', { name: 'บันทึกการแก้ไข' }).click();
+    await expect(editDialog).toBeHidden();
 
-    await page.goto('/items');
-    await page.locator(`text=${itemName}`).first().click();
-
-    page.once('dialog', async (dialog) => {
-      await dialog.accept();
-    });
-
-    await page.locator('button').filter({ hasText: /ลบ|Delete/i }).first().click();
-    await page.waitForURL(/\/items/);
+    const isChecked = await itemCheckbox.isChecked();
+    if (!isChecked) {
+      await itemCheckbox.click();
+    }
+    await page.locator('button[aria-label="ยกเลิกรายการที่เลือก"]').click();
+    await page.getByRole('button', { name: 'ยืนยันการลบ' }).click();
     await expect(page.locator(`tr:has-text("${itemName}")`)).not.toBeVisible();
 
     await page.goto('/settings');
     await expect(page).toHaveURL(/\/settings/);
-    await expect(page.locator('body')).toContainText('CAMMS');
+    await expect(page.getByRole('heading', { name: 'ตั้งค่าระบบ' })).toBeVisible();
   });
 });

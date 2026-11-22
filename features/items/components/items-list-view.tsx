@@ -110,7 +110,7 @@ export function ItemsList({
  aria-label={ariaLabel}
  title={ariaLabel}
  className={cn(
- "flex items-center gap-1 hover:text-card-foreground text-muted-foreground transition-colors font-bold uppercase cursor-pointer select-none",
+ "flex items-center gap-1 hover:text-card-foreground text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300 transition-colors font-bold uppercase cursor-pointer select-none",
  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
  isSorted && "text-foreground",
  alignClass
@@ -200,26 +200,26 @@ export function ItemsList({
  />
  </DataTableHead>
 )}
- <DataTableHead className="w-12 px-2 text-center align-middle font-bold text-muted-foreground">ลำดับ</DataTableHead>
- <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('item_name')}>
+ <DataTableHead className="w-12 px-2 text-center align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300">ลำดับ</DataTableHead>
+ <DataTableHead className="w-[300px] min-w-[280px] max-w-[320px] px-3 align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300" aria-sort={getSortAria('item_name')}>
  {renderSortHeader('item_name', 'รายการครุภัณฑ์')}
  </DataTableHead>
- <DataTableHead className="w-28 px-2 text-center align-middle font-bold text-muted-foreground" aria-sort={getSortAria('acquired_date')}>
+ <DataTableHead className="w-28 px-2 text-center align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300" aria-sort={getSortAria('acquired_date')}>
  {renderSortHeader('acquired_date', 'วัน เดือน ปีที่รับ', 'center')}
  </DataTableHead>
- <DataTableHead className="w-56 px-2.5 align-middle font-bold text-muted-foreground">ยี่ห้อ/รุ่น</DataTableHead>
- <DataTableHead className="w-24 px-2.5 text-right align-middle font-bold text-muted-foreground" aria-sort={getSortAria('unit_price')}>
+ <DataTableHead className="w-56 px-2.5 align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300">ยี่ห้อ/รุ่น</DataTableHead>
+ <DataTableHead className="w-24 px-2.5 text-right align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300" aria-sort={getSortAria('unit_price')}>
  {renderSortHeader('unit_price', 'ราคา', 'right')}
  </DataTableHead>
- <DataTableHead className="w-16 px-2 text-center align-middle font-bold text-muted-foreground">หน่วย</DataTableHead>
- <DataTableHead className="w-44 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('asset_no')}>
+ <DataTableHead className="w-16 px-2 text-center align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300">หน่วย</DataTableHead>
+ <DataTableHead className="w-44 px-2.5 align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300" aria-sort={getSortAria('asset_no')}>
  {renderSortHeader('asset_no', 'เลขครุภัณฑ์')}
  </DataTableHead>
- <DataTableHead className="w-36 px-2.5 align-middle font-bold text-muted-foreground" aria-sort={getSortAria('responsible_person')}>
+ <DataTableHead className="w-36 px-2.5 align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300" aria-sort={getSortAria('responsible_person')}>
  {renderSortHeader('responsible_person', 'ผู้ครอบครอง')}
  </DataTableHead>
- <DataTableHead className="w-36 px-2.5 align-middle font-bold text-muted-foreground">ใช้งานที่</DataTableHead>
- <DataTableHead className="w-32 px-2.5 text-center font-bold text-muted-foreground">สภาพวัสดุ</DataTableHead>
+ <DataTableHead className="w-36 px-2.5 align-middle font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300">ใช้งานที่</DataTableHead>
+ <DataTableHead className="w-32 px-2.5 text-center font-bold text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300">สภาพวัสดุ</DataTableHead>
  </tr>
  </>
  ) : (

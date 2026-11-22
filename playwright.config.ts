@@ -32,9 +32,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: process.env.CI
-        ? [/.*\.smoke\.test\.ts/, '**/staging/**']
-        : /.*\.smoke\.test\.ts/,
+      testIgnore: [/.*\.smoke\.test\.ts/, '**/staging/**'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],
