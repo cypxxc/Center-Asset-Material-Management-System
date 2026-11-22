@@ -38,7 +38,7 @@ export function AdminWorkQueueView({ documents, summary }: { documents?: Disburs
             <ClipboardList className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
             <h2 id="admin-work-queue-title" className="font-semibold text-foreground">รออนุมัติ</h2>
             <span className="text-border">|</span>
-            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="flex items-center gap-1.5 text-emerald-700 [:is(.dark,[data-theme=dark])_&]:text-emerald-400 font-medium">
               <CheckCircle2 className="size-3.5" aria-hidden="true" />
               ไม่มีรายการรออนุมัติ
             </span>

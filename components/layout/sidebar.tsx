@@ -243,7 +243,7 @@ export function Sidebar({ profile }: SidebarProps) {
           {/* Group 1: งานทะเบียนวัสดุ */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+              <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
                 งานทะเบียน
               </p>
             ) : (
@@ -392,7 +392,7 @@ export function Sidebar({ profile }: SidebarProps) {
             <div className="space-y-1 pt-1">
               {!isCollapsed ? (
                 <div>
-                  <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+                  <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
                     จัดการระบบ
                   </p>
                   <div className="space-y-0.5">
