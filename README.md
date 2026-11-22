@@ -40,11 +40,15 @@ npm run postgres:setup
 npm run postgres:up
 # เตรียมฐานข้อมูล รัน Migration และสร้าง Starter Account ในฐานข้อมูลใหม่
 npm run postgres:app:setup
+# สร้าง Starter User สำหรับผู้ใช้ทั่วไป (ถ้าต้องการ)
+npm run postgres:user:setup
 # บันทึกค่าการเชื่อมต่อของแอปลง .env.local
 npm run postgres:activate
 ```
 
 แต่ละคำสั่งจะแจ้งในเทอร์มินัลเมื่อทำงานสำเร็จ เมื่อ `postgres:app:setup` สร้าง **Starter Account** (บัญชีผู้ดูแลระบบ) สำเร็จ ระบบจะแจ้งอีเมล ซึ่งค่าเริ่มต้นคือ `admin@camms.local` และแสดงรหัสผ่านในเทอร์มินัลแบบโต้ตอบนอก CI หากรันผ่าน CI หรือเก็บผลลัพธ์ลงไฟล์ ให้ดูรหัสผ่านจาก `INITIAL_ADMIN_PASSWORD` ใน `.env.postgres.admin` รหัสผ่านจะถูกสุ่มหากไม่ได้กำหนดไว้ การรันซ้ำกับฐานข้อมูลที่มีบัญชีอยู่แล้วจะแจ้งว่าข้ามการสร้างบัญชี
+
+หลังสร้าง Starter Admin แล้ว ใช้ `npm run postgres:user:setup` เพื่อสร้างบัญชี `user@camms.local` ที่มี role `user` ระบบจะสุ่มรหัสผ่านและเก็บไว้ใน `.env.postgres.user` ซึ่ง Git ไม่ติดตาม เมื่อสร้างสำเร็จ ระบบจะแสดงอีเมลและแสดงรหัสผ่านในเทอร์มินัลแบบโต้ตอบนอก CI สำหรับการรันแบบอื่น ให้ดู `INITIAL_USER_PASSWORD` ในไฟล์ดังกล่าว หากอีเมลนี้มีบัญชีอยู่แล้ว คำสั่งจะข้ามการสร้างและคงรหัสผ่านเดิม
 
 ### กู้การเชื่อมต่อ PostgreSQL เมื่อใช้ Docker volume เดิม
 
