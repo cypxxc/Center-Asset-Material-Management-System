@@ -76,7 +76,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
 
  // Partial selection & actions state
  const [multiReturnModalOpen, setMultiReturnModalOpen] = useState(false)
- const [returnModalItems, setReturnModalItems] = useState<ReturnModalItem[]>([])
+ const [returnModalItems] = useState<ReturnModalItem[]>([])
 
  const isDraft = doc.status === 'draft'
  const isPendingApproval = doc.status === 'pending_approval'

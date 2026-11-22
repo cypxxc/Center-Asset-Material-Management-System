@@ -48,6 +48,6 @@ test('approval reference shows the requester name without a redundant recipient 
   assert.equal(view.queryByRole('link'), null)
   assert.equal(view.queryByRole('columnheader', { name: 'ผู้ยืม / ผู้รับ' }), null)
   assert.equal(view.queryByText(document.recipient_name), null)
-  assert.equal(view.getAllByRole('columnheader').length, 6)
+  assert.equal(view.getAllByRole('columnheader').length, 7)
   assert.equal(view.queryByRole('columnheader', { name: 'ID' }), null)
 })

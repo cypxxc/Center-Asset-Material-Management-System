@@ -92,6 +92,12 @@ test('custody history shows return action for active custodian rows and opens re
     data: { id: 'loc-1', name: 'ห้องคลัง 1' },
   })
 
+  let returnPayload: { item_id: string; condition: string } | null = null
+  actions.returnCustody = async (params: { item_id: string; condition: string }) => {
+    returnPayload = params
+    return { ok: true }
+  }
+
   try {
     const { CustodyHistoryPanel } = require('../../features/disbursements/components/custody-history-panel')
     const view = render(<CustodyHistoryPanel query="" revision={0} />)
@@ -103,9 +109,9 @@ test('custody history shows return action for active custodian rows and opens re
     assert.ok(returnBtn)
 
     fireEvent.click(returnBtn)
-    await waitFor(() => assert.ok(view.queryByText('รับคืนครุภัณฑ์')))
-    await waitFor(() => assert.ok(view.getAllByText('โต๊ะทำงาน').length >= 2))
-    await waitFor(() => assert.ok(view.queryByText('ยืนยันรับคืน')))
+    await waitFor(() => assert.ok(returnPayload))
+    assert.equal(returnPayload!.item_id, 'a0000000-0000-4000-8000-000000000001')
+    assert.equal(returnPayload!.condition, 'normal')
 
     view.unmount()
   } finally {

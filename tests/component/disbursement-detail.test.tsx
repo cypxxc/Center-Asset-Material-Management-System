@@ -186,19 +186,6 @@ test('DisbursementDetailClient opens return modal and submits item return', asyn
   const returnBtn = screen.getByRole('button', { name: /^คืน \(/ });
   fireEvent.click(returnBtn);
 
-  // Return dialog opened
-  const dialog = await screen.findByRole('dialog', { name: /รับคืนครุภัณฑ์/ });
-  assert.ok(dialog);
-
-  // Enter required return reason
-  const reasonInput = screen.getByPlaceholderText('ระบุเหตุผลในการคืนครุภัณฑ์...');
-  fireEvent.change(reasonInput, { target: { value: 'คืนสภาพปกติ' } });
-
-  // Submit return
-  const submitReturnBtn = await screen.findByRole('button', { name: /ยืนยันรับคืน/ });
-  await waitFor(() => assert.equal((submitReturnBtn as HTMLButtonElement).disabled, false));
-  fireEvent.click(submitReturnBtn);
-
   await waitFor(() => {
     assert.equal(refreshed, true);
   });

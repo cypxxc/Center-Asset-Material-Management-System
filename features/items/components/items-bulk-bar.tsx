@@ -1,6 +1,6 @@
 'use client'
 
-import { Tag, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const actionButtonClassName = 'h-8.5 gap-1.5 rounded-lg px-3 text-xs cursor-pointer'

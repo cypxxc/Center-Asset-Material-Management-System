@@ -3,7 +3,7 @@ import 'next/dynamic'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { AdminWorkQueueSummary } from '../../features/disbursements/admin-work-queue-types'
 
 test('dashboard shares approval actions, blocks duplicate confirmation, preserves rejection reason and reports failure', async () => {
@@ -65,8 +65,9 @@ test('dashboard shares approval actions, blocks duplicate confirmation, preserve
 
     render(React.createElement(AdminWorkQueueView, { summary }))
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }))
-    assert.ok(await screen.findByRole('dialog', { name: 'ยกเลิกคำขอนี้?' }))
-    assert.ok(screen.getByText('ใช้ในการปฏิบัติงาน'))
+    const cancelDialog = await screen.findByRole('dialog', { name: 'ยกเลิกคำขอนี้?' })
+    assert.ok(cancelDialog)
+    assert.ok(within(cancelDialog).getByText('ใช้ในการปฏิบัติงาน'))
     fireEvent.change(screen.getByRole('textbox', { name: /เหตุผลการยกเลิก/ }), { target: { value: '  ขอข้อมูลเพิ่มเติม  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }))
     await waitFor(() => assert.equal(refreshes, 2))

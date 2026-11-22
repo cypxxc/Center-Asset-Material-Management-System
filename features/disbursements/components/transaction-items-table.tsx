@@ -9,7 +9,7 @@ import { partialApproveDisbursement, partialReturnDisbursement } from '../action
 import { bangkokCalendarDate } from '../borrow-dates'
 import type { DisbursementRow } from '../types'
 
-export function TransactionItemsTable({ document, userRole, reference }: { document: DisbursementRow; userRole: string; reference: string }) {
+export function TransactionItemsTable({ document, userRole }: { document: DisbursementRow; userRole: string; reference?: string }) {
   const router = useRouter()
   const isAdmin = userRole === 'admin'
   const isPendingApproval = isAdmin && document.status === 'pending_approval'
