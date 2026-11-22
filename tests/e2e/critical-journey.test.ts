@@ -42,8 +42,10 @@ test.describe('CAMMS E2E critical journeys and accessibility', () => {
     await expect(page).toHaveURL(/\/dashboard/);
     await scanAccessibility(page, 'Dashboard page');
 
-    await page.goto('/items');
-    await expect(page.locator('body')).toContainText('CAMMS');
+    const itemsResponse = await page.goto('/items');
+    expect(itemsResponse?.ok()).toBe(true);
+    await expect(page).toHaveURL(/\/items$/);
+    await expect(page.getByRole('heading', { name: 'รายการทะเบียนครุภัณฑ์', exact: true, level: 1 })).toBeVisible();
     await scanAccessibility(page, 'Items page');
 
     const itemName = `E2E Laptop ${Date.now()}`;
