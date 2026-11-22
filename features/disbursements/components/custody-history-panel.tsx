@@ -7,9 +7,9 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { formatDateTime } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { getPageNumbers } from '../pagination'
-import { loadCustodyHistory } from '../actions'
+import { loadCustodyHistory, returnCustody } from '../actions'
+import { bangkokCalendarDate } from '../borrow-dates'
 import type { CustodyHistoryRow, getCustodyHistory } from '../custody-postgres'
-import { AssetReturnModal } from './asset-return-modal'
 
 export function CustodyHistoryPanel({ query, revision, onAssign }: { query: string; revision: number; onAssign?: () => void }) {
   return <CustodyHistoryPages key={JSON.stringify([query, revision])} query={query} onAssign={onAssign} />
@@ -17,10 +17,35 @@ export function CustodyHistoryPanel({ query, revision, onAssign }: { query: stri
 
 function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: () => void }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof getCustodyHistory>> | null>(null)
-  const [selectedReturnItem, setSelectedReturnItem] = useState<CustodyHistoryRow | null>(null)
+  const [returningId, setReturningId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
   const [page, setPage] = useState(1)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+
+  async function handleDirectReturn(row: CustodyHistoryRow) {
+    if (!row.item_id || returningId) return
+    setReturningId(row.id)
+    setActionError('')
+    try {
+      const result = await returnCustody({
+        item_id: row.item_id,
+        return_date: bangkokCalendarDate(),
+        condition: 'normal',
+        reason: 'คืนสภาพปกติ',
+      })
+      if (!result.ok) {
+        setActionError(result.error || 'บันทึกรับคืนไม่สำเร็จ')
+        return
+      }
+      setAttempt((value) => value + 1)
+      onAssign?.()
+    } catch {
+      setActionError('บันทึกรับคืนไม่สำเร็จ กรุณาลองใหม่')
+    } finally {
+      setReturningId(null)
+    }
+  }
   useEffect(() => {
     let cancelled = false
     loadCustodyHistory({ page, q: query }).then((result) => {
@@ -47,6 +72,12 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
         <div role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />กำลังโหลดประวัติ...</div>
       ) : data.rows.length ? (
         <div className="min-w-0">
+          {actionError && (
+            <div role="alert" className="m-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+              <span>{actionError}</span>
+              <button type="button" onClick={() => setActionError('')} className="ml-2 underline text-xs">ปิด</button>
+            </div>
+          )}
           <table className="table-data-uniform w-full min-w-[880px] table-fixed text-left text-xs text-card-foreground">
             <colgroup>
               <col className="w-12" />
@@ -72,14 +103,21 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
                 <td className="whitespace-nowrap text-left tabular-nums text-muted-foreground">{formatDateTime(row.created_at)}</td>
                 <td className="text-center [&_span]:whitespace-normal">
                   {row.status_action === 'can_return' || row.can_return ? (
-                    <Button
+                    <Button aria-busy={returningId === row.id}
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-lg border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary hover:bg-primary/15"
-                      onClick={() => setSelectedReturnItem(row)}
+                      disabled={returningId !== null}
+                      className="h-8 rounded-lg px-2.5 text-xs"
+                      onClick={() => handleDirectReturn(row)}
                     >
-                      รับคืน
+                      {returningId === row.id ? (
+                        <span className="flex items-center gap-1">
+                          <span>กำลังรับคืน...</span>
+                        </span>
+                      ) : (
+                        'รับคืน'
+                      )}
                     </Button>
                   ) : row.status_action === 'cancelled' ? (
                     <StatusBadge size="sm" variant="danger">ยกเลิก</StatusBadge>
@@ -112,7 +150,7 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
           </span>
         </div>
         <nav aria-label="แบ่งหน้าประวัติผู้ถือครอง" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs font-semibold" aria-label="หน้าก่อนหน้า" disabled={!data || !!error || data.page <= 1} onClick={() => data && changePage(data.page - 1)}>ก่อนหน้า</Button>
+          <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" aria-label="หน้าก่อนหน้า" disabled={!data || !!error || data.page <= 1} onClick={() => data && changePage(data.page - 1)}>ก่อนหน้า</Button>
           <div className="flex items-center gap-1">
             {getPageNumbers(data?.page ?? page, data?.totalPages ?? page).map((item, index) => item === 'ellipsis' ? (
               <span key={`ellipsis-${index}`} className="px-1.5 text-xs text-muted-foreground select-none" aria-hidden="true">…</span>
@@ -126,20 +164,9 @@ function CustodyHistoryPages({ query, onAssign }: { query: string; onAssign?: ()
               className={cn('flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring', item === (data?.page ?? page) ? 'border-primary/40 bg-primary/10 text-primary shadow-xs font-bold' : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground')}
             >{item}</button>)}
           </div>
-          <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs font-semibold" aria-label="หน้าถัดไป" disabled={!data || !!error || data.page >= data.totalPages} onClick={() => data && changePage(data.page + 1)}>ถัดไป</Button>
+          <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" aria-label="หน้าถัดไป" disabled={!data || !!error || data.page >= data.totalPages} onClick={() => data && changePage(data.page + 1)}>ถัดไป</Button>
         </nav>
       </footer>
-      {selectedReturnItem && (
-        <AssetReturnModal
-          item={selectedReturnItem}
-          onClose={() => setSelectedReturnItem(null)}
-          onSuccess={() => {
-            setSelectedReturnItem(null)
-            setAttempt((value) => value + 1)
-            onAssign?.()
-          }}
-        />
-      )}
     </section>
   )
 }

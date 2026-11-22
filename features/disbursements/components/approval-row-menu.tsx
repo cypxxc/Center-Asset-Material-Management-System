@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from 'react'
 import { Dialog } from 'radix-ui'
-import { Loader2, X, XCircle } from 'lucide-react'
+import { X, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { rejectDisbursement, cancelDisbursementDraft, reverseDisbursement } from '../actions'
 import type { DisbursementRow } from '../types'
@@ -89,8 +89,7 @@ export function ApprovalRowMenu({ doc, disabled, onBusyChange, onComplete }: {
             </div>
             <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/20 px-6 py-4 sm:flex-row sm:justify-end">
               <Dialog.Close asChild><Button variant="outline" disabled={busy}>กลับ</Button></Dialog.Close>
-              <Button variant="destructive" disabled={busy} onClick={() => submit()}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+              <Button aria-busy={busy} variant="outline" disabled={busy} onClick={() => submit()}>
                 {busy ? 'กำลังยกเลิก...' : 'ยกเลิกคำขอ'}
               </Button>
             </div>

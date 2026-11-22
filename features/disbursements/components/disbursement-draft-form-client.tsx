@@ -6,13 +6,11 @@ import Link from 'next/link'
 import { Select } from 'radix-ui'
 import {
  ArrowLeft,
- Save,
  Trash2,
  Plus,
  Minus,
  AlertCircle,
  FileText,
- Search,
  Package,
  ChevronDown,
  Check,
@@ -224,7 +222,7 @@ export function DisbursementDraftFormClient({
  {!onCancel && <PageHeader
  title={
  <span className="flex items-center gap-2">
- <Button variant="ghost" size="icon-sm" asChild className="mr-1">
+ <Button variant="outline" size="icon-sm" asChild className="mr-1">
  <Link href="/disbursements" aria-label="กลับไปหน้ารายการ">
  <ArrowLeft className="h-4 w-4" />
  </Link>
@@ -429,13 +427,12 @@ export function DisbursementDraftFormClient({
  กดปุ่ม &quot;{transactionType === 'material_issue' ? 'ค้นหาและเลือกวัสดุจากคลัง' : 'ค้นหาและเลือกครุภัณฑ์จากคลัง'}&quot; เพื่อเปิดตารางค้นหาและเลือกสิ่งของ
  </p>
  </div>
- <Button
+ <Button variant="outline-primary"
  type="button"
  size="sm"
  onClick={() => setIsPickerModalOpen(true)}
- className="h-9 gap-1.5 border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15"
+ className="h-9 gap-1.5"
  >
- <Search className="h-3.5 w-3.5" />
  <span>
  {transactionType === 'material_issue'
  ? 'เปิดตารางเลือกวัสดุ'
@@ -609,10 +606,9 @@ export function DisbursementDraftFormClient({
  <td className="py-2.5 px-3 text-center">
  <Button
  type="button"
- variant="ghost"
+ variant="destructive"
  size="icon-xs"
  onClick={() => handleRemoveItem(idx)}
- className="text-destructive hover:bg-destructive/10"
  aria-label={`ลบรายการ ${currentItem?.item_name || ''}`}
  >
  <Trash2 className="h-3.5 w-3.5" />
@@ -644,19 +640,18 @@ export function DisbursementDraftFormClient({
  {/* Action Buttons */}
  <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-6 flex items-center justify-end gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm sm:px-6">
  {onCancel ? (
- <Button type="button" variant="outline" size="sm" className="h-9 px-4 font-normal" onClick={onCancel} disabled={isSubmitting}>ยกเลิก</Button>
+ <Button type="button" variant="outline" size="sm" className="h-9 px-4" onClick={onCancel} disabled={isSubmitting}>ยกเลิก</Button>
  ) : <Button variant="outline" size="sm" asChild>
  <Link href="/disbursements">
  ยกเลิก
  </Link>
  </Button>}
- <Button
+ <Button aria-busy={isSubmitting}
  type="submit"
  size="sm"
  disabled={isSubmitting}
- className="h-9 gap-1.5 border border-primary/30 bg-primary/10 px-4 text-primary font-normal hover:bg-primary/15"
+ className="h-9 gap-1.5 px-4"
  >
- <Save className="h-4 w-4" />
  <span>{isSubmitting ? 'กำลังบันทึก...' : userRole === 'user' ? 'ส่งคำขอเบิก' : 'บันทึกฉบับร่าง'}</span>
  </Button>
  </div>

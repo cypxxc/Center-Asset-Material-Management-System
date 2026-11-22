@@ -6,8 +6,6 @@ import {
  X,
  Check,
  Package,
- CheckSquare,
- Square,
  Tag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -306,12 +304,10 @@ function DisbursementItemPickerModalContent({
  >
  {allVisibleSelected ? (
  <>
- <CheckSquare className="h-3.5 w-3.5" />
  <span>ยกเลิกการเลือกทั้งหมด ({selectableVisibleItems.length})</span>
  </>
  ) : (
  <>
- <Square className="h-3.5 w-3.5" />
  <span>เลือกทั้งหมดที่แสดง ({selectableVisibleItems.length})</span>
  </>
  )}
@@ -509,14 +505,13 @@ function DisbursementItemPickerModalContent({
  >
  ยกเลิก
  </Button>
- <Button
+ <Button variant="outline-primary"
  type="button"
  size="sm"
  onClick={handleConfirm}
  disabled={selectedIds.size === 0}
  className="gap-1.5 shadow-xs"
  >
- <Check className="h-4 w-4" />
  <span>
  {transactionType === 'material_issue'
  ? `เพิ่มเข้ารายการเบิก (${selectedIds.size})`

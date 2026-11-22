@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
-import { Mail, Loader2 } from 'lucide-react'
+import { Mail } from 'lucide-react'
 import { addPersonalEmail } from '../actions'
 
 export function AccountEmailForm() {
@@ -18,8 +18,8 @@ export function AccountEmailForm() {
           <input id="account-email" name="email" type="email" autoComplete="email" maxLength={254} required disabled={pending} placeholder="name@example.com" className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </div>
         <div className="flex justify-end">
-          <button type="submit" disabled={pending} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />}{pending ? 'กำลังบันทึก...' : 'บันทึกอีเมล'}
+          <button aria-busy={pending} type="submit" disabled={pending} className="flex h-9 items-center gap-2 rounded-lg bg-primary hover:bg-primary/80 px-4 text-xs font-medium text-primary-foreground disabled:opacity-50">
+            {pending ? 'กำลังบันทึก...' : 'บันทึกอีเมล'}
           </button>
         </div>
       </>}

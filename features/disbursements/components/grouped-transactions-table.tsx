@@ -81,16 +81,18 @@ export function GroupedTransactionsTable({
     className="min-w-[840px] table-fixed text-xs text-card-foreground"
   >
     <colgroup>
-      <col className="w-12" />
-      <col />
-      <col className="w-[12%]" />
-      <col className="w-[17%]" />
-      <col className="w-[17%]" />
-      <col className="w-[23%]" />
+      <col className="w-10" />
+      <col className="w-[18%]" />
+      <col className="w-[22%]" />
+      <col className="w-[9%]" />
+      <col className="w-[14%]" />
+      <col className="w-[11%]" />
+      <col className="w-[22%]" />
     </colgroup>
     <DataTableHeader className="border-border/80 bg-muted/75 backdrop-blur-xs [&>tr>th]:px-3 [&>tr>th:first-child]:px-2"><tr>
       <DataTableHead><span className="sr-only">ขยายรายการ</span></DataTableHead>
       <DataTableHead className="text-left">ชื่อผู้ขอ</DataTableHead>
+      <DataTableHead className="text-left">วัตถุประสงค์</DataTableHead>
       <DataTableHead className="text-center">จำนวน</DataTableHead>
       <DataTableHead className="text-left">วันที่</DataTableHead>
       <DataTableHead className="text-center">สถานะ</DataTableHead>
@@ -125,8 +127,9 @@ export function GroupedTransactionsTable({
             toggleDetails(doc.id)
           }}
         >
-          <DataTableCell className="w-12"><button id={`expand-${doc.id}`} type="button" aria-label={`${open ? 'ย่อ' : 'ขยาย'}รายการ ${reference}`} aria-expanded={open} aria-controls={`transaction-${doc.id}`} className={cn('flex size-8 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', open && 'border-primary/30 bg-primary/10 text-primary')} onClick={() => toggleDetails(doc.id)}><ChevronRight aria-hidden="true" className={cn('size-4 transition-transform', open && 'rotate-90')} /></button></DataTableCell>
-          <DataTableCell className="whitespace-normal"><div className="flex items-center gap-2 text-foreground"><DisbursementTypeBadge type={doc.transaction_type} label={typeLabel} /><span className="min-w-0 break-words font-medium">{requesterName}</span></div></DataTableCell>
+          <DataTableCell className="w-10"><button id={`expand-${doc.id}`} type="button" aria-label={`${open ? 'ย่อ' : 'ขยาย'}รายการ ${reference}`} aria-expanded={open} aria-controls={`transaction-${doc.id}`} className={cn('flex size-8 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', open && 'border-primary/30 bg-primary/10 text-primary')} onClick={() => toggleDetails(doc.id)}><ChevronRight aria-hidden="true" className={cn('size-4 transition-transform', open && 'rotate-90')} /></button></DataTableCell>
+          <DataTableCell className="whitespace-normal"><div className="flex items-center gap-2 text-foreground min-w-0"><DisbursementTypeBadge type={doc.transaction_type} label={typeLabel} /><span className="min-w-0 truncate font-medium" title={requesterName}>{requesterName}</span></div></DataTableCell>
+          <DataTableCell className="text-left"><span className="block truncate text-muted-foreground" title={doc.purpose || '—'}>{doc.purpose || '—'}</span></DataTableCell>
           <DataTableCell className="text-center tabular-nums">{doc.requested_items?.length || 0} รายการ</DataTableCell>
           <DataTableCell className="tabular-nums text-xs"><div className="space-y-1">{doc.transaction_type === 'asset_borrow' ? <><div>ยืม {formatDate(doc.confirmed_at || doc.created_at)}</div><div className="text-muted-foreground">คืน {doc.due_date ? formatDate(doc.due_date) : 'ไม่ระบุ'}</div></> : formatDate(doc.confirmed_at || doc.created_at)}</div></DataTableCell>
           <DataTableCell className="text-center"><DisbursementStatusBadge status={doc.status} className="gap-1 px-2 text-[10.5px] leading-tight" /></DataTableCell>
@@ -136,7 +139,7 @@ export function GroupedTransactionsTable({
             {userRole === 'admin' && <ApprovalRowActions doc={doc} />}
           </div></DataTableCell>
         </DataTableRow>
-        {open && <DataTableRow hoverable={false}><DataTableCell colSpan={6} className="whitespace-normal p-0"><div id={`transaction-${doc.id}`} role="region" aria-label={`วัสดุ ${reference}`} className="border-y border-border/80 bg-muted/30 p-2.5 sm:p-3">
+        {open && <DataTableRow hoverable={false}><DataTableCell colSpan={7} className="whitespace-normal p-0"><div id={`transaction-${doc.id}`} role="region" aria-label={`วัสดุ ${reference}`} className="border-y border-border/80 bg-muted/30 p-2.5 sm:p-3">
           <TransactionItemsTable document={doc} userRole={userRole} reference={reference} />
         </div></DataTableCell></DataTableRow>}
       </Fragment>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createPortal } from "react-dom"
-import { Printer, X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal, LayoutGrid, Square } from "lucide-react"
+import { X, Tag, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { generateQrCodeSvgPath } from "@/lib/qr-code"
 
@@ -965,7 +965,7 @@ export function AssetTagModal({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAdvancedToggles((prev) => !prev)}
-                    className="h-6 px-2 text-[11px] font-semibold text-muted-foreground hover:text-card-foreground cursor-pointer"
+                    className="h-6 px-2 text-[11px] text-muted-foreground hover:text-card-foreground cursor-pointer"
                     aria-label="ปรับแต่งฟิลด์"
                   >
                     {showAdvancedToggles ? "ย่อส่วนนี้" : "ปรับแต่งฟิลด์"}
@@ -1085,7 +1085,6 @@ export function AssetTagModal({
                         }`}
                         aria-label="ดูตัวอย่างแบบดวงเดี่ยว (Single)"
                       >
-                        <Square className="h-3 w-3" />
                         <span>ดวงเดี่ยว (Single)</span>
                       </button>
                       <button
@@ -1098,7 +1097,6 @@ export function AssetTagModal({
                         }`}
                         aria-label="ดูตัวอย่างทั้งแผ่น A4 (A4 Sheet Preview)"
                       >
-                        <LayoutGrid className="h-3 w-3" />
                         <span>ทั้งแผ่น A4 (Sheet)</span>
                       </button>
                     </div>
@@ -1197,16 +1195,15 @@ export function AssetTagModal({
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                className="h-9 px-4 text-xs font-semibold cursor-pointer"
+                className="h-9 px-4 text-xs cursor-pointer"
               >
                 ยกเลิก
               </Button>
               <Button
                 type="button"
                 onClick={handlePrint}
-                className="h-9 px-4 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+                className="h-9 px-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
               >
-                <Printer className="h-3.5 w-3.5 mr-1.5" />
                 พิมพ์ลาเบล ({expandedPrintList.length} ดวง)
               </Button>
             </div>

@@ -72,6 +72,6 @@ export function MaterialForm({ material, references, inline = false, formId, sho
       {ledgerFields.map(([key,label,type])=><label key={key} className="text-sm">{label}<input className={inputClass} name={key} type={type === 'money' ? 'number' : type} min={type === 'number' || type === 'money' ? '0' : undefined} step={type === 'money' ? '0.01' : type === 'number' ? '1' : undefined} defaultValue={String(material?.[key] ?? '')} /></label>)}
       <label className="text-sm sm:col-span-2">หมายเหตุ<textarea name="note" className={inputClass} maxLength={2000} rows={3} defaultValue="ส่วนกลาง" /></label>
     </fieldset>
-    {showActions && <button disabled={busy} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">{busy ? 'กำลังบันทึก…' : 'บันทึกวัสดุ'}</button>}
+    {showActions && <button aria-busy={busy} disabled={busy} className="rounded-lg bg-primary hover:bg-primary/80 px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">{busy ? 'กำลังบันทึก…' : 'บันทึกวัสดุ'}</button>}
   </form>{material && <div className={inline ? 'mt-6' : 'mx-auto w-full max-w-4xl px-4 pb-6 sm:px-6'}><MaterialStockPanel itemId={material.id} /></div>}</div>
 }

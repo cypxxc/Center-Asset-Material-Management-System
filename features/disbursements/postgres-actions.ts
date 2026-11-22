@@ -154,6 +154,7 @@ export async function updatePostgresDisbursementDraft(rawInput: unknown): Promis
     )
     const doc = docRes.rows[0]
     if (!doc) throw new Error('ไม่พบเอกสารเบิกจ่าย')
+    if (user.role !== 'admin' && doc.created_by !== user.id) throw new Error('คุณไม่มีสิทธิ์แก้ไขคำขอของผู้อื่น')
     if (doc.status !== 'draft') throw new Error(`สามารถแก้ไขได้เฉพาะเอกสารฉบับร่างเท่านั้น (สถานะปัจจุบัน: ${doc.status})`)
     if (data.transaction_type === 'asset_borrow') {
       const dateError = borrowDueDateError(data.due_date, doc.created_at)

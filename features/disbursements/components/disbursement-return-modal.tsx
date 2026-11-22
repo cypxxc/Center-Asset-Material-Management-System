@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Dialog } from 'radix-ui'
-import { AlertTriangle, CheckCircle2, Loader2, MapPin, X } from 'lucide-react'
+import { AlertTriangle, Loader2, MapPin, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { loadOriginLocationAction, partialReturnDisbursement } from '../actions'
@@ -266,12 +266,6 @@ function ReturnForm({
                         : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                     )}
                   >
-                    <CheckCircle2
-                      className={cn(
-                        'size-4 shrink-0',
-                        condition === 'normal' ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground'
-                      )}
-                    />
                     <span className="text-xs">ปกติ</span>
                   </button>
 
@@ -287,12 +281,6 @@ function ReturnForm({
                         : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                     )}
                   >
-                    <AlertTriangle
-                      className={cn(
-                        'size-4 shrink-0',
-                        condition === 'damaged' ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'
-                      )}
-                    />
                     <span className="text-xs">ชำรุด</span>
                   </button>
 
@@ -336,15 +324,13 @@ function ReturnForm({
               <Button type="button" variant="outline" size="sm" disabled={isSubmitting} onClick={onClose}>
                 ยกเลิก
               </Button>
-              <Button
+              <Button aria-busy={isSubmitting}
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || isLoadingLocations || hasMissingOrigin || items.length === 0}
-                className="font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (

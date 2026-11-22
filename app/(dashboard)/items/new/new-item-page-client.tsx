@@ -38,7 +38,7 @@ export function NewItemPageClient({
           </nav>
 
           <Link href="/items">
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+            <Button variant="outline" size="sm" className="h-7 text-xs">
               ย้อนกลับ
             </Button>
           </Link>

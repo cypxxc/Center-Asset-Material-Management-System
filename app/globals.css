@@ -129,10 +129,17 @@
   html {
     @apply font-sans;
   }
+  button:not([data-slot="button"]) {
+    @apply font-medium enabled:hover:brightness-95 enabled:active:brightness-90 disabled:opacity-50 aria-busy:cursor-wait aria-busy:opacity-70;
+  }
 }
 
-/* Keep table headings and cell text visually consistent across the app. */
-.table-data-uniform :is(th, td) {
+thead th {
+  @apply font-semibold text-foreground;
+}
+
+/* Keep table body cells visually consistent across the app. */
+.table-data-uniform :is(td, th:not(thead th)) {
   color: var(--foreground);
   font-weight: 400;
 }

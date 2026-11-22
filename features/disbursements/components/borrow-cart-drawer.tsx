@@ -66,7 +66,7 @@ export function BorrowCartDrawer({ isOpen, onClose, items, selectedIds, onRemove
               </div>
             )}
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">เลือกเพิ่ม</Button>
+              <Button type="button" variant="outline-primary" onClick={onClose} className="flex-1">เลือกเพิ่ม</Button>
               <Button type="button" disabled={!selectedItems.length} onClick={onProceedToSubmit} className="flex-1">ดำเนินการต่อ</Button>
             </div>
           </footer>

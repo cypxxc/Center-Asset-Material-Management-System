@@ -3,7 +3,7 @@
 import { ITEM_STATUSES } from '../status'
 
 import { useMemo } from 'react'
-import { Activity, Tag, X, RotateCcw, Layers, SlidersHorizontal } from 'lucide-react'
+import { Activity, Tag, X, Layers, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterDropdown, type FilterOption } from '@/components/ui/filter-dropdown'
@@ -277,10 +277,9 @@ export function ItemsFilterBar({
  variant="outline"
  size="sm"
  onClick={onBatchPrintLocation}
- className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer shadow-2xs shrink-0"
+ className="h-9 px-3 flex items-center gap-1.5 text-xs border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer shadow-2xs shrink-0"
  title="พิมพ์ป้ายครุภัณฑ์ทั้งหมดในสถานที่นี้"
  >
- <Tag className="h-3.5 w-3.5" />
  <span className="truncate">พิมพ์ป้ายทั้งสถานที่ ({localItemsCount} ชิ้น)</span>
  </Button>
  )}
@@ -329,9 +328,8 @@ export function ItemsFilterBar({
  type="button"
  onClick={onResetFilters}
  data-testid="clear-all-filters-button"
- className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-2 py-1 rounded-md transition-colors cursor-pointer ml-1 select-none"
+ className="inline-flex items-center gap-1 text-xs font-medium text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-2 py-1 rounded-md transition-colors cursor-pointer ml-1 select-none"
  >
- <RotateCcw className="h-3 w-3" />
  <span>ล้างตัวกรองทั้งหมด</span>
  </button>
  </div>

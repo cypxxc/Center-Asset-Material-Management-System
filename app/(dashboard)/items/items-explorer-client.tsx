@@ -4,11 +4,8 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   Maximize2,
   Minimize2,
-  Plus,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -648,9 +645,8 @@ function ItemsExplorerSession({
                       setEditingItem(null)
                       setIsSheetOpen(true)
                     }}
-                    className="h-8 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-blue-700 [:is(.dark,[data-theme=dark])_&]:text-blue-300 dark:text-blue-300 font-semibold text-xs px-3.5 gap-1.5 shadow-xs transition-all cursor-pointer inline-flex items-center shrink-0"
+                    className="h-8 rounded-lg font-medium text-xs px-3.5 gap-1.5 shadow-xs transition-all cursor-pointer inline-flex items-center shrink-0 border border-primary bg-background text-primary hover:bg-primary/10"
                   >
-                    <Plus className="h-4 w-4" />
                     <span>ขึ้นทะเบียนใหม่</span>
                   </button>
                 )}
@@ -815,7 +811,6 @@ function ItemsExplorerSession({
                   title="คอลัมน์ฝั่งซ้าย (คลิกเพื่อเลื่อนกลับไปทางซ้าย)"
                   aria-label="คอลัมน์ฝั่งซ้าย"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" />
                   <span className="text-[11px]">คอลัมน์ซ้าย</span>
                 </button>
                 <button
@@ -831,7 +826,6 @@ function ItemsExplorerSession({
                   aria-label="คอลัมน์ฝั่งขวา"
                 >
                   <span className="text-[11px]">ดูคอลัมน์ขวา</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
 
@@ -844,7 +838,7 @@ function ItemsExplorerSession({
                   size="sm"
                   disabled={currentPage <= 1 || isPending}
                   onClick={() => handlePageChange(currentPage - 1)}
-                  className="h-8 px-2.5 text-xs font-semibold"
+                  className="h-8 px-2.5 text-xs"
                   aria-label="หน้าก่อนหน้า"
                 >
                   ก่อนหน้า
@@ -886,7 +880,7 @@ function ItemsExplorerSession({
                   size="sm"
                   disabled={currentPage >= totalPagesCalculated || isPending}
                   onClick={() => handlePageChange(currentPage + 1)}
-                  className="h-8 px-2.5 text-xs font-semibold"
+                  className="h-8 px-2.5 text-xs"
                   aria-label="หน้าถัดไป"
                 >
                   ถัดไป

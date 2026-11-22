@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FileQuestion, Home, ArrowLeft } from 'lucide-react'
+import { FileQuestion } from 'lucide-react'
 
 export default function NotFound() {
   return (
@@ -24,16 +24,14 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
           <Link
             href="/dashboard"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm border border-border bg-background text-foreground hover:bg-muted"
           >
-            <Home className="w-4 h-4" />
             <span>กลับสู่หน้าหลัก</span>
           </Link>
           <Link
             href="/items"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
             <span>ทะเบียนวัสดุ</span>
           </Link>
         </div>

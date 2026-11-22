@@ -83,6 +83,49 @@ async function setup() {
     console.log(`[postgres:app:setup] Database ${database}, roles camms_app and camms_auth, migrations, and local storage are ready.`)
   } finally { await migrationPool.end() }
 }
+async function setupUser() {
+  const email = 'user@camms.local'
+  const userCredentialsFile = '.env.postgres.user'
+  const app = existsSync(appFile) ? parse(readFileSync(appFile)) : {}
+  if (!app.DATABASE_MIGRATION_URL) throw new Error('Missing DATABASE_MIGRATION_URL in .env.postgres.app. Run npm run postgres:app:setup first.')
+  if (new URL(app.DATABASE_MIGRATION_URL).pathname !== `/${database}`) throw new Error('Unexpected application database')
+
+  const pool = new Pool({ connectionString: app.DATABASE_MIGRATION_URL, connectionTimeoutMillis: 5000 })
+  let password: string | undefined
+  try {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const result = await client.query(
+        "insert into public.profiles(full_name,email,role) values('ผู้ใช้งาน',$1,'user') on conflict (lower(email)) do nothing returning id",
+        [email],
+      )
+      if (result.rows[0]) {
+        if (!existsSync(userCredentialsFile)) {
+          writeEnv(userCredentialsFile, { INITIAL_USER_EMAIL: email, INITIAL_USER_PASSWORD: secret() })
+        }
+        const initial = parse(readFileSync(userCredentialsFile))
+        if (initial.INITIAL_USER_EMAIL !== email || !initial.INITIAL_USER_PASSWORD) {
+          throw new Error('Invalid starter user credentials in .env.postgres.user')
+        }
+        password = initial.INITIAL_USER_PASSWORD
+        const hash = await hashPassword(password)
+        await client.query('insert into private_auth.credentials(user_id,password_hash) values($1,$2)', [result.rows[0].id,hash])
+      }
+      await client.query('COMMIT')
+    } catch (error) { await client.query('ROLLBACK'); throw error }
+    finally { client.release() }
+  } finally { await pool.end() }
+
+  if (password) {
+    console.log('[postgres:user:setup] Created starter account (user).')
+    console.log(`  Email: ${email}`)
+    if (process.stdout.isTTY && !process.env.CI) console.log(`  Password: ${password}`)
+    console.log(`  Credentials file: ${userCredentialsFile} (INITIAL_USER_EMAIL, INITIAL_USER_PASSWORD)`)
+  } else {
+    console.log(`[postgres:user:setup] Account ${email} already exists. Starter account creation skipped.`)
+  }
+}
 async function activate() {
   const app = parse(readFileSync(appFile))
   for (const key of ['DATABASE_URL', 'DATABASE_AUTH_URL']) {
@@ -109,6 +152,7 @@ async function activate() {
 }
 async function main() {
   if (process.argv[2] === 'setup') await setup()
+  else if (process.argv[2] === 'user-setup') await setupUser()
   else if (process.argv[2] === 'activate') await activate()
   else if (process.argv[2] === 'migrate') {
     const connectionString = process.env.DATABASE_MIGRATION_URL ||
@@ -117,6 +161,6 @@ async function main() {
     const pool = new Pool({ connectionString, connectionTimeoutMillis: 5000 })
     try { await migratePostgres(pool) }
     finally { await pool.end() }
-  } else throw new Error('Usage: tsx scripts/postgres-app.ts setup|activate|migrate')
+  } else throw new Error('Usage: tsx scripts/postgres-app.ts setup|user-setup|activate|migrate')
 }
 main().catch((error: unknown) => { console.error(error instanceof Error ? error.message : 'PostgreSQL setup failed'); process.exitCode=1 })

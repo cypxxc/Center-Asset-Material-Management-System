@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, useEffect, useState } from 'react'
-import { ArrowUp, ArrowDown, ArrowUpDown, Check, Copy, Package } from 'lucide-react'
+import { ArrowUp, ArrowDown, ArrowUpDown, Package } from 'lucide-react'
 import {
  DataTable,
  DataTableHeader,
@@ -110,9 +110,8 @@ export function ItemsList({
  aria-label={ariaLabel}
  title={ariaLabel}
  className={cn(
- "flex items-center gap-1 hover:text-card-foreground text-slate-600 [:is(.dark,[data-theme=dark])_&]:text-slate-300 dark:text-slate-300 transition-colors font-bold uppercase cursor-pointer select-none",
+ "flex items-center gap-1 text-foreground hover:text-foreground transition-colors font-semibold uppercase cursor-pointer select-none",
  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
- isSorted && "text-foreground",
  alignClass
  )}
  >
@@ -460,14 +459,13 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  onClick={handleCopy}
  title={`คัดลอก ${item.asset_no}`}
  aria-label={`คัดลอก ${item.asset_no}`}
- className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer group/badge truncate max-w-full"
+ className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer group/badge truncate max-w-full data-[copied=true]:border-primary data-[copied=true]:text-primary" data-copied={copied}
  >
  <TruncatedTextTooltip
  text={item.asset_no}
  as="span"
  className="truncate"
  />
- {copied ? <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> : <Copy className="w-2.5 h-2.5 opacity-40 group-hover/badge:opacity-100 shrink-0" />}
  </button>
  ) : (
  <span className="text-muted-foreground/40 italic">-</span>
@@ -545,14 +543,9 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  onClick={handleCopy}
  title={`คัดลอก ${item.asset_no}`}
  aria-label={`คัดลอก ${item.asset_no}`}
- className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge"
+ className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/90 border border-border/70 shrink-0 transition-colors cursor-pointer group/badge data-[copied=true]:border-primary data-[copied=true]:text-primary" data-copied={copied}
  >
  <span className="truncate max-w-[120px]">{item.asset_no}</span>
- {copied ? (
- <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
- ) : (
- <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
- )}
  </button>
  ) : (
  <span className="text-[10px] text-muted-foreground/50 italic shrink-0">
@@ -596,14 +589,9 @@ export const ItemTableRow = React.memo(function ItemTableRow({
  onClick={handleCopy}
  title={`คัดลอก ${item.asset_no}`}
  aria-label={`คัดลอก ${item.asset_no}`}
- className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge"
+ className="inline-flex items-center gap-1 rounded bg-muted/80 hover:bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/90 border border-border/70 shrink-0 max-w-full transition-colors cursor-pointer group/badge data-[copied=true]:border-primary data-[copied=true]:text-primary" data-copied={copied}
  >
  <span className="truncate">{item.asset_no}</span>
- {copied ? (
- <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
- ) : (
- <Copy className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 group-focus-within/badge:opacity-100 transition-opacity shrink-0" />
- )}
  </button>
  ) : (
  <span className="text-[11px] font-medium text-muted-foreground/60 italic shrink-0">

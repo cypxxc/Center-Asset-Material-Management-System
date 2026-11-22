@@ -7,8 +7,6 @@ import dynamic from 'next/dynamic'
 import {
  Activity,
  Boxes,
- Plus,
- RotateCcw,
  Clock,
  FileEdit,
  CheckCircle2,
@@ -167,16 +165,15 @@ export function DisbursementListClient({
  {/* Right: Primary Action Button */}
  <div className="flex items-center gap-2 shrink-0">
  {canCreate && userRole === 'admin' && activeTab === 'documents' && (
- <Button
+ <Button variant="outline-primary"
  onClick={() => setIsCreateModalOpen(true)}
- className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/15 text-primary font-normal text-xs px-3.5 gap-1.5 transition-colors cursor-pointer inline-flex items-center shrink-0"
+ className="h-8 rounded-lg text-xs px-3.5 gap-1.5 transition-colors cursor-pointer inline-flex items-center shrink-0"
  >
- <Plus className="h-4 w-4" />
  <span>สั่งจ่าย</span>
  </Button>
  )}
  {canCreate && userRole === 'user' && activeTab === 'documents' && (
- <Button asChild className="h-8 border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">
+ <Button variant="outline-primary" asChild className="h-8">
  <Link href="/disbursements/new">ส่งคำขอเบิก</Link>
  </Button>
  )}
@@ -295,11 +292,10 @@ export function DisbursementListClient({
  variant="ghost"
  size="sm"
  onClick={handleClearAll}
- className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
+ className="h-9 px-2.5 inline-flex items-center gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-colors cursor-pointer shrink-0"
  title="ล้างตัวกรองทั้งหมด"
  aria-label="ล้างตัวกรอง"
  >
- <RotateCcw className="h-3.5 w-3.5" />
  <span className="hidden sm:inline">ล้างตัวกรอง</span>
  </Button>
  )}
@@ -350,13 +346,11 @@ export function DisbursementListClient({
  onClick={handleClearAll}
  className="gap-1.5"
  >
- <RotateCcw className="h-3.5 w-3.5" />
  <span>ล้างตัวกรองทั้งหมด</span>
  </Button>
  ) : canCreate ? (
- <Button asChild size="sm" className="gap-1.5 border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">
+ <Button variant="outline-primary" asChild size="sm" className="gap-1.5">
  <Link href="/disbursements/new">
- <Plus className="h-4 w-4" />
  <span>ส่งคำขอเบิก</span>
  </Link>
  </Button>
@@ -417,7 +411,7 @@ export function DisbursementListClient({
  size="sm"
  disabled={currentPage <= 1 || isPending}
  onClick={() => applyFilters(q, status, type, currentPage - 1)}
- className="h-8 px-2.5 text-xs font-semibold"
+ className="h-8 px-2.5 text-xs"
  aria-label="หน้าก่อนหน้า"
  >
  ก่อนหน้า
@@ -459,7 +453,7 @@ export function DisbursementListClient({
  size="sm"
  disabled={currentPage >= totalPages || isPending}
  onClick={() => applyFilters(q, status, type, currentPage + 1)}
- className="h-8 px-2.5 text-xs font-semibold"
+ className="h-8 px-2.5 text-xs"
  aria-label="หน้าถัดไป"
  >
  ถัดไป

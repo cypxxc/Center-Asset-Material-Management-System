@@ -2,7 +2,7 @@
 
 import { useTransition, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Download, Printer, FileText, AlertTriangle, CheckCircle, Loader2, Filter, RotateCcw, Activity, Boxes, MapPin, Tag } from 'lucide-react'
+import { FileText, AlertTriangle, CheckCircle, Filter, Activity, Boxes, MapPin, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/ui/page-container'
 import { PageHeader } from '@/components/ui/page-header'
@@ -329,42 +329,31 @@ export function ReportsList({
  actions={
  <div className="flex items-center gap-2 flex-wrap sm:justify-end">
  {userCanExport && (
- <Button
+ <Button aria-busy={isExportingExcel}
  onClick={exportToExcel}
  aria-label="ดาวน์โหลดรายงาน Excel"
- className="px-3.5 py-2 bg-background hover:bg-muted text-foreground text-xs font-semibold rounded-lg border border-border/80 flex items-center gap-2 transition-all shadow-2xs h-9 cursor-pointer"
+ className="px-3.5 py-2 bg-background hover:bg-muted text-foreground text-xs rounded-lg border border-border/80 flex items-center gap-2 transition-all shadow-2xs h-9 cursor-pointer"
  variant="outline"
  disabled={(renderTable ? items.length === 0 : totalCount === 0) || isExportingExcel}
  >
- {isExportingExcel ? (
- <Loader2 className="w-3.5 h-3.5 animate-spin" />
- ) : (
- <Download className="w-3.5 h-3.5 text-muted-foreground" />
- )}
  <span>ดาวน์โหลด Excel</span>
  </Button>
  )}
- <Button
+ <Button aria-busy={isExportingPdf}
  onClick={exportToPdf}
  aria-label="ส่งออกรายงาน PDF"
- className="px-3.5 py-2 bg-background hover:bg-muted text-foreground text-xs font-semibold rounded-lg border border-border/80 flex items-center gap-2 transition-all shadow-2xs h-9 cursor-pointer"
+ className="px-3.5 py-2 bg-background hover:bg-muted text-foreground text-xs rounded-lg border border-border/80 flex items-center gap-2 transition-all shadow-2xs h-9 cursor-pointer"
  variant="outline"
  disabled={(renderTable ? items.length === 0 : totalCount === 0) || isExportingPdf}
  >
- {isExportingPdf ? (
- <Loader2 className="w-3.5 h-3.5 animate-spin" />
- ) : (
- <FileText className="w-3.5 h-3.5 text-muted-foreground" />
- )}
  <span>ส่งออก PDF</span>
  </Button>
  <Button
  onClick={handlePrint}
  aria-label="พิมพ์รายงาน"
- className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-lg flex items-center gap-2 transition-all shadow-xs h-9 cursor-pointer"
+ className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-lg flex items-center gap-2 transition-all shadow-xs h-9 cursor-pointer"
  disabled={renderTable ? items.length === 0 : totalCount === 0}
  >
- <Printer className="w-3.5 h-3.5" />
  <span>พิมพ์รายงาน (Print)</span>
  </Button>
  </div>
@@ -409,7 +398,6 @@ export function ReportsList({
  }}
  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
  >
- <RotateCcw className="w-3 h-3" />
  <span>ล้างตัวกรองทั้งหมด</span>
  </Button>
  )}
@@ -654,7 +642,7 @@ export function ReportsList({
  size="sm"
  disabled={currentPage <= 1}
  onClick={() => handleFilterChange({ page: String(currentPage - 1) })}
- className="h-8 px-3 rounded-lg text-xs font-semibold border border-border/80 bg-background text-card-foreground hover:bg-muted cursor-pointer shadow-2xs transition-colors"
+ className="h-8 px-3 rounded-lg text-xs border border-border/80 bg-background text-card-foreground hover:bg-muted cursor-pointer shadow-2xs transition-colors"
  >
  ก่อนหน้า
  </Button>
@@ -664,7 +652,7 @@ export function ReportsList({
  size="sm"
  disabled={currentPage >= totalPages}
  onClick={() => handleFilterChange({ page: String(currentPage + 1) })}
- className="h-8 px-3 rounded-lg text-xs font-semibold border border-border/80 bg-background text-card-foreground hover:bg-muted cursor-pointer shadow-2xs transition-colors"
+ className="h-8 px-3 rounded-lg text-xs border border-border/80 bg-background text-card-foreground hover:bg-muted cursor-pointer shadow-2xs transition-colors"
  >
  ถัดไป
  </Button>

@@ -68,7 +68,6 @@ export function MaterialImportForm({ onBusyChange }: { onBusyChange: (busy: bool
   return (
     <form aria-label="นำเข้าวัสดุ" onSubmit={event => event.preventDefault()} className="space-y-6">
       <h2 className="text-base font-semibold">นำเข้าวัสดุ</h2>
-      <p className="text-sm text-muted-foreground">เลือกไฟล์แล้วระบบจะตรวจสอบและนำเข้าทันทีเมื่อข้อมูลผ่าน</p>
       <ImportUploadPanel type="material" busy={busy}
         busyLabel={phase === 'saving' ? 'กำลังนำเข้าวัสดุ…' : 'กำลังอ่านและตรวจสอบไฟล์…'}
         busyDescription={phase === 'saving'

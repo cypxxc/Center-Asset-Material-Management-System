@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
  ArrowLeft,
- Printer,
  CheckCircle2,
  XCircle,
  RotateCcw,
@@ -20,7 +19,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { formatDate } from '@/lib/date'
-import { cn } from '@/lib/utils'
 import { bangkokCalendarDate, borrowDueDateError } from '../borrow-dates'
 import type { DisbursementRow, DisbursementItemRow, ItemCondition } from '@/features/disbursements/types'
 import { TruncatedTextTooltip } from '@/components/ui/truncated-text-tooltip'
@@ -35,7 +33,7 @@ import {
  reverseDisbursement,
  rejectDisbursement,
  partialApproveDisbursement,
- partialRejectDisbursement,
+ partialReturnDisbursement,
 } from '@/features/disbursements/actions'
 import { generateDisbursementVoucherHtml } from '@/features/disbursements/print-generator'
 import { DisbursementTracking } from './tracking-details'
@@ -77,9 +75,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  const [rejectReason, setRejectReason] = useState('')
 
  // Partial selection & actions state
- const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set())
- const [partialRejectModalOpen, setPartialRejectModalOpen] = useState(false)
- const [partialRejectReason, setPartialRejectReason] = useState('')
  const [multiReturnModalOpen, setMultiReturnModalOpen] = useState(false)
  const [returnModalItems, setReturnModalItems] = useState<ReturnModalItem[]>([])
 
@@ -87,8 +82,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  const isPendingApproval = doc.status === 'pending_approval'
  const isBorrow = doc.transaction_type === 'asset_borrow'
  const needsDueDate = isBorrow && ['draft', 'pending_approval'].includes(doc.status) && (!doc.due_date || doc.due_date < bangkokCalendarDate())
- const isMaterialIssue = doc.transaction_type === 'material_issue'
- const canConfirm = canMutate || (canRequest && isDraft && isMaterialIssue)
+ const canConfirm = canMutate
  const isConfirmedOrActive = ['confirmed', 'active_borrow'].includes(doc.status)
  const canReturn = canMutate && isBorrow && ['active_borrow', 'partially_returned'].includes(doc.status)
 
@@ -96,34 +90,10 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  const hasReturnedItems = doc.items.some((it) => it.returned_qty > 0)
  const canReverse = canMutate && isConfirmedOrActive && !hasReturnedItems
 
- const eligibleApprovalLines = doc.items.filter((item) => item.status === 'pending')
- const eligibleReturnLines = doc.items.filter((item) => (item.issued_qty - item.returned_qty) > 0)
- const activeEligibleLines = isPendingApproval ? eligibleApprovalLines : canReturn ? eligibleReturnLines : []
- const canSelect = canMutate && (isPendingApproval || canReturn) && activeEligibleLines.length > 0
- const allSelected = activeEligibleLines.length > 0 && activeEligibleLines.every((line) => selectedLineIds.has(line.id))
  const outstandingBorrowCount = doc.items.filter((i) => (i.issued_qty - i.returned_qty) > 0).length
 
- function toggleLine(lineId: string) {
-   setSelectedLineIds((prev) => {
-     const next = new Set(prev)
-     if (next.has(lineId)) next.delete(lineId)
-     else next.add(lineId)
-     return next
-   })
- }
-
- function toggleSelectAll() {
-   if (activeEligibleLines.length === 0) return
-   const allSelected = activeEligibleLines.every((line) => selectedLineIds.has(line.id))
-   if (allSelected) {
-     setSelectedLineIds(new Set())
-   } else {
-     setSelectedLineIds(new Set(activeEligibleLines.map((l) => l.id)))
-   }
- }
-
- async function handlePartialApproveSubmit() {
-   if (selectedLineIds.size === 0) return
+ async function handlePartialApproveSubmit(lineId: string) {
+   if (!canMutate || !isPendingApproval || isLoading) return
    if (needsDueDate) {
      const dateError = borrowDueDateError(replacementDueDate, doc.created_at)
      if (dateError) { setErrorMsg(dateError); return }
@@ -133,88 +103,83 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
    try {
      const res = await partialApproveDisbursement({
        disbursement_id: doc.id,
-       line_ids: Array.from(selectedLineIds),
+       line_ids: [lineId],
        replacement_due_date: needsDueDate ? replacementDueDate : undefined,
      })
      if (!res.ok) {
-       setErrorMsg(res.error || 'เกิดข้อผิดพลาดในการอนุมัติรายการที่เลือก')
+       setErrorMsg(res.error || 'เกิดข้อผิดพลาดในการอนุมัติรายการ')
        return
      }
-     setSelectedLineIds(new Set())
      setSuccessMsg(`อนุมัติสำเร็จ ${res.data?.document_no ? `(เลขที่เอกสาร: ${res.data.document_no})` : ''}`)
      router.refresh()
    } catch (err: unknown) {
-     setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการอนุมัติรายการที่เลือก')
+     setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการอนุมัติรายการ')
    } finally {
      setIsLoading(false)
    }
  }
 
- async function handlePartialRejectSubmit() {
-   if (selectedLineIds.size === 0) return
-   if (!partialRejectReason.trim()) {
-     setErrorMsg('กรุณาระบุเหตุผลในการปฏิเสธ')
-     return
-   }
+ async function handleReturnLine(item: DisbursementItemRow) {
+   if (!canReturn || isLoading || !item.item_id) return
    setIsLoading(true)
    setErrorMsg('')
+   setSuccessMsg('')
    try {
-     const res = await partialRejectDisbursement({
+     const result = await partialReturnDisbursement({
        disbursement_id: doc.id,
-       line_ids: Array.from(selectedLineIds),
-       reason: partialRejectReason.trim(),
+       items: [{
+         line_id: item.id,
+         item_id: item.item_id,
+         condition: 'normal',
+         return_date: bangkokCalendarDate(),
+         reason: 'บันทึกจากปุ่มคืนรายรายการ',
+       }],
      })
-     if (!res.ok) {
-       setErrorMsg(res.error || 'เกิดข้อผิดพลาดในการปฏิเสธรายการที่เลือก')
+     if (!result.ok) {
+       setErrorMsg(result.error || 'บันทึกรับคืนไม่สำเร็จ')
        return
      }
-     setPartialRejectModalOpen(false)
-     setPartialRejectReason('')
-     setSelectedLineIds(new Set())
-     setSuccessMsg('ปฏิเสธรายการที่เลือกเรียบร้อยแล้ว')
+     setSuccessMsg('บันทึกรับคืนสำเร็จ')
      router.refresh()
-   } catch (err: unknown) {
-     setErrorMsg(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการปฏิเสธรายการที่เลือก')
+   } catch {
+     setErrorMsg('บันทึกรับคืนไม่สำเร็จ กรุณาลองใหม่')
    } finally {
      setIsLoading(false)
    }
  }
 
- function handleOpenPartialReturn() {
-   if (selectedLineIds.size === 0) return
-   const selected = doc.items
-     .filter((i) => selectedLineIds.has(i.id) && (i.issued_qty - i.returned_qty) > 0)
-     .map((i) => ({
-       line_id: i.id,
-       item_id: i.item_id,
-       item_name: i.item_name_snapshot || '-',
-       asset_no: i.asset_no_snapshot || null,
-       unreturned_qty: i.issued_qty - i.returned_qty,
-     }))
-   if (selected.length === 0) {
-     setErrorMsg('ไม่มีรายการครุภัณฑ์ที่ค้างคืนในรายการที่เลือก')
-     return
-   }
-   setReturnModalItems(selected)
-   setMultiReturnModalOpen(true)
- }
-
- function handleOpenAllReturn() {
+ async function handleOpenAllReturn() {
    const allOutstanding = doc.items
      .filter((i) => (i.issued_qty - i.returned_qty) > 0)
      .map((i) => ({
        line_id: i.id,
        item_id: i.item_id,
-       item_name: i.item_name_snapshot || '-',
-       asset_no: i.asset_no_snapshot || null,
-       unreturned_qty: i.issued_qty - i.returned_qty,
+       condition: 'normal' as const,
+       return_date: bangkokCalendarDate(),
+       reason: 'คืนสภาพปกติ',
      }))
-   if (allOutstanding.length === 0) {
+   if (allOutstanding.length === 0 || isLoading) {
      setErrorMsg('ไม่มีรายการครุภัณฑ์ที่ค้างคืนในเอกสารนี้')
      return
    }
-   setReturnModalItems(allOutstanding)
-   setMultiReturnModalOpen(true)
+   setIsLoading(true)
+   setErrorMsg('')
+   try {
+     const result = await partialReturnDisbursement({
+       disbursement_id: doc.id,
+       items: allOutstanding,
+     })
+     if (!result.ok) {
+       setErrorMsg(result.error || 'บันทึกรับคืนไม่สำเร็จ')
+       return
+     }
+     setSuccessMsg('บันทึกรับคืนสำเร็จ')
+     router.refresh()
+   } catch {
+     setErrorMsg('บันทึกรับคืนไม่สำเร็จ กรุณาลองใหม่')
+   } finally {
+     setIsLoading(false)
+   }
  }
 
  function handlePrint() {
@@ -354,7 +319,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <PageHeader
  title={
  <span className="flex items-center gap-2">
- <Button variant="ghost" size="icon-sm" asChild className="mr-1">
+ <Button variant="outline" size="icon-sm" asChild className="mr-1">
  <Link href="/disbursements" aria-label="กลับไปหน้ารายการ">
  <ArrowLeft className="h-4 w-4" />
  </Link>
@@ -374,7 +339,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  onClick={handlePrint}
  className="gap-1.5 shadow-xs"
  >
- <Printer className="h-3.5 w-3.5 text-primary" />
  <span>พิมพ์ใบเบิก-จ่าย (A4)</span>
  </Button>
  )}
@@ -388,12 +352,11 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  </Button>
 
  <Button
- variant="destructive"
+ variant="outline"
  size="sm"
  onClick={() => setCancelModalOpen(true)}
  className="gap-1 shadow-xs"
  >
- <XCircle className="h-3.5 w-3.5" />
  <span>ยกเลิกร่าง</span>
  </Button>
 
@@ -401,46 +364,17 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  size="sm"
  onClick={handleConfirm}
  disabled={isLoading}
- className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+ className="gap-1.5 shadow-xs"
  >
- <CheckCircle2 className="h-3.5 w-3.5" />
- <span>{canRequest && !canMutate ? 'ส่งคำขอเบิก' : 'จ่ายและยืนยัน'}</span>
+ <span>จ่ายและยืนยัน</span>
  </Button>}
  </>
  )}
 
- {canWithdraw && isPendingApproval && <Button variant="destructive" size="sm" disabled={isLoading} onClick={() => setCancelModalOpen(true)}><XCircle className="h-3.5 w-3.5" />ถอนคำขอ</Button>}
+ {canWithdraw && isPendingApproval && <Button variant="outline" size="sm" disabled={isLoading} onClick={() => setCancelModalOpen(true)}>ถอนคำขอ</Button>}
 
  {canMutate && isPendingApproval && (
  <>
- {selectedLineIds.size > 0 && (
-  <>
-  <Button
-   variant="destructive"
-   size="sm"
-   onClick={() => {
-    setPartialRejectReason('')
-    setPartialRejectModalOpen(true)
-   }}
-   className="gap-1.5 shadow-xs"
-   disabled={isLoading}
-  >
-   <XCircle className="h-3.5 w-3.5" />
-   <span>ปฏิเสธที่เลือก ({selectedLineIds.size})</span>
-  </Button>
-
-  <Button
-   size="sm"
-   onClick={handlePartialApproveSubmit}
-   disabled={isLoading}
-   className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-  >
-   <CheckCircle2 className="h-3.5 w-3.5" />
-   <span>อนุมัติที่เลือก ({selectedLineIds.size})</span>
-  </Button>
-  </>
- )}
-
  <Button
  variant="destructive"
  size="sm"
@@ -448,7 +382,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  className="gap-1.5 shadow-xs"
  disabled={isLoading}
  >
- <XCircle className="h-3.5 w-3.5" />
  <span>ปฏิเสธทั้งหมด</span>
  </Button>
 
@@ -456,9 +389,8 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  size="sm"
  onClick={handleConfirm}
  disabled={isLoading}
- className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+ className="gap-1.5 shadow-xs"
  >
- <CheckCircle2 className="h-3.5 w-3.5" />
  <span>อนุมัติทั้งหมด</span>
  </Button>
  </>
@@ -466,17 +398,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
 
  {canReturn && (
  <>
-  {selectedLineIds.size > 0 && (
-   <Button
-    size="sm"
-    onClick={handleOpenPartialReturn}
-    disabled={isLoading}
-    className="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-   >
-    <RotateCcw className="h-3.5 w-3.5" />
-    <span>รับคืนที่เลือก ({selectedLineIds.size})</span>
-   </Button>
-  )}
   {outstandingBorrowCount > 0 && (
    <Button
     variant="outline"
@@ -485,7 +406,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
     disabled={isLoading}
     className="gap-1.5 shadow-xs"
    >
-    <RotateCcw className="h-3.5 w-3.5 text-primary" />
     <span>รับคืนทั้งหมด ({outstandingBorrowCount})</span>
    </Button>
   )}
@@ -497,9 +417,8 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  variant="outline"
  size="sm"
  onClick={() => setReverseModalOpen(true)}
- className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 shadow-xs"
+ className="gap-1.5 shadow-xs"
  >
- <Undo2 className="h-3.5 w-3.5" />
  <span>คืนสภาพเอกสาร (Reverse)</span>
  </Button>
  )}
@@ -646,17 +565,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <table className="table-data-uniform w-full text-left text-xs">
  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
  <tr>
- {canSelect && (
- <th className="py-2 px-3 text-center w-8">
- <input
- type="checkbox"
- aria-label="เลือกทั้งหมด"
- checked={allSelected}
- onChange={toggleSelectAll}
- className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring cursor-pointer"
- />
- </th>
- )}
  <th className="py-2 px-3 text-center w-10">ลำดับ</th>
  <th className="py-2 px-3">รายการวัสดุ / เลขทะเบียน</th>
  <th className="py-2 px-3">หมวดหมู่</th>
@@ -667,6 +575,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  <th className="py-2 px-3 text-right">ราคา/หน่วย</th>
  {canReturn && <th className="py-2 px-3 text-right">คืน</th>}
  {canMutate && doc.transaction_type === 'material_issue' && ['confirmed','partially_returned'].includes(doc.status) && <th className="py-2 px-3 text-right">รับคืนวัสดุ</th>}
+ {canMutate && isPendingApproval && <th scope="col" className="py-2 px-3 text-right">จัดการ</th>}
  </tr>
  </thead>
  <tbody className="divide-y divide-border">
@@ -675,23 +584,9 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  const assetNo = item.asset_no_snapshot || null
  const unreturned = item.issued_qty - item.returned_qty
  const isPending = item.status === 'pending'
- const canRowSelect = (isPendingApproval && isPending) || (canReturn && unreturned > 0)
- const isChecked = selectedLineIds.has(item.id)
 
  return (
- <tr key={item.id} className={cn("hover:bg-muted/20", isChecked && "bg-primary/5")}>
- {canSelect && (
- <td className="py-2 px-3 text-center">
- <input
- type="checkbox"
- aria-label={`เลือก ${itemName}`}
- disabled={!canRowSelect}
- checked={isChecked}
- onChange={() => toggleLine(item.id)}
- className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
- />
- </td>
- )}
+ <tr key={item.id} className="hover:bg-muted/20">
  <td className="py-2 px-3 text-center text-muted-foreground font-mono">{idx + 1}</td>
  <td className="py-2 px-3">
  <span className="font-medium text-foreground block">{itemName}</span>
@@ -703,31 +598,11 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  </td>
  <td className="py-2 px-3 text-muted-foreground">{item.category_name_snapshot || '-'}</td>
  <td className="py-2 px-3 text-center">
- {item.status === 'pending' && (
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
- รออนุมัติ
- </span>
- )}
- {item.status === 'issued' && (
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
- อนุมัติแล้ว
- </span>
- )}
- {item.status === 'reversed' && (
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
- ปฏิเสธ
- </span>
- )}
- {item.status === 'partially_returned' && (
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
- คืนบางส่วน
- </span>
- )}
- {item.status === 'returned' && (
- <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
- คืนครบแล้ว
- </span>
- )}
+ {item.status === 'pending' && 'รออนุมัติ'}
+ {item.status === 'issued' && 'อนุมัติแล้ว'}
+ {item.status === 'reversed' && 'ปฏิเสธ'}
+ {item.status === 'partially_returned' && 'คืนบางส่วน'}
+ {item.status === 'returned' && 'คืนครบแล้ว'}
  </td>
  <td className="py-2 px-3 text-right">
  <div className="flex items-baseline justify-end gap-1.5 w-full min-w-0 font-mono text-xs">
@@ -768,27 +643,26 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  {item.unit_price_snapshot?.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
  </td>
  {canMutate && doc.transaction_type === 'material_issue' && ['confirmed','partially_returned'].includes(doc.status) && <td className="py-2 px-3 text-right"><MaterialReturnForm lineId={item.id} remaining={unreturned} unit={item.unit_name_snapshot} /></td>}
+ {canMutate && isPendingApproval && (
+ <td className="py-2 px-3 text-right">
+ {isPending && (
+ <Button type="button" size="xs" disabled={isLoading} onClick={() => handlePartialApproveSubmit(item.id)}>
+ อนุมัติ
+ </Button>
+ )}
+ </td>
+ )}
  {canReturn && (
  <td className="py-2 px-3 text-right">
  {unreturned > 0 ? (
  <Button
  type="button"
  size="xs"
- variant="secondary"
- onClick={() => {
- if (!item.item_id) return
- setReturnModalItems([{
- line_id: item.id,
- item_id: item.item_id,
- item_name: item.item_name_snapshot || '-',
- asset_no: item.asset_no_snapshot || null,
- unreturned_qty: unreturned,
- }])
- setMultiReturnModalOpen(true)
- }}
+ variant="outline"
+ disabled={isLoading}
+ onClick={() => handleReturnLine(item)}
  className="gap-1 text-[11px]"
  >
- <RotateCcw className="h-3 w-3" />
  <span>คืน ({unreturned})</span>
  </Button>
  ) : (
@@ -894,7 +768,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  >
  ยกเลิก
  </Button>
- <Button
+ <Button aria-busy={isLoading}
  type="submit"
  size="sm"
  disabled={isLoading}
@@ -953,9 +827,9 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  >
  ปิด
  </Button>
- <Button
+ <Button aria-busy={isLoading}
  type="submit"
- variant="destructive"
+ variant="outline"
  size="sm"
  disabled={isLoading}
  >
@@ -1005,7 +879,7 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  >
  ยกเลิก
  </Button>
- <Button
+ <Button aria-busy={isLoading}
  type="submit"
  variant="destructive"
  size="sm"
@@ -1019,55 +893,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  )}
 
  {/* Partial Reject Modal */}
- {partialRejectModalOpen && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
- <form
- onSubmit={(e) => {
- e.preventDefault()
- handlePartialRejectSubmit()
- }}
- className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg space-y-4 text-xs"
- >
- <div className="flex items-center gap-2 text-destructive border-b border-border pb-3">
- <XCircle className="h-5 w-5" />
- <h3 className="font-bold text-sm text-foreground">ปฏิเสธรายการที่เลือก ({selectedLineIds.size} รายการ)</h3>
- </div>
- <div>
- <label htmlFor="partial-reject-reason-textarea" className="block text-xs font-medium mb-1.5 text-foreground">
- ระบุเหตุผลในการไม่อนุมัติ <span className="text-destructive">*</span>
- </label>
- <textarea
- id="partial-reject-reason-textarea"
- value={partialRejectReason}
- onChange={(e) => setPartialRejectReason(e.target.value)}
- placeholder="ระบุเหตุผลในการปฏิเสธรายการที่เลือก..."
- rows={3}
- required
- className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
- />
- </div>
- <div className="flex justify-end gap-2 pt-2">
- <Button
- type="button"
- variant="outline"
- size="sm"
- onClick={() => setPartialRejectModalOpen(false)}
- >
- ยกเลิก
- </Button>
- <Button
- type="submit"
- variant="destructive"
- size="sm"
- disabled={isLoading || !partialRejectReason.trim()}
- >
- {isLoading ? 'กำลังประมวลผล...' : 'ยืนยันปฏิเสธที่เลือก'}
- </Button>
- </div>
- </form>
- </div>
- )}
-
  {/* Multi/Partial Return Modal */}
  <DisbursementReturnModal
  disbursementId={doc.id}
@@ -1077,7 +902,6 @@ export function DisbursementDetailClient({ doc, canMutate, canRequest, canWithdr
  onClose={() => setMultiReturnModalOpen(false)}
  onSuccess={() => {
  setMultiReturnModalOpen(false)
- setSelectedLineIds(new Set())
  router.refresh()
  }}
  />

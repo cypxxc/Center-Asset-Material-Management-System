@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { CompletedDisbursementPeriod } from '@/features/reports/completed-disbursement-series'
+import { DashboardChartTooltip } from './dashboard-chart-tooltip'
 
 const number = new Intl.NumberFormat('th-TH')
 function periodLabel(period: CompletedDisbursementPeriod) {
@@ -29,7 +30,7 @@ export function DashboardDisbursementPlot({ periods, annual = false }: { periods
   return <div>
     <p className="mb-1 text-[11px] text-muted-foreground">จำนวนครั้งที่ยืมและเบิกสำเร็จ</p>
     <div ref={containerRef} role="region" aria-label={`กราฟการยืมและเบิก${annual ? 'รายปี เลื่อนแนวนอนเพื่อดูทุกปี' : 'รายเดือน เลื่อนแนวนอนเพื่อดูทุกเดือน'}`} tabIndex={0}
-      className="overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-ring">
+      className="relative overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-ring">
       <svg role="group" aria-label={`กราฟแท่งซ้อนจำนวนครั้งที่ยืมและเบิกสำเร็จตาม${annual ? 'ปี' : 'เดือน'}ที่ส่งมอบหรืออนุมัติ`}
         viewBox={`0 0 ${width} 190`} style={{ minWidth: width }} width={width} height={190} className="block text-muted-foreground">
         {[0, 1, 2, 3, 4].map(index => <g key={index} aria-hidden="true">
@@ -51,14 +52,26 @@ export function DashboardDisbursementPlot({ periods, annual = false }: { periods
             <rect x={x + 1} y={4} width={slot - 2} height={150} rx={3} tabIndex={0} role="img" aria-label={periodLabel(period)}
               className="fill-transparent outline-none focus-visible:stroke-ring focus-visible:stroke-2"
               onFocus={() => setActiveKey(period.key)} onBlur={() => setActiveKey(null)}
-              onMouseEnter={() => setActiveKey(period.key)} onMouseLeave={() => setActiveKey(null)}>
-              <title>{periodLabel(period)}</title>
-            </rect>
+              onMouseEnter={() => setActiveKey(period.key)} onMouseLeave={() => setActiveKey(null)} />
             <text x={x + slot / 2} y={168} textAnchor="middle" fill="currentColor" fontSize={11} aria-hidden="true">{period.label}</text>
             {!annual && <text x={x + slot / 2} y={183} textAnchor="middle" fill="currentColor" fontSize={10} aria-hidden="true">{Number(period.key.split('-')[0]) + 543}</text>}
           </g>
         })}
       </svg>
+      {active && <DashboardChartTooltip
+        title={active.fullLabel}
+        value={active.future ? undefined : number.format(active.total)}
+        unit="ครั้ง"
+        items={[
+          ...(active.borrowed > 0 ? [{ label: 'ยืม', value: number.format(active.borrowed), unit: 'ครั้ง', colorClass: 'bg-primary' }] : []),
+          ...(active.issued > 0 ? [{ label: 'เบิก', value: number.format(active.issued), unit: 'ครั้ง', colorClass: 'bg-muted-foreground' }] : []),
+        ]}
+        note={active.future ? 'ยังไม่ถึงช่วงเวลา' : undefined}
+        x={48 + (periods.indexOf(active) + 0.5) * slot}
+        y={148 - active.total * scale}
+        containerWidth={width}
+        containerHeight={190}
+      />}
     </div>
     <p aria-live="polite" aria-atomic="true" className="min-h-4 text-[11px] leading-4 text-muted-foreground">{active ? periodLabel(active) : null}</p>
   </div>

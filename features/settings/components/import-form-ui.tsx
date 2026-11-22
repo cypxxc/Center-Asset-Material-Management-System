@@ -1,8 +1,10 @@
 'use client'
 
 import type { ChangeEventHandler, Ref } from 'react'
-import { Upload, FileText, CheckCircle2, AlertCircle, Download, FileSpreadsheet } from 'lucide-react'
+import { FileText, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { MATERIAL_IMPORT_COLUMNS } from '@/features/items/material-import-columns'
+import { cn } from '@/lib/utils'
 
 export function ImportUploadPanel({ type, busy, busyLabel = 'กำลังประมวลผลข้อมูล...', busyDescription, onDownload, onChange, inputRef }: {
  type: 'asset' | 'material'; busy: boolean; onDownload: () => void | Promise<void>;
@@ -25,9 +27,9 @@ export function ImportUploadPanel({ type, busy, busyLabel = 'กำลังป�
     <p className="text-xs text-muted-foreground">ขนาดไฟล์ไม่เกิน 10MB ต่อไฟล์{type === 'material' ? ' · รองรับบัญชีวัสดุเดิมและเทมเพลต Excel ของระบบ · เลือกได้สูงสุด 4 ไฟล์' : ' และควรจัดรูปแบบคอลัมน์ให้ตรงตามเทมเพลต'}</p>
    </div>
    <div className="flex flex-wrap items-center justify-center gap-3">
-    <button type="button" onClick={onDownload} className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-input bg-card px-4 text-xs font-bold text-card-foreground shadow-2xs transition-all hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><Download className="h-4 w-4 text-muted-foreground" aria-hidden="true" />ดาวน์โหลดเทมเพลต (Excel)</button>
-    <label className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 focus-within:ring-2 focus-within:ring-ring">
-     <Upload className="h-3.5 w-3.5" aria-hidden="true" /><span>เลือกไฟล์เพื่ออัปโหลด</span>
+    <Button type="button" variant="outline" size="lg" onClick={onDownload} className="cursor-pointer border-muted-foreground/70">ดาวน์โหลดเทมเพลต (Excel)</Button>
+    <label className={cn(buttonVariants({ variant: 'outline-primary', size: 'lg' }), 'cursor-pointer focus-within:ring-2 focus-within:ring-ring has-disabled:pointer-events-none has-disabled:opacity-50')}>
+     <span>เลือกไฟล์เพื่ออัปโหลด</span>
      <input ref={inputRef} id={type === 'material' ? 'material-ledger-files' : 'asset-import-file'} aria-label={type === 'material' ? 'เลือกไฟล์วัสดุ (Excel)' : 'เลือกไฟล์ครุภัณฑ์ (Excel)'} type="file" accept=".xlsx" multiple={type === 'material'} className="sr-only" onChange={onChange} />
     </label>
    </div>

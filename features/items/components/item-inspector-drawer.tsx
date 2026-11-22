@@ -6,13 +6,11 @@ import {
   Package,
   X,
   Check,
-  ChevronDown,
   Info,
   Tag,
   Layers,
   DollarSign,
   MapPin,
-  FileText,
 } from 'lucide-react'
 import { ZoomableImage } from '@/components/ui/zoomable-image'
 import { type ItemListRow } from '@/features/items/types'
@@ -332,13 +330,11 @@ export function Inspector({
                   <button
                     type="button"
                     onClick={() => setIsLedgerOpen(!isLedgerOpen)}
-                    className="flex w-full items-center justify-between p-2.5 sm:p-3 text-left font-semibold text-xs text-foreground/80 hover:bg-muted/30 transition-colors cursor-pointer select-none"
+                    className="flex w-full items-center justify-between p-2.5 sm:p-3 text-left font-medium text-xs text-foreground/80 hover:bg-muted/30 transition-colors cursor-pointer select-none"
                   >
                     <span className="flex items-center gap-1.5 text-xs font-semibold">
-                      <FileText className="h-3.5 w-3.5 text-teal-600" />
                       รายละเอียดบัญชีคุมยอดวัสดุ
                     </span>
-                    <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isLedgerOpen && "rotate-180")} />
                   </button>
 
                   {isLedgerOpen && (
@@ -449,10 +445,9 @@ export function Inspector({
             <button
               type="button"
               onClick={() => setIsAdditionalOpen(!isAdditionalOpen)}
-              className="flex w-full items-center justify-between p-2.5 sm:p-3 text-left font-semibold text-xs text-foreground/80 hover:bg-muted/30 transition-colors cursor-pointer select-none"
+              className="flex w-full items-center justify-between p-2.5 sm:p-3 text-left font-medium text-xs text-foreground/80 hover:bg-muted/30 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-1.5 text-xs font-semibold">
-                <Info className="h-3.5 w-3.5 text-slate-500" />
                 ข้อมูลเพิ่มเติม
                 {unfilledItems.length > 0 && (
                   <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] text-muted-foreground font-normal">
@@ -460,7 +455,6 @@ export function Inspector({
                   </span>
                 )}
               </span>
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isAdditionalOpen && "rotate-180")} />
             </button>
 
             {isAdditionalOpen && (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { ZoomIn, ZoomOut, RotateCw, Check, X } from 'lucide-react'
+import { ZoomIn, ZoomOut, X } from 'lucide-react'
 import { Button } from './button'
 import { renderImageCrop } from '@/lib/image-crop'
 
@@ -181,7 +181,6 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
             onClick={handleRotate}
             className="h-8 px-3 text-xs flex items-center gap-1.5"
           >
-            <RotateCw className="h-3.5 w-3.5" />
             <span>หมุน 90°</span>
           </Button>
         </div>
@@ -193,14 +192,13 @@ export function ImageCropDialog({ isOpen, imageSrc, onConfirm, onCancel }: Image
           <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isProcessing}>
             ยกเลิก
           </Button>
-          <Button
+          <Button aria-busy={isProcessing}
             type="button"
             size="sm"
             onClick={handleConfirm}
             disabled={isProcessing}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-4"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-4"
           >
-            <Check className="h-4 w-4 mr-1.5" />
             <span>{isProcessing ? 'กำลังประมวลผล...' : 'ครอบรูปภาพ (4:3)'}</span>
           </Button>
         </div>

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PackageCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { markDisbursementHandover } from '../tracking-actions'
@@ -55,7 +54,7 @@ export function DisbursementTracking({ doc, canManage, slaHours = null }: { doc:
     </dl>
     <PendingApprovalIndicator doc={tracking} slaHours={slaHours} />
     {doc.transaction_type === 'material_issue' && doc.status === 'pending_approval' && <p className="text-xs text-muted-foreground">ตัดยอดวัสดุแล้วระหว่างรออนุมัติ ยังไม่ใช่หลักฐานการอนุมัติหรือการได้รับของ{slaHours == null ? ' · ยังไม่ได้กำหนดเวลาติดตาม' : ''}</p>}
-    {canMark && <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => setConfirmOpen(true)} className="gap-1.5"><PackageCheck aria-hidden="true" className="h-4 w-4" />บันทึกได้รับของแล้ว</Button>}
+    {canMark && <Button aria-busy={pending} type="button"  size="sm" disabled={pending} onClick={() => setConfirmOpen(true)} className="gap-1.5">บันทึกได้รับของแล้ว</Button>}
     {message && <p role={failed ? 'alert' : 'status'} className={`text-xs ${failed ? 'text-destructive' : 'text-foreground'}`}>{message}</p>}
     <ConfirmDialog open={confirmOpen} title="ยืนยันผู้รับได้รับของแล้ว" description="ยืนยันว่าผู้รับได้รับสิ่งของตามเอกสารนี้ครบแล้ว ระบบจะบันทึกเวลาและผู้บันทึกเพื่อเป็นหลักฐานการได้รับของ" confirmText="ยืนยันได้รับของแล้ว" onConfirm={markHandover} onCancel={() => { if (!pending) setConfirmOpen(false) }} isPending={pending} />
   </section>

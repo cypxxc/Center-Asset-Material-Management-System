@@ -118,16 +118,16 @@ export function ConfirmDialog({
             variant="outline"
             onClick={onCancel}
             disabled={isPending}
-            className="h-9 px-4 font-semibold cursor-pointer"
+            className="h-9 px-4 cursor-pointer"
           >
             {cancelText}
           </Button>
-          <Button
+          <Button aria-busy={isPending}
             type="button"
             variant={variant === "destructive" ? "destructive" : "default"}
             onClick={onConfirm}
             disabled={isPending}
-            className="h-9 px-4 font-bold cursor-pointer"
+            className="h-9 px-4 cursor-pointer"
           >
             {isPending ? "กำลังบันทึก..." : confirmText}
           </Button>

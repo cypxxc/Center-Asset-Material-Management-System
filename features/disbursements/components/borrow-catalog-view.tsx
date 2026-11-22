@@ -12,8 +12,6 @@ import {
   AlertCircle,
   X,
   PackageCheck,
-  ChevronDown,
-  Loader2,
   Info,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -438,7 +436,6 @@ export function BorrowCatalogView({
                         )}
                       >
                         <span>{action === 'borrow' ? 'ยืม' : 'เบิก'}</span>
-                        <ChevronDown className="h-2.5 w-2.5 opacity-60" aria-hidden="true" />
                       </button>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Portal>
@@ -499,7 +496,7 @@ export function BorrowCatalogView({
             size="sm"
             variant="outline"
             onClick={handleRecover}
-            className="h-7 text-xs font-semibold"
+            className="h-7 text-xs"
           >
             ตรวจสอบคำขอที่ส่งล่าสุด
           </Button>
@@ -639,17 +636,15 @@ export function BorrowCatalogView({
                           'flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition cursor-pointer',
                           isSelected
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'bg-muted text-foreground hover:bg-accent hover:text-accent-foreground'
+                            : 'border border-primary bg-background text-primary hover:bg-primary/10'
                         )}
                       >
                         {isSelected ? (
                           <>
-                            <Check className="h-3.5 w-3.5" />
                             อยู่ในตะกร้าแล้ว
                           </>
                         ) : (
                           <>
-                            <ShoppingCart className="h-3.5 w-3.5" />
                             {item.unavailable_reason ? 'ยังไม่พร้อม' : 'ใส่ตะกร้า'}
                           </>
                         )}
@@ -694,7 +689,7 @@ export function BorrowCatalogView({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2.5 text-xs font-semibold"
+            className="h-8 px-2.5 text-xs"
             aria-label="หน้าก่อนหน้า"
             disabled={currentPage <= 1 || isPending}
             onClick={() => changePage(currentPage - 1)}
@@ -735,7 +730,7 @@ export function BorrowCatalogView({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2.5 text-xs font-semibold"
+            className="h-8 px-2.5 text-xs"
             aria-label="หน้าถัดไป"
             disabled={currentPage >= totalPages || isPending}
             onClick={() => changePage(currentPage + 1)}
@@ -970,16 +965,15 @@ export function BorrowCatalogView({
                 >
                   ยกเลิก
                 </Button>
-                <Button
+                <Button aria-busy={isPending}
                   type="button"
                   size="sm"
                   onClick={handleSubmitBorrow}
                   disabled={isPending || selectedItemsList.length === 0}
-                  className="h-9 flex-1 sm:flex-none sm:px-5 rounded-lg text-xs font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+                  className="h-9 flex-1 sm:flex-none sm:px-5 rounded-lg text-xs cursor-pointer shadow-xs"
                 >
                   {isPending ? (
                     <>
-                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                       กำลังส่งคำขอ...
                     </>
                   ) : (
@@ -1168,20 +1162,18 @@ export function BorrowCatalogView({
                           handleToggleSelect(detailItem, e.currentTarget)
                         }}
                         className={cn(
-                          'h-9 rounded-lg text-xs font-semibold gap-1.5 cursor-pointer',
+                          'h-9 rounded-lg text-xs gap-1.5 cursor-pointer',
                           isDetailSelected
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                            : 'border-primary bg-background text-primary hover:bg-primary/10'
                         )}
                       >
                         {isDetailSelected ? (
                           <>
-                            <Check className="h-3.5 w-3.5" />
                             อยู่ในตะกร้าแล้ว
                           </>
                         ) : (
                           <>
-                            <ShoppingCart className="h-3.5 w-3.5" />
                             {detailItem.unavailable_reason ? 'ยังไม่พร้อม' : 'ใส่ตะกร้า'}
                           </>
                         )}

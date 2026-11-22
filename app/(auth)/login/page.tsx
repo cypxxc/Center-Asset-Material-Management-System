@@ -111,7 +111,7 @@ function LoginForm() {
           รหัสผ่าน
         </label>
         </div>
-        <Button type="submit" disabled={isPending} className="h-12 w-full text-sm font-medium">
+        <Button aria-busy={isPending} type="submit" disabled={isPending} className="h-12 w-full text-sm font-medium">
           {isPending ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </Button>
       </form>

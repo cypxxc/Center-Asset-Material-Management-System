@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { returnDisbursement } from '@/features/disbursements/actions'
 
@@ -33,8 +32,8 @@ export function DueBorrowReturnAction({ disbursementId }: { disbursementId: stri
   }
 
   return <div className="flex flex-col items-center gap-1">
-    <Button type="button" size="sm" variant="outline" disabled={pending} onClick={handleReturn}>
-      <RotateCcw className="mr-1.5 size-3.5" aria-hidden="true" />{pending ? 'กำลังคืน...' : 'คืน'}
+    <Button aria-busy={pending} type="button" size="sm" variant="outline" disabled={pending} onClick={handleReturn}>
+      {pending ? 'กำลังคืน...' : 'คืน'}
     </Button>
     {error && <span role="alert" className="max-w-40 whitespace-normal text-center text-[11px] text-destructive">{error}</span>}
   </div>

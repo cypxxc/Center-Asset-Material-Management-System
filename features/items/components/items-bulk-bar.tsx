@@ -1,9 +1,9 @@
 'use client'
 
-import { Edit, Tag, Trash2, X } from 'lucide-react'
+import { Tag, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const actionButtonClassName = 'h-8.5 gap-1.5 rounded-lg px-3 text-xs font-semibold cursor-pointer bg-card hover:bg-accent text-card-foreground border-input'
+const actionButtonClassName = 'h-8.5 gap-1.5 rounded-lg px-3 text-xs cursor-pointer'
 
 export interface ItemsBulkBarProps {
   onEdit?: () => void
@@ -47,26 +47,24 @@ export function ItemsBulkBar({
           variant="outline"
           className={actionButtonClassName}
         >
-          <Tag className="size-3.5" />
           <span>พิมพ์ลาเบล ({selectedCount})</span>
         </Button>
       )}
 
       {userCanWrite && (
         <Button variant="outline" className={actionButtonClassName} disabled={!onEdit} title={!onEdit ? 'เลือกรายการเดียวเพื่อแก้ไขข้อมูล' : undefined} onClick={onEdit}>
-          <Edit className="size-3.5" />แก้ไขข้อมูล
+          แก้ไขข้อมูล
         </Button>
       )}
 
       {userCanDelete && onBulkDelete && (
         <Button
           onClick={onBulkDelete}
-          variant="outline"
+          variant="destructive"
           title="ยกเลิกรายการที่เลือก"
           aria-label="ยกเลิกรายการที่เลือก"
           className={`${actionButtonClassName} text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30`}
         >
-          <Trash2 className="size-3.5" />
           <span>ยกเลิก</span>
           <span className="sr-only">ลบทั้งหมด</span>
         </Button>

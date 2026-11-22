@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Dialog } from 'radix-ui'
-import { Check, Layers, MapPin, Plus, X } from 'lucide-react'
+import { Check, Layers, MapPin, X } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -60,7 +60,7 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
         <section className="overflow-hidden rounded-xl border border-border">
           <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3">
             <h3 className="text-sm font-semibold">รายการ <span className="ml-1 text-xs font-normal text-muted-foreground">{selected.length} รายการ</span></h3>
-            <Button type="button" variant="outline" size="sm" disabled={pending} aria-expanded={pickerOpen} onClick={() => changePickerOpen(true)} className="gap-1.5 text-xs font-normal"><Plus className="size-3.5" />เลือกสิ่งของ</Button>
+            <Button type="button" variant="outline-primary" size="sm" disabled={pending} aria-expanded={pickerOpen} onClick={() => changePickerOpen(true)} className="gap-1.5 text-xs">เลือกสิ่งของ</Button>
           </div>
           {selectedItems.length ? (
             <ul className="max-h-60 divide-y divide-border overflow-y-auto">
@@ -82,8 +82,8 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
           <CustodyRecipientCombobox users={users} value={recipient} onChange={setRecipient} disabled={pending} />
         </div>
         <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button type="button" variant="outline" disabled={pending} onClick={onCancel} className="font-normal">ยกเลิก</Button>
-          <Button type="submit" disabled={pending || !users.length} className="border border-primary/30 bg-primary/10 text-primary font-normal hover:bg-primary/15">{pending ? 'กำลังบันทึก...' : 'ยืนยันสั่งจ่าย'}</Button>
+          <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>ยกเลิก</Button>
+          <Button aria-busy={pending} type="submit" disabled={pending || !users.length}>{pending ? 'กำลังบันทึก...' : 'ยืนยันสั่งจ่าย'}</Button>
         </div>
       </form>
       <Dialog.Root open={pickerOpen} onOpenChange={changePickerOpen}>
@@ -133,7 +133,7 @@ export function CustodyAssignmentForm({ items, users, onCancel, onSuccess, onPen
                 )) : <p className="p-5 text-center text-xs text-muted-foreground">ไม่พบสิ่งของส่วนกลาง</p>}
               </div>
               <p className="text-[11px] text-muted-foreground">เลือกได้ครั้งละไม่เกิน 20 รายการ</p>
-              <div className="flex justify-end"><Button type="button" variant="outline" onClick={() => { setSelected(draftSelected); changePickerOpen(false) }} className="h-8 border-primary/30 bg-primary/10 text-primary text-xs font-normal hover:bg-primary/15">ยืนยันรายการ ({draftSelected.length})</Button></div>
+              <div className="flex justify-end"><Button type="button" onClick={() => { setSelected(draftSelected); changePickerOpen(false) }} className="h-8 text-xs">ยืนยันรายการ ({draftSelected.length})</Button></div>
             </div>
           </Dialog.Content>
         </Dialog.Portal>

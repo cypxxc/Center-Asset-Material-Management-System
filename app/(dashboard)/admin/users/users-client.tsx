@@ -14,7 +14,6 @@ import {
  Trash2,
  CheckCircle2,
  AlertCircle,
- RefreshCw,
  X,
  UserCheck,
  UserX,
@@ -267,15 +266,14 @@ export default function UsersClient({
  </div>
  }
  actions={
- <Button
+ <Button variant="outline-primary"
  type="button"
  onClick={() => {
  setNotice(null)
  setShowCreateModal(true)
  }}
- className="h-9 px-4 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
+ className="h-9 px-4 text-xs rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
  >
- <UserPlus className="h-4 w-4" />
  <span>เพิ่มผู้ใช้งานใหม่</span>
  </Button>
  }
@@ -343,11 +341,12 @@ export default function UsersClient({
  />
  </div>
  <Button
+ aria-busy={isPending}
  type="submit"
  variant="default"
  size="sm"
  disabled={isPending}
- className="h-9 px-3.5 font-bold text-xs cursor-pointer"
+ className="h-9 px-3.5 text-xs cursor-pointer"
  >
  ค้นหา
  </Button>
@@ -390,9 +389,8 @@ export default function UsersClient({
  variant="outline"
  size="sm"
  onClick={handleClearFilters}
- className="h-9 px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+ className="h-9 px-2.5 text-xs cursor-pointer"
  >
- <RefreshCw className="h-3.5 w-3.5 mr-1" />
  ล้างตัวกรอง
  </Button>
  )}
@@ -564,14 +562,14 @@ export default function UsersClient({
  {!isSelf && (
  <Button
  type="button"
- variant="ghost"
+ variant="destructive"
  size="icon"
  title="ลบบัญชีผู้ใช้"
  onClick={() => {
  setNotice(null)
  setDeleteTargetUser(user)
  }}
- className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+ className="h-7 w-7 cursor-pointer"
  >
  <Trash2 className="h-3.5 w-3.5" />
  </Button>
@@ -691,16 +689,16 @@ export default function UsersClient({
  size="sm"
  onClick={() => setShowCreateModal(false)}
  disabled={isPending}
- className="h-9 px-4 font-semibold text-xs cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  ยกเลิก
  </Button>
  <Button
+ aria-busy={isPending}
  type="submit"
- variant="default"
  size="sm"
  disabled={isPending}
- className="h-9 px-4 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  {isPending ? 'กำลังสร้าง...' : 'สร้างบัญชีผู้ใช้'}
  </Button>
@@ -756,16 +754,16 @@ export default function UsersClient({
  size="sm"
  onClick={() => setResetTargetUser(null)}
  disabled={isPending}
- className="h-9 px-4 font-semibold text-xs cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  ยกเลิก
  </Button>
  <Button
+ aria-busy={isPending}
  type="submit"
- variant="default"
  size="sm"
  disabled={isPending}
- className="h-9 px-4 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  {isPending ? 'กำลังบันทึก...' : 'ตั้งรหัสผ่านใหม่'}
  </Button>
@@ -820,16 +818,16 @@ export default function UsersClient({
  size="sm"
  onClick={() => setEmailTargetUser(null)}
  disabled={isPending}
- className="h-9 px-4 font-semibold text-xs cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  ยกเลิก
  </Button>
  <Button
+ aria-busy={isPending}
  type="submit"
- variant="default"
  size="sm"
  disabled={isPending}
- className="h-9 px-4 font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
+ className="h-9 px-4 text-xs cursor-pointer"
  >
  {isPending ? 'กำลังบันทึก...' : 'บันทึกอีเมล'}
  </Button>

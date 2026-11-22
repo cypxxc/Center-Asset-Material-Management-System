@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Dialog } from 'radix-ui'
-import { AlertTriangle, CheckCircle2, Loader2, MapPin, X } from 'lucide-react'
+import { AlertTriangle, Loader2, MapPin, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { loadOriginLocationAction, returnCustody } from '../actions'
@@ -173,12 +173,6 @@ export function AssetReturnModal({ item, onClose, onSuccess }: AssetReturnModalP
                         : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                     )}
                   >
-                    <CheckCircle2
-                      className={cn(
-                        'size-4 shrink-0',
-                        condition === 'normal' ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground'
-                      )}
-                    />
                     <span
                       className={cn(
                         'text-xs font-semibold',
@@ -200,12 +194,6 @@ export function AssetReturnModal({ item, onClose, onSuccess }: AssetReturnModalP
                         : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                     )}
                   >
-                    <AlertTriangle
-                      className={cn(
-                        'size-4 shrink-0',
-                        condition === 'damaged' ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'
-                      )}
-                    />
                     <span
                       className={cn(
                         'text-xs font-semibold',
@@ -279,7 +267,7 @@ export function AssetReturnModal({ item, onClose, onSuccess }: AssetReturnModalP
               >
                 ยกเลิก
               </Button>
-              <Button
+              <Button aria-busy={isSubmitting}
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || !reason.trim() || !returnDate || !originLocation || isLoadingOrigin}
@@ -287,7 +275,6 @@ export function AssetReturnModal({ item, onClose, onSuccess }: AssetReturnModalP
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (

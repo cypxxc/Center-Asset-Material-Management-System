@@ -154,13 +154,13 @@ function SubmitButton({
  size
 }: { 
  children: React.ReactNode
- variant?: "link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null
+ variant?: React.ComponentProps<typeof Button>["variant"]
  className?: string
  size?: "default" | "sm" | "lg" | "icon" | null
 }) {
  const { pending } = useFormStatus()
  return (
- <Button
+ <Button aria-busy={pending}
  type="submit"
  variant={variant || "default"}
  size={size || "default"}
@@ -215,7 +215,7 @@ export function CategorySection({ categories, itemType = 'asset', canDelete = tr
  <div className="pb-2">
  <ActiveCheckbox defaultChecked />
  </div>
- <SubmitButton className="h-9 font-normal text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มหมวดหมู่</SubmitButton>
+ <SubmitButton variant="outline-primary" className="h-9 text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มหมวดหมู่</SubmitButton>
  </form>
 
  <MetadataSearch label="หมวดหมู่" value={query} onChange={setQuery} />
@@ -306,7 +306,7 @@ export function LocationSection({ locations, canDelete = true, navigation }: { l
  <form action={createLocation} className="order-2 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
  <TextInput name="name" label="เพิ่มสถานที่" required />
  <input type="hidden" name="is_active" value="true" />
- <SubmitButton className="h-9 font-normal text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มสถานที่</SubmitButton>
+ <SubmitButton variant="outline-primary" className="h-9 text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มสถานที่</SubmitButton>
  </form>
 
  <MetadataSearch label="สถานที่" value={query} onChange={setQuery} />
@@ -400,7 +400,7 @@ export function UnitSection({ units, canDelete = true, navigation }: { units: Un
  <div className="pb-2">
  <ActiveCheckbox defaultChecked />
  </div>
- <SubmitButton className="h-9 font-normal text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มหน่วยนับ</SubmitButton>
+ <SubmitButton variant="outline-primary" className="h-9 text-xs leading-5 cursor-pointer rounded-lg px-4">เพิ่มหน่วยนับ</SubmitButton>
  </form>
 
  <MetadataSearch label="หน่วยนับ" value={query} onChange={setQuery} />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
-import { KeyRound, Loader2, ShieldCheck } from 'lucide-react'
+import { KeyRound, ShieldCheck } from 'lucide-react'
 import { updatePersonalPassword } from '../actions'
 
 export function ChangePasswordForm() {
@@ -84,12 +84,11 @@ export function ChangePasswordForm() {
  </div>
 
  <div className="flex justify-end pt-2">
- <button
+ <button aria-busy={isPasswordPending}
  type="submit"
  disabled={isPasswordPending}
- className="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+ className="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
  >
- {isPasswordPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
  <span>{isPasswordPending ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'บันทึกรหัสผ่านใหม่'}</span>
  </button>
  </div>

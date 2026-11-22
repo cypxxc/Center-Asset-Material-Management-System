@@ -28,7 +28,7 @@ export function MaterialsList({ items, startIndex = 0, selectedItemId, selectedI
             [0, 5, 8].includes(index) ? 'text-center' : [4, 6].includes(index) ? 'text-right' : 'text-left',
             [0, 5].includes(index) && 'px-2', index === 1 && 'pl-[50px] pr-3',
           )} aria-sort={field ? params.sort_by === field ? params.sort_dir === 'asc' ? 'ascending' : 'descending' : 'none' : undefined}>
-            {field ? <button type="button" onClick={() => onToggleSort(field)} className={cn('flex w-full cursor-pointer items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            {field ? <button type="button" onClick={() => onToggleSort(field)} className={cn('flex w-full cursor-pointer items-center gap-1 rounded-sm text-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               [4, 6].includes(index) ? 'flex-row-reverse justify-start' : index === 8 ? 'justify-center' : 'justify-start',
             )} aria-label={`จัดเรียงตาม ${label}`}>
               {label}{params.sort_by === field ? params.sort_dir === 'asc' ? <ArrowUp className="h-3 w-3 text-primary" /> : <ArrowDown className="h-3 w-3 text-primary" /> : <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />}

@@ -97,7 +97,6 @@ export function DashboardActionQueueClient({
  : 'text-muted-foreground hover:text-foreground hover:bg-card/40 font-medium'
  }`}
  >
- <Hammer className="size-3.5" />
  <span>ครุภัณฑ์ชำรุดและรอซ่อม</span>
  <span
  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${
@@ -123,7 +122,6 @@ export function DashboardActionQueueClient({
  : 'text-muted-foreground hover:text-foreground hover:bg-card/40 font-medium'
  }`}
  >
- <Package className="size-3.5" />
  <span>วัสดุใกล้หมดคลัง</span>
  <span
  className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums tracking-tight ${

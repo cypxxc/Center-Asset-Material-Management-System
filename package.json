@@ -12,6 +12,7 @@
     "postgres:stop": "tsx scripts/postgres-local.ts stop",
     "postgres:test": "tsx scripts/postgres-local.ts test",
     "postgres:app:setup": "tsx scripts/postgres-app.ts setup",
+    "postgres:user:setup": "tsx scripts/postgres-app.ts user-setup",
     "postgres:activate": "tsx scripts/postgres-app.ts activate",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/postgres-app.ts migrate",

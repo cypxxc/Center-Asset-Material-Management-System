@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { DropdownMenu } from 'radix-ui'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface FilterOption {
@@ -31,7 +31,6 @@ export function FilterDropdown({
   value,
   options,
   onChange,
-  icon,
   allLabel,
   className,
 }: FilterDropdownProps) {
@@ -71,21 +70,12 @@ export function FilterDropdown({
             )}
             title={selectedOption ? `${label}: ${selectedOption.label}` : label}
           >
-            {icon && <span
-              className={cn(
-                'shrink-0 transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-              )}
-            >
-              {icon}
-            </span>}
             <span className="truncate max-w-[130px] sm:max-w-[160px]">
               {selectedOption ? selectedOption.label : label}
             </span>
             {isActive && (
               <span className="size-1.5 rounded-full bg-primary shrink-0 animate-pulse" />
             )}
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity ml-0.5" />
           </button>
         </DropdownMenu.Trigger>
 

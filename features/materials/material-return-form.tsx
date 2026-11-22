@@ -29,7 +29,7 @@ export function MaterialReturnForm({ lineId, remaining, unit, onSuccess }: { lin
       }
     })
   }
-  return <div className="space-y-3"><button type="button" onClick={() => setOpen(value => !value)} disabled={busy || uncertain} aria-expanded={open} className="rounded-md border border-border px-3 py-2 text-xs font-medium">{open ? 'ปิดแบบฟอร์มรับคืน' : 'รับคืนวัสดุใช้ไม่หมด'}</button>
+  return <div className="space-y-3"><button type="button" onClick={() => setOpen(value => !value)} disabled={busy || uncertain} aria-expanded={open} className="rounded-lg border border-border bg-background px-3 py-2 text-foreground hover:bg-muted text-xs font-medium">{open ? 'ปิดแบบฟอร์มรับคืน' : 'รับคืนวัสดุใช้ไม่หมด'}</button>
     {open && <form onSubmit={event => { event.preventDefault(); submit(new FormData(event.currentTarget)) }} onChange={() => { if (!uncertain) pendingCommand.current = null }} className="space-y-3 rounded-lg border border-border bg-card p-4">
       <p className="text-xs text-muted-foreground">รับคืนได้อีก {remaining} {unit || 'หน่วย'} เพิ่มยอดพร้อมเบิกเฉพาะจำนวนที่ตรวจรับพร้อมใช้งาน จำนวนที่ไม่ผ่านตรวจยังคงมีหลักฐานรับคืน</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -39,7 +39,7 @@ export function MaterialReturnForm({ lineId, remaining, unit, onSuccess }: { lin
         <label className="text-sm">เหตุผล / ผลการตรวจ<input className={field} name="reason" required maxLength={500} /></label>
         <label className="text-sm">เอกสารรับคืนอ้างอิง<input className={field} name="reference" required maxLength={500} /></label>
       </fieldset>
-      <button disabled={busy} className="w-full rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">{busy ? 'กำลังบันทึก…' : uncertain ? 'ลองยืนยันรายการเดิมอีกครั้ง' : 'ยืนยันตรวจรับคืน'}</button>
+      <button aria-busy={busy} disabled={busy} className="w-full rounded-lg bg-primary hover:bg-primary/80 px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">{busy ? 'กำลังบันทึก…' : uncertain ? 'ลองยืนยันรายการเดิมอีกครั้ง' : 'ยืนยันตรวจรับคืน'}</button>
     </form>}
   </div>
 }

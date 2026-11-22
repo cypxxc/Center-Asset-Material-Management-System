@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { hardDeleteItem } from '../actions'
@@ -42,14 +41,13 @@ export function DeleteItemButton({
 
   return (
     <>
-      <Button
+      <Button aria-busy={pending}
         type="button"
         variant="destructive"
         disabled={pending}
-        className="font-semibold flex items-center gap-1.5 h-10 px-4"
+        className="flex items-center gap-1.5 h-10 px-4"
         onClick={() => setShowConfirm(true)}
       >
-        <Trash2 className="h-4 w-4" />
         <span>{pending ? 'กำลังลบ...' : 'ลบรายการ'}</span>
       </Button>
 

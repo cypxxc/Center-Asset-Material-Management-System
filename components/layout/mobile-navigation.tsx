@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Dialog } from 'radix-ui'
-import { Menu, X, LayoutDashboard, Package, Boxes, Warehouse, ArrowLeftRight, Settings, History, LogOut, User } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Package, Boxes, Warehouse, ArrowLeftRight, Settings, History, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/features/auth/actions'
 import { ROLE_LABELS } from './nav-config'
@@ -188,9 +188,8 @@ export function MobileNavigation({ profile }: { profile?: { full_name: string; d
             <form action={signOut}>
               <button
                 type="submit"
-                className="w-full bg-destructive/10 hover:bg-destructive/15 text-destructive font-bold text-xs py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="w-full bg-destructive/10 hover:bg-destructive/15 text-destructive font-medium text-xs py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <LogOut className="h-3.5 w-3.5" />
                 <span>ออกจากระบบ</span>
               </button>
             </form>

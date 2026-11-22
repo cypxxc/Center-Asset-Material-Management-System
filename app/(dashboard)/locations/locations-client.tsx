@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  ChevronRight,
   ExternalLink,
   MapPin,
   Package,
   FileText,
   Folder,
-  Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageContainer } from '@/components/ui/page-container'
@@ -101,21 +99,13 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                   aria-pressed={isSelected}
                   onClick={() => setSelectedLocationId(isSelected ? null : loc.id)}
                   className={cn(
-                    'w-full text-left p-4 rounded-xl border transition-colors flex items-center justify-between gap-3 cursor-pointer h-auto shrink-0 select-none font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'w-full text-left p-4 rounded-xl border transition-colors flex items-center justify-between gap-3 cursor-pointer h-auto shrink-0 select-none font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     isSelected
-                      ? 'bg-primary/10 text-primary border-primary/40 font-bold shadow-2xs'
+                      ? 'bg-primary/10 text-primary border-primary/40 shadow-2xs'
                       : 'bg-card text-foreground border-border hover:border-border shadow-xs hover:bg-muted'
                   )}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className={cn(
-                        'shrink-0 p-2 rounded-lg',
-                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'
-                      )}
-                    >
-                      <MapPin className="w-5 h-5" />
-                    </div>
                     <div className="min-w-0">
                       <p className="break-words font-semibold text-sm">{loc.name}</p>
                       <p className={cn('text-xs mt-1', isSelected ? 'text-primary/90 font-medium' : 'text-muted-foreground')}>
@@ -123,12 +113,6 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                       </p>
                     </div>
                   </div>
-                  <ChevronRight
-                    className={cn(
-                      'w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none',
-                      isSelected ? 'rotate-90 text-primary' : 'text-muted-foreground'
-                    )}
-                  />
                 </button>
             )
           })}
@@ -159,10 +143,9 @@ export function LocationsClient({ locations, items }: LocationsClientProps) {
                     size="sm"
                     onClick={() => setIsBatchPrintModalOpen(true)}
                     disabled={locationStickerItems.length === 0}
-                    className="h-8 px-2.5 text-xs font-semibold flex items-center gap-1.5 border-border hover:bg-muted cursor-pointer shadow-2xs"
+                    className="h-8 px-2.5 text-xs flex items-center gap-1.5 border-border hover:bg-muted cursor-pointer shadow-2xs"
                     title="พิมพ์ป้ายลาเบลสิ่งของทั้งหมดในสถานที่นี้"
                   >
-                    <Tag className="w-3.5 h-3.5 text-primary" />
                     <span>พิมพ์ป้ายทั้งสถานที่ ({locationStickerItems.length} ชิ้น)</span>
                   </Button>
                   <span className="bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full text-xs">

@@ -135,18 +135,16 @@ export async function getPostgresDisbursements(
 }
 
 export async function getPostgresDisbursementById(id: string) {
+  const profile = await getCurrentProfile()
+  const ownership = profile?.role === 'admin' ? sql`true` : sql`created_by = ${profile?.id ?? null}::uuid`
+
   return withUserDatabase(async (tx) => {
     try {
       const docRes = await tx.execute<DisbursementRow>(
-        sql`SELECT * FROM public.disbursements WHERE id = ${id}`
+        sql`SELECT * FROM public.disbursements WHERE id = ${id} AND ${ownership}`
       )
       const doc = docRes.rows[0]
       if (!doc) return null
-
-      const profile = await getCurrentProfile()
-      if (profile && profile.role !== 'admin' && doc.created_by !== profile.id) {
-        return null
-      }
 
       const linesRes = await tx.execute<DisbursementItemRow>(
         sql`SELECT di.*,

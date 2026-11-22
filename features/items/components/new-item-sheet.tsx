@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback, useId, useState } from 'react'
-import { X, Plus, Save } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { createItemInline, updateItem } from '../actions'
 import { ItemDetail, ReferenceOption, type ItemType } from '../types'
@@ -260,21 +260,18 @@ export function NewItemSheet({
  <span className="mr-auto hidden text-xs text-muted-foreground sm:block">ตรวจสอบข้อมูลก่อนบันทึก</span>
  <Button type="button" variant="outline" disabled={pending} onClick={handleCloseAttempt} className="cursor-pointer">ยกเลิก</Button>
  {!item && (
- <Button
+ <Button aria-busy={pending}
  type="submit"
  name="intent"
  value="save_and_another"
  form={formId}
  disabled={pending}
- variant="secondary"
- className="gap-2 font-semibold cursor-pointer"
+ className="gap-2 cursor-pointer"
  >
- <Plus className="h-4 w-4" />
  <span>บันทึกและเพิ่มรายการถัดไป</span>
  </Button>
  )}
- <Button type="submit" name="intent" value="save_and_close" form={formId} disabled={pending} className="gap-2 font-semibold cursor-pointer">
- <Save className="h-4 w-4" />
+ <Button aria-busy={pending} type="submit" name="intent" value="save_and_close" form={formId} disabled={pending} className="gap-2 cursor-pointer">
  {pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
  </Button>
  </div>

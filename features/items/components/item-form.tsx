@@ -6,7 +6,7 @@ import { normalizeItemStatus } from '../status'
 
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Save, Image as ImageIcon, Trash2, Upload, Package, MapPin, Tag, Plus } from 'lucide-react'
+import { Image as ImageIcon, Trash2, Upload, Package, MapPin, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ItemActionState } from '../actions'
@@ -447,20 +447,17 @@ function ItemFormFields({
  )}
  <div className="flex items-center gap-2">
  {!item && (
- <Button
+ <Button aria-busy={pending}
  type="submit"
  name="intent"
  value="save_and_another"
- variant="secondary"
  disabled={pending}
- className="h-10 px-4 font-semibold flex items-center gap-1.5 cursor-pointer"
+ className="h-10 px-4 flex items-center gap-1.5 cursor-pointer"
  >
- <Plus className="h-4 w-4" />
  <span>บันทึกและเพิ่มรายการถัดไป</span>
  </Button>
  )}
- <Button type="submit" name="intent" value="save_and_close" disabled={pending} className="h-10 px-4 font-semibold flex items-center gap-1.5 cursor-pointer">
- <Save className="h-4 w-4" />
+ <Button aria-busy={pending} type="submit" name="intent" value="save_and_close" disabled={pending} className="h-10 px-4 flex items-center gap-1.5 cursor-pointer">
  <span>{pending ? 'กำลังบันทึก...' : item ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}</span>
  </Button>
  </div>
