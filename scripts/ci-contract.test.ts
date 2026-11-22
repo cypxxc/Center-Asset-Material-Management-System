@@ -25,7 +25,19 @@ test('standard CI enforces lint and browser smoke coverage', () => {
 
 test('manual staging release gate cannot silently skip authenticated E2E', () => {
   assert.match(workflow, /workflow_dispatch:/)
-  assert.match(workflow, /CAMMS_E2E_REAL_AUTH: 'true'/)
-  assert.match(workflow, /run: npm run test:e2e:release/)
+  const staging = workflow.split('  staging-release:')[1]
+  assert.ok(staging)
+  assert.match(staging, /CAMMS_E2E_REAL_AUTH: 'true'/)
+  assert.match(staging, /^\s*npm run test:e2e:release\r?$/m)
   assert.equal(packageJson.scripts['test:e2e:release'], 'tsx scripts/release-e2e.ts')
+})
+
+test('manual staging release provisions PostgreSQL and seeds the E2E login on the runner', () => {
+  const staging = workflow.split('  staging-release:')[1]
+  assert.ok(staging)
+  assert.doesNotMatch(staging, /SUPABASE|secrets\.DATABASE/)
+  assert.match(staging, /npm run postgres:setup\s+npm run postgres:up\s+npm run postgres:app:setup\s+npm run postgres:activate/)
+  assert.match(staging, /INITIAL_ADMIN_EMAIL="\$CAMMS_E2E_ADMIN_ID"/)
+  assert.match(staging, /INITIAL_ADMIN_PASSWORD="\$CAMMS_E2E_ADMIN_PASSWORD"/)
+  assert.match(staging, /if: always\(\)[\s\S]*compose\.postgres\.yaml down/)
 })

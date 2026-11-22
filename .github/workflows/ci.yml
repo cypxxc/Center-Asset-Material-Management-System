@@ -197,12 +197,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATA_BACKEND: postgres
+      NEXT_PUBLIC_DATA_BACKEND: postgres
       CAMMS_E2E_REAL_AUTH: 'true'
-      CAMMS_E2E_ADMIN_ID: ${{ secrets.CAMMS_E2E_ADMIN_ID }}
-      CAMMS_E2E_ADMIN_PASSWORD: ${{ secrets.CAMMS_E2E_ADMIN_PASSWORD }}
+      CAMMS_E2E_ADMIN_ID: admin@camms.local
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -220,4 +218,19 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run authenticated staging release journey
-        run: npm run test:e2e:release
+        run: |
+          CAMMS_E2E_ADMIN_PASSWORD="$(openssl rand -hex 32)"
+          echo "::add-mask::$CAMMS_E2E_ADMIN_PASSWORD"
+          export CAMMS_E2E_ADMIN_PASSWORD
+          export INITIAL_ADMIN_EMAIL="$CAMMS_E2E_ADMIN_ID"
+          export INITIAL_ADMIN_PASSWORD="$CAMMS_E2E_ADMIN_PASSWORD"
+          npm run postgres:setup
+          npm run postgres:up
+          npm run postgres:app:setup
+          npm run postgres:activate
+          npm run test:e2e:release
+
+      - name: Stop staging CI-owned PostgreSQL service
+        if: always()
+        run: |
+          if test -f .env.postgres.local; then docker compose --env-file .env.postgres.local -f compose.postgres.yaml down; fi

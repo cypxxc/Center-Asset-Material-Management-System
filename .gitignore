@@ -101,4 +101,8 @@ next-env.d.ts
 *.xlsx
 *.xls
 *.csv
-/docs/
+/docs/*
+!/docs/production/
+/docs/production/*
+!/docs/production/README.md
+!/docs/production/backup-README.md
