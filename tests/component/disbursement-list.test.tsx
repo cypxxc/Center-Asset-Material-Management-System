@@ -41,7 +41,7 @@ test('DisbursementListClient renders EmptyState when items array is empty', () =
   );
 
   assert.ok(container.textContent?.includes('ยังไม่มีประวัติการเบิก-จ่าย'));
-  assert.ok(container.textContent?.includes('ส่งคำขอเบิก') || container.textContent?.includes('สั่งจ่าย'));
+  assert.equal(container.querySelector('a[href="/disbursements/new"]'), null);
 });
 
 test('DisbursementListClient renders DataTable and rows when items exist', () => {

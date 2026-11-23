@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import {
  Activity,
@@ -153,7 +152,7 @@ export function DisbursementListClient({
  {/* Left: Main Title & Count Badge */}
  <div className="flex items-center gap-3 min-w-0">
  <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-none truncate">
- {activeTab === 'history' ? 'ประวัติการอนุมัติ' : activeTab === 'documents' ? 'จ่าย' : activeTab === 'requests' ? 'อนุมัติ' : 'เบิก - ยืม'}
+ {activeTab === 'history' ? 'ประวัติการอนุมัติ' : activeTab === 'documents' ? (userRole === 'user' ? 'รายการของฉัน' : 'จ่าย') : activeTab === 'requests' ? 'อนุมัติ' : 'เบิก - ยืม'}
  </h1>
  <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20 shrink-0">
  {activeTab === 'catalog'
@@ -172,11 +171,7 @@ export function DisbursementListClient({
  <span>สั่งจ่าย</span>
  </Button>
  )}
- {canCreate && userRole === 'user' && activeTab === 'documents' && (
- <Button variant="outline-primary" asChild className="h-8">
- <Link href="/disbursements/new">ส่งคำขอเบิก</Link>
- </Button>
- )}
+
  </div>
  </div>
  </div>
@@ -187,7 +182,7 @@ export function DisbursementListClient({
  userRole === 'admin' && (activeTab === 'requests' || activeTab === 'documents') ? 'bg-card/60 py-2.5' : 'bg-card py-1.5'
  )}>
  {userRole !== 'admin' && activeTab !== 'history' && (
- <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label="รายการของฉัน">
+ <div className={cn('flex shrink-0 gap-1 rounded-lg bg-muted p-0.5', userRole === 'user' && 'order-4', userRole === 'user' && activeTab !== 'catalog' && 'ml-auto')} role="group" aria-label="รายการของฉัน">
  <button
  type="button"
  onClick={() => { setActiveTab('documents'); applyFilters('', 'all', '', 1, 'documents') }}
@@ -269,7 +264,7 @@ export function DisbursementListClient({
  <div className="flex flex-wrap items-center gap-2 min-w-0">
  {activeTab === 'history' && <AuditActionFilter value="approval_history" />}
  {/* Status Filter */}
- {activeTab !== 'requests' && <FilterDropdown
+ {activeTab !== 'requests' && !(userRole === 'user' && activeTab === 'documents') && <FilterDropdown
  label="สถานะ"
  ariaLabel="กรองตามสถานะเอกสาร"
  name="status"
@@ -283,7 +278,7 @@ export function DisbursementListClient({
  allLabel="ทั้งหมด (สถานะ)"
  />}
 
- {activeTab !== 'requests' && activeTab !== 'history' && <Button type="button" variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1) }}>ดูประวัติทั้งหมด</Button>}
+ {activeTab !== 'requests' && activeTab !== 'history' && !(userRole === 'user' && activeTab === 'documents') && <Button type="button" variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('all'); setType(''); applyFilters('', 'all', '', 1) }}>ดูประวัติทั้งหมด</Button>}
 
  {/* Quick Reset Filters Button */}
  {hasActiveFilters && activeTab !== 'history' && (
@@ -347,12 +342,6 @@ export function DisbursementListClient({
  className="gap-1.5"
  >
  <span>ล้างตัวกรองทั้งหมด</span>
- </Button>
- ) : canCreate ? (
- <Button variant="outline-primary" asChild size="sm" className="gap-1.5">
- <Link href="/disbursements/new">
- <span>ส่งคำขอเบิก</span>
- </Link>
  </Button>
  ) : undefined
  }

@@ -4,7 +4,7 @@ import { useContext } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DropdownMenu } from 'radix-ui'
-import { Tag, Box, MapPin, Check } from 'lucide-react'
+import { Tag, Box, MapPin, Check, ChevronDown } from 'lucide-react'
 import { ImportModeContext, type ImportMode } from './import-mode-context'
 
 export function SettingsNavigation({ activeTab }: { activeTab: string }) {
@@ -30,6 +30,7 @@ export function SettingsNavigation({ activeTab }: { activeTab: string }) {
           <DropdownMenu.Trigger asChild>
             <button type="button" disabled={mode?.busy} aria-current={activeTab === 'import' ? 'page' : undefined} className={`group ${tabClass(activeTab === 'import')} disabled:opacity-50`}>
               <span>นำเข้าวัสดุ</span>
+              <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
