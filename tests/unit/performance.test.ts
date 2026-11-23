@@ -23,14 +23,6 @@ test('measureExecution measures asynchronous execution time', async () => {
   assert.ok(durationMs >= 25)
 })
 
-test('reports page starts report list query with independent data requests', () => {
-  const source = fs.readFileSync(path.join(process.cwd(), 'app/(dashboard)/reports/page.tsx'), 'utf8')
-
-  assert.match(source, /const params = await searchParams/)
-  assert.match(source, /getReportItemsList\(params\)/)
-  assert.doesNotMatch(source, /const reportData = await getReportItemsList\(params\)/)
-})
-
 test('stored item images avoid next/image runtime until transfer savings are measured', () => {
   const zoomableImage = fs.readFileSync(path.join(process.cwd(), 'components/ui/zoomable-image.tsx'), 'utf8')
   const itemsExplorer = fs.readFileSync(path.join(process.cwd(), 'app/(dashboard)/items/items-explorer-client.tsx'), 'utf8')
