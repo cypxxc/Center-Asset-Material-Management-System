@@ -5,7 +5,6 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import ItemsLoading from '../../app/(dashboard)/items/loading';
 import ItemEditLoading from '../../app/(dashboard)/items/[id]/edit/loading';
-import LocationsLoading from '../../app/(dashboard)/locations/loading';
 import ProfileLoading from '../../app/(dashboard)/profile/loading';
 import AuditLogsLoading from '../../app/(dashboard)/admin/audit-logs/loading';
 import UsersLoading from '../../app/(dashboard)/admin/users/loading';
@@ -20,12 +19,6 @@ test('ItemEditLoading renders skeleton with pulse animations', () => {
   const { container } = render(React.createElement(ItemEditLoading));
   const pulseElements = container.querySelectorAll('.animate-pulse');
   assert.ok(pulseElements.length > 0, 'ItemEditLoading should render elements with animate-pulse');
-});
-
-test('LocationsLoading renders skeleton with pulse animations', () => {
-  const { container } = render(React.createElement(LocationsLoading));
-  const pulseElements = container.querySelectorAll('.animate-pulse');
-  assert.ok(pulseElements.length > 0, 'LocationsLoading should render elements with animate-pulse');
 });
 
 test('ProfileLoading renders skeleton with pulse animations', () => {

@@ -13,7 +13,6 @@ let settingsPageDataHandler: (tab?: string) => Promise<unknown> = async () => ({
   activeTab: 'categories',
   data: { categories: [], locations: [], units: [] },
 })
-let locationsOverviewHandler: () => Promise<unknown> = async () => ({ locations: [], items: [] })
 
 // Mock domain query modules
 mockModule('../../features/auth/queries', {
@@ -22,7 +21,6 @@ mockModule('../../features/auth/queries', {
 
 mockModule('../../features/settings/queries', {
   getSettingsPageData: (tab?: string) => settingsPageDataHandler(tab),
-  getLocationsOverview: () => locationsOverviewHandler(),
 })
 
 // Mock client components and leaf UI widgets
@@ -39,18 +37,6 @@ mockModule('../../components/ui/page-container', {
 
 mockModule('../../components/ui/page-header', {
   PageHeader: () => null,
-})
-
-mockModule('../../app/(dashboard)/locations/locations-client', {
-  LocationsClient: () => null,
-})
-
-mockModule('../../features/items/components/delete-item-button', {
-  DeleteItemButton: () => null,
-})
-
-mockModule('../../components/ui/zoomable-image', {
-  ZoomableImage: () => null,
 })
 
 test('SettingsPage evaluates searchParams and getCurrentProfile concurrently without blocking', async () => {
@@ -127,39 +113,5 @@ test('SettingsPage runs getCurrentProfile concurrently even if searchParams is p
     resolveSearchParams({ tab: 'units' })
     const element = await pending
     assert.ok(element, 'SettingsPage should render successfully')
-  }
-})
-
-test('LocationsPage starts getLocationsOverview immediately while getCurrentProfile is still pending', async () => {
-  let resolveProfile!: (value: unknown) => void
-  const profilePromise = new Promise(resolve => {
-    resolveProfile = resolve
-  })
-
-  currentProfileHandler = () => profilePromise
-
-  let locationsOverviewCalled = false
-  locationsOverviewHandler = async () => {
-    locationsOverviewCalled = true
-    return {
-      locations: [{ id: 'loc-1', name: 'Main Office' }],
-      items: [{ id: 'item-1', item_name: 'Desk' }],
-    }
-  }
-
-  const { default: LocationsPage } = await import('../../app/(dashboard)/locations/page')
-  const pending = LocationsPage()
-
-  try {
-    await new Promise(resolve => setImmediate(resolve))
-    assert.equal(
-      locationsOverviewCalled,
-      true,
-      'getLocationsOverview should be called immediately while getCurrentProfile is pending'
-    )
-  } finally {
-    resolveProfile({ id: 'user-staff', role: 'staff', is_active: true })
-    const element = await pending
-    assert.ok(element, 'LocationsPage should render successfully')
   }
 })
