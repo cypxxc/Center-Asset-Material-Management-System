@@ -22,7 +22,13 @@ function setup(t: TestContext, props: React.ComponentProps<typeof IdleSessionTim
   t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 1_000_000 })
   localStorage.clear()
   const destinations: string[] = []
+  const logoutRequests: Array<{ url: string; method?: string }> = []
   const originalWindow = window
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    logoutRequests.push({ url: String(input), method: init?.method })
+    return new Response(JSON.stringify({ success: true }), { status: 200 })
+  }) as typeof fetch
   globalThis.window = new Proxy(originalWindow, {
     get(target, property) {
       if (property === 'location') return { replace: (url: string) => destinations.push(url) }
@@ -30,8 +36,13 @@ function setup(t: TestContext, props: React.ComponentProps<typeof IdleSessionTim
     },
   })
   const view = render(<IdleSessionTimeout timeoutSeconds={20} warningSeconds={10} {...props} />)
-  t.after(() => { view.unmount(); globalThis.window = originalWindow; localStorage.clear() })
-  return { view, destinations }
+  t.after(() => {
+    view.unmount()
+    globalThis.window = originalWindow
+    globalThis.fetch = originalFetch
+    localStorage.clear()
+  })
+  return { view, destinations, logoutRequests }
 }
 
 test('idle warning renders outside layout and continues on explicit confirmation', async (t) => {
@@ -50,14 +61,15 @@ test('idle warning renders outside layout and continues on explicit confirmation
 })
 
 test('idle expiry shows a blocking popup then navigates through server logout exactly once', async (t) => {
-  const { destinations } = setup(t)
+  const { destinations, logoutRequests } = setup(t)
   await act(async () => { t.mock.timers.tick(20_000) })
   assert.ok(screen.getByRole('alertdialog', { name: 'เซสชันหมดอายุ' }))
   assert.equal(screen.queryByRole('button', { name: 'คงอยู่ในระบบต่อไป' }), null)
   fireEvent.click(window)
-  await act(async () => { t.mock.timers.tick(1500) })
-  assert.deepEqual(destinations, ['/api/auth/logout'])
-  await act(async () => { t.mock.timers.tick(5000) })
+  await act(async () => { t.mock.timers.tick(1500); await Promise.resolve() })
+  assert.deepEqual(logoutRequests, [{ url: '/api/auth/logout', method: 'POST' }])
+  assert.deepEqual(destinations, ['/login?reason=idle_timeout'])
+  await act(async () => { t.mock.timers.tick(5000); await Promise.resolve() })
   assert.equal(destinations.length, 1)
 })
 
@@ -85,11 +97,12 @@ test('expired stored activity is checked on mount instead of reset', () => {
 })
 
 test('logout from another tab works without BroadcastChannel', async (t) => {
-  const { destinations } = setup(t)
+  const { destinations, logoutRequests } = setup(t)
   fireEvent(window, new window.StorageEvent('storage', { key: 'camms_last_activity', oldValue: '1000000', newValue: null }))
   assert.ok(screen.getByRole('alertdialog', { name: 'เซสชันหมดอายุ' }))
-  await act(async () => { t.mock.timers.tick(1500) })
-  assert.deepEqual(destinations, ['/api/auth/logout'])
+  await act(async () => { t.mock.timers.tick(1500); await Promise.resolve() })
+  assert.deepEqual(logoutRequests, [{ url: '/api/auth/logout', method: 'POST' }])
+  assert.deepEqual(destinations, ['/login?reason=idle_timeout'])
 })
 
 test('eight-hour server deadline expires even when the user is active', async (t) => {

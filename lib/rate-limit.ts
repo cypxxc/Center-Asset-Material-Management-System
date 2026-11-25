@@ -190,7 +190,7 @@ export async function checkRateLimit(
       }
     }
 
-    const key = `${userId}:${ip}:${actionName}`
+    const key = userId === 'anonymous' ? `${userId}:${ip}:${actionName}` : `${userId}:${actionName}`
     const limiter = getRateLimiter()
     const result = await limiter.limit(key, limitValue, windowMs)
 

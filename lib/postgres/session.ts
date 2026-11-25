@@ -44,13 +44,12 @@ export async function setSessionCookie({ token, expires }: { token: string; expi
     const { headers } = await import('next/headers')
     const headerList = await headers()
     const proto = headerList.get('x-forwarded-proto')
-    if (proto) {
+    const host = headerList.get('host') || ''
+    const isLocalHost = /^(\d+\.\d+\.\d+\.\d+|localhost)(:\d+)?$/.test(host)
+    if (process.env.NODE_ENV !== 'production') {
       isSecure = proto === 'https'
-    } else {
-      const host = headerList.get('host') || ''
-      if (/^(\d+\.\d+\.\d+\.\d+|localhost)(:\d+)?$/.test(host)) {
-        isSecure = false
-      }
+    } else if (isLocalHost && proto !== 'https') {
+      isSecure = false
     }
   } catch {
     // fallback to environment

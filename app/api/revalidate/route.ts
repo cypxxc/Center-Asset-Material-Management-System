@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -17,6 +18,13 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
  *     -H "Authorization: Bearer <REVALIDATE_SECRET>"
  */
 
+function matchesBearerSecret(headerValue: string | null, secret: string): boolean {
+  if (!headerValue) return false
+  const actual = Buffer.from(headerValue, 'utf8')
+  const expected = Buffer.from(`Bearer ${secret}`, 'utf8')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
+
 export async function POST(request: Request) {
   const secret = process.env.REVALIDATE_SECRET
   if (!secret) {
@@ -24,8 +32,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const auth = request.headers.get('authorization') ?? ''
-  if (auth !== `Bearer ${secret}`) {
+  const auth = request.headers.get('authorization')
+  if (!matchesBearerSecret(auth, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

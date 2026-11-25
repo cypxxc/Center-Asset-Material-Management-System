@@ -11,7 +11,39 @@ function logoutFailure(error: unknown) {
   return response
 }
 
-export async function POST() {
+function isSameOrigin(request: Request): boolean {
+  const fetchSite = request.headers.get('sec-fetch-site')
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
+    return false
+  }
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host')
+  const origin = request.headers.get('origin')
+  if (origin) {
+    try {
+      return Boolean(host) && new URL(origin).host === host
+    } catch {
+      return false
+    }
+  }
+  const referer = request.headers.get('referer')
+  if (referer) {
+    try {
+      return Boolean(host) && new URL(referer).host === host
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, {
+      status: 403,
+      headers: { 'Cache-Control': 'no-store, max-age=0' },
+    })
+  }
+
   try {
     await deleteSession()
   } catch (error) {
@@ -25,19 +57,11 @@ export async function POST() {
 }
 
 export async function GET() {
-  try {
-    await deleteSession()
-  } catch (error) {
-    return logoutFailure(error)
-  }
-
-  // Preserve the browser's IP/port, even when standalone resolves request.url
-  // against its bind address (0.0.0.0) behind a proxy.
-  const response = new NextResponse(null, {
-    status: 307,
-    headers: { Location: '/login?reason=idle_timeout' },
+  return NextResponse.json({ error: 'Method Not Allowed' }, {
+    status: 405,
+    headers: {
+      Allow: 'POST',
+      'Cache-Control': 'no-store, max-age=0',
+    },
   })
-  response.cookies.delete(SESSION_COOKIE)
-  response.headers.set('Cache-Control', 'no-store, max-age=0')
-  return response
 }

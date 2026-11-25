@@ -56,7 +56,11 @@ export function IdleSessionTimeout({ timeoutSeconds = 8 * 60 * 60, warningSecond
     if (!isExpired) return
     // Use the server route to revoke the session and delete its HttpOnly cookie.
     // A brief delay lets users read why they are being redirected.
-    const timer = setTimeout(() => window.location.replace('/api/auth/logout'), 1500)
+    const timer = setTimeout(() => {
+      void fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+        .catch(() => undefined)
+        .finally(() => window.location.replace('/login?reason=idle_timeout'))
+    }, 1500)
     return () => clearTimeout(timer)
   }, [isExpired])
 
