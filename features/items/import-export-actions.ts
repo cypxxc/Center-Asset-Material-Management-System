@@ -160,16 +160,19 @@ function extractBrandModelAndSerial(rawText: string): { brandModel: string; seri
   return { brandModel: rawText.trim(), serialNo: null }
 }
 
+const QUALIFIED_VALUES = new Set(['qualified', 'ตามเกณฑ์', 'ครุภัณฑ์ตามเกณฑ์'])
+const BELOW_THRESHOLD_VALUES = new Set(['below_threshold', 'ต่ำกว่าเกณฑ์', 'ต่ำกว่าเกณฑ์ (ต)', 'ต่ำกว่าเกณฑ์ (ต.)', 'ครุภัณฑ์ต่ำกว่าเกณฑ์', 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)'])
+const MARKED_CONDITION_VALUES = new Set(['/', '✓', 'x', '1', 'y', 'yes', 'true', 'ชำรุด', 'เสื่อมสภาพ', 'ใช้งานได้'])
+const SUBHEADER_ITEM_NAMES = new Set(['รายการ', 'รายการครุภัณฑ์', 'ชื่อสิ่งของ', 'ยี่ห้อ/รุ่น'])
+const SUBHEADER_PRICE_NAMES = new Set(['ราคา', 'จำนวนเงิน', 'ราคาต่อหน่วย'])
+
 function parseConditionStatus(
   explicitStatus: string,
   usable: string,
   damaged: string,
   deteriorated: string
 ): string {
-  const isMarked = (val: string) => {
-    const s = val.trim().toLowerCase()
-    return s === '/' || s === '✓' || s === 'x' || s === '1' || s === 'y' || s === 'yes' || s === 'true' || s === 'ชำรุด' || s === 'เสื่อมสภาพ' || s === 'ใช้งานได้'
-  }
+  const isMarked = (val: string) => MARKED_CONDITION_VALUES.has(val.trim().toLowerCase())
 
   if (isMarked(damaged)) return 'damaged'
   if (isMarked(deteriorated)) return 'inactive'
@@ -244,6 +247,16 @@ export async function importItemsBulk(csvContent: string, expectedType?: 'asset'
 
     const rows = lines.slice(headerLineIdx + 1)
 
+    const headerIndex = new Map<string, number>()
+    const headerAllIndices = new Map<string, number[]>()
+    for (let i = 0; i < mappedHeaders.length; i++) {
+      const h = mappedHeaders[i]
+      if (!headerIndex.has(h)) headerIndex.set(h, i)
+      const list = headerAllIndices.get(h)
+      if (list) list.push(i)
+      else headerAllIndices.set(h, [i])
+    }
+
     const itemsToInsert = []
     let lineNum = headerLineIdx + 1
 
@@ -273,19 +286,31 @@ export async function importItemsBulk(csvContent: string, expectedType?: 'asset'
         return errorResponse(`บรรทัดที่ ${lineNum}: จำนวนคอลัมน์ไม่ครบถ้วน (พบ ${cols.length} คอลัมน์, ต้องการอย่างน้อย ${mappedHeaders.length} คอลัมน์)`)
       }
 
+      const normalizedCache = new Map<number, string>()
+      const normCol = (idx: number) => {
+        let val = normalizedCache.get(idx)
+        if (val === undefined) {
+          val = normalizeForStorage(cols[idx])
+          normalizedCache.set(idx, val)
+        }
+        return val
+      }
+
       const getVal = (name: string) => {
-        const idx = mappedHeaders.indexOf(name)
-        return idx !== -1 ? normalizeForStorage(cols[idx]) : ''
+        const idx = headerIndex.get(name)
+        return idx !== undefined ? normCol(idx) : ''
       }
 
       const getAllVals = (name: string): string[] => {
+        const indices = headerAllIndices.get(name)
+        if (!indices) return []
         const vals: string[] = []
-        mappedHeaders.forEach((h, idx) => {
-          if (h === name && cols[idx] !== undefined) {
-            const v = normalizeForStorage(cols[idx])
+        for (const idx of indices) {
+          if (cols[idx] !== undefined) {
+            const v = normCol(idx)
             if (v) vals.push(v)
           }
-        })
+        }
         return vals
       }
 
@@ -293,15 +318,7 @@ export async function importItemsBulk(csvContent: string, expectedType?: 'asset'
       const rawUnitPrice = getVal('unit_price')
 
       // Detect and skip subheader rows (e.g., Row 8 in 2-tier official headers)
-      if (
-        itemName === 'รายการ' ||
-        itemName === 'รายการครุภัณฑ์' ||
-        itemName === 'ชื่อสิ่งของ' ||
-        itemName === 'ยี่ห้อ/รุ่น' ||
-        rawUnitPrice === 'ราคา' ||
-        rawUnitPrice === 'จำนวนเงิน' ||
-        rawUnitPrice === 'ราคาต่อหน่วย'
-      ) {
+      if (SUBHEADER_ITEM_NAMES.has(itemName) || SUBHEADER_PRICE_NAMES.has(rawUnitPrice)) {
         continue
       }
 
@@ -317,9 +334,9 @@ export async function importItemsBulk(csvContent: string, expectedType?: 'asset'
       if (expectedType && itemType !== expectedType) return errorResponse(`บรรทัดที่ ${lineNum}: ประเภทข้อมูลไม่ตรงกับฟอร์มนำเข้าที่เลือก`)
 
       const rawQualification = getVal('qualification_status').trim().toLowerCase()
-      const qualificationStatus: 'qualified' | 'below_threshold' | null = ['qualified', 'ตามเกณฑ์', 'ครุภัณฑ์ตามเกณฑ์'].includes(rawQualification)
+      const qualificationStatus: 'qualified' | 'below_threshold' | null = QUALIFIED_VALUES.has(rawQualification)
         ? 'qualified'
-        : ['below_threshold', 'ต่ำกว่าเกณฑ์', 'ต่ำกว่าเกณฑ์ (ต)', 'ต่ำกว่าเกณฑ์ (ต.)', 'ครุภัณฑ์ต่ำกว่าเกณฑ์', 'ครุภัณฑ์ต่ำกว่าเกณฑ์ (ต.)'].includes(rawQualification)
+        : BELOW_THRESHOLD_VALUES.has(rawQualification)
           ? 'below_threshold'
           : null
       if (rawQualification && qualificationStatus === null) {

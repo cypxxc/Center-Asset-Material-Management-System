@@ -19,9 +19,26 @@ export type MaterialImportIdentity = {
 
 function identity(row: MaterialImportIdentity) {
   let specification = ''
-  try { specification = String(JSON.parse(row.note ?? '').source_fields?.specification ?? '') } catch { /* Ordinary notes have no structured specification. */ }
+  if (row.note && row.note.trimStart().startsWith('{')) {
+    try { specification = String(JSON.parse(row.note).source_fields?.specification ?? '') } catch { /* Ordinary notes have no structured specification. */ }
+  }
   return JSON.stringify([row.item_name, row.category_name?.replace(/^\d{4}\s*-\s*/, ''), row.unit_name, row.location_name, specification]
     .map(value => normalizeForStorage(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()))
+}
+
+export function createMaterialCategoryResolver(categories: Array<{ name: string; description: string | null }>) {
+  const byName = new Map<string, string>()
+  const byDescription = new Map<string, string>()
+  for (const category of categories) {
+    if (!byName.has(category.name)) byName.set(category.name, category.name)
+    if (category.description !== null && !byDescription.has(category.description)) {
+      byDescription.set(category.description, category.name)
+    }
+  }
+  return (name: string) => {
+    const clean = name.replace(/^\d{4}\s*-\s*/, '').trim()
+    return byName.get(clean) ?? byName.get(name) ?? byDescription.get(name) ?? clean
+  }
 }
 
 export function resolvedMaterialCategory(name: string, categories: Array<{ name: string; description: string | null }>) {

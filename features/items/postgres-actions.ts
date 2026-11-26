@@ -14,7 +14,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logging'
 import { archivePostgresItems, ItemArchiveBlockedError } from './archive-items'
 import { lockDisbursementItems } from '@/features/disbursements/reservations'
-import { assertNoDuplicateMaterials, resolvedMaterialCategory, type MaterialImportIdentity } from './import-validation'
+import { assertNoDuplicateMaterials, createMaterialCategoryResolver, type MaterialImportIdentity } from './import-validation'
 import { inventoryTable } from './inventory-table'
 import { MATERIAL_LEDGER_FIELDS, materialLedgerSchema, type MaterialLedgerData } from './material-fields'
 import { ASSET_REGISTER_FIELDS, type AssetRegisterData } from './asset-register'
@@ -79,11 +79,12 @@ export async function lockItemReferences(tx: PostgresTransaction, values: Partia
   }
 }
 
-async function insert(tx: PostgresTransaction, data: ItemInput, userId: string, ledger?: MaterialLedgerData) {
+const IMPORT_BATCH_SIZE = 200
+
+function buildInsertValues(data: ItemInput, userId: string, ledger?: MaterialLedgerData) {
   if (data.image_url && !resolveLocalItemImageUrl(data.image_url)) throw new Error('Invalid image URL')
-  await lockItemReferences(tx, data)
-  const names = [...columns, 'created_by', 'updated_by', 'depreciation_method', 'depreciation_residual_value']
-  const values = [...columns.map(key => data[key] ?? null), userId, userId, data.depreciation_enabled ? 'straight_line' : null, 1]
+  const names: string[] = [...columns, 'created_by', 'updated_by', 'depreciation_method', 'depreciation_residual_value']
+  const values: unknown[] = [...columns.map(key => data[key] ?? null), userId, userId, data.depreciation_enabled ? 'straight_line' : null, 1]
   if (data.item_type === 'asset') {
     names.push(...ASSET_REGISTER_FIELDS)
     values.push(...ASSET_REGISTER_FIELDS.map(key => data[key] ?? null))
@@ -93,8 +94,44 @@ async function insert(tx: PostgresTransaction, data: ItemInput, userId: string, 
     names.push(...MATERIAL_LEDGER_FIELDS)
     values.push(...MATERIAL_LEDGER_FIELDS.map(key => materialFields[key]))
   }
+  return { names, values }
+}
+
+async function insert(tx: PostgresTransaction, data: ItemInput, userId: string, ledger?: MaterialLedgerData) {
+  await lockItemReferences(tx, data)
+  const { names, values } = buildInsertValues(data, userId, ledger)
   const result = await tx.execute<{ id: string }>(sql`insert into ${inventoryTable(data.item_type)} (${sql.join(names.map(key => sql.identifier(key)), sql`, `)}) values (${sql.join(values.map(value => sql`${value}`), sql`, `)}) returning id`)
   return result.rows[0]
+}
+
+async function flushImportBatch(
+  tx: PostgresTransaction,
+  itemType: ItemInput['item_type'],
+  batch: Array<{ rowIdx: number; data: ItemInput; ledger?: MaterialLedgerData; rawRow: ImportRow }>,
+  userId: string
+) {
+  if (!batch.length) return
+  const built = batch.map(entry => buildInsertValues(entry.data, userId, entry.ledger))
+  const colIdentifiers = sql.join(built[0].names.map(key => sql.identifier(key)), sql`, `)
+  const valueTuples = sql.join(
+    built.map(({ values }) => sql`(${sql.join(values.map(value => sql`${value}`), sql`, `)})`),
+    sql`, `
+  )
+  try {
+    await tx.execute(sql`insert into ${inventoryTable(itemType)} (${colIdentifiers}) values ${valueTuples}`)
+  } catch (err: unknown) {
+    const outer = err as { code?: string; constraint?: string; detail?: string; cause?: { code?: string; constraint?: string; detail?: string } } | null
+    const dbErr = outer?.cause ?? outer
+    if (dbErr?.code === '23505' && dbErr.constraint?.includes('asset_no')) {
+      const match = batch.find(b => b.rawRow.asset_no && dbErr.detail?.includes(b.rawRow.asset_no.trim())) ?? batch[0]
+      throw new Error(`แถวที่ ${match.rowIdx + 1}: เลขครุภัณฑ์ "${match.rawRow.asset_no || ''}" (${match.rawRow.item_name}) ซ้ำกับที่มีอยู่ในระบบแล้ว`)
+    }
+    if (dbErr?.code === '23505' && dbErr.constraint?.includes('serial_no')) {
+      const match = batch.find(b => b.rawRow.serial_no && dbErr.detail?.includes(b.rawRow.serial_no.trim())) ?? batch[0]
+      throw new Error(`แถวที่ ${match.rowIdx + 1}: Serial Number "${match.rawRow.serial_no || ''}" (${match.rawRow.item_name}) ซ้ำกับที่มีอยู่ในระบบแล้ว`)
+    }
+    throw err
+  }
 }
 
 export async function insertPostgresItem(data: ItemInput, ledger?: MaterialLedgerData) {
@@ -289,7 +326,8 @@ export async function importPostgresItems(rows: ImportRow[]) {
           left join public.locations l on l.id = i.location_id
           where i.item_type = 'material' and i.deleted_at is null
         `)
-        assertNoDuplicateMaterials(rows.map(row => ({ ...row, category_name: resolvedMaterialCategory(row.category_name, categories.rows) })), existingMaterials.rows)
+        const resolveCategory = createMaterialCategoryResolver(categories.rows)
+        assertNoDuplicateMaterials(rows.map(row => ({ ...row, category_name: resolveCategory(row.category_name) })), existingMaterials.rows)
       }
 
       // 3. ตรวจสอบเลขครุภัณฑ์ซ้ำกับที่มีอยู่ในฐานข้อมูลระบบแล้ว (Pre-check collisions)
@@ -301,9 +339,9 @@ export async function importPostgresItems(rows: ImportRow[]) {
         if (existingItems.rows.length > 0) {
           const totalDups = existingItems.rows.length
           const sampleDups = existingItems.rows.slice(0, 10).map(dup => {
-            const importRow = rows.find(r => r.asset_no?.trim() === dup.asset_no)
-            const rowIdx = rows.findIndex(r => r.asset_no?.trim() === dup.asset_no) + 1
-            const importName = importRow ? ` (${importRow.item_name})` : ''
+            const seen = seenAssets.get(dup.asset_no)
+            const rowIdx = seen?.rowIdx ?? 0
+            const importName = seen ? ` (${seen.itemName})` : ''
             return `• แถวที่ ${rowIdx}: เลขครุภัณฑ์ "${dup.asset_no}"${importName}\n  ↳ ซ้ำกับรายการในระบบ: "${dup.item_name}"`
           })
           const more = totalDups > 10 ? `\n...และรายการอื่นอีก ${totalDups - 10} รายการ` : ''
@@ -322,9 +360,9 @@ export async function importPostgresItems(rows: ImportRow[]) {
         if (existingSerials.rows.length > 0) {
           const totalDups = existingSerials.rows.length
           const sampleDups = existingSerials.rows.slice(0, 10).map(dup => {
-            const importRow = rows.find(r => r.serial_no?.trim() === dup.serial_no)
-            const rowIdx = rows.findIndex(r => r.serial_no?.trim() === dup.serial_no) + 1
-            const importName = importRow ? ` (${importRow.item_name})` : ''
+            const seen = seenSerials.get(dup.serial_no)
+            const rowIdx = seen?.rowIdx ?? 0
+            const importName = seen ? ` (${seen.itemName})` : ''
             return `• แถวที่ ${rowIdx}: Serial Number "${dup.serial_no}"${importName}\n  ↳ ซ้ำกับรายการในระบบ: "${dup.item_name}"`
           })
           const more = totalDups > 10 ? `\n...และรายการอื่นอีก ${totalDups - 10} รายการ` : ''
@@ -334,6 +372,74 @@ export async function importPostgresItems(rows: ImportRow[]) {
         }
       }
 
+      const categoryCache = new Map<string, { id: string; is_active: boolean }>()
+      const locationCache = new Map<string, { id: string; is_active: boolean }>()
+      const unitCache = new Map<string, { id: string; is_active: boolean }>()
+
+      // Pre-fetch and lock existing reference rows in bulk (max 3 queries instead of up to 3 * distinct refs).
+      const itemTypesSet = new Set<string>()
+      const catNamesSet = new Set<string>()
+      const catRawNamesSet = new Set<string>()
+      const locNamesSet = new Set<string>()
+      const unitNamesSet = new Set<string>()
+      for (const r of rows) {
+        if (r.category_name && r.category_name.length <= 120) {
+          itemTypesSet.add(r.item_type)
+          catRawNamesSet.add(r.category_name)
+          catNamesSet.add(r.category_name)
+          catNamesSet.add(r.category_name.replace(/^\d{4}\s*-\s*/, '').trim())
+        }
+        if (r.location_name && r.location_name.length <= 120) locNamesSet.add(r.location_name)
+        if (r.unit_name && r.unit_name.length <= 120) unitNamesSet.add(r.unit_name)
+      }
+
+      if (catNamesSet.size > 0 && itemTypesSet.size > 0) {
+        const catRows = await tx.execute<{ id: string; name: string; description: string | null; item_type: string; is_active: boolean }>(
+          sql`select id, name, description, item_type, is_active from public.categories where item_type in (${sql.join(Array.from(itemTypesSet, t => sql`${t}`), sql`, `)}) and (name in (${sql.join(Array.from(catNamesSet, n => sql`${n}`), sql`, `)}) or description in (${sql.join(Array.from(catRawNamesSet, n => sql`${n}`), sql`, `)})) for update`
+        )
+        const catByName = new Map<string, { id: string; is_active: boolean }>()
+        const catByDesc = new Map<string, { id: string; is_active: boolean }>()
+        for (const c of catRows.rows) {
+          const nameKey = `${c.item_type}\0${c.name}`
+          if (!catByName.has(nameKey)) catByName.set(nameKey, { id: c.id, is_active: c.is_active })
+          if (c.description !== null) {
+            const descKey = `${c.item_type}\0${c.description}`
+            if (!catByDesc.has(descKey)) catByDesc.set(descKey, { id: c.id, is_active: c.is_active })
+          }
+        }
+        for (const r of rows) {
+          if (!r.category_name || r.category_name.length > 120) continue
+          const cacheKey = `${r.item_type}\0${r.category_name}`
+          if (categoryCache.has(cacheKey)) continue
+          const clean = r.category_name.replace(/^\d{4}\s*-\s*/, '').trim()
+          const matched = catByName.get(`${r.item_type}\0${clean}`)
+            ?? catByName.get(cacheKey)
+            ?? catByDesc.get(cacheKey)
+          if (matched) categoryCache.set(cacheKey, matched)
+        }
+      }
+
+      if (locNamesSet.size > 0) {
+        const locRows = await tx.execute<{ id: string; name: string; is_active: boolean }>(
+          sql`select id, name, is_active from public.locations where name in (${sql.join(Array.from(locNamesSet, n => sql`${n}`), sql`, `)}) order by id for update`
+        )
+        for (const l of locRows.rows) {
+          if (!locationCache.has(l.name)) locationCache.set(l.name, { id: l.id, is_active: l.is_active })
+        }
+      }
+
+      if (unitNamesSet.size > 0) {
+        const unitRows = await tx.execute<{ id: string; name: string; is_active: boolean }>(
+          sql`select id, name, is_active from public.units where name in (${sql.join(Array.from(unitNamesSet, n => sql`${n}`), sql`, `)}) order by id for update`
+        )
+        for (const u of unitRows.rows) {
+          if (!unitCache.has(u.name)) unitCache.set(u.name, { id: u.id, is_active: u.is_active })
+        }
+      }
+
+      let currentBatchType: ItemInput['item_type'] | null = null
+      let currentBatch: Array<{ rowIdx: number; data: ItemInput; ledger?: MaterialLedgerData; rawRow: ImportRow }> = []
+
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         const references: Record<string, string | undefined> = {}
@@ -341,33 +447,33 @@ export async function importPostgresItems(rows: ImportRow[]) {
           const name = row[nameKey]
           if (!name) continue
           if (name.length > 120) throw new Error('Reference name too long')
+          const cache = table === 'categories' ? categoryCache : table === 'locations' ? locationCache : unitCache
+          const cacheKey = table === 'categories' ? `${row.item_type}\0${name}` : name
+          const cached = cache.get(cacheKey)
+          if (cached !== undefined) {
+            if (!cached.is_active) throw new Error('Reference is inactive')
+            references[column] = cached.id
+            continue
+          }
           const cleanName = table === 'categories' ? name.replace(/^\d{4}\s*-\s*/, '').trim() : name
-          const result = await tx.execute<{ id: string; is_active: boolean }>(
-            table === 'categories'
-              ? sql`select id, is_active from public.categories where item_type=${row.item_type} and (name=${name} or name=${cleanName} or description=${name}) order by case when name=${cleanName} then 1 when name=${name} then 2 else 3 end limit 1 for update`
-              : sql`select id, is_active from public.${sql.identifier(table)} where name=${name} order by id limit 1 for update`
-          )
-          if (result.rows[0] && !result.rows[0].is_active) throw new Error('Reference is inactive')
-          references[column] = result.rows[0]?.id ?? (await tx.execute<{id: string}>(table === 'categories'
+          const resolvedId = (await tx.execute<{ id: string }>(table === 'categories'
             ? sql`insert into public.categories (name, item_type, is_active) values (${cleanName}, ${row.item_type}, true) on conflict (name, item_type) do update set name=excluded.name returning id`
             : sql`insert into public.${sql.identifier(table)} (name, is_active) values (${cleanName}, true) returning id`)).rows[0].id
+          cache.set(cacheKey, { id: resolvedId, is_active: true })
+          references[column] = resolvedId
         }
         const data = itemFormSchema.parse({ ...row, ...references, image_url: '', depreciation_enabled: false,
           asset_no: row.asset_no ?? '', serial_no: row.serial_no ?? '', brand: row.brand ?? '', model: row.model ?? '', responsible_person: row.responsible_person ?? '', note: row.note ?? '',
           gfmis_number: row.gfmis_number ?? '', budget_source: row.budget_source ?? '', acquired_date: row.acquired_date ?? null })
-        try {
-          await insert(tx, data, profile.id, row.ledger)
-        } catch (err: unknown) {
-          const outer = err as { code?: string; constraint?: string; detail?: string; cause?: { code?: string; constraint?: string; detail?: string } } | null
-          const dbErr = outer?.cause ?? outer
-          if (dbErr?.code === '23505' && dbErr.constraint?.includes('asset_no')) {
-            throw new Error(`แถวที่ ${i + 1}: เลขครุภัณฑ์ "${row.asset_no || ''}" (${row.item_name}) ซ้ำกับที่มีอยู่ในระบบแล้ว`)
-          }
-          if (dbErr?.code === '23505' && dbErr.constraint?.includes('serial_no')) {
-            throw new Error(`แถวที่ ${i + 1}: Serial Number "${row.serial_no || ''}" (${row.item_name}) ซ้ำกับที่มีอยู่ในระบบแล้ว`)
-          }
-          throw err
+        if (currentBatchType !== null && (data.item_type !== currentBatchType || currentBatch.length >= IMPORT_BATCH_SIZE)) {
+          await flushImportBatch(tx, currentBatchType, currentBatch, profile.id)
+          currentBatch = []
         }
+        currentBatchType = data.item_type
+        currentBatch.push({ rowIdx: i, data, ledger: row.ledger, rawRow: row })
+      }
+      if (currentBatchType !== null && currentBatch.length > 0) {
+        await flushImportBatch(tx, currentBatchType, currentBatch, profile.id)
       }
       return rows.length
     })
