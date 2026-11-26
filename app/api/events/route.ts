@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       close = (cancelled = false) => { if (stopped) return; stopped=true; clearInterval(interval); unsubscribe(); request.signal.removeEventListener('abort',onAbort); if (!cancelled) controller.close() }
       request.signal.addEventListener('abort',onAbort,{ once:true })
       try {
-        unsubscribe = await subscribeChanges((table) => { if (requested.includes(table)) send(table) },() => send('reconnect'))
+        unsubscribe = await subscribeChanges((table) => { if (requested.includes(table)) send(table) }, () => send('reconnect'), profile.id)
         if (stopped) unsubscribe()
         else send('reconnect')
       } catch { close() }

@@ -10,28 +10,6 @@ export async function updatePostgresSession(request: NextRequest) {
   if (path.startsWith('/api/') || path.startsWith('/_next/') || STATIC_ASSET_PATTERN.test(path)) return NextResponse.next({ request })
   try {
     const rawToken = request.cookies.get(SESSION_COOKIE)?.value
-    const isIdleOrExplicitLogout = path === '/login' && (
-      request.nextUrl.searchParams.get('reason') === 'idle_timeout' ||
-      request.nextUrl.searchParams.get('logout') === 'true'
-    )
-
-    if (isIdleOrExplicitLogout) {
-      if (rawToken && /^[a-f0-9]{64}$/.test(rawToken)) {
-        try {
-          const { getAuthDatabase } = await import('./db')
-          const { tokenHash } = await import('./session')
-          const { sql } = await import('drizzle-orm')
-          await getAuthDatabase().execute(sql`delete from private_auth.sessions where token_hash=${tokenHash(rawToken)}`)
-        } catch {
-          // best-effort cleanup in middleware
-        }
-      }
-      const response = NextResponse.next({ request: { headers: request.headers } })
-      response.cookies.delete(SESSION_COOKIE)
-      response.headers.set('Cache-Control', 'private, no-store')
-      return response
-    }
-
     const profile = await profileForToken(rawToken)
     if (!profile && PUBLIC_ITEM_PATTERN.test(path)) {
       const response = NextResponse.next({ request: { headers: request.headers } })

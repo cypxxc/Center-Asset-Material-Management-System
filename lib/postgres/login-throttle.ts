@@ -5,11 +5,20 @@ import { getAuthDatabase } from './db'
 
 /** Persistent budgets independent of spoofable forwarding headers. */
 export async function consumeLoginAttempt(identifier: string): Promise<boolean> {
-  const key = createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex')
+  const normalized = identifier.normalize('NFC').trim()
+  const lowered = normalized.toLowerCase()
   return getAuthDatabase().transaction(async tx => {
+    // Resolve matching account ID so email, full_name, and UUID share one per-account budget.
+    const condition = normalized.includes('@') ? sql`lower(p.email)=lower(${normalized})`
+      : /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(normalized) ? sql`p.id=${normalized}::uuid`
+        : sql`lower(p.full_name)=lower(${normalized})`
+    const matched = await tx.execute<{ id: string }>(sql`select p.id from public.profiles p where ${condition} order by p.id limit 2`)
+    const accountTarget = matched.rows.length === 1 ? `user:${matched.rows[0].id}` : `id:${lowered}`
+    const key = createHash('sha256').update(accountTarget).digest('hex')
+
     // NOTE: Cleanup of old rows is intentionally NOT here — call pruneLoginAttempts()
     // via after() in the login action so it never contends with the login transaction.
-    for (const [bucket, limit] of [['global', 200], [key, 10]] as const) {
+    for (const [bucket, limit] of [['global', 1000], [key, 10]] as const) {
       const result = await tx.execute<{ attempts: number }>(sql`
         insert into private_auth.login_attempts(key,attempts) values(${bucket},1)
         on conflict (key) do update set

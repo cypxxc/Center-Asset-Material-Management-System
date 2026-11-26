@@ -34,6 +34,7 @@ import { useToast } from '@/components/ui/toast'
 import { bulkDeleteItems, getItemsForExport, getMatchingItemIds, updateItemConditionStatus } from '@/features/items/actions'
 import type { ActionResponse } from '@/lib/actions-helper'
 import { cn } from '@/lib/utils'
+import { preventCSVInjection } from '@/lib/unicode'
 import { ITEMS_PAGE_SIZE } from '@/features/items/list-params'
 import { useItemsFilter } from '@/features/items/hooks/use-items-filter'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
@@ -317,21 +318,21 @@ function ItemsExplorerSession({
 
       allItems.forEach((item) => {
         worksheet.addRow({
-          item_name: item.item_name,
+          item_name: preventCSVInjection(item.item_name),
           item_type: ITEM_TYPE_LABELS[item.item_type] || item.item_type,
           qualification_status: item.qualification_status ? ITEM_QUALIFICATION_LABELS[item.qualification_status] : 'ยังไม่ระบุ',
-          category_name: item.category?.name || '-',
+          category_name: preventCSVInjection(item.category?.name || '-'),
           quantity: item.quantity,
           unit_price: item.unit_price ?? 0,
-          unit_name: item.unit?.name || '-',
-          asset_no: item.asset_no || '-',
-          serial_no: item.serial_no || '-',
-          brand: item.brand || '-',
-          model: item.model || '-',
-          location_name: item.location?.name || '-',
-          responsible_person: item.responsible_person || '-',
+          unit_name: preventCSVInjection(item.unit?.name || '-'),
+          asset_no: preventCSVInjection(item.asset_no || '-'),
+          serial_no: preventCSVInjection(item.serial_no || '-'),
+          brand: preventCSVInjection(item.brand || '-'),
+          model: preventCSVInjection(item.model || '-'),
+          location_name: preventCSVInjection(item.location?.name || '-'),
+          responsible_person: preventCSVInjection(item.responsible_person || '-'),
           status: ITEM_STATUS_LABELS[item.status] || item.status,
-          note: item.note || '-',
+          note: preventCSVInjection(item.note || '-'),
         })
       })
 
