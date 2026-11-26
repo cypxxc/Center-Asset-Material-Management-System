@@ -1,3 +1,4 @@
+import { type z } from 'zod'
 import { type ToolDefinition, type ToolExecutionContext, type ToolPipelineResult } from './types'
 import { runToolPipeline } from './pipeline'
 
@@ -78,8 +79,7 @@ export class ToolRegistry {
   getOpenApiToolsDeclaration(): Array<{
     name: string
     description: string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    inputSchema: any
+    inputSchema: z.ZodTypeAny
   }> {
     return this.list().map((tool) => ({
       name: tool.name,

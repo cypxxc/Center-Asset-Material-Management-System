@@ -483,7 +483,7 @@ test('partial approval allocates a document number only when final rejection clo
       return { rows: [{ id: docId, status: 'pending_approval', transaction_type: 'material_issue', document_no: null, fiscal_year: null }] }
     }
     if (sql.includes('SELECT * FROM public.disbursement_items')) return { rows: [first, last] }
-    if (sql.includes('sum(delta)')) return { rows: [{ net: -1 }] }
+    if (sql.includes('sum(delta)')) return { rows: [{ disbursement_item_id: first.id, net: -1 }] }
     if (sql.includes('public.inventory_registry') || sql.includes('SELECT i.*')) {
       return { rows: [{ id: first.item_id, item_type: 'material', status: 'active', quantity: 0 }] }
     }

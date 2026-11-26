@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool, types } from 'pg'
 import { sql } from 'drizzle-orm'
 import * as schema from '@/db/postgres/schema'
+import { logger } from '@/lib/logging'
 
 // Preserve the existing JSON-facing number and ISO timestamp contracts.
 types.setTypeParser(1700, Number)
@@ -15,7 +16,17 @@ function pool(kind: 'app' | 'auth') {
     const connectionString = process.env[kind === 'app' ? 'DATABASE_URL' : 'DATABASE_AUTH_URL']
     if (!connectionString) throw new Error('PostgreSQL connection is not configured')
     state[key] = new Pool({ connectionString, max: 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 30000, statement_timeout: 15000 })
-    state[key].on('error', () => console.error('PostgreSQL idle connection failed'))
+    state[key].on('error', (error: Error & { code?: string }) => {
+      logger.error(
+        {
+          operation: 'poolIdleError',
+          feature: 'postgres',
+          status: 'failed',
+          details: { pool: kind, code: error.code },
+        },
+        error
+      )
+    })
   }
   return state[key]!
 }

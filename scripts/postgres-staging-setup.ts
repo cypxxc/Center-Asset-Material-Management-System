@@ -51,12 +51,21 @@ async function run() {
       await migratePostgres(stagingOwnerPool)
       console.log('Drizzle migrations applied.')
 
-      // Check migration records in drizzle.__drizzle_migrations
+      // Check migration records in drizzle.__drizzle_migrations against authoritative journal
+      const journal = JSON.parse(readFileSync('db/postgres/migrations/meta/_journal.json', 'utf8')) as {
+        entries?: Array<{ idx: number; tag: string }>
+      }
+      const expectedMigrations = journal.entries?.length ?? 0
+      assert.ok(expectedMigrations > 0, 'Migration journal must contain at least one entry')
       const migRows = await stagingOwnerPool.query<{ id: number; hash: string; created_at: number }>(
         'SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id ASC'
       )
-      assert.equal(migRows.rows.length, 1, 'Exactly one final baseline must be recorded')
-      console.log(`PASS Gate 2: Final baseline recorded in drizzle.__drizzle_migrations.`)
+      assert.equal(
+        migRows.rows.length,
+        expectedMigrations,
+        `Expected ${expectedMigrations} migrations from _journal.json, found ${migRows.rows.length}`
+      )
+      console.log(`PASS Gate 2: All ${expectedMigrations} migrations recorded in drizzle.__drizzle_migrations.`)
 
       // Verify tables in public and private_auth
       const tables = await stagingOwnerPool.query<{ table_schema: string; table_name: string }>(

@@ -25,11 +25,12 @@ test.describe('Solo developer browser smoke tests', () => {
     await signInAsStaff(page);
     await page.goto('/items?new=true');
 
-    const dialog = page.locator('.new-item-sheet-dialog');
-    const itemName = page.locator('input[name="item_name"]');
+    const dialog = page.locator('dialog.new-item-sheet-dialog[open]');
+    const itemName = dialog.locator('input[name="item_name"]');
     const draftName = `Draft smoke ${Date.now()}`;
 
     await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/items$/);
     await expect(itemName).toBeVisible();
 
     await expect(dialog).toHaveCSS('align-items', 'center');
@@ -47,6 +48,11 @@ test.describe('Solo developer browser smoke tests', () => {
     );
 
     await page.reload();
-    await expect(page.locator('input[name="item_name"]')).toHaveValue(draftName);
+    await expect(dialog).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'ขึ้นทะเบียนใหม่' }).click();
+    await expect(dialog).toHaveCount(1);
+    await expect(dialog).toBeVisible();
+    await expect(itemName).toHaveValue(draftName);
   });
 });

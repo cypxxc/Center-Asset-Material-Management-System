@@ -1,5 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { ensureE2EFixtures } from './e2e-fixtures'
 
 const project = process.argv[2]
 
@@ -60,6 +61,7 @@ function stopServerTree(child: ChildProcess) {
 
 async function main() {
   if (!project) throw new Error('Playwright project name is required')
+  await ensureE2EFixtures(process.env)
 
   const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start'], {
     env: process.env,

@@ -40,7 +40,7 @@ Center-Asset-Material-Management-System/
 │   │   ├── reports/      # Official inventory & depreciation reports
 │   │   └── settings/     # Categories, locations, units, CSV import
 │   └── api/              # Route Handlers (/api/health, /api/events, /api/files)
-├── db/postgres/          # Drizzle ORM schema and migrations (0000-0013)
+├── db/postgres/          # Drizzle ORM schema and migrations (0000-0001)
 ├── docs/                 # Authoritative project knowledge base
 ├── features/             # Domain-driven feature logic, queries, and Server Actions
 ├── lib/                  # Shared libraries, security headers, logging, barcode/QR
@@ -54,13 +54,13 @@ Center-Asset-Material-Management-System/
 
 | If you are working on... | Read these documents first | Primary source files |
 | :--- | :--- | :--- |
-| **System Overview & Tech Stack** | [docs/PROJECT_CONTEXT.md](file:///D:/Center-Asset-Material-Management-System-main/docs/PROJECT_CONTEXT.md) | [package.json](file:///D:/Center-Asset-Material-Management-System-main/package.json), [lib/config.ts](file:///D:/Center-Asset-Material-Management-System-main/lib/config.ts) |
-| **Architecture & Network Flow** | [docs/ARCHITECTURE.md](file:///D:/Center-Asset-Material-Management-System-main/docs/ARCHITECTURE.md) | [proxy.ts](file:///D:/Center-Asset-Material-Management-System-main/proxy.ts), [lib/postgres/middleware.ts](file:///D:/Center-Asset-Material-Management-System-main/lib/postgres/middleware.ts) |
-| **Database, Schema & Migrations** | [docs/DATABASE_SCHEMA.md](file:///D:/Center-Asset-Material-Management-System-main/docs/DATABASE_SCHEMA.md) | [db/postgres/schema.ts](file:///D:/Center-Asset-Material-Management-System-main/db/postgres/schema.ts), [db/postgres/migrations/](file:///D:/Center-Asset-Material-Management-System-main/db/postgres/migrations/) |
-| **Business Logic, Stock & Rules** | [docs/BUSINESS_RULES.md](file:///D:/Center-Asset-Material-Management-System-main/docs/BUSINESS_RULES.md) | [features/disbursements/](file:///D:/Center-Asset-Material-Management-System-main/features/disbursements/), [features/items/](file:///D:/Center-Asset-Material-Management-System-main/features/items/) |
-| **API Endpoints & Server Actions** | [docs/API_REFERENCE.md](file:///D:/Center-Asset-Material-Management-System-main/docs/API_REFERENCE.md) | [app/api/](file:///D:/Center-Asset-Material-Management-System-main/app/api/), [features/*/postgres-actions.ts](file:///D:/Center-Asset-Material-Management-System-main/features/) |
+| **System Overview & Tech Stack** | [README.md](file:///D:/Center-Asset-Material-Management-System-main/README.md) | [package.json](file:///D:/Center-Asset-Material-Management-System-main/package.json), [lib/config.ts](file:///D:/Center-Asset-Material-Management-System-main/lib/config.ts) |
+| **Architecture & Network Flow** | [docs/ENGINEERING_STANDARDS.md](file:///D:/Center-Asset-Material-Management-System-main/docs/ENGINEERING_STANDARDS.md) | [proxy.ts](file:///D:/Center-Asset-Material-Management-System-main/proxy.ts), [lib/postgres/middleware.ts](file:///D:/Center-Asset-Material-Management-System-main/lib/postgres/middleware.ts) |
+| **Database, Schema & Migrations** | [docs/ENGINEERING_STANDARDS.md](file:///D:/Center-Asset-Material-Management-System-main/docs/ENGINEERING_STANDARDS.md) | [db/postgres/schema.ts](file:///D:/Center-Asset-Material-Management-System-main/db/postgres/schema.ts), [db/postgres/migrations/](file:///D:/Center-Asset-Material-Management-System-main/db/postgres/migrations/) |
+| **Business Logic, Stock & Rules** | [docs/ENGINEERING_STANDARDS.md](file:///D:/Center-Asset-Material-Management-System-main/docs/ENGINEERING_STANDARDS.md) | [features/disbursements/](file:///D:/Center-Asset-Material-Management-System-main/features/disbursements/), [features/items/](file:///D:/Center-Asset-Material-Management-System-main/features/items/) |
+| **API Endpoints & Server Actions** | [docs/ENGINEERING_STANDARDS.md](file:///D:/Center-Asset-Material-Management-System-main/docs/ENGINEERING_STANDARDS.md) | [app/api/](file:///D:/Center-Asset-Material-Management-System-main/app/api/), [features/*/postgres-actions.ts](file:///D:/Center-Asset-Material-Management-System-main/features/) |
 | **Coding, Testing & Verification** | [Verification Checklist](#5-verification-checklist-before-completing-any-task) | [scripts/run-tests.ts](file:///D:/Center-Asset-Material-Management-System-main/scripts/run-tests.ts), [tests/setup/dom.ts](file:///D:/Center-Asset-Material-Management-System-main/tests/setup/dom.ts) |
-| **Known Issues & Technical Debt** | [docs/KNOWN_ISSUES.md](file:///D:/Center-Asset-Material-Management-System-main/docs/KNOWN_ISSUES.md) | [features/admin/postgres-policy.ts](file:///D:/Center-Asset-Material-Management-System-main/features/admin/postgres-policy.ts) |
+| **Known Issues & Technical Debt** | [docs/OPTIMIZATION_ROADMAP.md](file:///D:/Center-Asset-Material-Management-System-main/docs/OPTIMIZATION_ROADMAP.md) | [features/admin/postgres-policy.ts](file:///D:/Center-Asset-Material-Management-System-main/features/admin/postgres-policy.ts) |
 
 ---
 
@@ -101,6 +101,6 @@ npm run lint
 # 2. Type check verification (0 errors required)
 npm run typecheck
 
-# 3. Test suite verification (all 232 test files must pass)
+# 3. Test suite verification (all test files must pass)
 npm test
 ```

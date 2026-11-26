@@ -2,7 +2,6 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import { getCurrentProfile } from '@/features/auth/queries'
 import { withUserDatabase } from '@/lib/postgres/request'
-import type { PostgresTransaction } from '@/lib/postgres/db'
 import { assignCustodySchema, custodyHistoryParamsSchema, returnCustodySchema } from './custody-schema'
 import { normalizeForSearch } from '@/lib/unicode'
 import { assertCentralDisbursementItem, isCentralDisbursementItem } from './central-items'
@@ -12,6 +11,9 @@ import { syncCentralNote } from '@/features/items/central-note'
 import { findPoolMismatch, type PoolAuditEvidence } from './pool-audit'
 import { assertItemUnreserved, lockDisbursementItems } from './reservations'
 import { inventoryTableForId } from '@/features/items/inventory-table'
+import { findOriginLocation } from './origin-location'
+
+export { findOriginLocation }
 
 async function requireAdmin() {
   const profile = await getCurrentProfile()
@@ -43,6 +45,15 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
   const params = custodyHistoryParamsSchema.parse(rawInput)
   const pageSize = 20
   const historySql = sql`
+    WITH custody_events AS (
+      SELECT a.*,
+        CASE
+          WHEN a.target_id IS NOT NULL
+          THEN LEAD(a.action) OVER (PARTITION BY a.target_id ORDER BY a.created_at ASC, a.id ASC)
+        END AS next_action
+      FROM public.audit_logs a
+      WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
+    )
     SELECT a.id,
       a.action,
       a.target_id AS item_id,
@@ -59,8 +70,8 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
       i.location_id AS current_location_id,
       CASE
         WHEN a.action = 'RETURN_CUSTODY' THEN 'returned'
-        WHEN nl.action = 'RETURN_CUSTODY' THEN 'returned'
-        WHEN nl.action = 'ASSIGN_CUSTODY' THEN 'transferred'
+        WHEN a.next_action = 'RETURN_CUSTODY' THEN 'returned'
+        WHEN a.next_action = 'ASSIGN_CUSTODY' THEN 'transferred'
         WHEN i.id IS NULL OR i.deleted_at IS NOT NULL THEN 'cancelled'
         WHEN coalesce(i.is_central, false) = false
           AND i.responsible_person IS NOT NULL
@@ -71,7 +82,7 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
       END AS status_action,
       (
         a.action = 'ASSIGN_CUSTODY'
-        AND nl.action IS NULL
+        AND a.next_action IS NULL
         AND i.id IS NOT NULL
         AND i.deleted_at IS NULL
         AND coalesce(i.is_central, false) = false
@@ -80,22 +91,11 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
       ) AS can_return,
       (
         a.action = 'RETURN_CUSTODY'
-        OR nl.action = 'RETURN_CUSTODY'
+        OR a.next_action = 'RETURN_CUSTODY'
       ) AS is_returned
-    FROM public.audit_logs a
+    FROM custody_events a
     LEFT JOIN public.items i ON i.id = a.target_id
     LEFT JOIN public.profiles p ON p.id = a.user_id
-    LEFT JOIN LATERAL (
-      SELECT a2.action
-      FROM public.audit_logs a2
-      WHERE a2.target_table = 'items'
-        AND a2.target_id = a.target_id
-        AND a2.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY')
-        AND (a2.created_at > a.created_at OR (a2.created_at = a.created_at AND a2.id > a.id))
-      ORDER BY a2.created_at ASC, a2.id ASC
-      LIMIT 1
-    ) nl ON true
-    WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
   `
   const pattern = `%${normalizeForSearch(params.q)}%`
   const baseFilter = params.active_only ? sql`h.can_return = true` : sql`true`
@@ -104,7 +104,13 @@ export async function getCustodyHistory(rawInput: unknown = {}) {
         OR h.from_responsible ILIKE ${pattern} OR h.to_responsible ILIKE ${pattern} OR h.actor_name ILIKE ${pattern})`
     : (params.active_only ? sql`WHERE ${baseFilter}` : sql``)
   return withUserDatabase(async tx => {
-    const count = await tx.execute<{ total: number }>(sql`SELECT count(*)::int AS total FROM (${historySql}) h ${filter}`)
+    const count = (!params.active_only && !params.q)
+      ? await tx.execute<{ total: number }>(sql`
+          SELECT count(*)::int AS total
+          FROM public.audit_logs a
+          WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
+        `)
+      : await tx.execute<{ total: number }>(sql`SELECT count(*)::int AS total FROM (${historySql}) h ${filter}`)
     const total = count.rows[0]?.total ?? 0
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const page = Math.min(params.page, totalPages)
@@ -125,6 +131,15 @@ export async function loadCustodyData() {
         SELECT id, full_name FROM public.profiles WHERE is_active = true ORDER BY full_name, id
       `)
       const history = await tx.execute<CustodyHistoryRow>(sql`
+        WITH custody_events AS (
+          SELECT a.*,
+            CASE
+              WHEN a.target_id IS NOT NULL
+              THEN LEAD(a.action) OVER (PARTITION BY a.target_id ORDER BY a.created_at ASC, a.id ASC)
+            END AS next_action
+          FROM public.audit_logs a
+          WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
+        )
         SELECT a.id,
           a.action,
           a.target_id AS item_id,
@@ -141,8 +156,8 @@ export async function loadCustodyData() {
           i.location_id AS current_location_id,
           CASE
             WHEN a.action = 'RETURN_CUSTODY' THEN 'returned'
-            WHEN nl.action = 'RETURN_CUSTODY' THEN 'returned'
-            WHEN nl.action = 'ASSIGN_CUSTODY' THEN 'transferred'
+            WHEN a.next_action = 'RETURN_CUSTODY' THEN 'returned'
+            WHEN a.next_action = 'ASSIGN_CUSTODY' THEN 'transferred'
             WHEN i.id IS NULL OR i.deleted_at IS NOT NULL THEN 'cancelled'
             WHEN coalesce(i.is_central, false) = false
               AND i.responsible_person IS NOT NULL
@@ -153,7 +168,7 @@ export async function loadCustodyData() {
           END AS status_action,
           (
             a.action = 'ASSIGN_CUSTODY'
-            AND nl.action IS NULL
+            AND a.next_action IS NULL
             AND i.id IS NOT NULL
             AND i.deleted_at IS NULL
             AND coalesce(i.is_central, false) = false
@@ -162,22 +177,11 @@ export async function loadCustodyData() {
           ) AS can_return,
           (
             a.action = 'RETURN_CUSTODY'
-            OR nl.action = 'RETURN_CUSTODY'
+            OR a.next_action = 'RETURN_CUSTODY'
           ) AS is_returned
-        FROM public.audit_logs a
+        FROM custody_events a
         LEFT JOIN public.items i ON i.id = a.target_id
         LEFT JOIN public.profiles p ON p.id = a.user_id
-        LEFT JOIN LATERAL (
-          SELECT a2.action
-          FROM public.audit_logs a2
-          WHERE a2.target_table = 'items'
-            AND a2.target_id = a.target_id
-            AND a2.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY')
-            AND (a2.created_at > a.created_at OR (a2.created_at = a.created_at AND a2.id > a.id))
-          ORDER BY a2.created_at ASC, a2.id ASC
-          LIMIT 1
-        ) nl ON true
-        WHERE a.action IN ('ASSIGN_CUSTODY', 'RETURN_CUSTODY') AND a.target_table = 'items'
         ORDER BY a.created_at DESC, a.id DESC LIMIT 100
       `)
       return { users: users.rows, history: history.rows }
@@ -281,120 +285,6 @@ export async function getActiveLocations() {
     `)
     return res.rows
   })
-}
-
-export async function findOriginLocation(
-  tx: PostgresTransaction,
-  itemId: string,
-  responsiblePerson: string | null
-): Promise<{ id: string; name: string } | null> {
-  // Step 1: Look at the latest ASSIGN_CUSTODY audit log for this item and this responsible_person
-  const assignLogRes = await tx.execute<{
-    origin_location_id: string | null
-    old_location_id: string | null
-    log_created_at: string
-    log_id: string
-  }>(sql`
-    SELECT
-      a.new_data->>'origin_location_id' AS origin_location_id,
-      a.old_data->>'location_id' AS old_location_id,
-      a.created_at::text AS log_created_at,
-      a.id::text AS log_id
-    FROM public.audit_logs a
-    WHERE a.action = 'ASSIGN_CUSTODY'
-      AND a.target_table = 'items'
-      AND a.target_id = ${itemId}
-      AND (${responsiblePerson}::text IS NULL OR a.new_data->>'responsible_person' = ${responsiblePerson})
-    ORDER BY a.created_at DESC, a.id DESC
-    LIMIT 1
-  `)
-
-  const assignLog = assignLogRes.rows[0]
-  const explicitLocId = assignLog?.origin_location_id || assignLog?.old_location_id
-  if (explicitLocId) {
-    const locRes = await tx.execute<{ id: string; name: string }>(sql`
-      SELECT id, name FROM public.locations WHERE id = ${explicitLocId}::uuid
-    `)
-    if (locRes.rows[0]) return locRes.rows[0]
-  }
-
-  // Step 2: Check disbursement documents (asset_handover / asset_borrow)
-  const disbRes = await tx.execute<{ location_id: string | null; location_name: string }>(sql`
-    SELECT l.id AS location_id, coalesce(l.name, di.location_name_snapshot) AS location_name
-    FROM public.disbursement_items di
-    JOIN public.disbursements d ON d.id = di.disbursement_id
-    LEFT JOIN public.locations l ON l.name = di.location_name_snapshot
-    WHERE di.item_id = ${itemId}
-      AND (${responsiblePerson}::text IS NULL OR d.recipient_name = ${responsiblePerson})
-      AND di.location_name_snapshot IS NOT NULL
-    ORDER BY d.created_at DESC, di.id DESC
-    LIMIT 1
-  `)
-  if (disbRes.rows[0]?.location_id && disbRes.rows[0]?.location_name) {
-    return { id: disbRes.rows[0].location_id, name: disbRes.rows[0].location_name }
-  }
-
-  // Step 3: If assignLog exists but didn't have location_id stored in its JSON,
-  // find the latest item location audit log BEFORE or AT the time of this assignment
-  if (assignLog) {
-    const prevLocRes = await tx.execute<{ location_id: string }>(sql`
-      SELECT coalesce(al.new_data->>'location_id', al.old_data->>'location_id') AS location_id
-      FROM public.audit_logs al
-      WHERE al.target_table = 'items'
-        AND al.target_id = ${itemId}
-        AND al.id::text != ${assignLog.log_id}
-        AND al.created_at <= ${assignLog.log_created_at}::timestamptz
-        AND (al.new_data->>'location_id' IS NOT NULL OR al.old_data->>'location_id' IS NOT NULL)
-      ORDER BY al.created_at DESC, al.id DESC
-      LIMIT 1
-    `)
-    const prevLocId = prevLocRes.rows[0]?.location_id
-    if (prevLocId) {
-      const loc = await tx.execute<{ id: string; name: string }>(sql`
-        SELECT id, name FROM public.locations WHERE id = ${prevLocId}::uuid
-      `)
-      if (loc.rows[0]) return loc.rows[0]
-    }
-  }
-
-  // Step 4: Check if there was an earlier RETURN_CUSTODY log before this assignment
-  const returnLogRes = await tx.execute<{ location_id: string }>(sql`
-    SELECT coalesce(al.new_data->>'origin_location_id', al.new_data->>'location_id') AS location_id
-    FROM public.audit_logs al
-    WHERE al.action = 'RETURN_CUSTODY'
-      AND al.target_table = 'items'
-      AND al.target_id = ${itemId}
-      ${assignLog ? sql`AND al.created_at < ${assignLog.log_created_at}::timestamptz` : sql.empty()}
-    ORDER BY al.created_at DESC, al.id DESC
-    LIMIT 1
-  `)
-  const returnLocId = returnLogRes.rows[0]?.location_id
-  if (returnLocId) {
-    const loc = await tx.execute<{ id: string; name: string }>(sql`
-      SELECT id, name FROM public.locations WHERE id = ${returnLocId}::uuid
-    `)
-    if (loc.rows[0]) return loc.rows[0]
-  }
-
-  // Step 5: Check item creation / import log
-  const createLogRes = await tx.execute<{ location_id: string }>(sql`
-    SELECT coalesce(al.new_data->>'location_id', al.old_data->>'location_id') AS location_id
-    FROM public.audit_logs al
-    WHERE al.target_table = 'items'
-      AND al.target_id = ${itemId}
-      AND (al.new_data->>'location_id' IS NOT NULL OR al.old_data->>'location_id' IS NOT NULL)
-    ORDER BY al.created_at ASC, al.id ASC
-    LIMIT 1
-  `)
-  const createLocId = createLogRes.rows[0]?.location_id
-  if (createLocId) {
-    const loc = await tx.execute<{ id: string; name: string }>(sql`
-      SELECT id, name FROM public.locations WHERE id = ${createLocId}::uuid
-    `)
-    if (loc.rows[0]) return loc.rows[0]
-  }
-
-  return null
 }
 
 export async function getOriginLocation(itemId: string, custodianName?: string | null) {

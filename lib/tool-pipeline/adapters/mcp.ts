@@ -1,3 +1,4 @@
+import { type z } from 'zod'
 import { type ToolRegistry } from '../registry'
 import { type ToolExecutionContext } from '../types'
 
@@ -14,8 +15,7 @@ export interface McpToolCallResult {
 export interface McpToolDeclaration {
   name: string
   description: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  inputSchema: any
+  inputSchema: z.ZodTypeAny
 }
 
 export interface McpAdapter {
